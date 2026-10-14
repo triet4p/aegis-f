@@ -4,7 +4,7 @@
 
 Personal Android expense tracker with user-defined categories, on-device AI suggestions, optional bank-notification intake, and bounded expense Q&A. Build and deploy to a physical Android device without Android Studio or an emulator; distribute privately as a signed APK.
 
-**Current state:** Native Kotlin/Compose Android project builds a signed debug APK from the command line without Android Studio or an emulator. The user verified the English/VND launch screen and same-key A→B update preserving saved state on the physical phone. Temporary test code was removed; clean versionCode 4 builds and offline checks passed. Sprint 1 technical tasks are complete; reviewed commit/push closeout is pending. No ledger or AI inference has been implemented or measured.
+**Current state:** Sprint 1 is complete and published to `origin/main` in delivery commit `57d7095ed8daf368a0b401955ded9aaf61523d3d`. Native Kotlin/Compose Android project builds a signed debug APK without Android Studio or an emulator. The user verified the English/VND launch screen and same-key A→B update preserving saved state. Temporary test code was removed; clean versionCode 4 build and offline checks passed, but its physical installation has not been reported. No ledger or AI inference has been implemented or measured.
 
 ## Product Scope
 
@@ -40,11 +40,11 @@ Personal Android expense tracker with user-defined categories, on-device AI sugg
 
 ## Current Sprint and Roadmap
 
-**Next sprint:** Sprint 2 after Sprint 1 commit/push closeout. Sprint 1 technical acceptance is complete; Sprints 2–6 remain pending.
+**Next sprint:** Sprint 2 — VND ledger and categories. Sprint 1 is complete; Sprints 2–6 remain pending.
 
 | Sprint | Goal | Depends on | Status |
 | --- | --- | --- | --- |
-| [1 — CLI and physical device](sprint-plans/sprint-1.md) | Establish a working Android build/deploy path and device evidence | None | Technical tasks complete; commit/push pending |
+| [1 — CLI and physical device](sprint-plans/sprint-1.md) | Establish a working Android build/deploy path and device evidence | None | Complete; delivery committed and pushed |
 | [2 — VND ledger and categories](sprint-plans/sprint-2.md) | Deliver the manually usable local tracker | Sprint 1 | Pending |
 | [3 — Bank notification drafts](sprint-plans/sprint-3.md) | Capture permitted bank content safely and review transactions | Sprint 2 | Pending |
 | [4 — Decision-model suggestions](sprint-plans/sprint-4.md) | Suggest existing categories from English descriptions | Sprint 2; Sprint 3 before notification integration task | Pending |
