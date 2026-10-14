@@ -1,0 +1,47 @@
+# Machine-specific Android SDK location
+/local.properties
+
+# Gradle and Android build output
+.gradle/
+**/.gradle/
+**/build/
+**/captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
+*.apk
+*.aab
+*.hprof
+
+# IDE-local state
+.idea/
+*.iml
+
+# Credentials and signing material
+.env
+.env.*
+key.properties
+signing.properties
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.p8
+*.key
+
+# Locally supplied ML model binaries
+models/
+**/models/
+*.onnx
+*.gguf
+*.tflite
+*.safetensors
+*.pt
+*.pth
+*.ort
+*.model
+*.task
+*.mlmodel
+*.litertlm
+*.bin
