@@ -1,0 +1,354 @@
+package io.github.triet4p.aegisf.ui
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import java.time.LocalDate
+import java.time.ZoneId
+import java.util.TimeZone
+
+/**
+ * Browsing-filter behaviour that is easy to get wrong and visible to the user: the
+ * half-open inclusive-From/Through convention in the device zone, refused date ranges that
+ * must not silently broaden, and combined dimensions that keep every constrained one.
+ *
+ * These tests pin [resolveDateFilter] and [applyTransactionFilters] directly — the same
+ * functions the saved-transactions list calls — against real epoch millis, so a boundary
+ * mistake or a dropped AND dimension fails here. Rendering, scrolling, and the physical
+ * phone gate stay user-run.
+ */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
+class TransactionFilterTest {
+
+    private val hoChiMinh = TimeZone.getTimeZone("Asia/Ho_Chi_Minh")
+    private val hoChiMinhZoneId = ZoneId.of("Asia/Ho_Chi_Minh")
+    private val newYork = TimeZone.getTimeZone("America/New_York")
+    private val newYorkZoneId = ZoneId.of("America/New_York")
+
+    private fun atTime(date: String, time: String, zone: TimeZone): Long =
+        ManualDateTime.toEpochMillis(date, time, zone)
+
+    @Test
+    fun `a single Through day keeps records from its first minute to its last`() {
+        val resolved = resolveDateFilter("", "2026-10-15", hoChiMinh)
+        assertNull(resolved.fromError)
+        assertNull(resolved.throughError)
+        assertNull(resolved.rangeError)
+        val range = resolved.range!!
+        // The From end is open, so the start is null; the Through end bounds the day.
+        assertNull(range.fromEpochMillis)
+
+        val startOfDay = ManualDateTime.dayStartEpochMillis("2026-10-15", hoChiMinh)
+        val startOfNext = range.throughExclusiveEpochMillis!!
+        assertEquals(ManualDateTime.dayAfterStartEpochMillis("2026-10-15", hoChiMinh), startOfNext)
+        assertTrue(startOfDay < startOfNext)
+
+        // A record at the first minute of the 15th and one at the last minute are inside;
+        // the first minute of the 16th is outside.
+        assertTrue(atTime("2026-10-15", "00:00", hoChiMinh) >= startOfDay)
+        assertTrue(atTime("2026-10-15", "23:59", hoChiMinh) < startOfNext)
+        assertTrue(atTime("2026-10-16", "00:00", hoChiMinh) >= startOfNext)
+        assertTrue(atTime("2026-10-14", "23:59", hoChiMinh) < startOfDay)
+    }
+
+
+    @Test
+    fun `an inclusive From Through pair keeps both boundary days`() {
+        val resolved = resolveDateFilter("2026-10-14", "2026-10-15", hoChiMinh)
+        assertNull(resolved.rangeError)
+        val range = resolved.range!!
+
+        assertTrue(atTime("2026-10-14", "00:00", hoChiMinh) >= range.fromEpochMillis!!)
+        assertTrue(atTime("2026-10-15", "23:59", hoChiMinh) < range.throughExclusiveEpochMillis!!)
+        assertTrue(atTime("2026-10-13", "23:59", hoChiMinh) < range.fromEpochMillis!!)
+        assertTrue(atTime("2026-10-16", "00:00", hoChiMinh) >= range.throughExclusiveEpochMillis!!)
+    }
+
+    @Test
+    fun `an open From with a Through keeps everything up to the Through day`() {
+        val resolved = resolveDateFilter("", "2026-10-15", hoChiMinh)
+        val range = resolved.range!!
+
+        assertNull(range.fromEpochMillis)
+        assertTrue(atTime("2026-01-01", "00:00", hoChiMinh) < range.throughExclusiveEpochMillis!!)
+        assertTrue(atTime("2026-10-16", "00:00", hoChiMinh) >= range.throughExclusiveEpochMillis!!)
+    }
+
+    @Test
+    fun `an open Through with a From keeps everything from the From day on`() {
+        val resolved = resolveDateFilter("2026-10-15", "", hoChiMinh)
+        val range = resolved.range!!
+
+        assertNull(range.throughExclusiveEpochMillis)
+        assertTrue(atTime("2026-10-15", "00:00", hoChiMinh) >= range.fromEpochMillis!!)
+        assertTrue(atTime("2026-10-14", "23:59", hoChiMinh) < range.fromEpochMillis!!)
+        assertTrue(atTime("2027-01-01", "00:00", hoChiMinh) >= range.fromEpochMillis!!)
+    }
+
+    @Test
+    fun `two empty ends are the full list, not a refusal`() {
+        val resolved = resolveDateFilter("", "")
+
+        assertNull(resolved.fromError)
+        assertNull(resolved.throughError)
+        assertNull(resolved.rangeError)
+        val range = resolved.range!!
+        assertNull(range.fromEpochMillis)
+        assertNull(range.throughExclusiveEpochMillis)
+        assertFalse(TransactionFilterState().isActive)
+    }
+
+    @Test
+    fun `a malformed or reversed range is refused and never applied`() {
+        val malformed = resolveDateFilter("2026-02-30", "2026-10-15", hoChiMinh)
+        assertNotNull(malformed.fromError)
+        assertNull(malformed.throughError)
+        assertNull(malformed.range)
+
+        val reversed = resolveDateFilter("2026-10-16", "2026-10-15", hoChiMinh)
+        assertNull(reversed.fromError)
+        assertNull(reversed.throughError)
+        assertNotNull(reversed.rangeError)
+        assertNull(reversed.range)
+
+        val neighbouring = resolveDateFilter("2026-10-15", "2026-10-14", hoChiMinh)
+        assertNotNull(neighbouring.rangeError)
+        assertNull(neighbouring.range)
+    }
+
+    @Test
+    fun `a daylight-saving start day contributes its actual 23 hours, not 24`() {
+        // America/New_York springs forward on 2026-03-08: that local day is 23 hours long.
+        val resolved = resolveDateFilter("2026-03-08", "2026-03-08", newYork)
+        val range = resolved.range!!
+        val dayLength = range.throughExclusiveEpochMillis!! - range.fromEpochMillis!!
+
+        assertEquals(23L * 60L * 60L * 1000L, dayLength)
+        assertEquals(
+            LocalDate.parse("2026-03-08").atStartOfDay(newYorkZoneId).toInstant().toEpochMilli(),
+            range.fromEpochMillis,
+        )
+    }
+
+    @Test
+    fun `a daylight-saving end day contributes its actual 25 hours, not 24`() {
+        // America/New_York falls back on 2026-11-01: that local day is 25 hours long.
+        val resolved = resolveDateFilter("2026-11-01", "2026-11-01", newYork)
+        val range = resolved.range!!
+        val dayLength = range.throughExclusiveEpochMillis!! - range.fromEpochMillis!!
+
+        assertEquals(25L * 60L * 60L * 1000L, dayLength)
+    }
+
+    @Test
+    fun `a non UTC zone keeps a late local record on its own day`() {
+        val resolved = resolveDateFilter("2026-10-15", "2026-10-15", hoChiMinh)
+        val range = resolved.range!!
+
+        // 2026-10-15 23:30 in UTC+7 is already 2026-10-16 in UTC, but it belongs to the
+        // 15th under the device-zone convention.
+        val lateLocal = atTime("2026-10-15", "23:30", hoChiMinh)
+        assertTrue(lateLocal >= range.fromEpochMillis!!)
+        assertTrue(lateLocal < range.throughExclusiveEpochMillis!!)
+        assertEquals("2026-10-15", ManualDateTime.dateFieldText(lateLocal, hoChiMinh))
+    }
+
+    @Test
+    fun `combined filters keep only records that satisfy every constrained dimension`() {
+        val records = listOf(
+            io.github.triet4p.aegisf.data.TransactionEntity(
+                id = 1L,
+                type = io.github.triet4p.aegisf.data.TransactionType.EXPENSE,
+                amountVnd = 45_000L,
+                occurredAtEpochMillis = atTime("2026-10-15", "12:00", hoChiMinh),
+                description = "Lunch",
+                categoryId = 10L,
+                createdAtEpochMillis = 1L,
+                updatedAtEpochMillis = 1L,
+            ),
+            io.github.triet4p.aegisf.data.TransactionEntity(
+                id = 2L,
+                type = io.github.triet4p.aegisf.data.TransactionType.INCOME,
+                amountVnd = 1_000_000L,
+                occurredAtEpochMillis = atTime("2026-10-15", "12:00", hoChiMinh),
+                description = "Salary",
+                categoryId = 10L,
+                createdAtEpochMillis = 1L,
+                updatedAtEpochMillis = 1L,
+            ),
+            io.github.triet4p.aegisf.data.TransactionEntity(
+                id = 3L,
+                type = io.github.triet4p.aegisf.data.TransactionType.EXPENSE,
+                amountVnd = 120_000L,
+                occurredAtEpochMillis = atTime("2026-10-16", "12:00", hoChiMinh),
+                description = "Groceries",
+                categoryId = null,
+                createdAtEpochMillis = 1L,
+                updatedAtEpochMillis = 1L,
+            ),
+        )
+        val range = resolveDateFilter("2026-10-15", "2026-10-15", hoChiMinh).range!!
+
+        val kept = applyTransactionFilters(
+            records = records,
+            type = io.github.triet4p.aegisf.data.TransactionType.EXPENSE,
+            category = CategoryFilter.Specific(10L),
+            range = range,
+        )
+
+        assertEquals(listOf(1L), kept.map { it.id })
+
+        // Dropping one dimension widens to the records that satisfy the remaining two:
+        // the income record shares the day and the category but not the type.
+        val withoutType = applyTransactionFilters(
+            records = records,
+            type = null,
+            category = CategoryFilter.Specific(10L),
+            range = range,
+        )
+        assertEquals(listOf(1L, 2L), withoutType.map { it.id })
+    }
+
+    @Test
+    fun `the category dimensions distinguish all uncategorized and one archived category`() {
+        val archivedId = 10L
+        val records = listOf(
+            io.github.triet4p.aegisf.data.TransactionEntity(
+                id = 1L,
+                type = io.github.triet4p.aegisf.data.TransactionType.EXPENSE,
+                amountVnd = 45_000L,
+                occurredAtEpochMillis = 1_700_000_000_000L,
+                description = "Lunch",
+                categoryId = archivedId,
+                createdAtEpochMillis = 1L,
+                updatedAtEpochMillis = 1L,
+            ),
+            io.github.triet4p.aegisf.data.TransactionEntity(
+                id = 2L,
+                type = io.github.triet4p.aegisf.data.TransactionType.EXPENSE,
+                amountVnd = 120_000L,
+                occurredAtEpochMillis = 1_700_000_100_000L,
+                description = "Market",
+                categoryId = null,
+                createdAtEpochMillis = 1L,
+                updatedAtEpochMillis = 1L,
+            ),
+        )
+        val open = EpochRange(null, null)
+
+        assertEquals(
+            listOf(1L, 2L),
+            applyTransactionFilters(records, null, CategoryFilter.All, open).map { it.id },
+        )
+        assertEquals(
+            listOf(2L),
+            applyTransactionFilters(records, null, CategoryFilter.Uncategorized, open)
+                .map { it.id },
+        )
+        assertEquals(
+            listOf(1L),
+            applyTransactionFilters(records, null, CategoryFilter.Specific(archivedId), open)
+                .map { it.id },
+        )
+        // A removed category's id matches nothing rather than falling back to everything.
+        assertTrue(
+            applyTransactionFilters(records, null, CategoryFilter.Specific(999L), open)
+                .isEmpty(),
+        )
+
+        // The selection is a stable id: renaming the category cannot be confused with a
+        // different category, and the archived id still selects its historical records.
+        val selection = CategoryFilter.Specific(archivedId)
+        assertEquals(CategoryFilter.Specific(archivedId), selection)
+        assertEquals(
+            "Unknown category",
+            categorySelectionLabelForTest(selection, emptyList()),
+        )
+    }
+
+    @Test
+    fun `clearing every dimension returns the full list in the stored order`() {
+        val records = listOf(
+            io.github.triet4p.aegisf.data.TransactionEntity(
+                id = 3L,
+                type = io.github.triet4p.aegisf.data.TransactionType.TRANSFER,
+                amountVnd = 500_000L,
+                occurredAtEpochMillis = 1_700_000_300_000L,
+                description = "Move",
+                createdAtEpochMillis = 1L,
+                updatedAtEpochMillis = 1L,
+            ),
+            io.github.triet4p.aegisf.data.TransactionEntity(
+                id = 1L,
+                type = io.github.triet4p.aegisf.data.TransactionType.EXPENSE,
+                amountVnd = 45_000L,
+                occurredAtEpochMillis = 1_700_000_000_000L,
+                description = "Lunch",
+                createdAtEpochMillis = 1L,
+                updatedAtEpochMillis = 1L,
+            ),
+        )
+
+        val cleared = TransactionFilterState()
+        assertFalse(cleared.isActive)
+        val visible = applyTransactionFilters(
+            records = records,
+            type = cleared.type,
+            category = cleared.category,
+            range = EpochRange(null, null),
+        )
+
+        // The stored order passes through untouched: filtering never re-sorts.
+        assertEquals(listOf(3L, 1L), visible.map { it.id })
+    }
+
+    @Test
+    fun `equal occurred-at instants keep the stored id tie breaker under filters`() {
+        val moment = atTime("2026-10-15", "12:00", hoChiMinh)
+        val records = listOf(
+            io.github.triet4p.aegisf.data.TransactionEntity(
+                id = 2L,
+                type = io.github.triet4p.aegisf.data.TransactionType.EXPENSE,
+                amountVnd = 120_000L,
+                occurredAtEpochMillis = moment,
+                description = "Second",
+                createdAtEpochMillis = 1L,
+                updatedAtEpochMillis = 1L,
+            ),
+            io.github.triet4p.aegisf.data.TransactionEntity(
+                id = 1L,
+                type = io.github.triet4p.aegisf.data.TransactionType.EXPENSE,
+                amountVnd = 45_000L,
+                occurredAtEpochMillis = moment,
+                description = "First",
+                createdAtEpochMillis = 1L,
+                updatedAtEpochMillis = 1L,
+            ),
+        )
+        val range = resolveDateFilter("2026-10-15", "2026-10-15", hoChiMinh).range!!
+
+        val visible = applyTransactionFilters(records, null, CategoryFilter.All, range)
+
+        assertEquals(listOf(2L, 1L), visible.map { it.id })
+    }
+
+    // The label helper is private to the list screen; this local copy asserts the tested
+    // contract (an unknown id names itself unknown) without reaching into composition.
+    private fun categorySelectionLabelForTest(
+        selection: CategoryFilter,
+        categories: List<io.github.triet4p.aegisf.data.CategoryEntity>,
+    ): String = when (selection) {
+        is CategoryFilter.All -> "All categories"
+        is CategoryFilter.Uncategorized -> "No category"
+        is CategoryFilter.Specific -> categories.firstOrNull { it.id == selection.categoryId }
+            ?.let { io.github.triet4p.aegisf.ui.categoryLabel(it) }
+            ?: "Unknown category"
+    }
+}

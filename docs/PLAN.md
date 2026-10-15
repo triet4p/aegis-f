@@ -4,7 +4,7 @@
 
 Personal Android expense tracker with user-defined categories, on-device AI suggestions, optional bank-notification intake, and bounded expense Q&A. Build and deploy to a physical Android device without Android Studio or an emulator; distribute privately as a signed APK.
 
-**Current state:** Sprint 1 is complete and published to `origin/main` in delivery commit `57d7095ed8daf368a0b401955ded9aaf61523d3d`. Native Kotlin/Compose Android project builds a signed debug APK without Android Studio or an emulator. The user verified the English/VND launch screen and same-key A→B update preserving saved state. Temporary test code was removed; clean versionCode 4 build and offline checks passed, but its physical installation has not been reported. No ledger or AI inference has been implemented or measured.
+**Current state:** Sprint 1 is complete and published to `origin/main`. Sprint 2 is complete and accepted: 55 permanent tests passed and the user confirmed final offline, force-stop persistence and transaction month-edge checks (“1-3 đạt”). User authorized a scoped local Sprint 2 commit, not a push; no AI inference has been performed.
 
 ## Product Scope
 
@@ -32,7 +32,7 @@ Personal Android expense tracker with user-defined categories, on-device AI sugg
 ## Milestones
 
 - [x] **M1 — Device development path:** reproducible command-line build, user-run install/launch/device inspection, and verified same-key update preserving saved state; temporary probe removed.
-- [ ] **M2 — Usable local ledger:** manual transaction/category management and exact VND summaries survive restarts.
+- [x] **M2 — Usable local ledger:** manual transaction/category management and exact VND summaries survive restarts; offline and month-edge behavior accepted on the physical device.
 - [ ] **M3 — Safe bank intake:** supported bank notifications create deduplicated, reviewable drafts without OTP retention.
 - [ ] **M4 — Existing-category AI:** on-device English category suggestions with safe unknown handling and user corrections.
 - [ ] **M5 — New-category suggestions and Q&A:** on-device SLM proposes names and calls bounded database tools.
@@ -40,12 +40,12 @@ Personal Android expense tracker with user-defined categories, on-device AI sugg
 
 ## Current Sprint and Roadmap
 
-**Next sprint:** Sprint 2 — VND ledger and categories. Sprint 1 is complete; Sprints 2–6 remain pending.
+**Current sprint:** Sprint 2 — VND ledger and categories, complete and accepted; local delivery commit authorized, push not authorized. [Final host evidence](../artifacts/sprint-2/S2.8-a1/offline-persistence-proof.md). Sprints 3–6 remain pending; Sprint 3 has not started.
 
 | Sprint | Goal | Depends on | Status |
 | --- | --- | --- | --- |
 | [1 — CLI and physical device](sprint-plans/sprint-1.md) | Establish a working Android build/deploy path and device evidence | None | Complete; delivery committed and pushed |
-| [2 — VND ledger and categories](sprint-plans/sprint-2.md) | Deliver the manually usable local tracker | Sprint 1 | Pending |
+| [2 — VND ledger and categories](sprint-plans/sprint-2.md) | Deliver the manually usable local tracker | Sprint 1 | Complete and accepted; local commit authorized |
 | [3 — Bank notification drafts](sprint-plans/sprint-3.md) | Capture permitted bank content safely and review transactions | Sprint 2 | Pending |
 | [4 — Decision-model suggestions](sprint-plans/sprint-4.md) | Suggest existing categories from English descriptions | Sprint 2; Sprint 3 before notification integration task | Pending |
 | [5 — Liquid SLM features](sprint-plans/sprint-5.md) | Suggest new names and answer bounded ledger questions | Sprint 4 | Pending |
@@ -71,7 +71,7 @@ Plans hold scope, status, durable decisions, real blockers, and concise evidence
 
 ## Completed Sprints
 
-None.
+- Sprint 1 — CLI build/deploy path and user-run launch/update proof complete; published to `origin/main` (plan closure `154d34c6f11836a9951f8afffd885c6b004e4e57`).
 
 ## Out of Scope / Future Work
 

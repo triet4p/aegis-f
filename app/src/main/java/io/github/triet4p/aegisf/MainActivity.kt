@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,27 +17,125 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.triet4p.aegisf.data.LedgerRepository
+import io.github.triet4p.aegisf.ui.CategoryManagerScreen
+import io.github.triet4p.aegisf.ui.CurrentMonthExpenseSummary
+import io.github.triet4p.aegisf.ui.TransactionDetailScreen
+import io.github.triet4p.aegisf.ui.TransactionEditorScreen
+import io.github.triet4p.aegisf.ui.TransactionFilterState
+import io.github.triet4p.aegisf.ui.TransactionListScreen
+
+/** Which screen the launcher is showing; the home screen itself is the default. */
+private sealed interface LaunchDestination : java.io.Serializable {
+    data object Home : LaunchDestination
+
+    data object Categories : LaunchDestination
+
+    data object Transactions : LaunchDestination
+
+    data object NewTransaction : LaunchDestination
+
+    /**
+     * The record-bearing destinations carry the stored id, never a loaded row: the screen
+     * reads the record it shows out of the database, so it is correct after a process restart
+     * too, and the current destination survives a configuration change.
+     */
+    data class Detail(val transactionId: Long) : LaunchDestination
+
+    data class Edit(val transactionId: Long) : LaunchDestination
+}
 
 class MainActivity : ComponentActivity() {
+
+    private val ledgerRepository: LedgerRepository by lazy {
+        (application as AegisApplication).container.ledgerRepository
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             AegisTheme {
-                LaunchScreen()
+                var destination by rememberSaveable {
+                    mutableStateOf<LaunchDestination>(LaunchDestination.Home)
+                }
+                // The browsing filters live with the navigation state — above the list
+                // screen — so opening a record's detail view or its editor and coming back
+                // keeps them as they were. They are saveable primitives, not ledger data.
+                var transactionFilters by rememberSaveable {
+                    mutableStateOf(TransactionFilterState())
+                }
+                // The filter panel's expansion is held the same way, for the same reason: a
+                // configuration change and the way back from a record's detail view or editor
+                // must leave the list looking as it was left, collapsed on first entry.
+                var transactionFiltersExpanded by rememberSaveable {
+                    mutableStateOf(false)
+                }
+                when (val current = destination) {
+                    LaunchDestination.Home -> LaunchScreen(
+                        repository = ledgerRepository,
+                        onManageCategories = { destination = LaunchDestination.Categories },
+                        onRecordTransaction = { destination = LaunchDestination.NewTransaction },
+                        onBrowseTransactions = { destination = LaunchDestination.Transactions },
+                    )
+
+                    LaunchDestination.Categories -> CategoryManagerScreen(
+                        repository = ledgerRepository,
+                        onNavigateUp = { destination = LaunchDestination.Home },
+                    )
+
+                    LaunchDestination.Transactions -> TransactionListScreen(
+                        repository = ledgerRepository,
+                        filters = transactionFilters,
+                        onFiltersChange = { transactionFilters = it },
+                        filtersExpanded = transactionFiltersExpanded,
+                        onFiltersExpandedChange = { transactionFiltersExpanded = it },
+                        onSelect = { recordId -> destination = LaunchDestination.Detail(recordId) },
+                        onNavigateUp = { destination = LaunchDestination.Home },
+                    )
+
+                    LaunchDestination.NewTransaction -> TransactionEditorScreen(
+                        repository = ledgerRepository,
+                        transactionId = null,
+                        onNavigateUp = { destination = LaunchDestination.Home },
+                    )
+
+                    is LaunchDestination.Detail -> TransactionDetailScreen(
+                        repository = ledgerRepository,
+                        transactionId = current.transactionId,
+                        onEdit = { destination = LaunchDestination.Edit(current.transactionId) },
+                        onDeleted = { destination = LaunchDestination.Transactions },
+                        onNavigateUp = { destination = LaunchDestination.Transactions },
+                    )
+
+                    is LaunchDestination.Edit -> TransactionEditorScreen(
+                        repository = ledgerRepository,
+                        transactionId = current.transactionId,
+                        // A saved correction and a cancelled one both lead back to the detail
+                        // view, which re-reads the stored row: only a save has changed it.
+                        onNavigateUp = {
+                            destination = LaunchDestination.Detail(current.transactionId)
+                        },
+                    )
+                }
             }
         }
     }
@@ -77,8 +176,21 @@ private fun AegisTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = colorScheme, content = content)
 }
 
+/**
+ * The home screen: the current month's confirmed spending, then the ways into recording,
+ * browsing, and categorising.
+ *
+ * The summary reads the ledger itself through [repository], so it appears before any other
+ * action is taken and is refreshed by the same live stream every other screen uses. Nothing
+ * on this screen writes to the ledger.
+ */
 @Composable
-private fun LaunchScreen() {
+private fun LaunchScreen(
+    repository: LedgerRepository,
+    onManageCategories: () -> Unit,
+    onRecordTransaction: () -> Unit,
+    onBrowseTransactions: () -> Unit,
+) {
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
@@ -104,6 +216,10 @@ private fun LaunchScreen() {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+
+            // The month's own figure, above every action: it is what the user came to check,
+            // and it counts the whole ledger rather than anything a browsing filter selects.
+            CurrentMonthExpenseSummary(repository = repository)
 
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -142,6 +258,73 @@ private fun LaunchScreen() {
                             style = MaterialTheme.typography.displaySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
+                    }
+                }
+            }
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = "TRANSACTIONS",
+                        style = MaterialTheme.typography.labelLarge,
+                        letterSpacing = 1.2.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = "Record what you spend, earn, and move between your own " +
+                            "accounts, in exact whole dong. Open a saved record to correct " +
+                            "or delete it.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Button(
+                        onClick = onRecordTransaction,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Record a transaction")
+                    }
+                    OutlinedButton(
+                        onClick = onBrowseTransactions,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Saved transactions")
+                    }
+                }
+            }
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = "CATEGORIES",
+                        style = MaterialTheme.typography.labelLarge,
+                        letterSpacing = 1.2.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = "Add, rename, and archive the categories your transactions are " +
+                            "filed under.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Button(
+                        onClick = onManageCategories,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Manage categories")
                     }
                 }
             }
