@@ -1,8 +1,8 @@
 # Aegis F
 
 Aegis F is a personal, offline Android expense tracker for a single user. It keeps a local ledger of
-money movements in Vietnamese dong (VND), with user-defined categories and manual entry — every
-record is typed in by hand and stored on the phone.
+money movements in Vietnamese dong (VND), with user-defined categories, manual entry, and an
+opt-in notification review inbox — every bank-derived record still requires the user's confirmation.
 
 - **Currency:** VND only. Amounts are exact whole dong, stored as signed 64-bit integers and shown
   with an explicit VND / `₫` indicator. There is no floating-point money and no currency conversion.
@@ -36,32 +36,144 @@ record is typed in by hand and stored on the phone.
   drafts, and records dated outside the current month are excluded. It follows saves, corrections, and
   deletions, and it follows the phone into a new month.
 - **Local persistence** — the ledger survives closing the app, swiping it away from the recent-apps
-  view, and force-stopping it. The app needs no model file, no notification access, no login, no
-  network, and no bank integration.
+  view, and force-stopping it. The app needs no model file, no login, no network, and no bank
+  integration. Bank-notification access is optional and off by default.
+- **Bank notification setup, filtering, parsing, and pending drafts (opt-in, no
+  auto-confirmation)** — the home screen's **Bank notifications** page shows whether
+  system notification access is granted, whether the listener is connected, and which
+  bank app packages may become draft sources. Access is granted or revoked only in the
+  system settings (the page opens that screen and the app-info screen for
+  restricted-settings installs); the allowlist stores only user-typed package names,
+  never display names or guesses. The access check asks the system directly on
+  supported Android versions and the listener loads the stored allowlist off the main
+  thread when it connects, publishing connected only once the snapshot is ready. A
+  post that arrives before readiness is queued without reading its content and is
+  processed in order once the snapshot loads; revocation clears the queue so no
+  post-revoke draft is written, while drafts already stored stay in the database.
+  A notification from any other package is then dropped before its content is read at
+  all, and one from a listed package is screened before anything is kept: one-time
+  passwords, verification and security messages, group summaries, and payloads with no
+  text or with redaction only are discarded without retaining their bodies, while the
+  supported title, text, and big-text fields are extracted so a partly redacted bank
+  message keeps its readable transaction line. A permitted message that matches the
+  supported VietinBank format the user actually receives is then read into its stated
+  fields and stored promptly on a background thread as a pending draft: the amount
+  from the transaction line alone, the direction the bank stated as a debit or a
+  credit — never an expense or income by itself — the timestamp kept as the bank's own
+  local wall-clock time, because the bank sends no time zone and none is invented, and
+  the transaction description. Each field keeps its explicit present, unresolved, or
+  missing state with the bank, source package, notification key, and posted time as
+  provenance, and a message that is not that format is stored as explicitly
+  unsupported rather than as a transaction. The account line is never extracted, a
+  masked balance is never read as the amount, and a field that is missing, masked, or
+  conflicting stays visibly unresolved rather than being guessed. Storing a draft is
+  idempotent per delivered post and per statement: the delivery identity is the source
+  package, the notification key, and the platform's post time, so a replayed callback or
+  a notification re-read after a reconnect writes nothing, while a later post under a
+  notification key the bank reuses is stored as its own pending draft even when its
+  stated fields are byte-identical to the earlier delivery's, and the earlier draft is
+  never rewritten either way. A later delivery stating identical evidence is flagged for
+  review as a possible duplicate of the earliest matching statement — never merged with
+  it, and never discarded as a repeat — because no supported bank format states a
+  transaction reference, and a similar amount or time proves neither that two
+  transactions are one nor that a later real transaction is an earlier one returning.
+  Two deliveries whose readable `ND:` descriptions differ are not similar evidence at all:
+  the description is part of the stored evidence, so they are two statements, kept apart
+  and shown separately, and neither is flagged as a possible duplicate.
+  A draft the user has already confirmed or dismissed keeps that state and its
+  draft-to-ledger link through any replay of its own delivery. Drafts survive closing and
+  reopening the database and are recovered for review; they enter
+  no summary and are never confirmed automatically. From the home screen, **Review bank drafts**
+  opens the pending inbox, where the bank/source, stated date, amount, direction, memo, and any
+  unresolved reason are visible. You can correct amount, date, time, or optional description,
+  explicitly choose Expense, Income, or Internal transfer, and choose a category or explicitly
+  choose No category. A debit or credit never selects the ledger type. Missing or invalid amount,
+  date, time, type, and applicable category choices must be resolved before confirmation; an
+  unknown memo may remain visibly unresolved. The bank timestamp stays a wall clock until you
+  confirm, when the app interprets it in the device's current time zone and lets you correct it
+  first. Possible duplicates link to the related draft and its pending, confirmed, or dismissed
+  state; neither candidate is automatically removed. Confirmation creates and links one confirmed
+  ledger record atomically, while dismissal creates no record and changes no total. Revoking access
+  stops intake while manual recording works unchanged, and intake drafts stay visibly incomplete
+  evidence, never a bank statement. The status line tells access apart from binding:
+  access revoked means the listener is disconnected because the grant is gone, while access
+  granted with a disconnected listener means the system has not reconnected it yet — drafts
+  already saved are unchanged either way. When access is granted but the listener is
+  disconnected, one button asks the system to reconnect through the supported rebind; the
+  system answers in its own time and the status keeps telling the truth meanwhile, with no
+  retry loop and no settings bypass. After every (re)connect the app re-reads only the
+  notifications still showing on the phone through the same package/security/group filter
+  and the same delivery/evidence identity, so a re-read post writes nothing, a later
+  equal-evidence post becomes its own flagged candidate, and a confirmed or dismissed draft
+  is never reopened. Anything already dismissed is not recovered.
+
+## Supported bank notification formats and what is verified
+
+Only one notification format is parsed, and only these parts of it:
+
+- The bank attribution line, for example `VietinBank: 16/10/2026 07:38`, gives the bank and the
+  stated wall-clock moment. The bank sends no time zone, so none is invented: the moment stays a
+  wall clock until you confirm, when the app reads it in the phone's current time zone.
+- `GD:` is the transaction amount, and its sign is the bank's stated direction (`-` a debit,
+  `+` a credit). A debit is never silently an expense — you choose the ledger type.
+- `ND:` is the description, and becomes a memo only when something readable is left; a masked or
+  dot-filled value stays visibly unresolved.
+- `TK:` (account) and `SDC:` (balance) are recognised only so they can be ignored. The account
+  value is never extracted, and a masked balance is never read as the amount.
+
+Anything else — another bank's message, a promotion, a balance-only alert, an OTP, a security
+message, a group summary, or a payload that is empty or redaction only — becomes either an
+explicitly unsupported draft or no draft at all, never a transaction. No transaction reference is
+read or invented, because no supported format states one: the `ND:` line is description text, and
+a value that looks like a reference (`ND: REF#101`) is description text like any other, read as
+nothing more. Because that description is part of the stored evidence, two deliveries stating
+different descriptions are two statements — both kept, neither flagged as a possible duplicate of
+the other, each confirmable to its own ledger record — while two deliveries the bank describes
+identically still keep both and flag the later one for review.
+
+That format comes from the redacted sample its owner supplied and has **not** been observed
+arriving through the listener on a phone. What is actually verified today:
+
+- **Host-verified, no device:** the whole chain runs on the real Kotlin/Room code paths on the PC
+  — a real listener callback through the package/security filter and the parser into the real
+  pending-draft table, then explicit review and atomic confirmation producing exactly one ledger
+  record and one month total, including replay, possible-duplicate, rejection, and reopen cases.
+  Two equal-value statements with different `ND:` descriptions are kept apart, unflagged, and each
+  confirmed to its own ledger record; and an active-notification answer the system cannot give
+  reconciles nothing, leaves the drafts already stored untouched, and writes no draft of its own.
+- **User-verified on the phone (S3.1):** notification access was granted, the listener reported
+  connected, and one bank package was listed, with the screenshot the owner kept.
+- **Not yet verified on the phone:** a notification the bank app delivers naturally to the
+  listener; the real Android package name, notification key, and title/text/big-text mapping;
+  screen-lock, restart, and OEM behavior; revoking access on the device; and updating in place to
+  the current build. Until those are run, intake with the real bank is unproven and no automatic
+  capture and no bank compatibility is claimed.
 
 ## Not implemented yet
 
-The roadmap is planned, not built. The following do **not** exist in the current app, and the UI does
-not pretend they do:
+The following capabilities are not available yet:
 
-- **No AI inference.** No decision model, no SLM, and no category suggestions of any kind. Every
-  amount, type, date, description, and category is entered manually.
-- **No bank or notification intake.** The app does not read bank push notifications, does not connect
-  to a bank account, and does not request notification-listener, SMS, or other runtime permissions.
+- **No AI inference.** There is no decision model, SLM, or category suggestion. Supported bank
+  fields are extracted deterministically and still require your review; type and category choices
+  are explicit.
+- **No bank account connection.** The review inbox uses only permitted notification drafts; the app
+  does not log in to a bank or request SMS, accessibility, or notification-posting permissions.
 - **No cloud service, sync, or account.** There is no login, no server, and no network use at all.
 - **No backup, restore, or export.** See the data note below.
 - **No multi-currency, receipt OCR, voice input, or shared accounts**, and no published release: the
   APK is built and installed privately by its owner.
 
-Planned work (bank notification drafts, on-device category suggestions, new-category suggestions and
-bounded ledger Q&A, then a personal daily-use release) is described in
-[docs/PLAN.md](docs/PLAN.md).
+Planned work (real-bank device verification of the notification intake, on-device category
+suggestions, new-category suggestions and bounded ledger Q&A, then a personal daily-use release)
+is described in [docs/PLAN.md](docs/PLAN.md).
 
 ## Your data
 
-- The ledger lives only in the app's private storage on the phone. The app declares no runtime
-  permission; the only permission entry in the built APK is a dependency-generated,
-  signature-protected internal broadcast permission.
+- The ledger and the bank-package allowlist live only in the app's private storage on the phone.
+  The app declares no runtime permission and requests none; notification access is a system settings
+  grant, not a manifest permission. The only permission entries in the built APK are the
+  system-bound listener declaration and the dependency-generated, signature-protected internal
+  broadcast permission.
 - Android's own backup is switched off for this app (`allowBackup="false"`), and there is no in-app
   export, import, backup, or restore yet. **Uninstalling the app, clearing its storage, or losing or
   resetting the phone loses the ledger permanently.**
@@ -119,8 +231,29 @@ developer setup guide rather than uninstalling the app.
 - **Sprint 2 — VND ledger and user-defined categories: complete and accepted**, including the
   user-run offline, force-stop persistence, and month-boundary checks on the physical phone. Its
   delivery commit is local only and has not been pushed.
-- Host-side unit tests run against the real Room database file (55 permanent tests, no emulator or
+- Host-side unit tests run against the real Room database file (130 permanent tests, no emulator or
   device) and pass; they cover persistence across close/reopen, exact VND boundaries and refusals,
-  category history, filters, and month-edge summary inclusion.
-- **Sprint 3 has not started.** Milestones M3–M6 remain pending — see
-  [docs/PLAN.md](docs/PLAN.md).
+  category history, filters, month-edge summary inclusion, notification-access setup and listener
+  ordering, notification intake filtering and pending-draft persistence, VietinBank notification
+  parsing, draft delivery/evidence identity and review transitions with their schema migrations,
+  equal-value drafts distinguished only by their stated description, listener lifecycle recovery
+  and rebind gating, an active-notification answer the platform cannot give, and income/transfers
+  remaining outside expense summaries.
+- **Sprint 3 — bank notifications to reviewable drafts: under way.** The opt-in access/allowlist
+  setup, the privacy-first intake filter (package checked before any content is read, OTP and
+  security messages, group summaries, and empty or fully redacted payloads discarded), parsing
+  of the supported VietinBank format into its stated amount, direction, timestamp, and description,
+  pending-draft persistence (explicit parse/review states, bank/source provenance, and a
+  draft-to-ledger link, with drafts recovered after restart and excluded from summaries),
+  conservative deduplication (exact post replays are idempotent, distinct posts remain separate,
+  possible duplicates are linked rather than merged), review inbox with explicit type choice,
+  corrections, dismissal, and atomic confirmation, and listener lifecycle recovery (current-active
+  reconciliation after reconnect, revoked-vs-disconnected status, one supported rebind request)
+  are built, and S3.8 exercised the whole chain end to end on the host — a real listener callback
+  through the privacy filter and the parser, into the real Room drafts, then explicit review and
+  atomic confirmation producing exactly one ledger record and one month total, with replay,
+  possible-duplicate, rejection, and reopen cases — and documented the supported format and the
+  limits above. Real-bank verification on the phone (a notification delivered naturally, screen
+  lock, restart, OEM behavior, on-device revocation) is still user-run and pending, as is the
+  independent privacy/intake review of this evidence. Milestone M3 is in
+  progress; M4–M6 remain pending — see [docs/PLAN.md](docs/PLAN.md).

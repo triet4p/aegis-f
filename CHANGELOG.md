@@ -7,8 +7,111 @@ and no release has been tagged or published. Format follows
 
 ## [Unreleased]
 
-Nothing yet. Sprint 3 (bank notification drafts) has not started; planned work is tracked in
-[docs/PLAN.md](docs/PLAN.md).
+### Added
+
+- Bank-notification opt-in setup: the home screen's **Bank notifications** page
+  shows notification-access status, listener binding, and the user-chosen bank package allowlist,
+  opens the system notification-access and app-info screens (including restricted-settings
+  guidance), and persists only validated package names. The access check asks the system
+  directly through the supported listener-access API on current Android versions, and the
+  system-bound listener loads the stored allowlist off the main thread on connect,
+  publishing connected only once the snapshot is ready, before dropping non-allowlisted
+  packages. It logs and stores no notification content. Manual recording works with access
+  on, off, or revoked.
+- Privacy-first bank-notification filtering: a posted notification is checked against the
+  listed bank packages before any of its content is read, and one from a listed package is
+  screened so one-time passwords, verification and security messages, group summaries, and
+  payloads with no text or redaction only are discarded without retaining their bodies. The
+  supported title, text, and big-text fields are screened for the parser, so a partly redacted
+  bank message keeps its readable transaction line — redacted account and memo lines are
+  preserved as received, never rewritten or guessed. Rejected payloads are not logged or
+  stored; parsing and ledger confirmation are separate later steps.
+- VietinBank notification parsing: a notification the filter permits is read
+  into the fields the user's own redacted VietinBank sample uses — the amount from its `GD`
+  transaction line alone, the direction the bank stated from that line's sign (a debit or a
+  credit, deliberately not an expense or an income), the timestamp kept as the bank's own local
+  wall-clock time with no time zone claimed — the bank sends none, so no instant is invented here;
+  a later confirmed record converts it under the app's own device-time-zone policy — and the
+  description from its `ND` line. The account line is never extracted and a masked balance is never
+  read as the amount; an amount, direction, timestamp, or description that is missing, masked, or
+  conflicting stays visibly unresolved instead of being guessed, and a message that is not this
+  observed format — another bank's, a promotion, a balance-only alert — is kept as explicitly
+  unsupported intake rather than as a transaction.
+- Pending bank-draft intake: a permitted notification is stored promptly on a background
+  thread as a pending draft in the `pending_bank_drafts` table (schema version 2, with a
+  migration that keeps existing ledger rows). Each draft keeps explicit parse and review
+  states, bank and notification provenance (source package, key, posted time), stated amount,
+  bank direction (a debit is stored as a debit, never as an expense), wall-clock date/time
+  with no invented zone, and memo — with missing, masked, or conflicting fields left visibly
+  unresolved and unsupported payloads stored as explicitly unsupported rather than as
+  finance. Posts arriving before the allowlist loads are queued without reading their content
+  and processed in order once ready; revocation clears the queue so no post-revoke draft is
+  written while already stored drafts remain. Drafts survive database close/reopen, enter no
+  expense summary, and are never auto-confirmed; confirmation requires the later explicit
+  review action described below.
+- Conservative bank-draft deduplication: each stored draft now keeps two
+  identities — the platform post it arrived as (source package plus the platform's notification key
+  and post time) and a canonical digest of the permitted evidence it states — and the database
+  enforces them together, so a replayed callback and a notification re-read after a reconnect
+  store nothing and report the draft already stored. Because a bank may reuse one notification key
+  for a later transaction, a different post under that key is kept as its own pending draft beside
+  the earlier one instead of overwriting it even when its stated amount, minute, and description
+  are byte-identical — a reused key can no longer cause a real transaction to be mistaken for a
+  repeat and discarded — and a draft already confirmed or dismissed keeps its terminal state.
+  A confirmed draft's ledger link is unchanged through replay. A delivery stating identical
+  evidence to an earlier one is flagged as a possible duplicate rather than merged: no supported
+  bank format states a transaction reference, and similar amounts, times, or descriptions prove
+  neither that two transactions are one nor that a later one is an earlier one returning. The draft table gains schema version 3, whose migration rebuilds it, keeps
+  every stored draft with its id, review state, and ledger link (copying the earliest of any exact
+  duplicate rows an earlier version had stored for one delivery, which the identity rules would
+  never have stored twice), and derives the identities of drafts stored under version 2 with the
+  same rules the running app uses, and schema version 4, whose migration re-derives the delivery
+  identity of every already-stored draft from that row's own package, key, and post time, so a
+  draft stored while the post time was not yet part of its identity still recognizes the post it
+  arrived as and is not duplicated after the upgrade.
+- Bank-draft review inbox and explicit confirmation: **Review bank drafts** on the home
+  screen opens pending, unsupported, and ambiguous intake with bank/source, stated date,
+  amount, direction, memo, and unresolved reasons. The user can correct amount, date, time,
+  and optional description; must explicitly choose Expense, Income, or Internal transfer;
+  and explicitly choose a category or No category when applicable. A debit never selects
+  Expense, and an unknown memo may stay unresolved. The bank wall-clock timestamp is still
+  unzoned in the draft; only explicit confirmation interprets it in the device's current
+  time zone, with the fields available for correction first. Possible duplicates link to
+  the related draft and its pending, confirmed, or dismissed state; uncertain candidates are
+  kept. Confirmation creates one confirmed bank-sourced ledger record and its draft link in
+  one Room transaction; repeated or stale confirmation cannot add another record, and
+  dismissal changes no ledger totals. User corrections are stored separately from parsed
+  evidence so the delivery/evidence replay identity is preserved. Schema version 5 adds
+  those review fields with a non-destructive migration that preserves ledger rows, draft ids,
+  terminal states, ledger links, and duplicate links.
+- Listener lifecycle recovery: after every (re)connect the listener re-reads only the
+  notifications still showing on the phone through the same package/security/group filter
+  and the same delivery/evidence identity a live callback uses, so a re-read post writes
+  nothing, a later equal-evidence post becomes its own flagged candidate, and a confirmed
+  or dismissed draft is never reopened. Anything already dismissed is not recovered, and
+  drafts already saved survive disconnect and restart unchanged. The settings status tells
+  a revoked grant apart from a system-side disconnect, and one explicit button asks the
+  system to reconnect through the supported rebind only when access is granted — the
+  system answers asynchronously with no retry loop and no settings bypass. No schema
+  change; ordering is queue first, then current-active reconciliation.
+- Documented supported bank-notification formats and their limits: the README now names the
+  single observed VietinBank grammar the app parses (attribution line, `GD:` amount with its sign
+  as the bank's stated direction, `ND:` description), states that the `TK:` account line is
+  ignored and a masked `SDC:` balance is never read as the amount, that everything else becomes
+  explicitly unsupported or nothing at all rather than a transaction, and that no transaction
+  reference is read or invented. It also separates what is host-verified on the real Kotlin/Room
+  code paths from what is user-verified on the phone (S3.1 access) and what still awaits a
+  notification delivered naturally on the device: the real package/key/field mapping, screen
+  lock, restart, OEM behavior, on-device revocation, and the in-place update.
+
+### Fixed
+
+- Bank-notification listener recovery no longer fails when the system does not report which
+  notifications are currently active. On Android 7 and 8 the platform's active-notification read
+  answers nothing at all, rather than an empty list, while the listener's binding is not yet
+  established, and that answer previously threw inside the background reconciliation that runs
+  after a (re)connect. Nothing is read, stored, or claimed in that case, the drafts already saved
+  are left exactly as they are, and the next (re)connect reconciles normally.
 
 ## [Sprint 2] — VND ledger and user-defined categories
 

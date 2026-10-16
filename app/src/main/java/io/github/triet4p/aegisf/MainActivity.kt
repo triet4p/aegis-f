@@ -35,14 +35,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.triet4p.aegisf.data.BankDraftReviewRepository
+import io.github.triet4p.aegisf.data.IntakeRepository
 import io.github.triet4p.aegisf.data.LedgerRepository
+import io.github.triet4p.aegisf.data.NotificationAccessStore
+import io.github.triet4p.aegisf.ui.BankDraftReviewScreen
+import io.github.triet4p.aegisf.ui.BankNotificationSettingsScreen
 import io.github.triet4p.aegisf.ui.CategoryManagerScreen
 import io.github.triet4p.aegisf.ui.CurrentMonthExpenseSummary
 import io.github.triet4p.aegisf.ui.TransactionDetailScreen
 import io.github.triet4p.aegisf.ui.TransactionEditorScreen
 import io.github.triet4p.aegisf.ui.TransactionFilterState
 import io.github.triet4p.aegisf.ui.TransactionListScreen
-
 /** Which screen the launcher is showing; the home screen itself is the default. */
 private sealed interface LaunchDestination : java.io.Serializable {
     data object Home : LaunchDestination
@@ -50,8 +54,12 @@ private sealed interface LaunchDestination : java.io.Serializable {
     data object Categories : LaunchDestination
 
     data object Transactions : LaunchDestination
-
     data object NewTransaction : LaunchDestination
+    data object BankNotifications : LaunchDestination
+
+    data object BankDraftInbox : LaunchDestination
+
+    data class BankDraftDetail(val draftId: Long) : LaunchDestination
 
     /**
      * The record-bearing destinations carry the stored id, never a loaded row: the screen
@@ -67,6 +75,18 @@ class MainActivity : ComponentActivity() {
 
     private val ledgerRepository: LedgerRepository by lazy {
         (application as AegisApplication).container.ledgerRepository
+    }
+
+    private val notificationAccessStore: NotificationAccessStore by lazy {
+        (application as AegisApplication).container.notificationAccessStore
+    }
+
+    private val intakeRepository: IntakeRepository by lazy {
+        (application as AegisApplication).container.intakeRepository
+    }
+
+    private val bankDraftReviewRepository: BankDraftReviewRepository by lazy {
+        (application as AegisApplication).container.bankDraftReviewRepository
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,6 +115,31 @@ class MainActivity : ComponentActivity() {
                         onManageCategories = { destination = LaunchDestination.Categories },
                         onRecordTransaction = { destination = LaunchDestination.NewTransaction },
                         onBrowseTransactions = { destination = LaunchDestination.Transactions },
+                        onBankNotifications = { destination = LaunchDestination.BankNotifications },
+                        onReviewBankDrafts = { destination = LaunchDestination.BankDraftInbox },
+                    )
+
+                    LaunchDestination.BankNotifications -> BankNotificationSettingsScreen(
+                        accessStore = notificationAccessStore,
+                        onNavigateUp = { destination = LaunchDestination.Home },
+                    )
+
+                    LaunchDestination.BankDraftInbox -> BankDraftReviewScreen(
+                        intakeRepository = intakeRepository,
+                        reviewRepository = bankDraftReviewRepository,
+                        ledgerRepository = ledgerRepository,
+                        draftId = null,
+                        onSelectDraft = { id -> destination = LaunchDestination.BankDraftDetail(id) },
+                        onNavigateUp = { destination = LaunchDestination.Home },
+                    )
+
+                    is LaunchDestination.BankDraftDetail -> BankDraftReviewScreen(
+                        intakeRepository = intakeRepository,
+                        reviewRepository = bankDraftReviewRepository,
+                        ledgerRepository = ledgerRepository,
+                        draftId = current.draftId,
+                        onSelectDraft = { id -> destination = LaunchDestination.BankDraftDetail(id) },
+                        onNavigateUp = { destination = LaunchDestination.BankDraftInbox },
                     )
 
                     LaunchDestination.Categories -> CategoryManagerScreen(
@@ -178,7 +223,7 @@ private fun AegisTheme(content: @Composable () -> Unit) {
 
 /**
  * The home screen: the current month's confirmed spending, then the ways into recording,
- * browsing, and categorising.
+ * browsing, reviewing bank drafts, and categorising.
  *
  * The summary reads the ledger itself through [repository], so it appears before any other
  * action is taken and is refreshed by the same live stream every other screen uses. Nothing
@@ -190,6 +235,8 @@ private fun LaunchScreen(
     onManageCategories: () -> Unit,
     onRecordTransaction: () -> Unit,
     onBrowseTransactions: () -> Unit,
+    onBankNotifications: () -> Unit,
+    onReviewBankDrafts: () -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -309,6 +356,42 @@ private fun LaunchScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text(
+                        text = "BANK NOTIFICATIONS",
+                        style = MaterialTheme.typography.labelLarge,
+                        letterSpacing = 1.2.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = "Optionally let notifications from your bank apps become " +
+                            "reviewable drafts. Manual recording works with or without it.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    OutlinedButton(
+                        onClick = onReviewBankDrafts,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Review bank drafts")
+                    }
+                    OutlinedButton(
+                        onClick = onBankNotifications,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Bank notifications")
+                    }
+                }
+            }
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
                         text = "CATEGORIES",
                         style = MaterialTheme.typography.labelLarge,
                         letterSpacing = 1.2.sp,
@@ -328,7 +411,6 @@ private fun LaunchScreen(
                     }
                 }
             }
-
             Text(
                 text = "An uncluttered starting point for your financial life.",
                 style = MaterialTheme.typography.bodyMedium,
