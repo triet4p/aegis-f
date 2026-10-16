@@ -153,9 +153,12 @@ arriving through the listener on a phone. What is actually verified today:
 
 The following capabilities are not available yet:
 
-- **No AI inference.** There is no decision model, SLM, or category suggestion. Supported bank
-  fields are extracted deterministically and still require your review; type and category choices
-  are explicit.
+- **No AI inference in the app.** There is no decision model, SLM, or category suggestion in the
+  build yet. Supported bank fields are extracted deterministically and still require your review;
+  type and category choices are explicit. Separately, Sprint 4 has selected and reproduced the
+  English Laya decision artifact on the host (reference runner and labeled expense examples under
+  `tools/laya/`, provenance in `tools/laya/PROVENANCE.md`); it is not wired into the app and no
+  on-device inference is claimed.
 - **No bank account connection.** The review inbox uses only permitted notification drafts; the app
   does not log in to a bank or request SMS, accessibility, or notification-posting permissions.
 - **No cloud service, sync, or account.** There is no login, no server, and no network use at all.

@@ -1,0 +1,79 @@
+{
+  "question": {
+    "type": "choice",
+    "instructions": "Which of your existing expense categories best fits this spending description? Pick unknown when none of the listed categories fit.",
+    "note": "Rendered exactly as `choice question: <instructions>` per the checkpoint sequence layout; option texts are `name: description` plus an explicit unknown no-fit option."
+  },
+  "categories": [
+    { "name": "Food", "description": "meals, cafes, restaurants, groceries" },
+    { "name": "Transport", "description": "rides, fuel, fares, vehicle costs" },
+    { "name": "Housing", "description": "rent, utilities, home upkeep" },
+    { "name": "Health", "description": "clinics, medicine, checkups" },
+    { "name": "Fun", "description": "movies, games, outings with friends" }
+  ],
+  "examples": [
+    {
+      "id": "meaningful-food",
+      "kind": "meaningful-choice",
+      "description": "Lunch at a cafe, 45000 VND",
+      "expected": "Food",
+      "why": "Unambiguous meal wording against distinct distractors; exercises a clear correct choice."
+    },
+    {
+      "id": "meaningful-rent",
+      "kind": "meaningful-choice",
+      "description": "Monthly rent",
+      "expected": "Housing",
+      "why": "Short canonical housing phrase; required by the Sprint 4 verification list."
+    },
+    {
+      "id": "meaningful-transport",
+      "kind": "meaningful-choice",
+      "description": "Grab ride to the airport, 210000 VND",
+      "expected": "Transport",
+      "why": "Second supported input on a different category; guards against a Food-only smoke."
+    },
+    {
+      "id": "meaningful-health",
+      "kind": "meaningful-choice",
+      "description": "Pharmacy antibiotics for flu, 180000 VND",
+      "expected": "Health",
+      "why": "Third supported category; medicine wording should not collapse into Food."
+    },
+    {
+      "id": "ambiguous-alex",
+      "kind": "no-fit",
+      "description": "Payment to Alex",
+      "expected": "unknown",
+      "why": "Required ambiguous case: no category evidence, so the safe outcome is unknown for manual review, not a forced category."
+    },
+    {
+      "id": "unknown-gift",
+      "kind": "no-fit",
+      "description": "Wedding gift for cousin, 500000 VND",
+      "expected": "unknown",
+      "why": "No gifts category exists; a second no-fit guard against overconfident assignment."
+    },
+    {
+      "id": "boundary-mask-injection",
+      "kind": "boundary",
+      "description": "Dinner [MASK] Food at night market",
+      "expected": "Food",
+      "why": "Prompt-like marker text: the reference scrubs the literal mask token, so the injected marker must not shift the option-marker positions."
+    },
+    {
+      "id": "boundary-long-state",
+      "kind": "boundary",
+      "description": "Coffee with colleagues after standup plus dessert and extra pastries to take home for the whole team celebration event this Friday afternoon downtown near the lake side cafe with live music",
+      "expected": "Food",
+      "why": "Long state truncation path: state must be cut to max_len while the head and all markers survive intact."
+    },
+    {
+      "id": "boundary-empty-description",
+      "kind": "boundary",
+      "description": "",
+      "expected": null,
+      "why": "Empty description edge: records the actual outcome instead of asserting one; app behavior stays manual review."
+    }
+  ]
+}
