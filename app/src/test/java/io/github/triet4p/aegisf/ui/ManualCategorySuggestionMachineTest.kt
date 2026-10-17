@@ -3,6 +3,7 @@ package io.github.triet4p.aegisf.ui
 import io.github.triet4p.aegisf.data.CategoryEntity
 import io.github.triet4p.aegisf.data.TransactionType
 import io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -226,5 +227,154 @@ class ManualCategorySuggestionMachineTest {
             machine.state,
         )
         assertNull(machine.acceptSuggestion())
+    }
+
+    @Test
+    fun `remembered rule resolves before inference and misses use the model`() = runTest {
+        val food = category(1L, "Food")
+        var inferenceCalls = 0
+        val matched = decideRememberedBeforeInference(
+            description = "Synthetic cafe pattern",
+            activeCategories = listOf(food),
+            findRememberedCategory = { description ->
+                if (description == "Synthetic cafe pattern") food else null
+            },
+            infer = { _, _ ->
+                inferenceCalls += 1
+                "model"
+            },
+        )
+
+        assertEquals(ManualCategoryDecision.Remembered(food), matched)
+        assertEquals(0, inferenceCalls)
+
+        val missed = decideRememberedBeforeInference(
+            description = "Synthetic cafe pattern!",
+            activeCategories = listOf(food),
+            findRememberedCategory = { description ->
+                if (description == "Synthetic cafe pattern") food else null
+            },
+            infer = { _, _ ->
+                inferenceCalls += 1
+                "model"
+            },
+        )
+
+        assertEquals(ManualCategoryDecision.Inferred("model"), missed)
+        assertEquals(1, inferenceCalls)
+    }
+
+    @Test
+    fun `archived remembered category falls through without assigning the stale id`() = runTest {
+        val archived = category(1L, "Food", archived = true)
+        val current = category(2L, "Transport")
+        var inferenceCalls = 0
+        val decision = decideRememberedBeforeInference(
+            description = "Synthetic cafe pattern",
+            activeCategories = listOf(current),
+            findRememberedCategory = { archived },
+            infer = { _, categories ->
+                inferenceCalls += 1
+                assertEquals(listOf(current), categories)
+                "model"
+            },
+        )
+
+        assertEquals(ManualCategoryDecision.Inferred("model"), decision)
+        assertEquals(1, inferenceCalls)
+    }
+
+    @Test
+    fun `remembered category stays review only and archived completion is rejected`() {
+        val food = category(1L, "Food")
+        val intent = intent()
+        val machine = ManualCategorySuggestionMachine()
+        val token = checkNotNull(machine.begin(request(intent, listOf(food))))
+        var selectedCategoryId: Long? = null
+        var savedRecordCount = 0
+
+        assertTrue(
+            machine.completeRemembered(token, intent, listOf(food), listOf(food), food),
+        )
+        assertNull(selectedCategoryId)
+        assertEquals(0, savedRecordCount)
+        selectedCategoryId = machine.acceptRememberedRule()?.id
+        assertEquals(food.id, selectedCategoryId)
+        assertEquals(0, savedRecordCount)
+
+
+        val manualMachine = ManualCategorySuggestionMachine()
+        val manualToken = checkNotNull(manualMachine.begin(request(intent, listOf(food))))
+        assertTrue(
+            manualMachine.completeRemembered(
+                manualToken,
+                intent,
+                listOf(food),
+                listOf(food),
+                food,
+            ),
+        )
+        manualMachine.chooseManually(intent)
+        assertEquals(
+            ManualCategorySuggestionState.Remembered(food, manualSelection = true),
+            manualMachine.state,
+        )
+        assertNull(manualMachine.begin(request(intent, listOf(food))))
+        assertEquals(
+            ManualCategorySuggestionState.Remembered(food, manualSelection = true),
+            manualMachine.state,
+        )
+
+        val staleMachine = ManualCategorySuggestionMachine()
+        val archived = food.copy(archived = true)
+        val archivedToken = checkNotNull(staleMachine.begin(request(intent, listOf(archived))))
+        assertTrue(
+            staleMachine.completeRemembered(
+                archivedToken,
+                intent,
+                listOf(archived),
+                listOf(archived),
+                food,
+            ),
+        )
+        assertEquals(
+            ManualCategorySuggestionState.Stale(
+                LayaCandidatePlanner.StaleReason.MISSING_OR_ARCHIVED,
+            ),
+            staleMachine.state,
+        )
+    }
+
+    @Test
+    fun `late remembered rule lookup cannot apply to changed form or category snapshot`() {
+        val food = category(1L, "Food")
+        val categories = listOf(food)
+        val originalIntent = intent(form = "first-form")
+        val machine = ManualCategorySuggestionMachine()
+        val descriptionToken = checkNotNull(machine.begin(request(originalIntent, categories)))
+
+        assertFalse(
+            machine.completeRemembered(
+                descriptionToken,
+                originalIntent.copy(description = "different pattern"),
+                categories,
+                categories,
+                food,
+            ),
+        )
+        assertEquals(ManualCategorySuggestionState.Idle, machine.state)
+
+        val categoryToken = checkNotNull(machine.begin(request(originalIntent, categories)))
+        val changedCategories = categories + category(2L, "Transport")
+        assertFalse(
+            machine.completeRemembered(
+                categoryToken,
+                originalIntent,
+                changedCategories,
+                changedCategories,
+                food,
+            ),
+        )
+        assertEquals(ManualCategorySuggestionState.Stale(), machine.state)
     }
 }

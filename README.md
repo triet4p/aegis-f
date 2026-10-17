@@ -164,20 +164,22 @@ arriving through the listener on a phone. What is actually verified today:
 
 The following capabilities are not available yet:
 
-- **Manual-entry suggestions are review-only; notification-review suggestions are not implemented.**
+- **Manual-entry suggestions remain review-only; notification-review suggestions are not implemented.**
   S4.4 supplies current-category planning with caller-supplied corrections, deterministic
   category-name matching, a token-budgeted shortlist, an explicit no-fit result, and
   omitted-candidate uncertainty. S4.5 runs decisions through a process-owned bounded lifecycle.
-  S4.6 uses that lifecycle only on new manual expense forms and resolves results by stable id
-  against fresh category rows; income, transfers, and corrections remain manual.
-  A suggestion never changes the category field or saves a record until the user explicitly
-  chooses **Use suggestion**; the user may instead choose a category or ignore the result.
+  S4.6 uses that lifecycle for new manual expense forms and resolves results by stable id
+  against fresh category rows. S4.7 offers deliberate **Remember for this description** and
+  **Remove rule** actions: an explicit rule matches one exact description after case and
+  whitespace normalization, resolves only to its current active category id, and is checked
+  before neural inference. It never learns from a correction, generalizes to other descriptions,
+  changes the category field without an explicit **Use suggestion** or **Use remembered category**
+  action, or writes a transaction. Income, transfers, and corrections remain manual.
   Description/type edits, manual category selection, category metadata changes, and leaving the
   form invalidate pending results. Missing or unready models, no-fit decisions, and stale rows
   remain manual, and normal Save validation is unchanged. The name-only shortlist measured
   recall of **1/6** on the accepted labeled positive examples; this remains an S4.9 adoption risk,
-  not an accuracy claim. Persistent correction rules remain S4.7 and notification-review
-  suggestions remain S4.8.
+  not an accuracy claim. Notification-review suggestions remain S4.8.
 - **No bank account connection.** The review inbox uses only permitted notification drafts; the app
   does not log in to a bank or request SMS, accessibility, or notification-posting permissions.
 - **No cloud service, sync, or account.** There is no login, no server, and no network use at all.
@@ -254,7 +256,7 @@ developer setup guide rather than uninstalling the app.
 - **Sprint 2 — VND ledger and user-defined categories: complete and accepted**, including the
   user-run offline, force-stop persistence, and month-boundary checks on the physical phone. Its
   delivery commit is local only and has not been pushed.
-- Host-side unit tests pass (176 tests, 0 failures, 0 skipped; no emulator or
+- Host-side unit tests pass (185 tests, 0 failures, 0 skipped; no emulator or
   device). Room-backed tests cover persistence across close/reopen, exact VND
   boundaries and refusals, category history, filters, month-edge summary
   inclusion, notification intake and pending-draft persistence, review
@@ -262,11 +264,18 @@ developer setup guide rather than uninstalling the app.
   latest-pending, serialization, and release/reopen races plus a real listener
   callback-to-Room insert while controlled inference is blocked; that overlap
   uses an in-memory Room database and is not a disk-reopen or device UI result.
-  S4.6 adds seven state-machine checks for explicit acceptance, manual/ignored
-  choices, stale form/category snapshots, no-fit/unavailable results, and
-  out-of-order completion. These host checks do not render Compose or exercise Android-native
-  inference; the task-scoped S4.6-A2 phone check observed the actual manual-entry
-  surface and on-device suggestion path ([sanitized evidence](artifacts/sprint-4/workers/S4.6-A2.md)).
+  `ManualCategorySuggestionMachineTest` has eleven regressions for explicit
+  acceptance, remembered-rule precedence/no-inference, pattern misses, late
+  rule-result rejection after form/category changes, manual/ignored choices,
+  archived-category fallback, stale snapshots, no-fit/unavailable outcomes,
+  and out-of-order completion.
+  `RememberedCategoryRulePersistenceTest` proves exact-pattern isolation,
+  close/reopen persistence, current-name resolution after rename, archive
+  invalidation, explicit removal, and no ledger writes. Host checks do not render
+  Compose or exercise Android-native inference. A task-scoped S4.7-A2 phone check
+  verified the remembered-rule reopen, explicit-use/removal, punctuation-isolated
+  no-hit, and normal no-fit fallback paths without saving a transaction; see
+  [worker evidence](artifacts/sprint-4/workers/S4.7-A2.md).
 - **Sprint 3 — bank notifications to reviewable drafts: under way.** The opt-in access/allowlist
   setup, the privacy-first intake filter (package checked before any content is read, OTP and
   security messages, group summaries, and empty or fully redacted payloads discarded), parsing

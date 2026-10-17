@@ -310,6 +310,7 @@ class PendingBankDraftDeduplicationTest {
                 val ledger = LedgerRepository(
                     categoryDao = database.categoryDao(),
                     transactionDao = database.transactionDao(),
+                    rememberedCategoryRuleDao = database.rememberedCategoryRuleDao(),
                     clock = clock,
                 )
                 val firstReview = review.confirmDraft(firstId, 0, confirmableEdits("REF#101"))
@@ -354,6 +355,7 @@ class PendingBankDraftDeduplicationTest {
             val ledger = LedgerRepository(
                 categoryDao = database.categoryDao(),
                 transactionDao = database.transactionDao(),
+                rememberedCategoryRuleDao = database.rememberedCategoryRuleDao(),
                 clock = clock,
             )
             val confirmed = ledger.addTransaction(
@@ -408,6 +410,7 @@ class PendingBankDraftDeduplicationTest {
             val ledger = LedgerRepository(
                 categoryDao = database.categoryDao(),
                 transactionDao = database.transactionDao(),
+                rememberedCategoryRuleDao = database.rememberedCategoryRuleDao(),
                 clock = clock,
             )
             val confirmed = ledger.addTransaction(
@@ -453,6 +456,7 @@ class PendingBankDraftDeduplicationTest {
                 val draftId = drafts.storePermitted(BANK_PACKAGE, FIRST_KEY, POSTED_AT, sample())
                 val ledger = LedgerRepository(
                     categoryDao = database.categoryDao(),
+                    rememberedCategoryRuleDao = database.rememberedCategoryRuleDao(),
                     transactionDao = database.transactionDao(),
                     clock = clock,
                 )

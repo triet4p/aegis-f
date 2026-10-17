@@ -1,16 +1,17 @@
-# Laya reference tooling (S4.1–S4.6)
+# Laya reference tooling (S4.1–S4.7)
 
 Host-side reference for the English Laya decision artifact, Android runtime,
-local model import, category-candidate planning, background lifecycle, and
-manual-entry suggestion state machine. No committed graph weights.
+local model import, category-candidate planning, background lifecycle,
+manual-entry suggestion state machine, and explicit remembered rules. No
+committed graph weights.
 
 ### S4.4 candidate-planning contract
 
 `LayaRuntime.suggest` accepts the current `CategoryEntity` rows and caller-supplied
 `LayaCategoryCorrectionRule` values. An exact normalized description correction is
 checked first, then a unique exact normalized category-name phrase, then model inference.
-Correction rules are not persisted or learned here; S4.7 owns explicit remember/remove
-storage and UI.
+S4.7 persists only rules the user explicitly remembers in the manual-entry data layer;
+the runtime itself still receives caller-supplied rules and does not store or learn them.
 
 When every active category fits the pinned sequence head, the planner passes all of them
 in their current order. Otherwise, it ranks categories by deterministic Unicode
@@ -49,31 +50,43 @@ cancellation, and close ownership, not Android native inference or physical UI
 responsiveness. The user-only phone procedure remains in
 [`docs/developer-setup.md` §6](../../docs/developer-setup.md#6-user-run-s42-parity-probe-phone-onnx-runtime-android).
 
-### S4.6 manual-entry suggestion UI
+### S4.6–S4.7 manual-entry suggestions and remembered rules
 
-New expense creation calls `AppContainer.layaInferenceLifecycle.suggest`
-with the live active-category rows. Income, transfers, corrections, and
-notification review stay manual. A request is tied to its form identity,
-description, transaction type, and full category snapshot. Description/type
-changes, manual category selection, category updates, and leaving the form
-withdraw stale results through the existing lifecycle; cancellation after ORT
-starts withdraws delivery without claiming to stop native execution.
+New expense creation first checks the local repository for a remembered exact-description
+rule whose category id is still active; a match skips neural inference and remains a
+review-only suggestion. A miss or archived target falls through to
+`AppContainer.layaInferenceLifecycle.suggest` with the live active-category rows. Income,
+transfers, corrections, and notification review stay manual. A request is tied to its form
+identity, description, transaction type, and full category snapshot. Description/type
+changes, manual category selection, category updates, and leaving the form withdraw stale
+results through the existing lifecycle; cancellation after ORT starts withdraws delivery
+without claiming to stop native execution.
 
-Before display, the result is resolved with `LayaCandidatePlanner.resolveCurrent`
-against fresh category rows. **Use suggestion** explicitly changes only the
-category field; manually choosing a category or **Ignore** keeps the user's
-choice and does not save a record. Missing/unready models, no-fit results, and
-stale metadata leave normal manual entry available. S4.7 owns persistent
-correction rules, while S4.8 owns notification suggestions.
+Before display, model results are resolved with `LayaCandidatePlanner.resolveCurrent`
+against fresh category rows. **Use suggestion** and **Use remembered category** each
+explicitly change only the category field; **Remember for this description** saves no
+transaction, and **Remove rule** deletes only that normalized description's rule. Rule
+matching is exact apart from case and whitespace normalization; there is no automatic
+learning or fuzzy generalization. Missing/unready models, no-fit results, and stale metadata
+leave normal manual entry available. Notification suggestions remain S4.8.
 
-`ManualCategorySuggestionMachineTest` covers explicit acceptance, manual and
-ignored choices, changed descriptions/types/forms, category snapshots, unknown
-and unavailable states, and late/out-of-order completion. This is host
-state-machine evidence only, not Compose rendering or Android-native inference.
-The real Compose/on-device UI check was exercised under the explicit, task-scoped
-S4.6-A2 authorization; its sanitized evidence is in
-[`artifacts/sprint-4/workers/S4.6-A2.md`](../../artifacts/sprint-4/workers/S4.6-A2.md).
-For the narrow permitted procedure and device limits, see
+`ManualCategorySuggestionMachineTest` covers explicit acceptance, rule-first/no-inference,
+pattern misses, late rule-result rejection after form/category changes, manual and ignored
+choices, changed descriptions/types/forms, category snapshots, archived-rule fallback,
+unknown/unavailable states, and late/out-of-order completion.
+`RememberedCategoryRulePersistenceTest` covers reopen, exact isolation, stable category
+identity across rename, archive invalidation, explicit removal, and no ledger writes. These
+are host behavioral tests, not Compose rendering or Android-native inference.
+The S4.7-A2 task-scoped phone UI check verified remembered-rule persistence
+across reopen, explicit acceptance and removal, a punctuation-isolated miss,
+and no-fit fallback without saving a transaction; sanitized evidence is in
+[`S4.7-A2`](../../artifacts/sprint-4/workers/S4.7-A2.md). For the procedure and
+the observed result, see [`developer setup`](../../docs/developer-setup.md).
+
+The earlier S4.6 actual Compose/on-device check used the explicit task-scoped
+authorization; its sanitized evidence is in
+[`S4.6-A2`](../../artifacts/sprint-4/workers/S4.6-A2.md). For that narrow
+procedure, see
 [`docs/developer-setup.md` §6](../../docs/developer-setup.md#s46-manual-entry-suggestion-ui-task-scoped-aegis-phone-check).
 The S4.4 name-only shortlist's measured recall remains **1/6** on the accepted
 labeled positive examples and is an S4.9 adoption risk; no confidence threshold
@@ -87,15 +100,15 @@ The candidate regressions and real-weight host smoke run with:
 
 The live smoke uses the Kotlin candidate planner, exact sequence construction, and
 calibration with `tools/laya/run_tensors.py` against the pinned host bundle. It requires
-the machine-local model files and host Python ONNX Runtime; device contact remains
-user-only.
+the machine-local model files and host Python ONNX Runtime. Device UI work is separate and
+requires task-scoped Aegis authorization.
 
 - The app's **Model setup** page explicitly imports the pinned export from a local
   folder into app-private storage, verifies each file's size and SHA-256, then
   checks the real runtime before publication. The user procedure is in
   [`docs/developer-setup.md` §7](../../docs/developer-setup.md#7-user-run-s43-local-model-provisioning).
-  Model setup is not a network downloader; category suggestions appear only in
-  the separate S4.6 manual-expense form.
+  Model setup is not a network downloader; category suggestions and remembered-rule
+  controls appear only in the manual-expense form.
   Check and import cancellation stays visibly busy until the active file or
   native runtime check finishes; incomplete staging is discarded without
   replacing installed model data.

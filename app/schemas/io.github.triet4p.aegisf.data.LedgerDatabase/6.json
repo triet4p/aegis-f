@@ -1,0 +1,461 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 6,
+    "identityHash": "ff97e68ec56591d684c3e5fd371fe854",
+    "entities": [
+      {
+        "tableName": "categories",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `archived` INTEGER NOT NULL, `createdAtEpochMillis` INTEGER NOT NULL, `updatedAtEpochMillis` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "archived",
+            "columnName": "archived",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "createdAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updatedAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "transactions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `type` TEXT NOT NULL, `amountVnd` INTEGER NOT NULL, `occurredAtEpochMillis` INTEGER NOT NULL, `description` TEXT NOT NULL, `categoryId` INTEGER, `confirmation` TEXT NOT NULL, `source` TEXT NOT NULL, `createdAtEpochMillis` INTEGER NOT NULL, `updatedAtEpochMillis` INTEGER NOT NULL, FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE CASCADE ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "amountVnd",
+            "columnName": "amountVnd",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "occurredAtEpochMillis",
+            "columnName": "occurredAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "categoryId",
+            "columnName": "categoryId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "confirmation",
+            "columnName": "confirmation",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "createdAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updatedAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_transactions_categoryId",
+            "unique": false,
+            "columnNames": [
+              "categoryId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_transactions_categoryId` ON `${TABLE_NAME}` (`categoryId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "categories",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "categoryId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "pending_bank_drafts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `deliveryId` TEXT NOT NULL, `sourcePackage` TEXT NOT NULL, `notificationKey` TEXT, `postedAtEpochMillis` INTEGER NOT NULL, `bank` TEXT NOT NULL, `parseStatus` TEXT NOT NULL, `amountState` TEXT NOT NULL, `amountVnd` INTEGER, `amountUnresolvedReason` TEXT, `direction` TEXT NOT NULL, `momentState` TEXT NOT NULL, `statedDate` TEXT, `statedTime` TEXT, `momentUnresolvedReason` TEXT, `memoState` TEXT NOT NULL, `memo` TEXT, `memoUnresolvedReason` TEXT, `evidenceDigest` TEXT NOT NULL, `reviewStatus` TEXT NOT NULL, `confirmedTransactionId` INTEGER, `possibleDuplicateOfDraftId` INTEGER, `createdAtEpochMillis` INTEGER NOT NULL, `reviewAmountText` TEXT, `reviewDateText` TEXT, `reviewTimeText` TEXT, `reviewMemo` TEXT, `reviewMemoEdited` INTEGER NOT NULL DEFAULT 0, `reviewType` TEXT, `reviewCategoryId` INTEGER, `reviewCategoryResolved` INTEGER NOT NULL DEFAULT 0, `reviewRevision` INTEGER NOT NULL DEFAULT 0, FOREIGN KEY(`confirmedTransactionId`) REFERENCES `transactions`(`id`) ON UPDATE CASCADE ON DELETE SET NULL , FOREIGN KEY(`possibleDuplicateOfDraftId`) REFERENCES `pending_bank_drafts`(`id`) ON UPDATE CASCADE ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deliveryId",
+            "columnName": "deliveryId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourcePackage",
+            "columnName": "sourcePackage",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notificationKey",
+            "columnName": "notificationKey",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "postedAtEpochMillis",
+            "columnName": "postedAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bank",
+            "columnName": "bank",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "parseStatus",
+            "columnName": "parseStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "amountState",
+            "columnName": "amountState",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "amountVnd",
+            "columnName": "amountVnd",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "amountUnresolvedReason",
+            "columnName": "amountUnresolvedReason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "direction",
+            "columnName": "direction",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "momentState",
+            "columnName": "momentState",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "statedDate",
+            "columnName": "statedDate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "statedTime",
+            "columnName": "statedTime",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "momentUnresolvedReason",
+            "columnName": "momentUnresolvedReason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "memoState",
+            "columnName": "memoState",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "memo",
+            "columnName": "memo",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "memoUnresolvedReason",
+            "columnName": "memoUnresolvedReason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "evidenceDigest",
+            "columnName": "evidenceDigest",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reviewStatus",
+            "columnName": "reviewStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confirmedTransactionId",
+            "columnName": "confirmedTransactionId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "possibleDuplicateOfDraftId",
+            "columnName": "possibleDuplicateOfDraftId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "createdAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reviewAmountText",
+            "columnName": "reviewAmountText",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "reviewDateText",
+            "columnName": "reviewDateText",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "reviewTimeText",
+            "columnName": "reviewTimeText",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "reviewMemo",
+            "columnName": "reviewMemo",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "reviewMemoEdited",
+            "columnName": "reviewMemoEdited",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "reviewType",
+            "columnName": "reviewType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "reviewCategoryId",
+            "columnName": "reviewCategoryId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "reviewCategoryResolved",
+            "columnName": "reviewCategoryResolved",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "reviewRevision",
+            "columnName": "reviewRevision",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_pending_bank_drafts_deliveryId_evidenceDigest",
+            "unique": true,
+            "columnNames": [
+              "deliveryId",
+              "evidenceDigest"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_pending_bank_drafts_deliveryId_evidenceDigest` ON `${TABLE_NAME}` (`deliveryId`, `evidenceDigest`)"
+          },
+          {
+            "name": "index_pending_bank_drafts_evidenceDigest",
+            "unique": false,
+            "columnNames": [
+              "evidenceDigest"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_pending_bank_drafts_evidenceDigest` ON `${TABLE_NAME}` (`evidenceDigest`)"
+          },
+          {
+            "name": "index_pending_bank_drafts_possibleDuplicateOfDraftId",
+            "unique": false,
+            "columnNames": [
+              "possibleDuplicateOfDraftId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_pending_bank_drafts_possibleDuplicateOfDraftId` ON `${TABLE_NAME}` (`possibleDuplicateOfDraftId`)"
+          },
+          {
+            "name": "index_pending_bank_drafts_reviewStatus",
+            "unique": false,
+            "columnNames": [
+              "reviewStatus"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_pending_bank_drafts_reviewStatus` ON `${TABLE_NAME}` (`reviewStatus`)"
+          },
+          {
+            "name": "index_pending_bank_drafts_confirmedTransactionId",
+            "unique": false,
+            "columnNames": [
+              "confirmedTransactionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_pending_bank_drafts_confirmedTransactionId` ON `${TABLE_NAME}` (`confirmedTransactionId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "transactions",
+            "onDelete": "SET NULL",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "confirmedTransactionId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "pending_bank_drafts",
+            "onDelete": "SET NULL",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "possibleDuplicateOfDraftId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "remembered_category_rules",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`patternKey` TEXT NOT NULL, `categoryId` INTEGER NOT NULL, PRIMARY KEY(`patternKey`), FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "patternKey",
+            "columnName": "patternKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "categoryId",
+            "columnName": "categoryId",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "patternKey"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_remembered_category_rules_categoryId",
+            "unique": false,
+            "columnNames": [
+              "categoryId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_remembered_category_rules_categoryId` ON `${TABLE_NAME}` (`categoryId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "categories",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "categoryId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'ff97e68ec56591d684c3e5fd371fe854')"
+    ]
+  }
+}

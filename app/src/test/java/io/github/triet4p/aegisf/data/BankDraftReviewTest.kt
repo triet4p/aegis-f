@@ -83,7 +83,12 @@ class BankDraftReviewTest {
         TimeZone.setDefault(deviceZone)
         val first = open()
         try {
-            val ledger = LedgerRepository(first.categoryDao(), first.transactionDao(), clock)
+            val ledger = LedgerRepository(
+                first.categoryDao(),
+                first.transactionDao(),
+                first.rememberedCategoryRuleDao(),
+                clock,
+            )
             val categoryId = ledger.addCategory("Transport")
             val intakeRepository = intake(first)
             val reviewRepository = review(first)
@@ -133,7 +138,12 @@ class BankDraftReviewTest {
             val reopened = open()
             try {
                 val reopenedIntake = intake(reopened)
-                val reopenedLedger = LedgerRepository(reopened.categoryDao(), reopened.transactionDao(), clock)
+                val reopenedLedger = LedgerRepository(
+                    reopened.categoryDao(),
+                    reopened.transactionDao(),
+                    reopened.rememberedCategoryRuleDao(),
+                    clock,
+                )
                 val durable = reopenedIntake.drafts().single()
                 assertEquals(draftId, durable.id)
                 assertEquals(IntakeReviewStatus.CONFIRMED, durable.reviewStatus)
@@ -165,7 +175,12 @@ class BankDraftReviewTest {
         TimeZone.setDefault(zone)
         val database = open()
         try {
-            val ledger = LedgerRepository(database.categoryDao(), database.transactionDao(), clock)
+            val ledger = LedgerRepository(
+                database.categoryDao(),
+                database.transactionDao(),
+                database.rememberedCategoryRuleDao(),
+                clock,
+            )
             val categoryId = ledger.addCategory("Shopping")
             val reviewRepository = review(database)
             val drafts = intake(database)
@@ -226,7 +241,12 @@ class BankDraftReviewTest {
         val database = open()
         try {
             val reviewRepository = review(database)
-            val ledger = LedgerRepository(database.categoryDao(), database.transactionDao(), clock)
+            val ledger = LedgerRepository(
+                database.categoryDao(),
+                database.transactionDao(),
+                database.rememberedCategoryRuleDao(),
+                clock,
+            )
             val concurrentDraftId = storeSample(database)
             val results = (1..8).map {
                 async(Dispatchers.IO) {
@@ -276,7 +296,12 @@ class BankDraftReviewTest {
         val database = open()
         try {
             val reviewRepository = review(database)
-            val ledger = LedgerRepository(database.categoryDao(), database.transactionDao(), clock)
+            val ledger = LedgerRepository(
+                database.categoryDao(),
+                database.transactionDao(),
+                database.rememberedCategoryRuleDao(),
+                clock,
+            )
             val draftId = intake(database).storePermitted(
                 sourcePackage = BANK_PACKAGE,
                 notificationKey = null,

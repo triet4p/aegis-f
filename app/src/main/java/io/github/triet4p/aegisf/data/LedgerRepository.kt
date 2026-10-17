@@ -39,10 +39,9 @@ data class TransactionCorrection(
 )
 
 /**
- * Reads and writes the ledger.
+ * Reads and writes the ledger and explicit, description-scoped category rules.
  *
- * The rules enforced here protect the stored data, so they live with the storage rather
- * than in a screen:
+ * Data rules live here rather than in a screen:
  *
  * - an amount is a positive whole-dong magnitude of at least [VndMoney.MIN_AMOUNT_VND]; no sign is
  *   ever stored, because the record type decides the direction. The accepted manual input
@@ -58,6 +57,8 @@ data class TransactionCorrection(
  * - a correction replaces only the user-editable fields of the record it names, keeping the
  *   record's id, creation time, confirmation, and provenance, and stamping the revision time;
  * - every rejection leaves the stored records untouched.
+ * - a remembered category rule uses one exact normalized description and a stable active
+ *   category id; it is never learned from a correction or applied to a ledger row;
  *
  * Reads and writes return the entity rows directly: the stored record is already the
  * ledger's unit of truth, and a separate model would duplicate it without adding a rule.
@@ -65,6 +66,7 @@ data class TransactionCorrection(
 class LedgerRepository(
     private val categoryDao: CategoryDao,
     private val transactionDao: TransactionDao,
+    private val rememberedCategoryRuleDao: RememberedCategoryRuleDao,
     private val clock: LedgerClock = SystemLedgerClock,
 ) {
 
@@ -147,6 +149,42 @@ class LedgerRepository(
     suspend fun assignableCategories(): List<CategoryEntity> = categoryDao.findAssignable()
 
     suspend fun findCategory(categoryId: Long): CategoryEntity? = categoryDao.findById(categoryId)
+
+    /**
+     * Saves an explicit rule for this exact description. Matching ignores case and collapses
+     * whitespace only; punctuation and other text remain part of the pattern.
+     *
+     * @return false when an active rule already exists for this exact pattern; it is never
+     * silently replaced by a later category choice.
+     */
+    suspend fun rememberCategoryForDescription(description: String, categoryId: Long): Boolean {
+        val patternKey = rememberedCategoryRuleKey(description)
+            ?: throw LedgerValidationException("Enter a description before remembering a rule.")
+        val category = categoryDao.findById(categoryId)
+            ?: throw LedgerValidationException("Category $categoryId does not exist.")
+        if (category.archived) {
+            throw LedgerValidationException("Only an active category can be remembered.")
+        }
+        val remembered = rememberedCategoryRuleDao.rememberIfActive(
+            RememberedCategoryRuleEntity(patternKey = patternKey, categoryId = categoryId),
+        )
+        if (!remembered && rememberedCategoryRuleDao.findActiveCategory(patternKey) == null) {
+            throw LedgerValidationException("The category is no longer active.")
+        }
+        return remembered
+    }
+
+    /** Finds an exact saved rule only when its stable category id is still active. */
+    suspend fun findRememberedCategoryForDescription(description: String): CategoryEntity? {
+        val patternKey = rememberedCategoryRuleKey(description) ?: return null
+        return rememberedCategoryRuleDao.findActiveCategory(patternKey)
+    }
+
+    /** Removes only the rule for this exact normalized description. */
+    suspend fun removeRememberedCategoryRule(description: String): Boolean {
+        val patternKey = rememberedCategoryRuleKey(description) ?: return false
+        return rememberedCategoryRuleDao.remove(patternKey) > 0
+    }
 
     // --- Transactions -------------------------------------------------------
 

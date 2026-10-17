@@ -5,8 +5,8 @@ import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
 import java.io.File
 
 /**
- * The application's dependency graph: one Room database, the repository that reads and
- * writes it, and the bank-notification preferences.
+ * The application's dependency graph: one Room database for ledger data and explicit
+ * remembered category rules, plus the bank-notification preferences.
  *
  * This is the production entry point to the ledger, reached from application code with
  * `(application as AegisApplication).container.ledgerRepository`. Building the container
@@ -38,6 +38,7 @@ class AppContainer(context: Context) {
         LedgerRepository(
             categoryDao = database.categoryDao(),
             transactionDao = database.transactionDao(),
+            rememberedCategoryRuleDao = database.rememberedCategoryRuleDao(),
         )
     }
     /** Draft corrections, dismissal, and their atomic ledger confirmation transition. */

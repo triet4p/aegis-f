@@ -14,7 +14,7 @@ Verified state (2026-10-15, Sprint 2): the pinned toolchain below built the debu
 | Compose compiler plugin | `org.jetbrains.kotlin.plugin.compose` 2.2.10 | Must match the Kotlin version |
 | Compose libraries | Compose BOM 2026.09.00 | `androidx.compose.ui:ui`, `androidx.compose.material3:material3` |
 | Activity Compose | `androidx.activity:activity-compose:1.13.0` | Supplies `ComponentActivity` / `setContent` |
-| Room runtime | `androidx.room:room-runtime` 2.8.5 | The app's only local database (ledger categories and transactions) |
+| Room runtime | `androidx.room:room-runtime` 2.8.5 | The app's only local database (categories, ledger records, pending drafts, and explicit remembered category rules) |
 | Room schema processing | `com.google.devtools.ksp` 2.3.12 with `androidx.room:room-compiler` 2.8.5 | KSP is the only supported annotation processor for this build; see the compatibility note below |
 | Robolectric | 4.17 | Runs the Room host-side unit tests on the JVM against real SQLite; no emulator or device |
 | Unit test libraries | JUnit 4.13.2, `androidx.test:core` 1.7.0, `org.jetbrains.kotlinx:kotlinx-coroutines-test` 1.10.2 | Robolectric runner, `ApplicationProvider`, and deterministic `runTest` for suspend repositories |
@@ -166,7 +166,7 @@ Set-Location F:\ai-ml\aegis-f
 - Manual offline use and date semantics (S2.8): manual ledger use needs no model file, notification access, login, network, or bank integration — the manifest declares no runtime permission and the only permission entry is the dependency-generated, signature-protected `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`; the packaged APK carries no model/asset bundle and the sources make no network/notification/login call (static packaging/source evidence only — real offline device behaviour stays a user-only check). A typed date/time is the wall-clock moment in the device's current default zone (`ManualDateTime`, `YYYY-MM-DD` + `HH:mm`, no whitespace, impossible dates refused rather than rolled over), and the month card counts the half-open device-local month `[local midnight on the 1st, local midnight on the 1st of the next month)`. Current-month checks therefore set **transaction dates** around the month start/end; they never change the phone's system clock for membership, except the one resume check that moves the phone one day past a month boundary (then sets the date back).
 - Laya artifact reference (S4.1, host-side): `tools/laya/reference_runner.py` reproduces the exact checkpoint sequence/marker/temperature contract against the real pinned ONNX bundle (machine-local ambient download, never committed) and decides with an explicit `unknown` no-fit option; `tools/laya/expense_examples.json` holds the labeled English examples and `tools/laya/PROVENANCE.md` the pinned revisions, hashes, license, graph operators, and parity evidence. Runtime needs `onnxruntime`, `tokenizers`, and `numpy` in the ambient Python. This proves host reference behavior only — Android parity, latency, and memory are later Sprint 4 concerns.
 - Laya Android runtime (S4.2, host-side): the app's own tokenizer/sequence/calibration port is proven against the real pinned weights without ORT Java natives — `LayaTokenizerTest` (52 golden strings incl. added-token splits, `[MASK]` lstrip, whitespace runs, NFC variants), `LayaSequenceTest` (9/9 exact `input_ids`/marker positions incl. mask-injection and a 131-option refusal), `LayaCalibrationTest` (9/9 real-logit decisions incl. the two honest unknown misses), `LayaLiveParityTest` (the app's exact input bytes through the real weights via `tools/laya/run_tensors.py`, asserting the S4.1 reference choices), and `LayaRuntimeStatesTest` (missing/corrupt bundle states report without a session). Host JVMs here cannot load ORT Java natives (measured: even the proven 1.21.1 DLL fails under `java.exe` while loading under `python.exe`), so the ARM64 session open stays a user-run device step (§6 below); the desktop ORT artifact is deliberately not a dependency.
-- S4.6 manual-entry suggestion gate: `ManualCategorySuggestionMachineTest` checks explicit accept, manual-choice/ignore suppression, expense-only eligibility (Income stays manual), description/type/form identity, category-snapshot staleness, unknown/unavailable outcomes, and late/out-of-order results. This is host state-machine evidence only: it does not render the Compose editor or execute Android-native inference. The actual editor surface remains a user-only phone check below.
+- S4.6/S4.7 manual-entry suggestion gate: `ManualCategorySuggestionMachineTest` checks explicit acceptance, rule-first/no-inference behavior, exact-pattern misses, late rule-result rejection after form/category changes, manual-choice/ignore suppression, expense-only eligibility, description/type/form identity, current category snapshots, archived-rule fallback, unknown/unavailable outcomes, and late/out-of-order results. `RememberedCategoryRulePersistenceTest` checks normalized exact matching, pattern isolation, no overwrite of an active rule, close/reopen persistence, current category identity after rename, archive invalidation, removal, and no ledger writes. These host tests do not render Compose or execute Android-native inference.
 
 ## 4. Physical device (observed facts)
 
@@ -428,6 +428,26 @@ The unavailable-model state was not forced. The sanitized evidence is in
 [`S4.6-A2`](../artifacts/sprint-4/workers/S4.6-A2.md). This is scoped evidence,
 not general worker device authority or a substitute for the final user
 real-experience gate.
+
+### S4.7 remember/remove rule UI (task-scoped Aegis phone check)
+
+When the active task authorizes the Aegis-only phone path, exercise a synthetic nonfinancial description without entering an amount or saving a transaction:
+
+1. Open **Record a transaction**, leave **Expense** selected, enter a unique synthetic description, choose one existing active category in the unsaved form, and tap **Remember … for this description**.
+2. Cancel without saving, reopen the form, and enter the same description with only case/whitespace differences. Verify the saved exact-description rule is shown before model inference, the selected category field remains unchanged until **Use remembered category**, and **Remove rule** is available.
+3. Tap **Remove rule** and confirm the UI says no remembered rule applies. Cancel, reopen the same description, and verify the remembered-rule state no longer appears; a Laya suggestion or its normal no-fit/unavailable result is a model fallback, not a rule hit.
+4. Cancel without pressing **Save transaction**. Remove any synthetic rule created by the check if it remains.
+
+The S4.7-A1 host checks passed: file-backed close/reopen persistence, exact
+pattern isolation, case/whitespace normalization, stable category identity,
+archive invalidation, explicit removal, and no ledger writes. The S4.7-A2
+task-scoped phone smoke then verified an explicit synthetic rule across
+cancel/reopen, a case-normalized hit before acceptance with the category field
+unchanged, explicit **Use remembered category**, removal, and a fresh
+no-hit/no-fit fallback. A punctuation-added variant did not hit while the rule
+was active and used normal no-fit fallback. The forms were cancelled without
+amount entry or transaction save, and the synthetic rule was removed. Sanitized
+details are in [`S4.7-A2`](../artifacts/sprint-4/workers/S4.7-A2.md).
 
 ## 7. User-run S4.3 local model provisioning
 

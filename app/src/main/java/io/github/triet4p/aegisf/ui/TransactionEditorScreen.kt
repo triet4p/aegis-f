@@ -75,11 +75,12 @@ import java.util.concurrent.atomic.AtomicBoolean
  * category where applicable — and writes them through the production [LedgerRepository],
  * which owns every data rule. A refused write stores nothing and shows the repository's (or
  * the field grammar's) reason under the field it belongs to, with the typed values intact.
- * New expense creation can show a process-owned Laya suggestion; only explicit acceptance changes
- * the category field, and a suggestion never writes or saves a transaction. Income, transfers,
- * and correction forms remain manual. The live category list backs the picker and suggestion
- * input, so a category renamed or archived during inference cannot remain eligible; an existing
- * record keeps its archived category link unless the user chooses another category.
+ * New expense creation first checks for an explicit remembered exact-description rule, then
+ * may show a process-owned Laya suggestion; either changes the category field only after
+ * explicit acceptance and never writes a transaction. Income, transfers, and correction forms
+ * remain manual. The live category list backs the picker and rule/suggestion resolution, so a
+ * category renamed or archived during a request cannot remain eligible; an existing record
+ * keeps its archived category link unless the user chooses another category.
  *
  * While a write is in flight the guard ignores further taps and the form cannot be left, so an
  * impatient double tap cannot turn one record into two or into none. Leaving without pressing
@@ -187,6 +188,8 @@ private fun TransactionFormScreen(
     var timeError by remember { mutableStateOf<String?>(null) }
     var categoryError by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
+    var ruleActionInFlight by remember { mutableStateOf(false) }
+    var ruleActionError by remember { mutableStateOf<String?>(null) }
     var savedRecordId by rememberSaveable { mutableStateOf<Long?>(null) }
     var savedRecord by remember { mutableStateOf<TransactionEntity?>(null) }
 
@@ -255,8 +258,15 @@ private fun TransactionFormScreen(
         val token = suggestionMachine.begin(
             ManualSuggestionRequest(suggestionIntent, requestCategories),
         ) ?: return@LaunchedEffect
-        val outcome = try {
-            layaInferenceLifecycle.suggest(descriptionText, requestActiveCategories)
+        val decision = try {
+            decideRememberedBeforeInference(
+                description = descriptionText,
+                activeCategories = requestActiveCategories,
+                findRememberedCategory = repository::findRememberedCategoryForDescription,
+                infer = { description, categories ->
+                    layaInferenceLifecycle.suggest(description, categories)
+                },
+            )
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
@@ -272,6 +282,19 @@ private fun TransactionFormScreen(
         }
         val currentCategories = repository.categories()
         val observedCategories = latestObservedCategories
+        val outcome = when (decision) {
+            is ManualCategoryDecision.Remembered -> {
+                suggestionMachine.completeRemembered(
+                    token = token,
+                    currentIntent = latestSuggestionIntent,
+                    currentCategories = currentCategories,
+                    observedCategories = observedCategories,
+                    category = decision.category,
+                )
+                return@LaunchedEffect
+            }
+            is ManualCategoryDecision.Inferred -> decision.outcome
+        }
         when (outcome) {
             is LayaInferenceOutcome.Completed -> suggestionMachine.complete(
                 token = token,
@@ -325,6 +348,12 @@ private fun TransactionFormScreen(
             categoryLabel(storedCategory)
         else -> selectedCategoryName
     }
+    val rememberableCategoryName = currentSelectedCategory
+        ?.takeIf {
+            !editing && selectedType == TransactionType.EXPENSE && descriptionText.isNotBlank()
+        }
+        ?.takeUnless { it.archived }
+        ?.name
     val categoryNote = when {
         currentSelectedCategory?.archived == true &&
             selectedCategoryId != storedRecord?.categoryId ->
@@ -410,6 +439,63 @@ private fun TransactionFormScreen(
             }
         }
     }
+    fun rememberSelectedCategoryRule() {
+        val categoryId = selectedCategoryId ?: return
+        val intent = suggestionIntent
+        if (editing || selectedType != TransactionType.EXPENSE ||
+            descriptionText.isBlank() ||
+            activeCategories?.any { it.id == categoryId } != true
+        ) {
+            return
+        }
+        ruleActionInFlight = true
+        ruleActionError = null
+        scope.launch {
+            try {
+                val created = repository.rememberCategoryForDescription(
+                    description = intent.description,
+                    categoryId = categoryId,
+                )
+                if (latestSuggestionIntent == intent) {
+                    if (created) {
+                        suggestionMachine.clearSuppression()
+                        suggestionRevision += 1
+                    } else {
+                        ruleActionError =
+                            "A saved rule already applies to this exact description. Remove it " +
+                                "before saving a different category."
+                    }
+                }
+            } catch (rejection: LedgerValidationException) {
+                if (latestSuggestionIntent == intent) {
+                    ruleActionError = rejection.message
+                }
+            } finally {
+                ruleActionInFlight = false
+            }
+        }
+    }
+
+    fun removeRememberedCategoryRule() {
+        val intent = suggestionIntent
+        ruleActionInFlight = true
+        ruleActionError = null
+        scope.launch {
+            try {
+                val removed = repository.removeRememberedCategoryRule(intent.description)
+                if (latestSuggestionIntent == intent) {
+                    if (removed) {
+                        suggestionMachine.ruleRemoved(intent)
+                    } else {
+                        ruleActionError = "This saved rule is no longer available."
+                    }
+                    suggestionRevision += 1
+                }
+            } finally {
+                ruleActionInFlight = false
+            }
+        }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -453,6 +539,7 @@ private fun TransactionFormScreen(
                     if (selectedType != it) suggestionMachine.clearSuppression()
                     selectedType = it
                     categoryError = null
+                    ruleActionError = null
                 },
                 dateText = dateText,
                 onDateChange = { dateText = it; dateError = null },
@@ -462,12 +549,18 @@ private fun TransactionFormScreen(
                 timeError = timeError,
                 descriptionText = descriptionText,
                 onDescriptionChange = {
-                    if (descriptionText != it) suggestionMachine.clearSuppression()
+                    if (descriptionText != it) {
+                        suggestionMachine.clearSuppression()
+                        ruleActionError = null
+                    }
                     descriptionText = it
                 },
                 categoryName = categoryButtonLabel,
                 categoryNote = categoryNote,
                 categoryError = categoryError,
+                rememberableCategoryName = rememberableCategoryName,
+                ruleActionError = ruleActionError,
+                ruleActionInFlight = ruleActionInFlight,
                 onPickCategory = { categoryPickerVisible = true },
                 suggestionState = suggestionMachine.state,
                 onAcceptSuggestion = {
@@ -477,10 +570,26 @@ private fun TransactionFormScreen(
                         categoryError = null
                     }
                 },
+                onAcceptRememberedRule = {
+                    suggestionMachine.acceptRememberedRule()?.let { rememberedCategory ->
+                        val currentCategory = activeCategories
+                            ?.firstOrNull { it.id == rememberedCategory.id }
+                        if (currentCategory == null) {
+                            suggestionMachine.clearSuppression()
+                            suggestionRevision += 1
+                        } else {
+                            selectedCategoryId = currentCategory.id
+                            selectedCategoryName = currentCategory.name
+                            categoryError = null
+                        }
+                    }
+                },
                 onIgnoreSuggestion = {
                     suggestionMachine.ignore(suggestionIntent)
                     suggestionRevision += 1
                 },
+                onRememberCategoryRule = ::rememberSelectedCategoryRule,
+                onRemoveRememberedRule = ::removeRememberedCategoryRule,
                 saving = saving,
                 editing = editing,
                 // The guard is checked before the coroutine starts, so two taps inside one
@@ -505,6 +614,7 @@ private fun TransactionFormScreen(
                 selectedCategoryId = id
                 selectedCategoryName = name
                 categoryError = null
+                ruleActionError = null
                 categoryPickerVisible = false
             },
             onDismiss = { categoryPickerVisible = false },
@@ -604,9 +714,15 @@ private fun TransactionForm(
     categoryName: String?,
     categoryNote: String?,
     categoryError: String?,
+    rememberableCategoryName: String?,
+    ruleActionError: String?,
+    ruleActionInFlight: Boolean,
     onPickCategory: () -> Unit,
     suggestionState: ManualCategorySuggestionState,
     onAcceptSuggestion: () -> Unit,
+    onAcceptRememberedRule: () -> Unit,
+    onRememberCategoryRule: () -> Unit,
+    onRemoveRememberedRule: () -> Unit,
     onIgnoreSuggestion: () -> Unit,
     saving: Boolean,
     editing: Boolean,
@@ -727,9 +843,14 @@ private fun TransactionForm(
         if (!editing && selectedType != TransactionType.TRANSFER) {
             ManualSuggestionPanel(
                 state = suggestionState,
-                enabled = !saving,
+                enabled = !saving && !ruleActionInFlight,
+                rememberableCategoryName = rememberableCategoryName,
+                ruleActionError = ruleActionError,
                 onAccept = onAcceptSuggestion,
+                onAcceptRememberedRule = onAcceptRememberedRule,
                 onIgnore = onIgnoreSuggestion,
+                onRemember = onRememberCategoryRule,
+                onRemoveRememberedRule = onRemoveRememberedRule,
             )
         }
 
@@ -759,8 +880,13 @@ private fun TransactionForm(
 private fun ManualSuggestionPanel(
     state: ManualCategorySuggestionState,
     enabled: Boolean,
+    rememberableCategoryName: String?,
+    ruleActionError: String?,
     onAccept: () -> Unit,
+    onAcceptRememberedRule: () -> Unit,
     onIgnore: () -> Unit,
+    onRemember: () -> Unit,
+    onRemoveRememberedRule: () -> Unit,
 ) {
     if (state == ManualCategorySuggestionState.Idle) return
 
@@ -772,8 +898,8 @@ private fun ManualSuggestionPanel(
             "Enter a description to request a suggestion. You can still choose a category or " +
                 "save without one."
         ManualCategorySuggestionState.Loading ->
-            "Checking this description against current active categories. Manual category " +
-                "selection and saving remain available."
+            "Checking saved exact-description rules before local model inference. Manual " +
+                "category selection and saving remain available."
         ManualCategorySuggestionState.NoActiveCategories ->
             "No active categories are available. You can save without a category."
         ManualCategorySuggestionState.NotApplicableToKind ->
@@ -782,6 +908,19 @@ private fun ManualSuggestionPanel(
         is ManualCategorySuggestionState.Suggested ->
             "Laya suggests “${state.category.name}” from your current categories. It will not " +
                 "change the selected category unless you accept it."
+        is ManualCategorySuggestionState.Remembered ->
+            if (state.manualSelection) {
+                "Your manual category choice stays selected. The saved rule for " +
+                    "“${state.category.name}” remains separate and is not overwritten."
+            } else if (state.accepted) {
+                "The saved exact-description rule for “${state.category.name}” was accepted. " +
+                    "The category field changed only at your request; nothing has been saved."
+            } else {
+                "A saved exact-description rule matches “${state.category.name}”. It does not " +
+                    "change the category field until you accept it."
+            }
+        ManualCategorySuggestionState.RuleRemoved ->
+            "The saved rule was removed. No remembered rule applies to this description now."
         is ManualCategorySuggestionState.Accepted ->
             "“${state.category.name}” is selected in the category field at your request. " +
                 "Review it before saving; nothing has been saved."
@@ -856,15 +995,58 @@ private fun ManualSuggestionPanel(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        if (state is ManualCategorySuggestionState.Suggested) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onAccept, enabled = enabled) {
-                    Text("Use suggestion")
-                }
-                OutlinedButton(onClick = onIgnore, enabled = enabled) {
-                    Text("Ignore")
+        when (state) {
+            is ManualCategorySuggestionState.Suggested -> {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onAccept, enabled = enabled) {
+                        Text("Use suggestion")
+                    }
+                    OutlinedButton(onClick = onIgnore, enabled = enabled) {
+                        Text("Ignore")
+                    }
                 }
             }
+            is ManualCategorySuggestionState.Remembered -> {
+                if (!state.accepted || state.manualSelection) {
+                    Button(
+                        onClick = onAcceptRememberedRule,
+                        enabled = enabled,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Use remembered category")
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = onIgnore, enabled = enabled) {
+                        Text("Ignore")
+                    }
+                    OutlinedButton(onClick = onRemoveRememberedRule, enabled = enabled) {
+                        Text("Remove rule")
+                    }
+                }
+            }
+            else -> if (rememberableCategoryName != null) {
+                Text(
+                    text = "This rule matches only the description as written (case and repeated " +
+                        "spaces are ignored). No other descriptions or records change.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedButton(
+                    onClick = onRemember,
+                    enabled = enabled,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Remember ${rememberableCategoryName} for this description")
+                }
+            }
+        }
+        if (ruleActionError != null) {
+            Text(
+                text = ruleActionError,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
         }
     }
 }

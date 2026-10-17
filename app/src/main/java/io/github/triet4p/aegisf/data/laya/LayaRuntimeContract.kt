@@ -6,12 +6,13 @@ package io.github.triet4p.aegisf.data.laya
  *
  * S4.4 adds [LayaRuntime.suggest] and [LayaCandidatePlanner] to apply caller-supplied exact
  * correction rules, deterministic category-name matching, and budget-exact candidate
- * retrieval. The runtime accepts caller-owned correction rules but does not store or learn
- * them; explicit persistence and remember/remove controls belong to S4.7. [LayaInferenceLifecycle]
+ * retrieval. S4.7 persists only deliberately remembered exact-description rules in the ledger
+ * data layer and resolves an active match before manual-entry inference; the runtime still
+ * receives only current category metadata and never stores or learns rules. [LayaInferenceLifecycle]
  * owns one bounded background worker, latest-only pending work, serialized session use, and
  * safe release after non-cancellable native calls. S4.6 presents review-only suggestions for
- * new expense entry; income, transfers, and correction forms remain manual. Persistent rules
- * remain S4.7, and notification review remains S4.8.
+ * new expense entry; income, transfers, and correction forms remain manual. Notification
+ * review remains S4.8.
  *
  * States, in the order the app meets them:
  *

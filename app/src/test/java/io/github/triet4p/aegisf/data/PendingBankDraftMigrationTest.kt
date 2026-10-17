@@ -66,7 +66,12 @@ class PendingBankDraftMigrationTest {
 
         val database = LedgerDatabase.build(context)
         try {
-            val ledger = LedgerRepository(database.categoryDao(), database.transactionDao(), clock)
+            val ledger = LedgerRepository(
+                database.categoryDao(),
+                database.transactionDao(),
+                database.rememberedCategoryRuleDao(),
+                clock,
+            )
             assertEquals(1, ledger.transactions().size)
             assertEquals(45_000L, ledger.transactions().single().amountVnd)
             assertEquals(1, ledger.categories().size)
@@ -141,7 +146,12 @@ class PendingBankDraftMigrationTest {
             assertEquals(MIGRATED_DRAFT_ID, replay)
             assertEquals(1, drafts.drafts().size)
 
-            val ledger = LedgerRepository(database.categoryDao(), database.transactionDao(), clock)
+            val ledger = LedgerRepository(
+                database.categoryDao(),
+                database.transactionDao(),
+                database.rememberedCategoryRuleDao(),
+                clock,
+            )
             assertEquals(1, ledger.transactions().size)
             assertEquals(MIGRATED_TRANSACTION_ID, ledger.transactions().single().id)
         } finally {
@@ -201,7 +211,12 @@ class PendingBankDraftMigrationTest {
                 assertEquals(MIGRATED_DRAFT_ID, replay)
                 assertEquals(2, drafts.drafts().size)
 
-                val ledger = LedgerRepository(database.categoryDao(), database.transactionDao(), clock)
+                val ledger = LedgerRepository(
+                    database.categoryDao(),
+                    database.transactionDao(),
+                    database.rememberedCategoryRuleDao(),
+                    clock,
+                )
                 assertEquals(1, ledger.transactions().size)
                 assertEquals(MIGRATED_TRANSACTION_ID, ledger.transactions().single().id)
             } finally {
@@ -284,7 +299,12 @@ class PendingBankDraftMigrationTest {
                 assertEquals(MIGRATED_DRAFT_ID, stored[1].possibleDuplicateOfDraftId)
                 assertEquals(IntakeReviewStatus.PENDING, stored[1].reviewStatus)
 
-                val ledger = LedgerRepository(database.categoryDao(), database.transactionDao(), clock)
+                val ledger = LedgerRepository(
+                    database.categoryDao(),
+                    database.transactionDao(),
+                    database.rememberedCategoryRuleDao(),
+                    clock,
+                )
                 assertEquals(1, ledger.transactions().size)
                 assertEquals(MIGRATED_TRANSACTION_ID, ledger.transactions().single().id)
             } finally {
@@ -327,7 +347,12 @@ class PendingBankDraftMigrationTest {
             val database = LedgerDatabase.build(context)
             try {
                 val storedDraft = IntakeRepository(database.pendingBankDraftDao(), clock).drafts().single()
-                val ledger = LedgerRepository(database.categoryDao(), database.transactionDao(), clock)
+                val ledger = LedgerRepository(
+                    database.categoryDao(),
+                    database.transactionDao(),
+                    database.rememberedCategoryRuleDao(),
+                    clock,
+                )
                 assertEquals(LedgerDatabase.VERSION.toLong(), storedVersion(database))
                 assertEquals(MIGRATED_DRAFT_ID, storedDraft.id)
                 assertEquals(IntakeReviewStatus.CONFIRMED, storedDraft.reviewStatus)

@@ -36,6 +36,7 @@ class LedgerRepositoryRejectionTest {
         repository = LedgerRepository(
             categoryDao = database.categoryDao(),
             transactionDao = database.transactionDao(),
+            rememberedCategoryRuleDao = database.rememberedCategoryRuleDao(),
             clock = FixedLedgerClock(),
         )
     }

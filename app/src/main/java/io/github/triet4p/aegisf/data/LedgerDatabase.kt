@@ -9,8 +9,8 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
- * The app's only local database: user-defined categories, ledger records, and pending
- * bank-notification drafts.
+ * The app's only local database: user-defined categories, ledger records, explicit remembered
+ * category rules, and bank-notification drafts.
  *
  * Schema versioning rules for this database:
  *
@@ -28,7 +28,12 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  *   keeps its identity instead of losing the ability to recognize its own replay.
  */
 @Database(
-    entities = [CategoryEntity::class, TransactionEntity::class, PendingBankDraftEntity::class],
+    entities = [
+        CategoryEntity::class,
+        TransactionEntity::class,
+        PendingBankDraftEntity::class,
+        RememberedCategoryRuleEntity::class,
+    ],
     version = LedgerDatabase.VERSION,
     exportSchema = true,
 )
@@ -44,8 +49,11 @@ abstract class LedgerDatabase : RoomDatabase() {
     /** Atomic draft-review transitions across the pending and ledger tables. */
     abstract fun bankDraftReviewDao(): BankDraftReviewDao
 
+    /** Explicit description-scoped category rules for manual expense entry. */
+    abstract fun rememberedCategoryRuleDao(): RememberedCategoryRuleDao
+
     companion object {
-        const val VERSION = 5
+        const val VERSION = 6
 
         /** File name of the on-device database. */
         const val NAME = "aegis-ledger.db"
@@ -257,10 +265,38 @@ abstract class LedgerDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Version 5 to 6: store only explicit exact-description category rules. Rules use a
+         * category foreign key so deleting an unreferenced category removes its rules, while
+         * archiving leaves the rule stored but makes it ineligible for new assignments.
+         */
+        val MIGRATION_5_6: Migration = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `remembered_category_rules` (" +
+                        "`patternKey` TEXT NOT NULL, " +
+                        "`categoryId` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`patternKey`), " +
+                        "FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) " +
+                        "ON UPDATE CASCADE ON DELETE CASCADE)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_remembered_category_rules_categoryId` " +
+                        "ON `remembered_category_rules` (`categoryId`)",
+                )
+            }
+        }
+
         /** Builds the production database on the app's real file directory. */
         fun build(context: Context): LedgerDatabase =
             Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, NAME)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(
+                    MIGRATION_1_2,
+                    MIGRATION_2_3,
+                    MIGRATION_3_4,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6,
+                )
                 .build()
 
     }

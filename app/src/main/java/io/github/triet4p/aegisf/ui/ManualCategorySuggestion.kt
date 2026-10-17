@@ -20,6 +20,30 @@ internal data class ManualSuggestionRequest(
     val categories: List<CategoryEntity>,
 )
 
+internal sealed interface ManualCategoryDecision<out T> {
+    data class Remembered(val category: CategoryEntity) : ManualCategoryDecision<Nothing>
+    data class Inferred<T>(val outcome: T) : ManualCategoryDecision<T>
+}
+
+/** A valid saved rule short-circuits inference; a stale/inactive rule cannot become a choice. */
+internal suspend fun <T> decideRememberedBeforeInference(
+    description: String,
+    activeCategories: List<CategoryEntity>,
+    findRememberedCategory: suspend (String) -> CategoryEntity?,
+    infer: suspend (String, List<CategoryEntity>) -> T,
+): ManualCategoryDecision<T> {
+    val remembered = findRememberedCategory(description)
+    val current = remembered?.let { rule ->
+        activeCategories.firstOrNull { it.id == rule.id && !it.archived }
+    }
+    return if (current != null) {
+        ManualCategoryDecision.Remembered(current)
+    } else {
+        ManualCategoryDecision.Inferred(infer(description, activeCategories))
+    }
+}
+
+
 internal sealed interface ManualCategorySuggestionState {
     data object Idle : ManualCategorySuggestionState
     data object LoadingCategories : ManualCategorySuggestionState
@@ -31,6 +55,12 @@ internal sealed interface ManualCategorySuggestionState {
         val category: CategoryEntity,
         val uncertainty: LayaCandidatePlanner.RetrievalUncertainty?,
     ) : ManualCategorySuggestionState
+    data class Remembered(
+        val category: CategoryEntity,
+        val accepted: Boolean = false,
+        val manualSelection: Boolean = false,
+    ) : ManualCategorySuggestionState
+    data object RuleRemoved : ManualCategorySuggestionState
     data class Accepted(
         val category: CategoryEntity,
         val uncertainty: LayaCandidatePlanner.RetrievalUncertainty?,
@@ -103,6 +133,26 @@ internal class ManualCategorySuggestionMachine {
         return true
     }
 
+    fun completeRemembered(
+        token: Token,
+        currentIntent: ManualSuggestionIntent,
+        currentCategories: List<CategoryEntity>,
+        observedCategories: List<CategoryEntity>?,
+        category: CategoryEntity,
+    ): Boolean {
+        if (!takeIfCurrent(token, currentIntent, currentCategories, observedCategories)) return false
+        val current = currentCategories.firstOrNull { it.id == category.id && !it.archived }
+        if (current == null) {
+            state = ManualCategorySuggestionState.Stale(
+                LayaCandidatePlanner.StaleReason.MISSING_OR_ARCHIVED,
+            )
+        } else {
+            state = ManualCategorySuggestionState.Remembered(current)
+        }
+        return true
+    }
+
+
     fun unavailable(
         token: Token,
         currentIntent: ManualSuggestionIntent,
@@ -121,8 +171,24 @@ internal class ManualCategorySuggestionMachine {
         return suggested.category
     }
 
+    fun acceptRememberedRule(): CategoryEntity? {
+        val remembered = state as? ManualCategorySuggestionState.Remembered ?: return null
+        suppression = null
+        state = remembered.copy(accepted = true, manualSelection = false)
+        return remembered.category
+    }
+
+
     fun chooseManually(intent: ManualSuggestionIntent) {
-        suppress(intent, ManualCategorySuggestionState.ManuallySelected)
+        val remembered = state as? ManualCategorySuggestionState.Remembered
+        if (remembered == null) {
+            suppress(intent, ManualCategorySuggestionState.ManuallySelected)
+            return
+        }
+        active = null
+        val preservedRule = remembered.copy(manualSelection = true)
+        suppression = Suppression(intent, preservedRule)
+        state = preservedRule
     }
 
     fun ignore(intent: ManualSuggestionIntent) {
@@ -133,6 +199,10 @@ internal class ManualCategorySuggestionMachine {
         suppression = null
         active = null
         state = ManualCategorySuggestionState.Idle
+    }
+
+    fun ruleRemoved(intent: ManualSuggestionIntent) {
+        suppress(intent, ManualCategorySuggestionState.RuleRemoved)
     }
 
     fun reset() {

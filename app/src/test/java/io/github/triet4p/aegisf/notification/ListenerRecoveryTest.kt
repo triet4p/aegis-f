@@ -332,7 +332,11 @@ class ListenerRecoveryTest {
     fun `a confirmed draft is never reopened by its own re read post`() = runTest {
         val database = LedgerDatabase.build(context)
         val intake = IntakeRepository(database.pendingBankDraftDao())
-        val ledger = LedgerRepository(database.categoryDao(), database.transactionDao())
+        val ledger = LedgerRepository(
+            database.categoryDao(),
+            database.transactionDao(),
+            database.rememberedCategoryRuleDao(),
+        )
         val reconciled = kotlinx.coroutines.CompletableDeferred<Long>()
         val signaling = object : IntakeRepository(database.pendingBankDraftDao()) {
             override suspend fun storePermitted(
@@ -405,7 +409,11 @@ class ListenerRecoveryTest {
         val transactionId: Long
         try {
             val intake = IntakeRepository(first.pendingBankDraftDao())
-            val ledger = LedgerRepository(first.categoryDao(), first.transactionDao())
+            val ledger = LedgerRepository(
+                first.categoryDao(),
+                first.transactionDao(),
+                first.rememberedCategoryRuleDao(),
+            )
             draftId = intake.storePermitted(bankPackage, ACTIVE_KEY, POSTED_AT, sampleContent())
             transactionId = ledger.addTransaction(
                 TransactionInput(
@@ -429,7 +437,11 @@ class ListenerRecoveryTest {
         val restarted = LedgerDatabase.build(context)
         try {
             val intake = IntakeRepository(restarted.pendingBankDraftDao())
-            val ledger = LedgerRepository(restarted.categoryDao(), restarted.transactionDao())
+            val ledger = LedgerRepository(
+                restarted.categoryDao(),
+                restarted.transactionDao(),
+                restarted.rememberedCategoryRuleDao(),
+            )
             assertEquals(draftId, intake.drafts().single().id)
             assertEquals(IntakeReviewStatus.CONFIRMED, intake.drafts().single().reviewStatus)
             assertEquals(1, ledger.transactions().size)

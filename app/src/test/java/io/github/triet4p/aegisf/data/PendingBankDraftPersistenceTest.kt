@@ -134,6 +134,7 @@ class PendingBankDraftPersistenceTest {
             val ledger = LedgerRepository(
                 categoryDao = database.categoryDao(),
                 transactionDao = database.transactionDao(),
+                rememberedCategoryRuleDao = database.rememberedCategoryRuleDao(),
                 clock = clock,
             )
             ledger.addTransaction(
