@@ -71,18 +71,6 @@ class LayaInferenceLifecycleTest {
             )
         }
 
-        override fun suggestOptions(
-            description: String,
-            categories: List<CategoryOption>,
-        ): LayaRuntimeContract.Suggestion {
-            run(description)
-            return LayaRuntimeContract.Suggestion.Choice(
-                probabilities = listOf(1.0),
-                bestIndex = 0,
-                confidence = 1.0,
-                isUnknown = true,
-            )
-        }
 
         private fun run(description: String) {
             check(!closed.get()) { "session used after close" }

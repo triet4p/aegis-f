@@ -124,6 +124,16 @@ and no release has been tagged or published. Format follows
   notification delivered naturally on the device: the real package/key/field mapping, screen
   lock, restart, OEM behavior, on-device revocation, and the in-place update.
 
+### Changed
+
+- Recorded the S4.9 on-device evaluation: 7/8 labeled top choices, both no-fit examples correctly
+  returned unknown, and no incorrect choice met the calibrated-confidence threshold of 0.8;
+  the name-only candidate shortlist recalled only 1/6 expected categories with 206 active
+  categories. Cold session-turnover latency was 10,535 ms p50 / 11,159 ms p95 (3 samples), warm
+  suggestion latency was 903 ms p50 / 914 ms p95 (20 samples), and sampled app-process peak PSS
+  was 1,620,186 KiB. Suggestions remain optional and review-only; manual fallback remains
+  necessary for large category catalogs.
+
 ### Fixed
 
 - Bank-notification listener recovery no longer fails when the system does not report which

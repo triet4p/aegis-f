@@ -15,8 +15,6 @@ import io.github.triet4p.aegisf.data.laya.LayaInferenceOutcome
 import io.github.triet4p.aegisf.data.laya.LayaInferenceRuntimeFactory
 import io.github.triet4p.aegisf.data.laya.LayaInferenceRuntimeOpen
 import io.github.triet4p.aegisf.data.laya.LayaInferenceSession
-import io.github.triet4p.aegisf.data.laya.LayaRuntimeContract
-import io.github.triet4p.aegisf.data.laya.CategoryOption
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -88,10 +86,6 @@ class InferenceIntakeIndependenceTest {
             }
         }
 
-        override fun suggestOptions(
-            description: String,
-            categories: List<CategoryOption>,
-        ): LayaRuntimeContract.Suggestion = error("not used by this smoke")
 
         override fun close() {
             check(activeCalls.get() == 0) { "closed while native decision work was active" }

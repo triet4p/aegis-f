@@ -271,99 +271,66 @@ This logs only privacy-safe state transitions, rebind requests, allowlist checks
 
 **Evidence distinction to keep clear:** the S1.5 and S1.6 device checks used the S1.5 package and S1.6 A/B packages (`versionCode` 1–3). The current debug `versionCode = 4` package was installed in place and exercised for S4.6-A2; see the [sanitized phone evidence](../artifacts/sprint-4/workers/S4.6-A2.md). That limited Aegis UI observation does not replace unrelated task-specific device checks or the final user real-experience gate.
 
-## 6. User-run S4.2 parity probe (phone, ONNX Runtime Android)
+## 6. On-device Laya evaluation and limits (S4.2/S4.9)
 
-These steps are **user-only** (workers never contact the phone): they install the
-debug build, stage the pinned model bundle into app-private storage, and run the
-real on-device `LayaRuntime` through the process-owned `LayaInferenceLifecycle`
-used by the debug-only probe. It remains parity-verification tooling, not the
-manual-entry suggestion UI; see the task-scoped S4.6 phone check below. The probe creates
-no ledger records, changes no categories, and touches no notification path.
+The accepted S4.2 parity report is retained at
+[`artifacts/sprint-4/reviews/S42-parity-report.json`](../artifacts/sprint-4/reviews/S42-parity-report.json).
+That historical report is distinct from the S4.9 adoption evaluation. S4.9 retired the
+debug-only `LayaParityProbeActivity` and its PowerShell driver after collecting current
+phone evidence; no parity/evaluation probe is part of the final app source. Provisioning
+remains available through the user-only procedure in §7.
 
-Prerequisites: the phone from §4 (HONOR ALT-LX2, Android 14/API 34, ARM64,
-4096-byte pages) with USB debugging authorized (`adb devices` shows `device`),
-plus the pinned bundle on the PC — the `receptron/laya-onnx` revision `68f27dfe`
-snapshot (see `tools/laya/PROVENANCE.md` for sizes/hashes) and the committed
-tokenizer asset. Bundle files stay out of Git. This debug helper performs a
-separate user-run transfer; the app's S4.3 provisioning page can instead import
-the three pinned export files from a local folder. The install below is
-`install -r` (in-place update: same package, same debug certificate, existing
-app data preserved) — never uninstall, never clear app data.
+S4.9 ran the pinned English export (`68f27dfe5a27a54fb2b1fefc432f43f972e90868`) through
+the app's `LayaInferenceLifecycle` and ONNX Runtime Android on the ALT-LX2 (Android 14,
+ARM64, 4096-byte pages). Synthetic fixture labels and categories were used; the evaluation
+did not open Room repositories or read or write real categories, ledger rows, bank drafts,
+or notification content. Detailed per-case outputs and measurement definitions are in the
+[sanitized S4.9 evaluation](../artifacts/sprint-4/workers/S4.9-A1-evaluation.json).
 
-Run the checked-in helper from a fresh PowerShell window (from §2) at the repo
-root. It verifies the four pinned files (exact size + SHA-256) before touching
-the phone, installs the debug APK, stages via shell-owned `/data/local/tmp`
-with narrow readable-only permissions (`755` dirs / `644` files — deliberately
-never world-writable), copies the exact four files `LayaRuntime.open` requires
-into app-private storage, frees the staging copy, clears any stale report
-before launch (so a retrieved report can only be from this run), launches the
-probe (it auto-runs; the button re-runs it), polls until the fresh report
-appears (~1–2 min for the 1.6 GB cold load + 9 inferences), validates it parses
-as JSON with `verdict` + `state`, and saves it:
+The model selected 7 of 8 independently labeled, non-empty top choices correctly and
+returned unknown for both labeled no-fit examples. The long-state case was a real miss
+(expected `Food`, predicted `Fun`, calibrated confidence `0.6976`); no wrong choice had
+confidence at or above `0.8`. Empty input and an empty active-category set remained manual.
+The confidence value is distribution sharpness, not an accuracy guarantee.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File tools\laya\Invoke-S42ParityProbe.ps1
-```
+With 206 active synthetic categories and names-only production metadata, expected-category
+shortlist recall was **1/6**. Five positive examples had no category-name metadata evidence
+and remained manual/unknown; only the marker-injection example matched the expected label.
+The current category schema has neither aliases nor descriptions for richer oversized-set
+retrieval. Do not treat the small 8-case top-choice score as broad quality validation.
 
-The copy-ready invocation on this host is exactly that line run from
-`F:\ai-ml\aegis-f`, with these verified defaults (override only with `-BundleDir`
-/ `-TokenizerAsset` / `-ApkPath` / `-ReportOut`):
+Measured latency used `SystemClock.elapsedRealtime` and nearest-rank percentiles. A cold
+sample starts at the production `suggest` request after `releaseSession`; it includes
+session close/reopen, the runtime's open-time contract inference, and the decision. Three
+cold samples measured **10,535 ms p50 / 11,159 ms p95**. Twenty consecutive warm requests
+with a retained session measured **903 ms p50 / 914 ms p95**.
 
-- Bundle snapshot (revision `68f27dfe`, SHA-256-verified):
-  `F:\llms\hf\models\hub\models--receptron--laya-onnx\snapshots\68f27dfe5a27a54fb2b1fefc432f43f972e90868`
-  holding `laya.onnx` (3,807,291 B), `laya.onnx.data` (1,685,258,240 B),
-  `laya_config.json` (369 B).
-- Tokenizer asset (committed, SHA-256-verified):
-  `F:\ai-ml\aegis-f\app\src\main\assets\laya\laya_tokenizer.bin` (1,317,378 B).
-- Debug APK carrying the probe (release builds have none):
-  `F:\ai-ml\aegis-f\app\build\outputs\apk\debug\app-debug.apk`
-  (`versionCode = 4`, package `io.github.triet4p.aegisf`; probe component
-  `io.github.triet4p.aegisf.layaprobe.LayaParityProbeActivity`).
-- Report destination:
-  `F:\ai-ml\aegis-f\artifacts\sprint-4\reviews\S42-parity-report.json`.
+Peak process memory was measured only for the Aegis process with
+`Debug.getMemoryInfo().totalPss`: **1,620,186 KiB**, the maximum of 79 samples during a cold
+reopen plus one decision. The sampler targeted 50 ms but actually sampled at 113 ms p50 /
+220 ms p95; shorter transients may be missed. During eight background inference requests, a
+20 ms main-looper heartbeat recorded 360 dispatches with 0 ms p50, 1 ms p95, and 1 ms
+maximum lateness. Launching `MainActivity` during the asynchronous run returned `Status: ok`
+in 461 ms. This measures main-loop dispatch/navigation, not human typing or real draft-screen
+switching.
 
-To preview every device command without executing (local pins are still
-verified), append `-DryRun`. For a slow device, extend the poll budget, e.g.
-`-TimeoutSeconds 600`. Benign `adb` progress printed on stderr (for example
-`adb push` transfer lines) is treated as ordinary device output and never
-aborts a step whose exit code is 0; every `adb` step still fails loudly on a
-nonzero exit and prints the exact command plus device output; a `FAIL`/`NO_RUN`
-report verdict is still saved and printed verbatim — return it as observed,
-never tune it.
+The installed app requested no `android.permission.INTERNET`, and the evaluator ran on-device
+with the app-private pinned model. No OS network setting was changed, and the phone was not
+put into airplane mode or an OS-enforced network-denial state; interpret “offline” as a local
+inference path without the permission to use ordinary Internet sockets, not as a network-cut
+experiment.
 
-The helper performs exactly these device commands (shown here so the record is
-complete; prefer running the helper over retyping them):
+The bounded edge checks used only synthetic data: overlapping labels produced a
+review-only model choice; an archived correction target returned manual review, and an
+active id archived before resolution was rejected as stale; prompt-like input remained a
+no-fit outcome; literal `[MASK]` text was scrubbed without changing option-marker positions.
+Three sequential synthetic request ids exercised the shared lifecycle, but no actual draft
+rows or notification-review UI were examined.
 
-```powershell
-adb -d install -r 'F:\ai-ml\aegis-f\app\build\outputs\apk\debug\app-debug.apk'
-adb -d shell "mkdir -p /data/local/tmp/laya-model"
-adb -d push 'F:\llms\hf\models\hub\models--receptron--laya-onnx\snapshots\68f27dfe5a27a54fb2b1fefc432f43f972e90868\laya.onnx' /data/local/tmp/laya-model/laya.onnx
-adb -d push 'F:\llms\hf\models\hub\models--receptron--laya-onnx\snapshots\68f27dfe5a27a54fb2b1fefc432f43f972e90868\laya.onnx.data' /data/local/tmp/laya-model/laya.onnx.data
-adb -d push 'F:\llms\hf\models\hub\models--receptron--laya-onnx\snapshots\68f27dfe5a27a54fb2b1fefc432f43f972e90868\laya_config.json' /data/local/tmp/laya-model/laya_config.json
-adb -d push 'F:\ai-ml\aegis-f\app\src\main\assets\laya\laya_tokenizer.bin' /data/local/tmp/laya-model/laya_tokenizer.bin
-adb -d shell "chmod 755 /data/local/tmp/laya-model"
-adb -d shell "chmod 644 /data/local/tmp/laya-model/laya.onnx /data/local/tmp/laya-model/laya.onnx.data /data/local/tmp/laya-model/laya_config.json /data/local/tmp/laya-model/laya_tokenizer.bin"
-adb -d shell "run-as io.github.triet4p.aegisf mkdir -p files/laya/model/tokenizer files/laya/parity"
-adb -d shell "run-as io.github.triet4p.aegisf cp /data/local/tmp/laya-model/laya.onnx /data/local/tmp/laya-model/laya.onnx.data /data/local/tmp/laya-model/laya_config.json files/laya/model/"
-adb -d shell "run-as io.github.triet4p.aegisf cp /data/local/tmp/laya-model/laya_tokenizer.bin files/laya/model/tokenizer/laya_tokenizer.bin"
-adb -d shell "run-as io.github.triet4p.aegisf ls -l files/laya/model/laya.onnx files/laya/model/laya.onnx.data files/laya/model/laya_config.json files/laya/model/tokenizer/laya_tokenizer.bin"
-adb -d shell "rm -rf /data/local/tmp/laya-model"
-adb -d shell "run-as io.github.triet4p.aegisf rm -f files/laya/parity/S42-parity-report.json"
-adb -d shell am start -n io.github.triet4p.aegisf/io.github.triet4p.aegisf.layaprobe.LayaParityProbeActivity
-adb -d exec-out run-as io.github.triet4p.aegisf cat files/laya/parity/S42-parity-report.json
-```
-
-The final `cat` is polled (every 5 s, 300 s budget): earlier absence means the
-run has not finished, because the stale report was cleared before launch.
-
-Expected evidence to return (paste the report JSON, plus the on-screen verdict line):
-
-- `device_model` HONOR ALT-LX2, `android_api` 34, `abis[0]` `arm64-v8a`, `page_size_bytes` 4096.
-- `state` `Ready` (anything else names the exact missing/corrupt cause — return it verbatim instead of parity numbers).
-- `verdict` `PASS`: all nine `cases[].match` true, with `android_choice` equal to the S4.1 reference outcomes (`unknown`, `Housing`, `Transport`, `Health`, `unknown`, `unknown`, `Food`, `unknown`, `unknown` in example order), and the `meaningful-rent` entry carrying `reference_match` true (Housing 0.9796, confidence 0.9336). Per-case `latency_ms` and `open_ms` are observed cold/warm timings for S4.9, not pass/fail gates here.
-- A `FAIL` verdict still returns the full report: mismatched `android_choice` values are recorded as observed misses (like the S4.1 food/long-state unknowns), not tuned away.
-
-Privacy: the report carries only the nine fixed English example strings, category names, probabilities, timings, and device facts (model, API, ABI, page size). No ledger content, notification body, account identifier, or OTP is involved.
+**Adoption decision:** keep the existing model path optional and review-only, with explicit
+user confirmation and manual fallback. The measured large-catalog shortlist recall is too
+low to claim reliable model suggestions across oversized category sets; this evidence does
+not support automatic assignment or confidence-based trust.
 
 ### S4.6 manual-entry suggestion UI (task-scoped Aegis phone check)
 
@@ -408,13 +375,12 @@ category data to manufacture a test state.
    confirm the category picker and normal manual form remain usable; do not
    remove or replace an installed model to test that state.
 
-A description that does not match category names may exercise neural scoring
-when the model is ready; record its result as observed, including a no-fit
-outcome. The name-only shortlist's measured recall remains **1/6** on the
-accepted labeled positive examples, so this check makes no suggestion-quality
-claim. Category edits, pending-request races, and lifecycle cancellation are
-covered by host state-machine tests, not by pretending this phone procedure
-observes every race.
+If a category-name mismatch requires neural scoring, record its result, including a no-fit
+outcome. The separate S4.9 synthetic phone evaluation measured 7/8 labeled top choices and
+1/6 shortlist recall with 206 active categories; see §6 and the [machine-readable report](../artifacts/sprint-4/workers/S4.9-A1-evaluation.json).
+This manual UI procedure makes no additional quality claim. Category edits,
+pending-request races, and lifecycle cancellation are covered by host
+state-machine tests, not by pretending this phone procedure observes every race.
 
 The task-scoped S4.6-A2 phone observation used the installed debug `versionCode 4`
 build: an exact active-category phrase produced a current-category suggestion;
@@ -647,54 +613,22 @@ Host regression and live-weight verification:
 
 The live candidate smoke sends the planner's actual Kotlin token ids and marker positions
 through `tools/laya/run_tensors.py` and the pinned local host ONNX bundle. It is not an
-Android/SAF test; do not run device commands as a worker. Suggestions remain unconnected
-to manual-entry and notification UI until later Sprint 4 work.
+Android/SAF test. S4.6 connects suggestions to manual expense entry and S4.8 connects them
+to notification-draft review; their UI evidence and the S4.9 phone measurements are separate.
+Device work is allowed only when the active assignment explicitly authorizes a narrow Aegis-app check.
 
-### S4.5 User-run Android lifecycle responsiveness check
+### S4.5/S4.9 Android lifecycle evidence
 
-This is a **user-only** physical-device check of the real ORT Android runtime
-through the process-owned inference lifecycle. It does not create or modify
-ledger records or categories, and workers must not run its `adb` commands. Use
-the debug APK built from the final task source; do not uninstall or clear app
-data. The existing probe helper installs in place with `install -r`, preserves
-app data, stages only the pinned model files, and does not touch notification
-settings.
+The temporary S4.2 parity activity and its driver were retired after S4.9; the old
+user-run procedure is no longer available. S4.9 exercised the production
+`LayaInferenceLifecycle` during eight background requests: the app main-looper heartbeat
+recorded 360 samples, with 0 ms p50, 1 ms p95, and 1 ms maximum lateness. `MainActivity`
+started while the asynchronous evaluation was active and returned `Status: ok` in 461 ms.
 
-From a fresh PowerShell window at the repository root, run the existing
-[`S4.2 probe helper`](../tools/laya/Invoke-S42ParityProbe.ps1). Save its report
-to a temporary path so the accepted S4.2 report is not overwritten:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File tools\laya\Invoke-S42ParityProbe.ps1 -ReportOut "$env:TEMP\S45-lifecycle-parity.json"
-```
-
-While the helper's first PowerShell window polls for the report, bring
-**Aegis F**'s `MainActivity` to the foreground so the process-owned worker can
-continue behind it. If the probe is the current root screen, run this
-user-only command from a second PowerShell window at the repository root:
-
-```powershell
-adb -d shell am start -n io.github.triet4p.aegisf/.MainActivity
-```
-
-If **Aegis F** is already below the probe in Recents, system Back is also
-sufficient. Do not force-stop or swipe the app away. Open **Record a
-transaction**, type in the form, navigate away and back, and confirm the fields
-remain responsive. Do not press **Save**; leaving the form without saving
-writes nothing. If the first probe run finishes before you switch, tap **Run
-parity probe** and switch to the main activity promptly.
-
-If notification access is already granted and a permitted bank notification
-arrives naturally during the check, verify that it appears as a pending item
-under **Review bank drafts**. Do not generate a bank transaction, edit or
-confirm a draft, or share its body. If no notification arrives naturally, leave
-this phone-only observation unclaimed; the host smoke separately exercises the
-listener-to-Room persistence path during blocked inference.
-
-Return only whether the probe reached `Ready`/`PASS`, whether typing and
-navigation remained responsive without saving, and whether a naturally
-received notification persisted as a pending draft (or that none arrived).
-Do not send the raw probe JSON, device facts, or notification content.
+This was a process-level responsiveness observation, not a typing, form-navigation, or
+notification-draft UI test. It read and changed no actual draft, category, or ledger data.
+The full measurements and explicit limits are in the
+[S4.9 evaluation report](../artifacts/sprint-4/workers/S4.9-A1-evaluation.json).
 
 ### S4.5 Host lifecycle and persistence smoke
 
@@ -711,9 +645,9 @@ notification concurrency smoke uses the real listener and Room-backed intake
 path while that worker is blocked; its editor/navigation interaction is
 host-simulated, not a Compose or physical-device result. `LayaLiveParityTest`
 continues to run the Kotlin decision path against the real pinned host weights
-through the existing Python ONNX Runtime tool. None of these host checks proves
-ARM64 Android native execution or actual device UI responsiveness; the
-user-only procedure above is the physical check.
+through the existing Python ONNX Runtime tool. S4.9 separately proves ARM64 Android inference
+and process-level main-looper response for its synthetic evaluation, not Compose typing or a
+real notification-draft UI path; the final user-experience gate remains separate.
 
 
 ## 8. Update path and troubleshooting

@@ -55,7 +55,7 @@ class LayaRuntime private constructor(
         LayaCandidatePlanner.decide(plan) { built -> runLogits(built) }
     }
 
-    /** Low-level positional interface retained for the graph probe and parity verification. */
+    /** Low-level positional scoring used by the runtime's open-time contract probe. */
     internal fun suggestOptions(
         description: String,
         categories: List<CategoryOption>,

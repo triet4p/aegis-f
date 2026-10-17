@@ -49,6 +49,11 @@ opt-in notification review inbox — every bank-derived record still requires th
   incomplete staging is discarded without replacing the installed model. The
   user-only import steps are in
   [developer setup §7](docs/developer-setup.md#7-user-run-s43-local-model-provisioning).
+  The S4.9 physical-device evaluation recorded 7/8 labeled top choices, both no-fit cases
+  correctly returned unknown, but the name-only shortlist recalled only 1/6 positive categories
+  with 206 active categories. Keep suggestions optional and review-only; confidence is not an
+  accuracy guarantee, and manual fallback remains essential. See the
+  [sanitized evaluation](artifacts/sprint-4/workers/S4.9-A1.md).
 - **Bank notification setup, filtering, parsing, and pending drafts (opt-in, no
   auto-confirmation)** — the home screen's **Bank notifications** page shows whether
   system notification access is granted, whether the listener is connected, and which
@@ -183,9 +188,10 @@ The following capabilities are not available yet:
   unaccented Vietnamese), or OTP-like memos stay manual. Only the effective input (the note
   alone when present, otherwise the visible memo text) is ever offered; the note and the bank
   memo are never concatenated and the stored memo is never rewritten. The draft category field
-  changes only on explicit **Use suggestion** or
-  The name-only shortlist measured recall of **1/6** on the accepted labeled positive
-  examples; this remains an S4.9 adoption risk, not an accuracy claim.
+  changes only on explicit **Use suggestion**; saving still requires separate confirmation.
+  The S4.9 phone evaluation recorded 7/8 labeled top choices and only 1/6 expected-category
+  shortlist recall with 206 active categories; keep the model review-only with manual fallback
+  ([evaluation](artifacts/sprint-4/workers/S4.9-A1.md)).
 - **No bank account connection.** The review inbox uses only permitted notification drafts; the app
   does not log in to a bank or request SMS, accessibility, or notification-posting permissions.
 - **No cloud service, sync, or account.** There is no login, no server, and no network use at all.

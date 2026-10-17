@@ -57,9 +57,9 @@ object LayaRuntimeContract {
     }
 
     /**
-     * Low-level positional graph output for parity verification: indices address the exact
-     * caller-ordered option list plus a final `unknown` no-fit outcome. Production candidate
-     * decisions use [LayaRuntime.suggest], which maps the winning position to a stable id.
+     * Low-level positional graph output used by the runtime's open-time contract probe.
+     * Indices address the exact caller-ordered option list and the final `unknown` no-fit option.
+     * Production decisions use [LayaRuntime.suggest], which maps the winning position to a stable id.
      * A choice is never a ledger write, and any candidate result must be re-resolved against
      * current category metadata before display.
      */

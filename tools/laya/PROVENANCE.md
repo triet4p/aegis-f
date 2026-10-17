@@ -113,12 +113,30 @@ export `laya_config.json`:
   `Payment to Alex`. Raw-logit spot check on `Monthly rent`:
   `[-2.5694, -2.0874, 4.1281, -2.4, -2.9104, -0.0525]` → Housing after T≈1 scaling.
 
-## Limits (no Android claim)
+## On-device evaluation and limits (S4.9)
 
-- Host CPU only (onnxruntime 1.21.1, `tokenizers` 0.21.1). No ONNX Runtime
-  Android session, no page-size/ABI check, no latency/memory measurement — S4.2/S4.9 own those.
-- Zero-shot English only; no fine-tuning, no accuracy claim. Two of nine
-  examples miss their labels (lunch→unknown, long-state→unknown); outcomes are
-  recorded as observed.
-- Model acquisition used network once into the ambient HF cache outside the
-  repo; inference itself is offline against the local bundle directory.
+- The Android `LayaInferenceLifecycle` ran the pinned export on an ALT-LX2
+  (Android 14/API 34, ARM64, 4096-byte pages). The synthetic fixture labels were
+  left independent of model and parity outputs; only the production-shaped
+  names-only `CategoryEntity` metadata was used. Per-case evidence is in
+  [`S4.9-A1-evaluation.json`](../../artifacts/sprint-4/workers/S4.9-A1-evaluation.json).
+- Top-choice quality was **7/8** labeled non-empty cases, both labeled no-fit
+  cases returned unknown, and the long-state case was wrong (expected `Food`,
+  selected `Fun`, confidence `0.6976`). No wrong choice met the report's
+  `0.8` confident-error threshold; this is not a production threshold or an
+  accuracy guarantee.
+- With 206 synthetic active categories, names-only shortlist recall was **1/6**.
+  Five positive inputs had no category-name evidence and remained manual. The
+  current category schema has no aliases or descriptions for retrieval.
+- Production-request latency: cold `n=3`, **10,535 ms p50 / 11,159 ms p95**,
+  including session close/reopen, open-time probe, and decision; warm `n=20`,
+  **903 ms p50 / 914 ms p95**. Sampled process PSS peak was **1,620,186 KiB**
+  using `Debug.getMemoryInfo().totalPss`, 79 samples with observed sampling
+  intervals of 113 ms p50 / 220 ms p95.
+- The app requested no `INTERNET` permission and executed locally; network
+  settings were not changed and airplane mode/network denial was not claimed.
+  The accepted S4.2 parity report remains archived separately at
+  `artifacts/sprint-4/reviews/S42-parity-report.json`.
+- Adoption remains limited to optional, explicit-confirmation suggestions with
+  manual fallback. The small labeled set and **1/6** large-catalog retrieval
+  recall do not justify automatic assignment or confidence-based trust.

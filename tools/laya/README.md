@@ -1,4 +1,4 @@
-# Laya reference tooling (S4.1–S4.8)
+# Laya reference tooling (S4.1–S4.9)
 
 Host-side reference for the English Laya decision artifact, Android runtime,
 local model import, category-candidate planning, background lifecycle,
@@ -44,12 +44,12 @@ current work and permits a later request to reopen; `close()` rejects new work
 and defers release until active work returns.
 
 The notification listener does not access or retain this lifecycle; its
-background intake and Room persistence remain independent. The debug parity
-probe uses the same process-owned lifecycle for its real Android runtime run.
-Host lifecycle races use a controlled blocking session; they prove queue,
-cancellation, and close ownership, not Android native inference or physical UI
-responsiveness. The user-only phone procedure remains in
-[`docs/developer-setup.md` §6](../../docs/developer-setup.md#6-user-run-s42-parity-probe-phone-onnx-runtime-android).
+background intake and Room persistence remain independent. S4.9 used the same
+production lifecycle for a temporary real Android-runtime evaluation; the
+debug activity and driver have since been removed. Host lifecycle races use a
+controlled blocking session and do not prove Android runtime or UI behavior.
+The measured phone evidence is in
+[`S4.9-A1-evaluation.json`](../../artifacts/sprint-4/workers/S4.9-A1-evaluation.json).
 
 ### S4.6–S4.8 manual-entry and draft-review suggestions with remembered rules
 
@@ -96,9 +96,19 @@ authorization; its sanitized evidence is in
 [`S4.6-A2`](../../artifacts/sprint-4/workers/S4.6-A2.md). For that narrow
 procedure, see
 [`docs/developer-setup.md` §6](../../docs/developer-setup.md#s46-manual-entry-suggestion-ui-task-scoped-aegis-phone-check).
-The S4.4 name-only shortlist's measured recall remains **1/6** on the accepted
-labeled positive examples and is an S4.9 adoption risk; no confidence threshold
-or quality claim is added here.
+The actual-phone S4.9 evaluation recorded **7/8** labeled top choices and both
+no-fit cases returned unknown; the long-state case was wrong (`Food` expected,
+`Fun` selected, confidence `0.6976`). No incorrect choice reached the
+reporting threshold of `0.8`; this is not a production confidence cutoff.
+With **206** active categories, names-only retrieval recalled **1/6** positive
+expected categories. Cold production-request latency was **10,535 ms p50 /
+11,159 ms p95** (`n=3`); warm latency was **903 ms p50 / 914 ms p95** (`n=20`).
+Sampled Aegis-process peak PSS was **1,620,186 KiB** (79 samples; observed
+113 ms p50 / 220 ms p95 sampling intervals). The main-looper heartbeat during
+eight inference requests measured **1 ms p95** lateness (360 samples). These
+results support only optional, review-only suggestions; large-catalog manual
+fallback remains necessary. Full definitions and edge results are in the
+[machine-readable report](../../artifacts/sprint-4/workers/S4.9-A1-evaluation.json).
 
 The candidate regressions and real-weight host smoke run with:
 
@@ -116,7 +126,7 @@ requires task-scoped Aegis authorization.
   checks the real runtime before publication. The user procedure is in
   [`docs/developer-setup.md` §7](../../docs/developer-setup.md#7-user-run-s43-local-model-provisioning).
   Model setup is not a network downloader; category suggestions and remembered-rule
-  controls appear only in the manual-expense form.
+  controls appear in manual-entry and notification-draft review.
   Check and import cancellation stays visibly busy until the active file or
   native runtime check finishes; incomplete staging is discarded without
   replacing installed model data.
@@ -144,28 +154,15 @@ requires task-scoped Aegis authorization.
   runs caller-built tensors through the pinned bundle and returns the raw logits, so
   the app's exact input bytes are scored by the real weights without ORT Java natives
   on the host.
-- [`Invoke-S42ParityProbe.ps1`](Invoke-S42ParityProbe.ps1) — checked-in user-run
-  S4.2 parity-probe driver (phone contact is user-only; workers never run it
-  against a device): verifies the four pinned bundle files by exact size +
-  SHA-256, installs the debug APK in place (`install -r`, data preserved),
-  stages through shell-owned `/data/local/tmp` with narrow `755`/`644`
-  permissions (never world-writable), copies the four files
-  `LayaRuntime.open` requires into app-private storage, frees the staging
-  copy, clears any stale report before launch, runs the debug-only
-  `LayaParityProbeActivity` (the real `LayaRuntime`, nine labeled cases),
-  polls for the fresh `S42-parity-report.json`, validates it as JSON with
-  `verdict` + `state`, and saves it. Invoke from the repo root:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File tools\laya\Invoke-S42ParityProbe.ps1
-```
+The S4.2 on-device parity evidence remains archived at
+[`S42-parity-report.json`](../../artifacts/sprint-4/reviews/S42-parity-report.json).
+Its temporary debug activity and PowerShell driver were removed after S4.9;
+no parity/evaluation probe is shipped in the app source. S4.9's one-off phone
+measurements are retained in the
+[machine-readable report](../../artifacts/sprint-4/workers/S4.9-A1-evaluation.json).
 
-Defaults are the host-verified snapshot/tokenizer/APK paths; `-DryRun`
-prints every device command without executing, and `-TimeoutSeconds` extends
-the poll budget. Benign `adb` stderr progress never aborts a step whose exit
-code is 0; a nonzero exit still fails loudly with the original output.
-A `FAIL`/`NO_RUN` verdict is saved and printed verbatim.
-Run (bundle is machine-local, never committed):
+Run the pinned host reference (bundle is machine-local and never committed):
 
 ```powershell
 python tools/laya/reference_runner.py --model-dir <bundle-dir> --examples tools/laya/expense_examples.json
@@ -173,5 +170,5 @@ python tools/laya/reference_runner.py --model-dir <bundle-dir> --examples tools/
 
 `<bundle-dir>` holds the five pinned `receptron/laya-onnx` files at revision
 `68f27dfe5a27a54fb2b1fefc432f43f972e90868` (see `PROVENANCE.md` for hashes).
-The accepted S4.2 on-device parity probe proves the runtime against the pinned bundle;
-performance and memory evaluation remain S4.9.
+The host reference proves neither Android inference nor device performance; see
+the archived S4.2 parity report and the separately measured S4.9 evaluation.

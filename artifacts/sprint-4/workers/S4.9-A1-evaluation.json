@@ -1,0 +1,151 @@
+{
+  "schema": "omp-sprint4-evaluation/v1",
+  "task_id": "S4.9",
+  "attempt_id": "S4.9-A1",
+  "agent_id": "S49EvaluateA1",
+  "role": "silver-task",
+  "evaluation": {
+    "device": {
+      "model": "ALT-LX2",
+      "android_api": 34,
+      "abis": ["arm64-v8a", "armeabi-v7a", "armeabi"],
+      "page_size_bytes": 4096
+    },
+    "model_revision": "68f27dfe5a27a54fb2b1fefc432f43f972e90868",
+    "runtime": "Production LayaInferenceLifecycle on the app process with the app-private installed ONNX Runtime Android model.",
+    "category_data": "Synthetic CategoryEntity rows only; five fixture names without descriptions, matching production metadata. No Room category, ledger, or bank-draft repositories were accessed.",
+    "labels": "Independent expected labels from tools/laya/expense_examples.json; not changed to match parity or model output.",
+    "network": {
+      "internet_permission_requested": false,
+      "inference_engine": "On-device ONNX Runtime Android CPU",
+      "os_network_settings_changed": false,
+      "airplane_mode_or_network_denial_claimed": false,
+      "offline_scope": "Local model inference with no INTERNET permission; the OS was not forced offline."
+    },
+    "installed_model_sha256_before": {
+      "laya.onnx": "a874eb254b58b0fcb1e7ad56fbb188c29d64e08c9a46b689433e1f52c66dba1e",
+      "laya.onnx.data": "487746363a8da57bcadb4345352997d22a0fb90d70aa22c6856668d023242aba",
+      "laya_config.json": "5049005dc6ae3ca5e82cc7d85c421357d5c543817300c8e8c5281ddbc69bb561",
+      "tokenizer/laya_tokenizer.bin": "09b371ce4b613716bdad862985c37774dfd3ea6373919c8312f9a6cf8bb9ad1b"
+    },
+    "installed_model_sha256_after": {
+      "laya.onnx": "a874eb254b58b0fcb1e7ad56fbb188c29d64e08c9a46b689433e1f52c66dba1e",
+      "laya.onnx.data": "487746363a8da57bcadb4345352997d22a0fb90d70aa22c6856668d023242aba",
+      "laya_config.json": "5049005dc6ae3ca5e82cc7d85c421357d5c543817300c8e8c5281ddbc69bb561",
+      "tokenizer/laya_tokenizer.bin": "09b371ce4b613716bdad862985c37774dfd3ea6373919c8312f9a6cf8bb9ad1b"
+    },
+    "model_hashes_unchanged_before_after": true,
+    "quality": {
+      "labeled_nonempty_cases": 8,
+      "correct_top_choices": 7,
+      "top_choice_accuracy": 0.875,
+      "expected_unknown_cases": 2,
+      "unknown_recalled": 2,
+      "confidently_incorrect_threshold": 0.8,
+      "confidently_incorrect": 0,
+      "cases": [
+        {"id":"meaningful-food","expected":"Food","product_source":"MODEL","model_top_choice":"Food","confidence":0.5638,"probabilities":{"Food":0.7271,"Transport":0.0033,"Housing":0.0016,"Health":0.0011,"Fun":0.0767,"unknown":0.1901},"correct":true},
+        {"id":"meaningful-rent","expected":"Housing","product_source":"MODEL","model_top_choice":"Housing","confidence":0.9526,"probabilities":{"Food":0.0005,"Transport":0.0003,"Housing":0.9849,"Health":0.0004,"Fun":0.0002,"unknown":0.0136},"correct":true},
+        {"id":"meaningful-transport","expected":"Transport","product_source":"MODEL","model_top_choice":"Transport","confidence":0.9223,"probabilities":{"Food":0.0001,"Transport":0.9743,"Housing":0.0001,"Health":0.0001,"Fun":0.0137,"unknown":0.0117},"correct":true},
+        {"id":"meaningful-health","expected":"Health","product_source":"MODEL","model_top_choice":"Health","confidence":0.801,"probabilities":{"Food":0.0098,"Transport":0.0009,"Housing":0.0008,"Health":0.9061,"Fun":0.0008,"unknown":0.0817},"correct":true},
+        {"id":"ambiguous-alex","expected":"unknown","product_reason":"MODEL_NO_FIT","model_top_choice":"unknown","confidence":0.8252,"probabilities":{"Food":0.0058,"Transport":0.0027,"Housing":0.0161,"Health":0.0091,"Fun":0.0275,"unknown":0.9388},"correct":true},
+        {"id":"unknown-gift","expected":"unknown","product_reason":"MODEL_NO_FIT","model_top_choice":"unknown","confidence":0.8345,"probabilities":{"Food":0.0024,"Transport":0.0022,"Housing":0.0143,"Health":0.003,"Fun":0.0406,"unknown":0.9375},"correct":true},
+        {"id":"boundary-mask-injection","expected":"Food","product_source":"CATEGORY_METADATA","product_category_id":11,"model_top_choice":"Food","confidence":0.9038,"probabilities":{"Food":0.9646,"Transport":0.0011,"Housing":0.0004,"Health":0.0005,"Fun":0.0026,"unknown":0.0307},"correct":true},
+        {"id":"boundary-long-state","expected":"Food","product_source":"MODEL","product_top_choice":"Fun","model_top_choice":"Fun","confidence":0.6976,"probabilities":{"Food":0.0006,"Transport":0.0004,"Housing":0.0004,"Health":0.0004,"Fun":0.7784,"unknown":0.2198},"correct":false},
+        {"id":"boundary-empty-description","expected":null,"product_reason":"EMPTY_DESCRIPTION","model_ran":false}
+      ],
+      "quality_limits": ["Small fixed fixture set; not a broad user-population accuracy estimate.","Confidence is calibrated distribution sharpness, not an accuracy guarantee."]
+    },
+    "candidate_recall": {
+      "active_categories": 206,
+      "head_token_budget": 192,
+      "positive_expected_category_cases": 6,
+      "expected_categories_retrieved": 1,
+      "recall": 0.16666666666666666,
+      "maximum_shortlist_observed": 1,
+      "cases": [
+        {"id":"meaningful-food","expected":"Food","retrieved":false,"offered":0,"omitted":206,"omitted_metadata_evidence":0,"reason":"NO_METADATA_EVIDENCE"},
+        {"id":"meaningful-rent","expected":"Housing","retrieved":false,"offered":0,"omitted":206,"omitted_metadata_evidence":0,"reason":"NO_METADATA_EVIDENCE"},
+        {"id":"meaningful-transport","expected":"Transport","retrieved":false,"offered":0,"omitted":206,"omitted_metadata_evidence":0,"reason":"NO_METADATA_EVIDENCE"},
+        {"id":"meaningful-health","expected":"Health","retrieved":false,"offered":0,"omitted":206,"omitted_metadata_evidence":0,"reason":"NO_METADATA_EVIDENCE"},
+        {"id":"boundary-mask-injection","expected":"Food","retrieved":true,"offered":1,"omitted":205,"omitted_metadata_evidence":0,"reason":null},
+        {"id":"boundary-long-state","expected":"Food","retrieved":false,"offered":0,"omitted":206,"omitted_metadata_evidence":0,"reason":"NO_METADATA_EVIDENCE"}
+      ]
+    },
+    "edge_cases": {
+      "empty_categories": {"result":"unknown_manual_review","reason":"NO_ACTIVE_CATEGORIES"},
+      "overlapping_labels": {"labels":["Food","Food travel","Travel"],"result":"Travel","source":"MODEL","confidence":0.4678,"expected_label_defined":false},
+      "archived_correction_target": {"result":"unknown_manual_review","reason":"CORRECTION_TARGET_UNAVAILABLE"},
+      "previously_active_category_archived_before_resolution": {"decision":{"synthetic_id":13,"source":"EXPLICIT_CORRECTION"},"resolution":"STALE_CATEGORY","reason":"MISSING_OR_ARCHIVED"},
+      "prompt_like_description": {"result":"unknown_manual_review","reason":"MODEL_NO_FIT"},
+      "mask_marker_injection": {"scrubbed_sequence_identical":true,"marker_positions_preserved":true},
+      "sequential_synthetic_draft_requests": {"count":3,"database_drafts_read_or_written":false,"results":["Housing","unknown","unknown"],"real_draft_UI_switch_tested":false}
+    },
+    "latency": {
+      "clock":"android.os.SystemClock.elapsedRealtime",
+      "percentile_method":"nearest-rank",
+      "cold":{"sample_count":3,"definition":"Production suggest after releaseSession; elapsed includes session close/reopen, open-time contract inference, and decision.","samples_ms":[11159,10535,8947],"p50_ms":10535,"p95_ms":11159},
+      "warm":{"sample_count":20,"definition":"Twenty consecutive production suggest requests with a retained session, the same synthetic rent input and five active labels.","samples_ms":[913,914,900,900,900,903,902,902,902,904,901,917,908,903,906,905,903,906,902,904],"p50_ms":903,"p95_ms":914}
+    },
+    "process_pss": {
+      "measurement":"android.os.Debug.getMemoryInfo on this Aegis process; totalPssKiB",
+      "peak_kib":1620186,
+      "initial_kib":1610339,
+      "final_kib":1584196,
+      "sample_count":79,
+      "target_sampling_interval_ms":50,
+      "observed_interval_p50_ms":113,
+      "observed_interval_p95_ms":220,
+      "scope":"One cold session reopen and one inference; transients shorter than observed sampling cadence may be missed."
+    },
+    "lifecycle_responsiveness": {
+      "measure":"20 ms scheduled main-looper heartbeat lateness while production inference ran on LayaInferenceLifecycle worker",
+      "inference_requests":8,
+      "heartbeat_samples":360,
+      "p50_lateness_ms":0,
+      "p95_lateness_ms":1,
+      "max_lateness_ms":1,
+      "MainActivity_launch_during_async_evaluation":{"status":"ok","total_time_ms":461,"wait_time_ms":488}
+    },
+    "adoption_decision": {
+      "scope":"Keep optional suggestions review-only with explicit user confirmation and manual fallback.",
+      "not_supported":"Automatic assignment, confidence-based trust, or a reliability claim for oversized category sets.",
+      "prerequisite_for_expansion":"Improve and independently re-evaluate large-catalog retrieval coverage with representative labeled cases; current names-only metadata has no aliases or descriptions."
+    },
+    "final_verification": {
+      "gradle_command": ".\\gradlew.bat --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --console=plain",
+      "gradle_result": "BUILD SUCCESSFUL in 3m 19s",
+      "unit_tests": {"count": 208, "failures": 0, "skipped": 0, "duration": "1m7.44s"},
+      "debug_apk": {
+        "path": "app/build/outputs/apk/debug/app-debug.apk",
+        "sha256": "b8921924c30503197375b91d2ee625895a6c19d8429f259360e65c97ea9e1493"
+      },
+      "release_apk": {
+        "path": "app/build/outputs/apk/release/app-release-unsigned.apk",
+        "sha256": "54971927c857041afd6c424b566637f889e323d37d10afa19b3ef1bba9730989"
+      },
+      "debug_manifest_probe_activity_present": false,
+      "release_manifest_probe_activity_present": false,
+      "debug_dex_probe_class_present": false,
+      "release_dex_probe_class_present": false,
+      "debug_install_in_place": "adb -d install -r succeeded; no uninstall or clear-data",
+      "final_app_smoke": {
+        "command": "adb -d shell am start -W -n io.github.triet4p.aegisf/.MainActivity",
+        "status": "ok",
+        "launch_state": "COLD",
+        "total_time_ms": 1538,
+        "wait_time_ms": 1545
+      },
+      "release_apk_installation": "Not installed; artifact unsigned. Final debug/release manifests and defined DEX were inspected and contained no probe; physical app smoke used the final in-place debug APK."
+    },
+    "privacy_and_state": {
+      "raw_financial_data_in_report": false,
+      "descriptions_in_report": false,
+      "evaluation_harness_accessed_real_categories_or_drafts": false,
+      "main_activity_screen_content_inspected": false,
+      "ledger_or_draft_mutations": false,
+      "OS_or_network_settings_changed": false,
+      "temporary_on_device_report_removed": true
+    }
+  }
+}

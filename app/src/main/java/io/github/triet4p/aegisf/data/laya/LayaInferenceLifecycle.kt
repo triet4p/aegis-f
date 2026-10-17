@@ -54,13 +54,6 @@ class LayaInferenceLifecycle internal constructor(
         session.suggest(description, categories, correctionRules)
     }
 
-    /** Low-level positional request used only by the existing debug parity probe. */
-    internal suspend fun suggestOptions(
-        description: String,
-        categories: List<CategoryOption>,
-    ): LayaInferenceOutcome<LayaRuntimeContract.Suggestion> = submit { session ->
-        session.suggestOptions(description, categories)
-    }
 
     /**
      * Closes the cached session when idle, or immediately after current native work returns.
@@ -317,12 +310,8 @@ internal interface LayaInferenceSession : Closeable {
         categories: List<CategoryEntity>,
         correctionRules: List<LayaCategoryCorrectionRule>,
     ): LayaCandidatePlanner.Decision
-
-    fun suggestOptions(
-        description: String,
-        categories: List<CategoryOption>,
-    ): LayaRuntimeContract.Suggestion
 }
+
 
 private class RuntimeSession(private val runtime: LayaRuntime) : LayaInferenceSession {
     override fun suggest(
@@ -331,10 +320,6 @@ private class RuntimeSession(private val runtime: LayaRuntime) : LayaInferenceSe
         correctionRules: List<LayaCategoryCorrectionRule>,
     ): LayaCandidatePlanner.Decision = runtime.suggest(description, categories, correctionRules)
 
-    override fun suggestOptions(
-        description: String,
-        categories: List<CategoryOption>,
-    ): LayaRuntimeContract.Suggestion = runtime.suggestOptions(description, categories)
     override fun close() {
         runtime.close()
     }
