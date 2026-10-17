@@ -447,9 +447,67 @@ unchanged, explicit **Use remembered category**, removal, and a fresh
 no-hit/no-fit fallback. A punctuation-added variant did not hit while the rule
 was active and used normal no-fit fallback. The forms were cancelled without
 amount entry or transaction save, and the synthetic rule was removed. Sanitized
-details are in [`S4.7-A2`](../artifacts/sprint-4/workers/S4.7-A2.md).
+[`S4.7-A2`](../artifacts/sprint-4/workers/S4.7-A2.md).
 
-## 7. User-run S4.3 local model provisioning
+### S4.8 notification-draft suggestion UI (task-scoped Aegis phone check)
+
+When the active task authorizes the Aegis-only phone path, use only existing
+pending drafts: never mutate or delete user drafts, never confirm a financial
+entry, and never claim synthetic smoke arrived naturally.
+
+1. Open **Review bank drafts**. The inbox reconciles active posts; observe that
+   existing natural drafts are unchanged and no intake error appears.
+2. Open one natural draft whose bank memo is opaque or mixed-language
+   (for example a reference/code-heavy memo). Verify **Category suggestion**
+   shows the no-suggestion manual message, the category field is unchanged, and
+   manual/No-category choice plus **Confirm transaction** remain available.
+   Leave without saving or confirming.
+3. Open another natural draft, type an explicit English note into
+   **Description (optional)** without touching bank evidence, type, amount, or
+   date/time. Verify a review-only suggestion (**Use suggestion** or
+   **Use remembered category**) appears while the category field stays
+   unchanged until explicit acceptance. Optionally accept, verify only the
+   category field changes, then leave without saving or confirming
+   (Back/Cancel, never **Confirm transaction** or **Save corrections**) so the
+   note is discarded and stored drafts are unchanged.
+4. Open **Saved transactions** and confirm no test entry was added; confirm
+   the drafts remain pending with their original stored memos.
+
+The S4.8-A2 task-scoped phone smoke verified this on two natural drafts: an
+opaque mixed-language memo stayed manual with the no-suggestion message, and
+an explicit English note on the second natural draft produced a review-only
+**Use suggestion** / **Ignore** pair while the category field stayed unchanged
+until acceptance. Both drafts were left without saving or confirming and their
+stored bank memos were unchanged. Sanitized details are in
+[`S4.8-A2`](../artifacts/sprint-4/workers/S4.8-A2.md). The mistyped
+acceptance tap did not change the category field and was left unconfirmed, so
+no ledger write occurred.
+
+The S4.8-A3 correction kept the same procedure on the same natural drafts with
+the English-evidence gate: the opaque draft still showed no suggestion panel
+(the gate routes non-meaningful memos to the suppressed manual state, so no
+no-suggestion copy renders), the category field stayed unchanged, and the memo
+field accepted a typed note with real spaces. `adb shell input text` inserts
+at the focused cursor rather than replacing the field, so both A3 notes landed
+mid-memo and were discarded by Back navigation without save or confirm; the
+stored memos verified unchanged afterwards and the home summary still showed
+the same confirmed-expense count. Tapping **Use suggestion** was not exercised
+on device because no suggestion panel appeared for these opaque memos; explicit
+acceptance stays covered by host state-machine tests. Sanitized details are in
+[`S4.8-A3`](../artifacts/sprint-4/workers/S4.8-A3.md).
+
+The S4.8-A4 correction adds a separate empty **Suggestion note (optional English)**
+field: the note is evaluated alone and never concatenated with the stored bank memo,
+so keyboard autocomplete inside the note cannot poison bank text and reference codes
+from the memo never travel with a note-driven suggestion. A clean diacritic-free note
+such as `Shop ride` on an opaque draft produces a review-only suggestion with visible
+**Use suggestion** / **Ignore**; **Use suggestion** changes only the category field
+(observed radio selection change, sanitized), **Keep manual choice** keeps manual review
+reachable, and leaving by Back discards the unsaved note with stored memos, inbox count,
+and confirmed-expense count unchanged. The Vietnamese device keyboard may autocorrect
+isolated `Taxi`/`Transport` keystrokes into diacritic text; such a note stays manual by
+design and the bank memo is unaffected. Sanitized details are in
+[`S4.8-A4`](../artifacts/sprint-4/workers/S4.8-A4.md).
 
 The normal model setup path is in the app, not a shell transfer or a network
 downloader. It is **user-only** to inspect or operate the phone. The selected

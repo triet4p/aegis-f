@@ -8,11 +8,18 @@ package io.github.triet4p.aegisf.data.laya
  * correction rules, deterministic category-name matching, and budget-exact candidate
  * retrieval. S4.7 persists only deliberately remembered exact-description rules in the ledger
  * data layer and resolves an active match before manual-entry inference; the runtime still
- * receives only current category metadata and never stores or learns rules. [LayaInferenceLifecycle]
- * owns one bounded background worker, latest-only pending work, serialized session use, and
- * safe release after non-cancellable native calls. S4.6 presents review-only suggestions for
- * new expense entry; income, transfers, and correction forms remain manual. Notification
- * review remains S4.8.
+ * receives only current category metadata and never stores or learns rules.
+ * [LayaInferenceLifecycle] owns one bounded background worker, latest-only pending work,
+ * serialized session use, and safe release after non-cancellable native calls. S4.6
+ * presents review-only suggestions for new expense entry; income, transfers, and
+ * correction forms remain manual. S4.8 connects the same review-only path to
+ * notification-draft review: only a meaningful English memo (or an explicit English
+ * note typed in the separate suggestion field when the stored memo is opaque or
+ * unsupported) is offered to the saved rule lookup and model inference. Only the
+ * effective input (the note alone when present, otherwise the visible memo text) is
+ * ever offered; the two are never concatenated and the stored memo is never
+ * rewritten. Opaque/reference-code/non-English (including unaccented Vietnamese)/
+ * identifier-only memos stay manual, and confirmation remains mandatory.
  *
  * States, in the order the app meets them:
  *

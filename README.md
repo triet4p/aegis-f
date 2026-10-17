@@ -164,7 +164,7 @@ arriving through the listener on a phone. What is actually verified today:
 
 The following capabilities are not available yet:
 
-- **Manual-entry suggestions remain review-only; notification-review suggestions are not implemented.**
+- **Review-only suggestions are available for manual entry and notification drafts.**
   S4.4 supplies current-category planning with caller-supplied corrections, deterministic
   category-name matching, a token-budgeted shortlist, an explicit no-fit result, and
   omitted-candidate uncertainty. S4.5 runs decisions through a process-owned bounded lifecycle.
@@ -176,10 +176,16 @@ The following capabilities are not available yet:
   changes the category field without an explicit **Use suggestion** or **Use remembered category**
   action, or writes a transaction. Income, transfers, and corrections remain manual.
   Description/type edits, manual category selection, category metadata changes, and leaving the
-  form invalidate pending results. Missing or unready models, no-fit decisions, and stale rows
-  remain manual, and normal Save validation is unchanged. The name-only shortlist measured
-  recall of **1/6** on the accepted labeled positive examples; this remains an S4.9 adoption risk,
-  not an accuracy claim. Notification-review suggestions remain S4.8.
+  form invalidate pending results. S4.8 connects the same review-only path to notification
+  drafts: only a meaningful English memo (or an explicit English note typed in the separate
+  suggestion field when the stored memo is opaque or unsupported) is offered to the saved-rule
+  lookup and bounded model inference, while opaque, reference-code, non-English (including
+  unaccented Vietnamese), or OTP-like memos stay manual. Only the effective input (the note
+  alone when present, otherwise the visible memo text) is ever offered; the note and the bank
+  memo are never concatenated and the stored memo is never rewritten. The draft category field
+  changes only on explicit **Use suggestion** or
+  The name-only shortlist measured recall of **1/6** on the accepted labeled positive
+  examples; this remains an S4.9 adoption risk, not an accuracy claim.
 - **No bank account connection.** The review inbox uses only permitted notification drafts; the app
   does not log in to a bank or request SMS, accessibility, or notification-posting permissions.
 - **No cloud service, sync, or account.** There is no login, no server, and no network use at all.

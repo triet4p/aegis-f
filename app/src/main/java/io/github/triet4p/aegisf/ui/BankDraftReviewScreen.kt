@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
 import io.github.triet4p.aegisf.notification.BankNotificationListener
 import io.github.triet4p.aegisf.notification.isNotificationAccessGranted
@@ -40,8 +41,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.triet4p.aegisf.data.BankDraftReviewEdits
 import io.github.triet4p.aegisf.data.BankDraftReviewField
@@ -58,6 +59,10 @@ import io.github.triet4p.aegisf.data.LedgerValidationException
 import io.github.triet4p.aegisf.data.PendingBankDraftEntity
 import io.github.triet4p.aegisf.data.TransactionType
 import io.github.triet4p.aegisf.data.VndMoney
+import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
+import io.github.triet4p.aegisf.data.laya.LayaInferenceOutcome
+import io.github.triet4p.aegisf.data.laya.LayaRuntimeContract
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -72,6 +77,7 @@ fun BankDraftReviewScreen(
     intakeRepository: IntakeRepository,
     reviewRepository: BankDraftReviewRepository,
     ledgerRepository: LedgerRepository,
+    layaInferenceLifecycle: LayaInferenceLifecycle,
     draftId: Long?,
     onSelectDraft: (Long) -> Unit,
     onNavigateUp: () -> Unit,
@@ -123,8 +129,10 @@ fun BankDraftReviewScreen(
             DraftDetailContent(
                 draft = selectedDraft,
                 allDrafts = drafts,
-                categories = activeCategories,
+                categories = categories,
                 reviewRepository = reviewRepository,
+                ledgerRepository = ledgerRepository,
+                layaInferenceLifecycle = layaInferenceLifecycle,
                 contentModifier = Modifier.padding(innerPadding),
                 onSelectDraft = onSelectDraft,
                 onNavigateUp = onNavigateUp,
@@ -245,6 +253,8 @@ private fun DraftDetailContent(
     allDrafts: List<PendingBankDraftEntity>,
     categories: List<CategoryEntity>,
     reviewRepository: BankDraftReviewRepository,
+    ledgerRepository: LedgerRepository,
+    layaInferenceLifecycle: LayaInferenceLifecycle,
     contentModifier: Modifier,
     onSelectDraft: (Long) -> Unit,
     onNavigateUp: () -> Unit,
@@ -261,6 +271,9 @@ private fun DraftDetailContent(
     var memoText by rememberSaveable(draft.id) {
         mutableStateOf(if (draft.reviewMemoEdited) draft.reviewMemo.orEmpty() else draft.memo.orEmpty())
     }
+    // Optional English hint for the suggestion gate only. Starts empty on every draft,
+    // is never prepopulated from the bank memo, and never becomes the saved description.
+    var suggestionNote by rememberSaveable(draft.id) { mutableStateOf("") }
     var selectedTypeName by rememberSaveable(draft.id) {
         mutableStateOf(draft.reviewType?.name)
     }
@@ -282,6 +295,135 @@ private fun DraftDetailContent(
         draft.confirmedTransactionId == null
     val scope = rememberCoroutineScope()
     val writeInFlight = remember(draft.id) { AtomicBoolean(false) }
+    // Review-only suggestion identity: one draft's memo text plus the current category
+    // snapshot. Any change invalidates the pending result; nothing here writes a record
+    // or changes the category field itself. The memo and the optional note stay strictly
+    // separate: the note is evaluated alone and never concatenated with the bank memo.
+    val draftFormIdentity = remember(draft.id) { Any() }
+    val suggestionMachine = remember(draftFormIdentity) { ManualCategorySuggestionMachine() }
+    var suggestionRevision by remember(draftFormIdentity) { mutableStateOf(0) }
+    val suggestionIntent = remember(draftFormIdentity, memoText, suggestionNote) {
+        val effective = draftSuggestionInput(draft, memoText, suggestionNote)
+        ManualSuggestionIntent(draftFormIdentity, effective.orEmpty(), TransactionType.EXPENSE)
+    }
+    val latestSuggestionIntent by rememberUpdatedState(suggestionIntent)
+    val latestObservedCategories by rememberUpdatedState(categories)
+    LaunchedEffect(
+        ledgerRepository,
+        layaInferenceLifecycle,
+        draftFormIdentity,
+        memoText,
+        suggestionNote,
+        categories,
+        suggestionRevision,
+    ) {
+        if (!active) {
+            suggestionMachine.reset()
+            return@LaunchedEffect
+        }
+        val trimmed = memoText.trim()
+        val noteTrimmed = suggestionNote.trim()
+        val effectiveInput = draftSuggestionInput(draft, memoText, suggestionNote)
+        if (effectiveInput == null) {
+            // A present but non-meaningful note yields null on purpose rather than
+            // falling back to the memo: junk in the note field must not silently
+            // reuse the bank text. Only a truly empty note defers to the memo state.
+            if (noteTrimmed.isEmpty() && trimmed.isEmpty()) {
+                suggestionMachine.waitForDescription()
+            } else {
+                suggestionMachine.ignore(latestSuggestionIntent)
+            }
+            return@LaunchedEffect
+        }
+        val requestCategories = categories
+        if (requestCategories.any { it.id <= 0L || it.name.trim().isEmpty() }) {
+            suggestionMachine.ignore(latestSuggestionIntent)
+            return@LaunchedEffect
+        }
+        if (requestCategories.none { !it.archived }) {
+            suggestionMachine.noActiveCategories()
+            return@LaunchedEffect
+        }
+        val description = checkNotNull(effectiveInput)
+        val token = suggestionMachine.begin(
+            ManualSuggestionRequest(suggestionIntent, requestCategories),
+        ) ?: return@LaunchedEffect
+        val decision = try {
+            decideRememberedBeforeInference(
+                description = description,
+                activeCategories = requestCategories.filterNot { it.archived },
+                findRememberedCategory = ledgerRepository::findRememberedCategoryForDescription,
+                infer = { input, assignable ->
+                    layaInferenceLifecycle.suggest(input, assignable)
+                },
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            val currentCategories = ledgerRepository.categories()
+            suggestionMachine.unavailable(
+                token = token,
+                currentIntent = latestSuggestionIntent,
+                currentCategories = currentCategories,
+                observedCategories = latestObservedCategories,
+                reason = UnavailableReason.FAILED,
+            )
+            return@LaunchedEffect
+        }
+        val currentCategories = ledgerRepository.categories()
+        val observedCategories = latestObservedCategories
+        val outcome = when (decision) {
+            is ManualCategoryDecision.Remembered -> {
+                suggestionMachine.completeRemembered(
+                    token = token,
+                    currentIntent = latestSuggestionIntent,
+                    currentCategories = currentCategories,
+                    observedCategories = observedCategories,
+                    category = decision.category,
+                )
+                return@LaunchedEffect
+            }
+            is ManualCategoryDecision.Inferred -> decision.outcome
+        }
+        when (outcome) {
+            is LayaInferenceOutcome.Completed -> suggestionMachine.complete(
+                token = token,
+                currentIntent = latestSuggestionIntent,
+                currentCategories = currentCategories,
+                observedCategories = observedCategories,
+                resolution = io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner.resolveCurrent(
+                    outcome.value,
+                    currentCategories,
+                ),
+            )
+            is LayaInferenceOutcome.Unavailable -> suggestionMachine.unavailable(
+                token = token,
+                currentIntent = latestSuggestionIntent,
+                currentCategories = currentCategories,
+                observedCategories = observedCategories,
+                reason = when (outcome.state) {
+                    LayaRuntimeContract.State.Missing -> UnavailableReason.MISSING
+                    is LayaRuntimeContract.State.CorruptOrIncompatible ->
+                        UnavailableReason.INCOMPATIBLE
+                    LayaRuntimeContract.State.Ready -> UnavailableReason.FAILED
+                },
+            )
+            LayaInferenceOutcome.Superseded -> suggestionMachine.unavailable(
+                token = token,
+                currentIntent = latestSuggestionIntent,
+                currentCategories = currentCategories,
+                observedCategories = observedCategories,
+                reason = UnavailableReason.SUPERSEDED,
+            )
+            LayaInferenceOutcome.Closed -> suggestionMachine.unavailable(
+                token = token,
+                currentIntent = latestSuggestionIntent,
+                currentCategories = currentCategories,
+                observedCategories = observedCategories,
+                reason = UnavailableReason.CLOSED,
+            )
+        }
+    }
     val edits = BankDraftReviewEdits(
         amountText = amountText,
         dateText = dateText,
@@ -522,7 +664,13 @@ private fun DraftDetailContent(
             sourceReason("Memo", draft.memoState, draft.memoUnresolvedReason)
             OutlinedTextField(
                 value = memoText,
-                onValueChange = { memoText = it; feedback = null },
+                onValueChange = {
+                    if (memoText != it) {
+                        suggestionMachine.clearSuppression()
+                    }
+                    memoText = it
+                    feedback = null
+                },
                 label = { Text("Description (optional)") },
                 placeholder = { Text("Leave blank if unknown") },
                 singleLine = true,
@@ -535,7 +683,57 @@ private fun DraftDetailContent(
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
-
+            // Optional suggestion-only English hint. Kept in its own field so typed text
+            // can never concatenate with the stored bank memo: the gate evaluates this
+            // note alone, the keyboard autocomplete inside it cannot poison bank text,
+            // and the note is never written to the draft or the confirmed description.
+            // Autocorrect stays enabled here so the field records what the phone
+            // keyboard actually delivered; the gate simply treats a diacritic note as
+            // non-meaningful and leaves the draft manual.
+            OutlinedTextField(
+                value = suggestionNote,
+                onValueChange = {
+                    if (suggestionNote != it) {
+                        suggestionMachine.clearSuppression()
+                    }
+                    suggestionNote = it
+                    feedback = null
+                },
+                label = { Text("Suggestion note (optional English)") },
+                placeholder = { Text("For example Monthly rent") },
+                singleLine = true,
+                supportingText = {
+                    Text("Suggestion hint only. It never changes the bank memo or the saved description.")
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            DraftSuggestionPanel(
+                draft = draft,
+                state = suggestionMachine.state,
+                enabled = !busy,
+                onUseSuggestion = {
+                    suggestionMachine.acceptSuggestion()?.let { category ->
+                        selectedCategoryId = category.id
+                        categoryResolved = true
+                        feedback = null
+                    }
+                },
+                onUseRememberedRule = {
+                    suggestionMachine.acceptRememberedRule()?.let { remembered ->
+                        selectedCategoryId = remembered.id
+                        categoryResolved = true
+                        feedback = null
+                    }
+                },
+                onIgnoreSuggestion = {
+                    suggestionMachine.ignore(suggestionIntent)
+                    suggestionRevision += 1
+                },
+                onChooseManually = {
+                    suggestionMachine.chooseManually(suggestionIntent)
+                    suggestionRevision += 1
+                },
+            )
             if (selectedType == TransactionType.TRANSFER) {
                 Text(
                     "An internal transfer moves money between your own holdings and carries no category.",
@@ -553,21 +751,25 @@ private fun DraftDetailContent(
                     name = "No category",
                     selected = categoryResolved && selectedCategoryId == null,
                 ) {
+                    suggestionMachine.chooseManually(suggestionIntent)
+                    suggestionRevision += 1
                     selectedCategoryId = null
                     categoryResolved = true
                     feedback = null
                 }
-                categories.forEach { category ->
+                categories.filterNot { it.archived }.forEach { category ->
                     CategoryChoice(
                         name = category.name,
                         selected = category.id == selectedCategoryId,
                     ) {
+                        suggestionMachine.chooseManually(suggestionIntent)
+                        suggestionRevision += 1
                         selectedCategoryId = category.id
                         categoryResolved = true
                         feedback = null
                     }
                 }
-                if (categories.isEmpty()) {
+                if (categories.none { !it.archived }) {
                     Text(
                         "There are no active categories. You can explicitly choose No category.",
                         style = MaterialTheme.typography.bodySmall,
@@ -632,6 +834,124 @@ private fun DraftDetailContent(
                 }
             },
         )
+    }
+}
+
+@Composable
+private fun DraftSuggestionPanel(
+    draft: PendingBankDraftEntity,
+    state: ManualCategorySuggestionState,
+    enabled: Boolean,
+    onUseSuggestion: () -> Unit,
+    onUseRememberedRule: () -> Unit,
+    onIgnoreSuggestion: () -> Unit,
+    onChooseManually: () -> Unit,
+) {
+    if (state == ManualCategorySuggestionState.Idle) return
+    if (state == ManualCategorySuggestionState.WaitingForDescription) return
+    if (state == ManualCategorySuggestionState.ManuallySelected) return
+    if (state == ManualCategorySuggestionState.Ignored) return
+    val status = when (state) {
+        ManualCategorySuggestionState.Idle,
+        ManualCategorySuggestionState.WaitingForDescription,
+        ManualCategorySuggestionState.ManuallySelected,
+        ManualCategorySuggestionState.Ignored,
+        -> return
+        ManualCategorySuggestionState.LoadingCategories ->
+            "Loading current categories. Choosing a category or confirming stays available."
+        ManualCategorySuggestionState.Loading ->
+            "Checking saved exact-description rules before local model inference. " +
+                "Choosing a category or confirming stays available."
+        ManualCategorySuggestionState.NoActiveCategories ->
+            "No active categories are available. Choose No category explicitly to confirm."
+        ManualCategorySuggestionState.NotApplicableToKind ->
+            "Suggestions follow the description text; manual choice stays available."
+        is ManualCategorySuggestionState.Suggested ->
+            "The model suggests a current category. It will not change the selected " +
+                "category unless you accept it."
+        is ManualCategorySuggestionState.Remembered ->
+            if (state.accepted) {
+                "The saved exact-description rule was accepted. The category field changed " +
+                    "only at your request; nothing has been saved."
+            } else {
+                "A saved exact-description rule matches. It does not change the category " +
+                    "field until you accept it."
+            }
+        ManualCategorySuggestionState.RuleRemoved ->
+            "The saved rule was removed."
+        is ManualCategorySuggestionState.Accepted ->
+            "The suggestion is selected at your request. Review it before confirming; " +
+                "nothing has been saved."
+        is ManualCategorySuggestionState.NoFit ->
+            "No category suggestion is available for this description. Choose one manually " +
+                "or choose No category explicitly."
+        is ManualCategorySuggestionState.Stale ->
+            "Category data changed while this suggestion was checked. It was not applied; " +
+                "choose from current categories instead."
+        is ManualCategorySuggestionState.Unavailable ->
+            "A suggestion is unavailable right now. Manual choice and confirmation still work."
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Category suggestion",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = status,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        val uncertainty = when (state) {
+            is ManualCategorySuggestionState.Suggested -> state.uncertainty
+            is ManualCategorySuggestionState.Accepted -> state.uncertainty
+            is ManualCategorySuggestionState.NoFit -> state.uncertainty
+            else -> null
+        }
+        if (uncertainty != null && uncertainty.omittedCategoryCount > 0) {
+            Text(
+                text = "Offered ${uncertainty.offeredCategoryCount} of " +
+                    "${uncertainty.activeCategoryCount} active categories; " +
+                    "${uncertainty.omittedCategoryCount} were omitted, so a better fit " +
+                    "may be missing.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        when (state) {
+            is ManualCategorySuggestionState.Suggested -> {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onUseSuggestion, enabled = enabled) {
+                        Text("Use suggestion")
+                    }
+                    OutlinedButton(onClick = onIgnoreSuggestion, enabled = enabled) {
+                        Text("Ignore")
+                    }
+                }
+            }
+            is ManualCategorySuggestionState.Remembered -> {
+                if (!state.accepted) {
+                    Button(
+                        onClick = onUseRememberedRule,
+                        enabled = enabled,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Use remembered category")
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = onIgnoreSuggestion, enabled = enabled) {
+                        Text("Ignore")
+                    }
+                }
+            }
+            is ManualCategorySuggestionState.Accepted -> {
+                OutlinedButton(onClick = onChooseManually, enabled = enabled) {
+                    Text("Keep manual choice")
+                }
+            }
+            else -> Unit
+        }
     }
 }
 

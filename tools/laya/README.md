@@ -1,9 +1,9 @@
-# Laya reference tooling (S4.1–S4.7)
+# Laya reference tooling (S4.1–S4.8)
 
 Host-side reference for the English Laya decision artifact, Android runtime,
 local model import, category-candidate planning, background lifecycle,
-manual-entry suggestion state machine, and explicit remembered rules. No
-committed graph weights.
+manual-entry suggestion state machine, explicit remembered rules, and notification-draft
+review suggestions. No committed graph weights.
 
 ### S4.4 candidate-planning contract
 
@@ -25,9 +25,10 @@ so this retrieval is deliberately limited to that metadata.
 Model decisions carry the selected stable id alongside the metadata snapshot. Before use,
 the caller must use `LayaCandidatePlanner.resolveCurrent` with fresh rows; a missing,
 archived, renamed, or duplicate id is rejected as stale. The candidate contract never
-writes or confirms a financial record. S4.6 connects the result only to new manual expense
-creation; notification-review suggestions remain S4.8. Host proof is not
-Compose UI, Android-native inference, or physical-device evidence.
+writes or confirms a financial record. S4.6 connects the result to new manual expense
+creation, and S4.8 connects the same review-only path to notification-draft review through
+an English-meaningfulness gate (`BankDraftSuggestion.draftSuggestionInput` / `isMeaningfulEnglishForSuggestion`).
+Host proof is not Compose UI, Android-native inference, or physical-device evidence.
 
 ### S4.5 background inference lifecycle
 
@@ -50,13 +51,13 @@ cancellation, and close ownership, not Android native inference or physical UI
 responsiveness. The user-only phone procedure remains in
 [`docs/developer-setup.md` §6](../../docs/developer-setup.md#6-user-run-s42-parity-probe-phone-onnx-runtime-android).
 
-### S4.6–S4.7 manual-entry suggestions and remembered rules
+### S4.6–S4.8 manual-entry and draft-review suggestions with remembered rules
 
 New expense creation first checks the local repository for a remembered exact-description
 rule whose category id is still active; a match skips neural inference and remains a
 review-only suggestion. A miss or archived target falls through to
 `AppContainer.layaInferenceLifecycle.suggest` with the live active-category rows. Income,
-transfers, corrections, and notification review stay manual. A request is tied to its form
+transfers, and corrections remain manual. A request is tied to its form
 identity, description, transaction type, and full category snapshot. Description/type
 changes, manual category selection, category updates, and leaving the form withdraw stale
 results through the existing lifecycle; cancellation after ORT starts withdraws delivery
@@ -68,12 +69,19 @@ explicitly change only the category field; **Remember for this description** sav
 transaction, and **Remove rule** deletes only that normalized description's rule. Rule
 matching is exact apart from case and whitespace normalization; there is no automatic
 learning or fuzzy generalization. Missing/unready models, no-fit results, and stale metadata
-leave normal manual entry available. Notification suggestions remain S4.8.
+machine: only a meaningful English memo (or an explicit English note typed in the separate
+suggestion field when the stored memo is opaque or unsupported) reaches the saved-rule lookup
+and bounded inference; only the effective input (the note alone when present, otherwise the
+visible memo text) is ever offered and the two are never concatenated. Opaque,
+reference-code, identifier-only, non-English (including unaccented Vietnamese), and
 
 `ManualCategorySuggestionMachineTest` covers explicit acceptance, rule-first/no-inference,
 pattern misses, late rule-result rejection after form/category changes, manual and ignored
 choices, changed descriptions/types/forms, category snapshots, archived-rule fallback,
-unknown/unavailable states, and late/out-of-order completion.
+unknown/unavailable states, and late/out-of-order completion. `BankDraftSuggestionGateTest`
+(S4.8) covers meaningful-English/opaque/Vietnamese/identifier-only gating, explicit
+English notes on unresolved/unsupported drafts, OTP exclusion, rule precedence, explicit
+acceptance, draft switching, and stale rename/archive handling.
 `RememberedCategoryRulePersistenceTest` covers reopen, exact isolation, stable category
 identity across rename, archive invalidation, explicit removal, and no ledger writes. These
 are host behavioral tests, not Compose rendering or Android-native inference.
