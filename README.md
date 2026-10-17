@@ -164,14 +164,16 @@ arriving through the listener on a phone. What is actually verified today:
 
 The following capabilities are not available yet:
 
-- **No category suggestions in the app yet.** Sprint 4 has selected and reproduced the English Laya
-  decision artifact on the host (reference runner and labeled expense examples under `tools/laya/`,
-  provenance in `tools/laya/PROVENANCE.md`), integrated the exact Android tokenizer/sequence/
-  calibration port and ONNX Runtime session, and added the optional local model import/status page.
-  The physical phone has passed the S4.2 runtime parity probe (details in `docs/developer-setup.md`
-  §6). A verified local model is not yet connected to an entry form, review screen, or notification
-  path: suggestion selection and UI belong to later Sprint 4 tasks. Nothing from the model silently
-  confirms or changes a ledger record.
+- **No category-suggestion UI in manual entry or notification review yet.** S4.4 adds the
+  candidate-planning core: explicit caller-supplied exact-description corrections take
+  precedence, then deterministic category-name matching, then model scoring over all active
+  categories that fit or a token-budgeted shortlist when they do not. It keeps stable category
+  ids, includes an explicit no-fit result, and reports omitted-candidate uncertainty; empty or
+  unsupported evidence stays manual. The current category schema stores names only, so the
+  oversized shortlist cannot use category descriptions or aliases and returns manual review
+  when no name evidence can prioritize candidates. The planner does not save or confirm a
+  financial record. Background lifecycle, suggestion UI, and persistent remember/remove rules
+  remain later Sprint 4 work.
 - **No bank account connection.** The review inbox uses only permitted notification drafts; the app
   does not log in to a bank or request SMS, accessibility, or notification-posting permissions.
 - **No cloud service, sync, or account.** There is no login, no server, and no network use at all.

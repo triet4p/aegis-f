@@ -1,0 +1,57 @@
+{
+  "task_id": "S4.4",
+  "attempt_id": "S4.4-A1",
+  "agent_id": "S44CandidatesA1",
+  "role": "silver-task",
+  "evaluation_scope": "candidate retrieval recall only; not model accuracy",
+  "labeled_examples": "tools/laya/expense_examples.json",
+  "positive_category_examples": 6,
+  "retrieved_expected_categories": 1,
+  "shortlist_recall": 0.1666666667,
+  "correct_retrieval_misses": [
+    { "example_id": "meaningful-food", "expected_category": "Food" },
+    { "example_id": "meaningful-rent", "expected_category": "Housing" },
+    { "example_id": "meaningful-transport", "expected_category": "Transport" },
+    { "example_id": "meaningful-health", "expected_category": "Health" },
+    { "example_id": "boundary-long-state", "expected_category": "Food" }
+  ],
+  "expanded_retrieval_categories": 205,
+  "live_candidate_smoke": {
+    "active_categories": 206,
+    "selected_category_candidates": 2,
+    "unknown_option_included": true,
+    "measured_head_tokens_within_limit": true,
+    "head_token_limit": 192,
+    "sequence_length_within_limit": true,
+    "sequence_token_limit": 512,
+    "marker_count": 3,
+    "marker_ids_preserved": true,
+    "model_choice_category_id": 9001,
+    "calibrated_confidence": 0.4096,
+    "decision_resolved_against_current_active_metadata": true,
+    "uncertainty": {
+      "active_category_count": 206,
+      "offered_category_count": 2,
+      "omitted_category_count": 204,
+      "omitted_metadata_evidence_count": 0
+    }
+  },
+  "verification": {
+    "command": "powershell.exe -NoLogo -NoProfile -Command \"& .\\gradlew.bat --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --info\"",
+    "result": "BUILD SUCCESSFUL",
+    "duration_seconds": 229.61,
+    "actionable_tasks": 96,
+    "unit_tests": 164,
+    "failures": 0,
+    "skipped": 0,
+    "debug_assemble": "passed",
+    "release_assemble": "passed",
+    "exact_head_measurement_matches_sequence_builder": true
+  },
+  "limitations": [
+    "Metadata contains category names only; no aliases or descriptions were available for retrieval.",
+    "The five misses remain expected-category retrieval misses; they were not relabeled as correct unknown outcomes.",
+    "The live inference smoke used the real host Python ONNX path with Kotlin-built inputs, not an Android session, device, or SAF import.",
+    "No suggestion UI, background lifecycle, persistent correction storage, or model-accuracy/adoption claim is included."
+  ]
+}

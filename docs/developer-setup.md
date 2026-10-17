@@ -471,6 +471,36 @@ observation. If the initial state was already Ready, the required safe choice
 is to preserve it and return that existing-readiness evidence; never delete it
 solely to test a fresh import.
 
+### S4.4 Host-side category-candidate planning
+
+The production candidate contract is `LayaRuntime.suggest(description, activeCategories,
+correctionRules)`. Caller-supplied exact-description correction rules take precedence over
+unique exact normalized category-name phrases; remaining requests go through model inference.
+Rules are neither persisted nor learned by this task. S4.7 owns explicit remember/remove
+storage. The existing category schema stores names only, so deterministic shortlist ranking
+uses Unicode name-token evidence and stable ids as tie-breaks.
+
+When all active categories fit, the planner includes them all and appends the explicit
+unknown/no-fit option. For an oversized set, it retains only budget-fitting candidates
+ranked by metadata evidence, always keeps unknown, and reports omitted-category/evidence
+counts. With no category-name evidence, it returns manual unknown rather than a first-N
+prefix. Token budgets use the pinned tokenizer and sequence construction, including the
+48-token option limit. The result uses stable category ids; before display, callers must
+resolve it through `LayaCandidatePlanner.resolveCurrent` against fresh category rows.
+Missing, archived, renamed, and duplicate ids are rejected as stale. No model decision
+writes or confirms a financial record.
+
+Host regression and live-weight verification:
+
+```powershell
+.\gradlew.bat --no-daemon :app:testDebugUnitTest
+```
+
+The live candidate smoke sends the planner's actual Kotlin token ids and marker positions
+through `tools/laya/run_tensors.py` and the pinned local host ONNX bundle. It is not an
+Android/SAF test; do not run device commands as a worker. Suggestions remain unconnected
+to manual-entry and notification UI until later Sprint 4 work.
+
 ## 8. Update path and troubleshooting
 
 **Updating in place.** Install an updated APK over the existing one with `adb -d install -r <apk>`. For the update to be accepted and to keep existing app data:

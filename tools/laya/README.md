@@ -1,8 +1,42 @@
-# Laya reference tooling (S4.1–S4.3)
+# Laya reference tooling (S4.1–S4.4)
 
-Host-side reference for the English Laya decision artifact, plus the S4.2 Android
-runtime's tokenizer asset exporter and the S4.3 app-side local model import path.
+Host-side reference for the English Laya decision artifact, the S4.2 Android runtime,
+the S4.3 app-side local model import path, and S4.4 category-candidate planning.
 No committed graph weights.
+
+### S4.4 candidate-planning contract
+
+`LayaRuntime.suggest` accepts the current `CategoryEntity` rows and caller-supplied
+`LayaCategoryCorrectionRule` values. An exact normalized description correction is
+checked first, then a unique exact normalized category-name phrase, then model inference.
+Correction rules are not persisted or learned here; S4.7 owns explicit remember/remove
+storage and UI.
+
+When every active category fits the pinned sequence head, the planner passes all of them
+in their current order. Otherwise, it ranks categories by deterministic Unicode
+category-name token evidence and stable id for ties, builds only the fitting shortlist,
+and always appends the no-fit option. Exact fit uses the pinned tokenizer and sequence
+token counts, not label-length estimates. A result carries omitted-category uncertainty;
+an oversized set with no category-name evidence stays unknown/manual instead of selecting
+an arbitrary prefix. The current category schema has names but no descriptions or aliases,
+so this retrieval is deliberately limited to that metadata.
+
+Model decisions carry the selected stable id alongside the metadata snapshot. Before use,
+the caller must use `LayaCandidatePlanner.resolveCurrent` with fresh rows; a missing,
+archived, renamed, or duplicate id is rejected as stale. The candidate contract never
+writes or confirms a financial record. S4.4 does not connect suggestions to an entry or
+notification UI, and its host smoke is not Android/SAF proof.
+
+The candidate regressions and real-weight host smoke run with:
+
+```powershell
+.\gradlew.bat --no-daemon :app:testDebugUnitTest
+```
+
+The live smoke uses the Kotlin candidate planner, exact sequence construction, and
+calibration with `tools/laya/run_tensors.py` against the pinned host bundle. It requires
+the machine-local model files and host Python ONNX Runtime; device contact remains
+user-only.
 
 - The app's **Model setup** page explicitly imports the pinned export from a local
   folder into app-private storage, verifies each file's size and SHA-256, then

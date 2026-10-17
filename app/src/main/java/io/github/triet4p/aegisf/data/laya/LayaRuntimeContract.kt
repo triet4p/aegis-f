@@ -1,14 +1,15 @@
 package io.github.triet4p.aegisf.data.laya
 
 /**
- * The S4.2 Android decision runtime contract: what the app owns, what it refuses, and what
- * later tasks add.
+ * The Android Laya runtime contract: what the app owns, what it refuses, and what later
+ * tasks add.
  *
- * This task integrates the runtime only: loading the pinned graph with its external weights
- * through ONNX Runtime Android, the exact tokenizer/sequence/marker/calibration pipeline,
- * and reference parity. Model provisioning (getting the bundle into app-private storage,
- * S4.3), scalable candidate selection for oversized category sets (S4.4), and background
- * lifecycle integration (S4.5) are separate tasks and are not claimed here.
+ * S4.2 integrates the pinned graph, tokenizer, sequence, marker, and calibration pipeline.
+ * S4.4 adds [LayaRuntime.suggest] and [LayaCandidatePlanner] to apply caller-supplied exact
+ * correction rules, deterministic category-name matching, and budget-exact candidate
+ * retrieval. The runtime accepts caller-owned correction rules but does not store or learn
+ * them; explicit persistence and remember/remove controls belong to S4.7. Background
+ * lifecycle integration remains S4.5.
  *
  * States, in the order the app meets them:
  *
@@ -46,11 +47,11 @@ object LayaRuntimeContract {
     }
 
     /**
-     * One suggestion for an expense description: either a ranked choice over the live
-     * candidate list (index-aligned with the input categories plus trailing `unknown`) or
-     * an explicit refusal when the candidate set cannot fit the head budget. Stale
-     * suggestions must never apply to a different form state (S4.6 owns the UI binding);
-     * archived ids are resolved by the caller against current metadata before display.
+     * Low-level positional graph output for parity verification: indices address the exact
+     * caller-ordered option list plus a final `unknown` no-fit outcome. Production candidate
+     * decisions use [LayaRuntime.suggest], which maps the winning position to a stable id.
+     * A choice is never a ledger write, and any candidate result must be re-resolved against
+     * current category metadata before display.
      */
     sealed interface Suggestion {
         data class Choice(

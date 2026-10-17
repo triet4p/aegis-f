@@ -3,6 +3,7 @@ package io.github.triet4p.aegisf.data.laya
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
+import io.github.triet4p.aegisf.data.CategoryEntity
 import java.io.Closeable
 import java.io.DataInputStream
 import java.io.File
@@ -10,7 +11,8 @@ import java.io.FileInputStream
 
 /**
  * The on-device English Laya decision runtime: one ONNX Runtime session over the pinned
- * graph plus the exact tokenizer/sequence/calibration pipeline.
+ * graph plus the exact tokenizer/sequence/calibration pipeline and S4.4's stable-id candidate
+ * planning. Suggestions are review-only; current category rows must be resolved before display.
  *
  * Threading: the underlying session is not safe for concurrent `run` calls, so callers
  * serialize access (S4.5 owns the dispatcher/lifecycle binding). This class itself performs
@@ -31,11 +33,29 @@ class LayaRuntime private constructor(
 ) : Closeable {
 
     /**
-     * Scores one expense [description] against [categories] (active, caller-ordered) with
-     * stable positional identity: result index *i* below `categories.size` is
-     * `categories[i]`; the final index is the explicit `unknown` no-fit outcome.
+     * Produces a review-only suggestion from current category metadata. Explicit exact-description
+     * corrections outrank exact metadata matches, which outrank model inference. Oversized sets
+     * use a deterministic metadata-ranked shortlist; callers must resolve the result against fresh
+     * category rows before displaying or applying it.
      */
     fun suggest(
+        description: String,
+        categories: List<CategoryEntity>,
+        correctionRules: List<LayaCategoryCorrectionRule> = emptyList(),
+    ): LayaCandidatePlanner.Decision {
+        val plan = LayaCandidatePlanner.plan(
+            tokenizer = tokenizer,
+            description = description,
+            categories = categories,
+            correctionRules = correctionRules,
+            maxLen = maxLen,
+            headMaxLen = headMaxLen,
+        )
+        return LayaCandidatePlanner.decide(plan) { built -> runLogits(built) }
+    }
+
+    /** Low-level positional interface retained for the graph probe and parity verification. */
+    internal fun suggestOptions(
         description: String,
         categories: List<CategoryOption>,
     ): LayaRuntimeContract.Suggestion {
@@ -110,7 +130,7 @@ class LayaRuntime private constructor(
      * corrupt or incompatible instead of serving silently wrong decisions.
      */
     private fun probe() {
-        val suggestion = suggest(
+        val suggestion = suggestOptions(
             description = "Monthly rent",
             categories = listOf(
                 CategoryOption(id = 1L, name = "Food", description = "meals and groceries"),

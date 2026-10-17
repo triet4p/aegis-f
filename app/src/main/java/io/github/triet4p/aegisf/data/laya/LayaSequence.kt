@@ -35,7 +35,10 @@ object LayaSequence {
     data class Built(
         val inputIds: List<Int>,
         val markerPositions: List<Int>,
+        /** Tokens charged to the pinned per-question head budget (header plus option blocks). */
+        val headTokenCount: Int,
     )
+
 
     sealed interface Outcome {
         data class Ready(val built: Built) : Outcome
@@ -53,6 +56,55 @@ object LayaSequence {
     fun scrub(text: String): String =
         text.replace(LayaTokenizer.MASK_SURFACE, " ")
 
+    /** Exact token count of the sequence's instruction header, without its structural tokens. */
+    fun measureQuestionTokens(tokenizer: LayaTokenizer, instructions: String): Int =
+        tokenizer.encode("choice question: ${scrub(instructions)}").size
+
+    /** Exact token count charged for one option, including its marker and 48-token limit. */
+    fun measureOptionTokens(tokenizer: LayaTokenizer, optionText: String): Int =
+        1 + minOf(
+            MAX_OPTION_TOKENS,
+            tokenizer.encode(" ${scrub(optionText)}").size,
+        )
+
+    /**
+     * Measures the head exactly as [build] does, from already tokenized option sizes.
+     * This lets candidate retrieval reject oversized sets without retaining a token list
+     * for every active category.
+     */
+    fun measureHeadTokens(
+        questionTokens: Int,
+        optionTokenCounts: IntArray,
+        headMaxLen: Int,
+        optionCount: Int = optionTokenCounts.size,
+    ): Int {
+        require(optionCount in 0..optionTokenCounts.size)
+        var initialOptions = 0L
+        for (index in 0 until optionCount) {
+            initialOptions += optionTokenCounts[index]
+        }
+        var optionTokens = initialOptions
+        var budget = headMaxLen.toLong() - optionTokens
+        if (budget < HEAD_MIN_BUDGET) {
+            val perOption = maxOf(
+                HEAD_MIN_OPTION_TOKENS,
+                (headMaxLen - HEAD_MIN_BUDGET) / maxOf(1, optionCount),
+            )
+            optionTokens = 0L
+            for (index in 0 until optionCount) {
+                optionTokens += minOf(optionTokenCounts[index], perOption)
+            }
+            budget = headMaxLen.toLong() - optionTokens
+        }
+        val keptQuestionTokens = minOf(
+            questionTokens,
+            maxOf(HEAD_MIN_KEPT.toLong(), budget).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+        )
+        return (keptQuestionTokens.toLong() + optionTokens)
+            .coerceAtMost(Int.MAX_VALUE.toLong())
+            .toInt()
+    }
+
     fun build(
         tokenizer: LayaTokenizer,
         instructions: String,
@@ -65,16 +117,20 @@ object LayaSequence {
         var optionIds = optionTexts.map { option ->
             listOf(tokenizer.maskId) + tokenizer.encode(" ${scrub(option)}").take(MAX_OPTION_TOKENS)
         }
-        var budget = headMaxLen - optionIds.sumOf { it.size }
+        var budget = headMaxLen.toLong() - optionIds.sumOf { it.size.toLong() }
         if (budget < HEAD_MIN_BUDGET) {
             val perOption = maxOf(
                 HEAD_MIN_OPTION_TOKENS,
                 (headMaxLen - HEAD_MIN_BUDGET) / maxOf(1, optionIds.size),
             )
             optionIds = optionIds.map { it.take(perOption) }
-            budget = headMaxLen - optionIds.sumOf { it.size }
+            budget = headMaxLen.toLong() - optionIds.sumOf { it.size.toLong() }
         }
-        headIds = headIds.take(maxOf(HEAD_MIN_KEPT, budget))
+        val keepQuestionTokens = maxOf(HEAD_MIN_KEPT.toLong(), budget)
+            .coerceAtMost(Int.MAX_VALUE.toLong())
+            .toInt()
+        headIds = headIds.take(keepQuestionTokens)
+        val actualHeadTokens = headIds.size + optionIds.sumOf { it.size }
         val ids = ArrayList<Int>(maxLen)
         ids.add(tokenizer.clsId)
         ids.addAll(headIds)
@@ -98,6 +154,12 @@ object LayaSequence {
                 headMaxLen = headMaxLen,
             )
         }
-        return Outcome.Ready(Built(inputIds = trimmed, markerPositions = keptMarkers))
+        return Outcome.Ready(
+            Built(
+                inputIds = trimmed,
+                markerPositions = keptMarkers,
+                headTokenCount = actualHeadTokens,
+            ),
+        )
     }
 }

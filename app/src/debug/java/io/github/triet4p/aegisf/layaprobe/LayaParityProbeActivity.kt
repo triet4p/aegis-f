@@ -129,7 +129,7 @@ class LayaParityProbeActivity : ComponentActivity() {
             for (case in PROBE_CASES) {
                 val started = SystemClock.elapsedRealtime()
                 val suggestion = try {
-                    session.suggest(case.description, PROBE_CATEGORIES)
+                    session.suggestOptions(case.description, PROBE_CATEGORIES)
                 } catch (error: Exception) {
                     summary.add("THREW ${case.id}: ${error.message}")
                     failures++

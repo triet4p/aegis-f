@@ -1,5 +1,6 @@
 package io.github.triet4p.aegisf.data.laya
 
+import io.github.triet4p.aegisf.data.CategoryEntity
 import java.io.File
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -149,5 +150,123 @@ class LayaLiveParityTest {
         // Reference: Housing 0.9796 / confidence 0.9336 (S4.1 smoke).
         assertEquals(0.9796, decision.probabilities[2], 1e-9)
         assertEquals(0.9336, decision.confidence, 1e-9)
+    }
+
+    @Test
+    fun `expanded candidates build exact sequence map live result and report retrieval recall`() {
+        val fixture = File("tools/laya/expense_examples.json").takeIf { it.isFile }
+            ?: File("../tools/laya/expense_examples.json")
+        val root = JSONObject(fixture.readText(Charsets.UTF_8))
+        val examples = root.getJSONArray("examples")
+        val categoryDefinitions = root.getJSONArray("categories")
+        val expandedCategories = ArrayList<CategoryEntity>(categoryDefinitions.length() + 200)
+        for (index in 0 until categoryDefinitions.length()) {
+            val name = categoryDefinitions.getJSONObject(index).getString("name")
+            val id = (index + 1).toLong()
+            expandedCategories.add(
+                CategoryEntity(
+                    id = id,
+                    name = name,
+                    archived = false,
+                    createdAtEpochMillis = 0L,
+                    updatedAtEpochMillis = 0L,
+                ),
+            )
+        }
+        for (index in 1..200) {
+            expandedCategories.add(
+                CategoryEntity(
+                    id = 1000L + index,
+                    name = "Archive ${index.toString().padStart(4, '0')}",
+                    archived = false,
+                    createdAtEpochMillis = 0L,
+                    updatedAtEpochMillis = 0L,
+                ),
+            )
+        }
+
+        val tokenizer = LayaTokenizerLoader.loadFromRepoFile()
+        var positiveExamples = 0
+        var retrieved = 0
+        val misses = ArrayList<String>()
+        var markerExample: Pair<String, String>? = null
+        for (index in 0 until examples.length()) {
+            val example = examples.getJSONObject(index)
+            val expectedValue = example.opt("expected")
+            if (expectedValue == null || expectedValue == JSONObject.NULL ||
+                expectedValue.toString() == LayaTokenizer.UNKNOWN_OPTION
+            ) {
+                continue
+            }
+            val id = example.getString("id")
+            val expected = expectedValue.toString()
+            val description = example.getString("description")
+            if (id == "boundary-mask-injection") markerExample = id to description
+            positiveExamples++
+            val plan = LayaCandidatePlanner.plan(tokenizer, description, expandedCategories)
+            val candidateNames = when (plan) {
+                is LayaCandidatePlanner.Plan.Correction -> listOf(plan.category.name)
+                is LayaCandidatePlanner.Plan.MetadataMatch -> listOf(plan.category.name)
+                is LayaCandidatePlanner.Plan.Model -> plan.categories.map { it.name }
+                is LayaCandidatePlanner.Plan.ManualReview -> emptyList()
+            }
+            if (expected in candidateNames) retrieved++ else misses.add("$id->$expected")
+        }
+        assertEquals(6, positiveExamples)
+        assertEquals(205, expandedCategories.size)
+        println(
+            "S4.4 retrieval recall: $retrieved/$positiveExamples; " +
+                "misses=${misses.joinToString(",")}; expanded-active=${expandedCategories.size}",
+        )
+
+        val (exampleId, description) = markerExample ?: error("labeled marker example absent")
+        val foodDrinksId = 9001L
+        val foodSuppliesId = 9002L
+        val smokeCategories = ArrayList(expandedCategories.filterNot { it.name == "Food" })
+        smokeCategories.addAll(
+            listOf(
+                CategoryEntity(
+                    id = foodDrinksId,
+                    name = "Food and drinks",
+                    archived = false,
+                    createdAtEpochMillis = 0L,
+                    updatedAtEpochMillis = 0L,
+                ),
+                CategoryEntity(
+                    id = foodSuppliesId,
+                    name = "Food supplies",
+                    archived = false,
+                    createdAtEpochMillis = 0L,
+                    updatedAtEpochMillis = 0L,
+                ),
+            ),
+        )
+        assertEquals(206, smokeCategories.size)
+        val plan = LayaCandidatePlanner.plan(tokenizer, description, smokeCategories)
+            as LayaCandidatePlanner.Plan.Model
+        assertEquals(listOf(foodSuppliesId, foodDrinksId), plan.categories.map { it.id })
+        assertTrue((plan.uncertainty?.omittedCategoryCount ?: 0) > 0)
+        assertTrue(plan.built.headTokenCount <= LayaRuntimeContract.HEAD_MAX_LEN)
+        assertTrue(plan.built.inputIds.size <= LayaRuntimeContract.MAX_LEN)
+        assertEquals(plan.categories.size + 1, plan.built.markerPositions.size)
+        assertTrue(plan.built.markerPositions.all { plan.built.inputIds[it] == tokenizer.maskId })
+
+        val decision = LayaCandidatePlanner.decide(plan) { built ->
+            liveLogits(built.inputIds, built.markerPositions)
+        }
+        val resolved = LayaCandidatePlanner.resolveCurrent(decision, smokeCategories)
+        when (resolved) {
+            is LayaCandidatePlanner.CurrentResolution.ActiveCategory -> {
+                assertTrue(resolved.category.id in setOf(foodDrinksId, foodSuppliesId))
+                println(
+                    "S4.4 live decision: $exampleId -> category-id=${resolved.category.id}; " +
+                        "confidence=${resolved.confidence}; candidate-uncertainty=${resolved.uncertainty}",
+                )
+            }
+            is LayaCandidatePlanner.CurrentResolution.ManualReview ->
+                println("S4.4 live decision: $exampleId -> unknown; reason=${resolved.reason}")
+            is LayaCandidatePlanner.CurrentResolution.StaleCategory ->
+                error("fresh active metadata failed to resolve model result: $resolved")
+        }
     }
 }
