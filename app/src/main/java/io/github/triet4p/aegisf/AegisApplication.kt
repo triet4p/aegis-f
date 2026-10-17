@@ -18,4 +18,10 @@ class AegisApplication : Application() {
         super.onCreate()
         container = AppContainer(this)
     }
+
+    /** Test/emulator lifecycle hook; production process teardown also reclaims native resources. */
+    override fun onTerminate() {
+        if (::container.isInitialized) container.close()
+        super.onTerminate()
+    }
 }

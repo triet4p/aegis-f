@@ -267,12 +267,12 @@ Bank-notification intake checks (S3.8, user-run): the supported notification for
 ## 6. User-run S4.2 parity probe (phone, ONNX Runtime Android)
 
 These steps are **user-only** (workers never contact the phone): they install the
-debug build, stage the pinned model bundle into app-private storage, run the real
-on-device `LayaRuntime` through a debug-only probe screen, and pull its report.
-This remains a parity-verification procedure; normal local provisioning is the
-in-app folder import in §7. The probe creates no ledger records, changes no
-categories, and touches no notification path. It is verification tooling, not
-suggestion UI (reserved for S4.6).
+debug build, stage the pinned model bundle into app-private storage, and run the
+real on-device `LayaRuntime` through the process-owned `LayaInferenceLifecycle`
+used by the debug-only probe. This remains a parity-verification procedure;
+normal local provisioning is the in-app folder import in §7. The probe creates
+no ledger records, changes no categories, and touches no notification path. It
+is verification tooling, not suggestion UI (reserved for S4.6).
 
 Prerequisites: the phone from §4 (HONOR ALT-LX2, Android 14/API 34, ARM64,
 4096-byte pages) with USB debugging authorized (`adb devices` shows `device`),
@@ -500,6 +500,72 @@ The live candidate smoke sends the planner's actual Kotlin token ids and marker 
 through `tools/laya/run_tensors.py` and the pinned local host ONNX bundle. It is not an
 Android/SAF test; do not run device commands as a worker. Suggestions remain unconnected
 to manual-entry and notification UI until later Sprint 4 work.
+
+### S4.5 User-run Android lifecycle responsiveness check
+
+This is a **user-only** physical-device check of the real ORT Android runtime
+through the process-owned inference lifecycle. It does not create or modify
+ledger records or categories, and workers must not run its `adb` commands. Use
+the debug APK built from the final task source; do not uninstall or clear app
+data. The existing probe helper installs in place with `install -r`, preserves
+app data, stages only the pinned model files, and does not touch notification
+settings.
+
+From a fresh PowerShell window at the repository root, run the existing
+[`S4.2 probe helper`](../tools/laya/Invoke-S42ParityProbe.ps1). Save its report
+to a temporary path so the accepted S4.2 report is not overwritten:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\laya\Invoke-S42ParityProbe.ps1 -ReportOut "$env:TEMP\S45-lifecycle-parity.json"
+```
+
+While the helper's first PowerShell window polls for the report, bring
+**Aegis F**'s `MainActivity` to the foreground so the process-owned worker can
+continue behind it. If the probe is the current root screen, run this
+user-only command from a second PowerShell window at the repository root:
+
+```powershell
+adb -d shell am start -n io.github.triet4p.aegisf/.MainActivity
+```
+
+If **Aegis F** is already below the probe in Recents, system Back is also
+sufficient. Do not force-stop or swipe the app away. Open **Record a
+transaction**, type in the form, navigate away and back, and confirm the fields
+remain responsive. Do not press **Save**; leaving the form without saving
+writes nothing. If the first probe run finishes before you switch, tap **Run
+parity probe** and switch to the main activity promptly.
+
+If notification access is already granted and a permitted bank notification
+arrives naturally during the check, verify that it appears as a pending item
+under **Review bank drafts**. Do not generate a bank transaction, edit or
+confirm a draft, or share its body. If no notification arrives naturally, leave
+this phone-only observation unclaimed; the host smoke separately exercises the
+listener-to-Room persistence path during blocked inference.
+
+Return only whether the probe reached `Ready`/`PASS`, whether typing and
+navigation remained responsive without saving, and whether a naturally
+received notification persisted as a pending draft (or that none arrived).
+Do not send the raw probe JSON, device facts, or notification content.
+
+### S4.5 Host lifecycle and persistence smoke
+
+Run the host regressions and both APK builds with:
+
+```powershell
+.\gradlew.bat --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease
+```
+
+`LayaInferenceLifecycleTest` exercises cancellation, a single replaceable
+pending request, session serialization, deferred release while native work is
+active, idle close, and reopen through a controlled blocking session. The
+notification concurrency smoke uses the real listener and Room-backed intake
+path while that worker is blocked; its editor/navigation interaction is
+host-simulated, not a Compose or physical-device result. `LayaLiveParityTest`
+continues to run the Kotlin decision path against the real pinned host weights
+through the existing Python ONNX Runtime tool. None of these host checks proves
+ARM64 Android native execution or actual device UI responsiveness; the
+user-only procedure above is the physical check.
+
 
 ## 8. Update path and troubleshooting
 

@@ -1,7 +1,7 @@
-# Laya reference tooling (S4.1–S4.4)
+# Laya reference tooling (S4.1–S4.5)
 
-Host-side reference for the English Laya decision artifact, the S4.2 Android runtime,
-the S4.3 app-side local model import path, and S4.4 category-candidate planning.
+Host-side reference for the English Laya decision artifact, Android runtime,
+local model import, category-candidate planning, and the S4.5 inference lifecycle.
 No committed graph weights.
 
 ### S4.4 candidate-planning contract
@@ -26,6 +26,27 @@ the caller must use `LayaCandidatePlanner.resolveCurrent` with fresh rows; a mis
 archived, renamed, or duplicate id is rejected as stale. The candidate contract never
 writes or confirms a financial record. S4.4 does not connect suggestions to an entry or
 notification UI, and its host smoke is not Android/SAF proof.
+
+### S4.5 background inference lifecycle
+
+`AppContainer.layaInferenceLifecycle` is the production async boundary for Laya
+decisions. It runs blocking runtime work on one process-owned worker and bounds
+backlog to one active request plus one replaceable latest pending request.
+Superseded pending work is reported explicitly; caller cancellation removes
+queued work, while cancellation after ORT starts withdraws result delivery
+without interrupting or claiming to stop native execution. The worker retains
+the session until active native work returns, then releases it after its bounded
+idle window. `releaseSession()` closes an idle session or closes it after
+current work and permits a later request to reopen; `close()` rejects new work
+and defers release until active work returns.
+
+The notification listener does not access or retain this lifecycle; its
+background intake and Room persistence remain independent. The debug parity
+probe uses the same process-owned lifecycle for its real Android runtime run.
+Host lifecycle races use a controlled blocking session; they prove queue,
+cancellation, and close ownership, not Android native inference or physical UI
+responsiveness. The user-only phone procedure remains in
+[`docs/developer-setup.md` §6](../../docs/developer-setup.md#6-user-run-s42-parity-probe-phone-onnx-runtime-android).
 
 The candidate regressions and real-weight host smoke run with:
 

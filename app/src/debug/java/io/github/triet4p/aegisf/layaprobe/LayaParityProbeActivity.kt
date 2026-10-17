@@ -21,12 +21,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.github.triet4p.aegisf.AegisApplication
 import io.github.triet4p.aegisf.data.laya.CategoryOption
-import io.github.triet4p.aegisf.data.laya.LayaRuntime
+import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
+import io.github.triet4p.aegisf.data.laya.LayaInferenceOutcome
 import io.github.triet4p.aegisf.data.laya.LayaRuntimeContract
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import kotlinx.coroutines.runBlocking
 
 /**
  * S4.2 debug-only parity probe (debug builds only; removed before release in S4.9).
@@ -83,7 +86,7 @@ class LayaParityProbeActivity : ComponentActivity() {
         running = true
         lines = listOf("Running…")
         Thread {
-            val outcome = runProbe()
+            val outcome = runBlocking { runProbe() }
             runOnUiThread {
                 lines = outcome.summaryLines
                 running = false
@@ -101,15 +104,25 @@ class LayaParityProbeActivity : ComponentActivity() {
         val expected: String,
     )
 
-    private fun runProbe(): ProbeOutcome {
+    private suspend fun runProbe(): ProbeOutcome {
+        val lifecycle = (application as AegisApplication).container.layaInferenceLifecycle
+        return try {
+            runProbe(lifecycle)
+        } finally {
+            lifecycle.releaseSession()
+        }
+    }
+
+    private suspend fun runProbe(lifecycle: LayaInferenceLifecycle): ProbeOutcome {
         val startedAll = SystemClock.elapsedRealtime()
-        val modelDir = File(filesDir, "laya/model")
         val openedAt = SystemClock.elapsedRealtime()
-        val opened = LayaRuntime.open(modelDir)
+        val opened = lifecycle.prepare()
         val openMs = SystemClock.elapsedRealtime() - openedAt
-        if (opened is LayaRuntime.Result.Unavailable) {
-            val reason = opened.state.toString()
-            writeReport(baseReport(openMs, opened.state.javaClass.simpleName, reason).apply {
+        if (opened !is LayaInferenceOutcome.Completed) {
+            val unavailable = opened as? LayaInferenceOutcome.Unavailable
+            val reason = unavailable?.state?.toString() ?: opened.toString()
+            val state = unavailable?.state?.javaClass?.simpleName ?: "Unavailable"
+            writeReport(baseReport(openMs, state, reason).apply {
                 put("verdict", "NO_RUN")
             })
             return ProbeOutcome(
@@ -120,16 +133,22 @@ class LayaParityProbeActivity : ComponentActivity() {
                 ),
             )
         }
-        val runtime = (opened as LayaRuntime.Result.Opened).runtime
         val summary = ArrayList<String>()
         summary.add("Bundle opened in ${openMs} ms (includes cold probe inference).")
         val cases = JSONArray()
         var failures = 0
-        runtime.use { session ->
-            for (case in PROBE_CASES) {
+        for (case in PROBE_CASES) {
                 val started = SystemClock.elapsedRealtime()
                 val suggestion = try {
-                    session.suggestOptions(case.description, PROBE_CATEGORIES)
+                    when (
+                        val result = lifecycle.suggestOptions(case.description, PROBE_CATEGORIES)
+                    ) {
+                        is LayaInferenceOutcome.Completed -> result.value
+                        is LayaInferenceOutcome.Unavailable ->
+                            error("Runtime unavailable: ${result.state}")
+                        LayaInferenceOutcome.Superseded -> error("Probe request was superseded.")
+                        LayaInferenceOutcome.Closed -> error("Inference lifecycle closed.")
+                    }
                 } catch (error: Exception) {
                     summary.add("THREW ${case.id}: ${error.message}")
                     failures++
@@ -190,7 +209,6 @@ class LayaParityProbeActivity : ComponentActivity() {
                 }
                 cases.put(entry)
             }
-        }
         val totalMs = SystemClock.elapsedRealtime() - startedAll
         val verdict = if (failures == 0) "PASS" else "FAIL"
         summary.add(0, "Verdict: $verdict ($failures mismatches, ${totalMs} ms total).")

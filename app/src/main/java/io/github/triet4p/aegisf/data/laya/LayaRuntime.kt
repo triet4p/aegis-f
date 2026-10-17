@@ -14,9 +14,9 @@ import java.io.FileInputStream
  * graph plus the exact tokenizer/sequence/calibration pipeline and S4.4's stable-id candidate
  * planning. Suggestions are review-only; current category rows must be resolved before display.
  *
- * Threading: the underlying session is not safe for concurrent `run` calls, so callers
- * serialize access (S4.5 owns the dispatcher/lifecycle binding). This class itself performs
- * no threading and retains no ledger or notification state.
+ * Threading: production requests are confined by [LayaInferenceLifecycle] to one worker.
+ * A process-wide ORT lock also protects session calls, open/probe, and close from competing
+ * verifier sessions that share ORT's environment.
  *
  * Verification order in [open]: bundle presence, `laya_config.json` budget pins,
  * tokenizer asset load, session creation, then a single real probe inference that also
@@ -32,6 +32,7 @@ class LayaRuntime private constructor(
     val headMaxLen: Int,
 ) : Closeable {
 
+
     /**
      * Produces a review-only suggestion from current category metadata. Explicit exact-description
      * corrections outrank exact metadata matches, which outrank model inference. Oversized sets
@@ -42,7 +43,7 @@ class LayaRuntime private constructor(
         description: String,
         categories: List<CategoryEntity>,
         correctionRules: List<LayaCategoryCorrectionRule> = emptyList(),
-    ): LayaCandidatePlanner.Decision {
+    ): LayaCandidatePlanner.Decision = synchronized(ORT_ACCESS_LOCK) {
         val plan = LayaCandidatePlanner.plan(
             tokenizer = tokenizer,
             description = description,
@@ -51,17 +52,17 @@ class LayaRuntime private constructor(
             maxLen = maxLen,
             headMaxLen = headMaxLen,
         )
-        return LayaCandidatePlanner.decide(plan) { built -> runLogits(built) }
+        LayaCandidatePlanner.decide(plan) { built -> runLogits(built) }
     }
 
     /** Low-level positional interface retained for the graph probe and parity verification. */
     internal fun suggestOptions(
         description: String,
         categories: List<CategoryOption>,
-    ): LayaRuntimeContract.Suggestion {
+    ): LayaRuntimeContract.Suggestion = synchronized(ORT_ACCESS_LOCK) {
         val optionTexts = categories.map { LayaSequence.renderOption(it.name, it.description) } +
             LayaSequence.renderUnknown()
-        return when (
+        when (
             val outcome = LayaSequence.build(
                 tokenizer = tokenizer,
                 instructions = LayaRuntimeContract.INSTRUCTIONS,
@@ -89,7 +90,7 @@ class LayaRuntime private constructor(
         }
     }
 
-    private fun runLogits(built: LayaSequence.Built): List<Double> {
+    private fun runLogits(built: LayaSequence.Built): List<Double> = synchronized(ORT_ACCESS_LOCK) {
         val length = built.inputIds.size
         val optionCount = built.markerPositions.size
         val inputIds = Array(1) { LongArray(length) { i -> built.inputIds[i].toLong() } }
@@ -97,8 +98,7 @@ class LayaRuntime private constructor(
         val markerPos = Array(1) { LongArray(optionCount) { i -> built.markerPositions[i].toLong() } }
         val markerMask = Array(1) { BooleanArray(optionCount) { true } }
         val qtype = longArrayOf(QTYPE_CHOICE)
-        // The environment is shared for the runtime's life; only tensors and the result are
-        // per-call. `session.run` is not thread-safe, so callers serialize `suggest` (S4.5).
+        // Tensors and the result are per-call; session access and close share this lock.
         OnnxTensor.createTensor(environment, inputIds).use { ids ->
             OnnxTensor.createTensor(environment, attentionMask).use { mask ->
                 OnnxTensor.createTensor(environment, markerPos).use { positions ->
@@ -114,13 +114,14 @@ class LayaRuntime private constructor(
                             session.run(inputs).use { result ->
                                 @Suppress("UNCHECKED_CAST")
                                 val logits = result.get("logits").get().value as Array<FloatArray>
-                                return logits[0].take(optionCount).map { it.toDouble() }
+                                return@synchronized logits[0].take(optionCount).map { it.toDouble() }
                             }
                         }
                     }
                 }
             }
         }
+        error("unreachable")
     }
 
     /**
@@ -146,23 +147,24 @@ class LayaRuntime private constructor(
         require(total > 0.999 && total < 1.001) { "probe probabilities sum to $total" }
     }
 
-    override fun close() {
-        try {
-            session.close()
-        } finally {
-            environment.close()
-        }
+    /** Closes this runtime's session; ORT's shared environment remains process-owned. */
+    override fun close() = synchronized(ORT_ACCESS_LOCK) {
+        session.close()
     }
 
     companion object {
         private const val QTYPE_CHOICE = 0L
+        private val ORT_ACCESS_LOCK = Any()
 
         /**
-         * Opens and verifies the bundle in [modelDir], or reports why it cannot serve.
-         * The [OrtEnvironment] is owned by the runtime and is released with [close]; the
-         * caller keeps no reference to it.
+         * The session is owned and released here. ORT's shared environment is process-wide
+         * and is left for process teardown; closing one runtime must not invalidate another.
          */
-        fun open(modelDir: File): Result {
+        fun open(modelDir: File): Result = synchronized(ORT_ACCESS_LOCK) {
+            openLocked(modelDir)
+        }
+
+        private fun openLocked(modelDir: File): Result {
             if (!modelDir.isDirectory) {
                 return Result.Unavailable(LayaRuntimeContract.State.Missing)
             }
@@ -215,7 +217,6 @@ class LayaRuntime private constructor(
                     OrtSession.SessionOptions(),
                 )
             } catch (error: Exception) {
-                environment.close()
                 return Result.Unavailable(
                     LayaRuntimeContract.State.CorruptOrIncompatible(
                         "session failed: ${error.message}",
@@ -231,7 +232,6 @@ class LayaRuntime private constructor(
             }
             if (probe != null) {
                 runtime.close()
-                environment.close()
                 return Result.Unavailable(
                     LayaRuntimeContract.State.CorruptOrIncompatible(probe),
                 )

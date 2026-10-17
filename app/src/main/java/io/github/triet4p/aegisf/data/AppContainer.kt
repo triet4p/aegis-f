@@ -1,6 +1,8 @@
 package io.github.triet4p.aegisf.data
 
 import android.content.Context
+import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
+import java.io.File
 
 /**
  * The application's dependency graph: one Room database, the repository that reads and
@@ -15,7 +17,22 @@ class AppContainer(context: Context) {
 
     private val appContext: Context = context.applicationContext
 
-    private val database: LedgerDatabase by lazy { LedgerDatabase.build(appContext) }
+    private val layaInferenceDelegate = lazy {
+        LayaInferenceLifecycle(File(appContext.filesDir, "laya/model"))
+    }
+
+    /** Process-owned, bounded Laya inference work; notification intake never retains it. */
+    val layaInferenceLifecycle: LayaInferenceLifecycle
+        get() = layaInferenceDelegate.value
+
+    /** Releases process-owned inference resources when the application is terminating. */
+    fun close() {
+        if (layaInferenceDelegate.isInitialized()) layaInferenceDelegate.value.close()
+        if (databaseDelegate.isInitialized()) databaseDelegate.value.close()
+    }
+
+    private val databaseDelegate = lazy { LedgerDatabase.build(appContext) }
+    private val database: LedgerDatabase by databaseDelegate
 
     val ledgerRepository: LedgerRepository by lazy {
         LedgerRepository(

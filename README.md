@@ -172,8 +172,12 @@ The following capabilities are not available yet:
   unsupported evidence stays manual. The current category schema stores names only, so the
   oversized shortlist cannot use category descriptions or aliases and returns manual review
   when no name evidence can prioritize candidates. The planner does not save or confirm a
-  financial record. Background lifecycle, suggestion UI, and persistent remember/remove rules
-  remain later Sprint 4 work.
+  financial record. S4.5 adds a process-owned background lifecycle with one active request
+  and a one-slot latest-pending queue. Caller cancellation withdraws result delivery without
+  claiming native ORT work stopped; the session stays open until native execution returns,
+  and idle sessions are released on a bounded timer. Notification callbacks do not access or
+  retain the model, and notification persistence keeps its independent IO path. Suggestion UI
+  remains S4.6; persistent correction rules remain S4.7.
 - **No bank account connection.** The review inbox uses only permitted notification drafts; the app
   does not log in to a bank or request SMS, accessibility, or notification-posting permissions.
 - **No cloud service, sync, or account.** There is no login, no server, and no network use at all.
@@ -249,14 +253,14 @@ developer setup guide rather than uninstalling the app.
 - **Sprint 2 — VND ledger and user-defined categories: complete and accepted**, including the
   user-run offline, force-stop persistence, and month-boundary checks on the physical phone. Its
   delivery commit is local only and has not been pushed.
-- Host-side unit tests run against the real Room database file (130 permanent tests, no emulator or
-  device) and pass; they cover persistence across close/reopen, exact VND boundaries and refusals,
-  category history, filters, month-edge summary inclusion, notification-access setup and listener
-  ordering, notification intake filtering and pending-draft persistence, VietinBank notification
-  parsing, draft delivery/evidence identity and review transitions with their schema migrations,
-  equal-value drafts distinguished only by their stated description, listener lifecycle recovery
-  and rebind gating, an active-notification answer the platform cannot give, and income/transfers
-  remaining outside expense summaries.
+- Host-side unit tests pass (169 tests, 0 failures, 0 skipped; no emulator or
+  device). Room-backed tests cover persistence across close/reopen, exact VND
+  boundaries and refusals, category history, filters, month-edge summary
+  inclusion, notification intake and pending-draft persistence, review
+  transitions, and listener lifecycle recovery. S4.5 adds cancellation,
+  latest-pending, serialization, and release/reopen races plus a real listener
+  callback-to-Room insert while controlled inference is blocked; that overlap
+  uses an in-memory Room database and is not a disk-reopen or device UI result.
 - **Sprint 3 — bank notifications to reviewable drafts: under way.** The opt-in access/allowlist
   setup, the privacy-first intake filter (package checked before any content is read, OTP and
   security messages, group summaries, and empty or fully redacted payloads discarded), parsing

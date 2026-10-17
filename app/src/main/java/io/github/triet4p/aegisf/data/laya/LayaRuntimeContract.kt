@@ -4,12 +4,12 @@ package io.github.triet4p.aegisf.data.laya
  * The Android Laya runtime contract: what the app owns, what it refuses, and what later
  * tasks add.
  *
- * S4.2 integrates the pinned graph, tokenizer, sequence, marker, and calibration pipeline.
  * S4.4 adds [LayaRuntime.suggest] and [LayaCandidatePlanner] to apply caller-supplied exact
  * correction rules, deterministic category-name matching, and budget-exact candidate
  * retrieval. The runtime accepts caller-owned correction rules but does not store or learn
- * them; explicit persistence and remember/remove controls belong to S4.7. Background
- * lifecycle integration remains S4.5.
+ * them; explicit persistence and remember/remove controls belong to S4.7. [LayaInferenceLifecycle]
+ * owns one bounded background worker, latest-only pending work, serialized session use, and
+ * safe release after non-cancellable native calls. Suggestion UI remains S4.6.
  *
  * States, in the order the app meets them:
  *
