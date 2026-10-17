@@ -199,8 +199,9 @@ The following capabilities are not available yet:
 - **No multi-currency, receipt OCR, voice input, or shared accounts**, and no published release: the
   APK is built and installed privately by its owner.
 
-Planned work (real-bank device verification of the notification intake, on-device category-
-suggestion adoption evaluation, new-category suggestions and bounded ledger Q&A, then a personal
+Planned work (real-bank device verification of the notification intake; the on-device
+category-suggestion evaluation is complete, with the final real-user experience/adoption
+decision still pending; new-category suggestions and bounded ledger Q&A, then a personal
 daily-use release)
 is described in [docs/PLAN.md](docs/PLAN.md).
 
