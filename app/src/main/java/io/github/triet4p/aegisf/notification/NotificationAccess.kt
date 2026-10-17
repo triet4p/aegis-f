@@ -7,6 +7,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.content.pm.PackageManager
 import android.service.notification.NotificationListenerService
 
 /**
@@ -22,6 +23,12 @@ sealed interface ListenerConnection {
     data class Connected(val connectedAtEpochMillis: Long) : ListenerConnection
 }
 
+@Volatile
+internal var accessGrantedForTest: Boolean? = null
+
+@Volatile
+internal var rebinderForTest: ((ComponentName) -> Unit)? = null
+
 /**
  * Whether the user has granted this app notification access in the system settings.
  *
@@ -32,6 +39,7 @@ sealed interface ListenerConnection {
  * falls back to reading the system's own list of enabled listener components.
  */
 fun isNotificationAccessGranted(context: Context): Boolean {
+    accessGrantedForTest?.let { return it }
     val component = ComponentName(context, BankNotificationListener::class.java)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -105,12 +113,36 @@ fun requestListenerRebind(
     context: Context,
     accessGranted: Boolean,
     rebinder: (ComponentName) -> Unit = { component ->
-        NotificationListenerService.requestRebind(component)
+        if (rebinderForTest != null) {
+            rebinderForTest?.invoke(component)
+        } else {
+            try {
+                NotificationListenerService.requestRebind(component)
+            } catch (e: Exception) {
+                android.util.Log.w("NotificationAccess", "requestRebind error: ${e.message}")
+            }
+            try {
+                val pm = context.packageManager
+                pm.setComponentEnabledSetting(
+                    component,
+                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                    PackageManager.DONT_KILL_APP,
+                )
+                pm.setComponentEnabledSetting(
+                    component,
+                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                    PackageManager.DONT_KILL_APP,
+                )
+            } catch (e: Exception) {
+                android.util.Log.w("NotificationAccess", "setComponentEnabledSetting error: ${e.message}")
+            }
+        }
     },
 ): ListenerRebindOutcome {
     if (!accessGranted) {
         return ListenerRebindOutcome.RefusedNoAccess
     }
+    android.util.Log.i("NotificationAccess", "requestListenerRebind: requesting listener rebind")
     rebinder(ComponentName(context, BankNotificationListener::class.java))
     return ListenerRebindOutcome.Requested
 }

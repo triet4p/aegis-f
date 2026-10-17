@@ -25,6 +25,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import io.github.triet4p.aegisf.notification.BankNotificationListener
+import io.github.triet4p.aegisf.notification.isNotificationAccessGranted
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -73,6 +77,12 @@ fun BankDraftReviewScreen(
     onNavigateUp: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        if (isNotificationAccessGranted(context)) {
+            BankNotificationListener.requestActiveReconciliation(context)
+        }
+    }
     val draftsFlow = remember(intakeRepository) { intakeRepository.observeDrafts() }
     val drafts by draftsFlow.collectAsState(initial = emptyList())
     val categoriesFlow = remember(ledgerRepository) { ledgerRepository.observeCategories() }

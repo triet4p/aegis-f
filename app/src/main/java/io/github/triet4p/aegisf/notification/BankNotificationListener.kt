@@ -1,5 +1,7 @@
 package io.github.triet4p.aegisf.notification
 
+import android.content.Context
+import android.util.Log
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import io.github.triet4p.aegisf.data.NotificationAccessStore
@@ -74,15 +76,18 @@ class BankNotificationListener : NotificationListenerService() {
 
     private val serviceScope = CoroutineScope(SupervisorJob())
 
+    override fun onCreate() {
+        super.onCreate()
+        activeInstance = this
+        Log.i(TAG, "onCreate: listener service created")
+    }
+
     override fun onListenerConnected() {
-        // No storage I/O here: this callback runs on the app main thread. Capture the
-        // context on this thread, then load off-thread; publish Connected only when the
-        // snapshot is ready so readiness is never overstated. Once ready, drain the
-        // init-window queue in order, then reconcile whatever is still active on the
-        // system side — current-active only, through the same persisted identity.
+        activeInstance = this
         val appContext = applicationContext
         val activeAnswer = activeNotificationsForTest
         val repository = intakeRepository
+        Log.i(TAG, "onListenerConnected: listener connected, loading allowlist snapshot")
         serviceScope.launch(ioDispatcher) {
             val loaded = NotificationAccessStore(appContext).loadAllowedPackages()
             if (!isActive) {
@@ -90,31 +95,31 @@ class BankNotificationListener : NotificationListenerService() {
             }
             allowedPackages = loaded
             connectionState.value = ListenerConnection.Connected(System.currentTimeMillis())
+            Log.i(TAG, "onListenerConnected: allowlist ready (${loaded.size} packages), draining queue and reconciling")
             drainQueuedIntake()
             reconcileCurrentActive(appContext, activeAnswer, repository)
         }
     }
 
     override fun onListenerDisconnected() {
-        // Revocation unbinds the service: drop the in-flight load and any queued intake
-        // so neither a stale Connected nor a post-revoke draft can be published after
-        // the unbind, then report the unbound state. Drafts already persisted before
-        // the unbind stay in the database: they are stored evidence, not live intake.
+        if (activeInstance === this) {
+            activeInstance = null
+        }
         queuedIntake.clear()
         serviceScope.coroutineContext.cancelChildren()
         connectionState.value = ListenerConnection.Disconnected
+        Log.i(TAG, "onListenerDisconnected: listener disconnected")
+        val appContext = applicationContext
+        if (isNotificationAccessGranted(appContext)) {
+            Log.i(TAG, "onListenerDisconnected: notification access remains granted; requesting rebind")
+            requestListenerRebind(appContext, accessGranted = true)
+        }
     }
 
     override fun onNotificationPosted(notification: StatusBarNotification?) {
         val posted = notification ?: return
+        Log.d(TAG, "onNotificationPosted: package=${posted.packageName}")
         if (connectionState.value !is ListenerConnection.Connected) {
-            // Not yet ready: no allowlist snapshot to judge against, so no content field
-            // is read and no permit/deny decision is made on the transient empty state.
-            // The routing metadata the callback may hold without touching content is
-            // queued for ordered processing once readiness is reached; S3.7 reconciles
-            // whatever is still active on the system side after a reconnect. Queueing
-            // the posted object — not its content — keeps unready posts lossless without
-            // judging them against the empty snapshot.
             queuedIntake.add(posted)
             return
         }
@@ -128,9 +133,22 @@ class BankNotificationListener : NotificationListenerService() {
     }
 
     override fun onDestroy() {
+        if (activeInstance === this) {
+            activeInstance = null
+        }
         queuedIntake.clear()
         serviceScope.cancel()
+        Log.i(TAG, "onDestroy: listener service destroyed")
         super.onDestroy()
+    }
+
+    fun reconcileNow(appContext: Context) {
+        val activeAnswer = activeNotificationsForTest
+        val repository = intakeRepository
+        Log.i(TAG, "reconcileNow: active reconciliation requested")
+        serviceScope.launch(ioDispatcher) {
+            reconcileCurrentActive(appContext, activeAnswer, repository)
+        }
     }
 
     /**
@@ -170,15 +188,23 @@ class BankNotificationListener : NotificationListenerService() {
         val key = posted.key
         val postTime = posted.postTime
         val decision = decideNotificationIntake(posted, snapshot)
-        if (decision !is NotificationIntakeDecision.Permitted) {
-            return
+        when (decision) {
+            is NotificationIntakeDecision.Permitted -> {
+                Log.i(TAG, "persistOne: permitted notification from $packageName (postTime=$postTime); storing draft")
+                intakeRepositoryFor(appContext).storePermitted(
+                    sourcePackage = packageName,
+                    notificationKey = key,
+                    postedAtEpochMillis = postTime,
+                    content = decision.content,
+                )
+            }
+            is NotificationIntakeDecision.NotPermitted -> {
+                Log.d(TAG, "persistOne: dropped notification from $packageName (not in allowlist)")
+            }
+            is NotificationIntakeDecision.Rejected -> {
+                Log.d(TAG, "persistOne: rejected notification from $packageName (reason=${decision.reason})")
+            }
         }
-        intakeRepositoryFor(appContext).storePermitted(
-            sourcePackage = packageName,
-            notificationKey = key,
-            postedAtEpochMillis = postTime,
-            content = decision.content,
-        )
     }
 
     /**
@@ -231,23 +257,21 @@ class BankNotificationListener : NotificationListenerService() {
             val active: Array<StatusBarNotification>? =
                 if (activeAnswer != null) activeAnswer() else activeNotifications
             if (active == null) {
-                // No active set was reported, which is not the same answer as an empty one. The
-                // platform's read returns the unbound/RemoteException null on the API levels
-                // before P — this app's minSdk is 24 — and substitutes an empty array only from
-                // P on, so on a device that has not established the binding this branch is the
-                // reachable one. Nothing is read, stored, or claimed about active or removed
-                // notifications, and the drafts already in the database stay exactly as they
-                // are; the binding itself is intact, so the connection state is unchanged.
+                Log.d(TAG, "reconcileCurrentActive: activeNotifications returned null")
                 return
             }
-            reconcileActivePosts(
+            val filtered = reconcileActivePosts(
                 active = active.toList(),
                 accessGranted = true,
                 allowedPackages = snapshot,
             )
+            Log.i(
+                TAG,
+                "reconcileCurrentActive: active=${active.size}, permitted candidates=${filtered.size}",
+            )
+            filtered
         } catch (_: SecurityException) {
-            // The system refused the active-notification read for this binding: stay honest
-            // about what was seen instead of treating the refusal as an empty history.
+            Log.w(TAG, "reconcileCurrentActive: SecurityException from activeNotifications read")
             return
         }
         val store = repository ?: intakeRepositoryFor(appContext)
@@ -274,6 +298,25 @@ class BankNotificationListener : NotificationListenerService() {
     }
 
     companion object {
+        private const val TAG = "BankNotificationListener"
+
+        @Volatile
+        private var activeInstance: BankNotificationListener? = null
+
+        /**
+         * Triggers active-notification reconciliation through the currently bound listener,
+         * or requests a system rebind if the listener is disconnected while access is granted.
+         */
+        fun requestActiveReconciliation(context: Context) {
+            val listener = activeInstance
+            if (listener != null && connectionState.value is ListenerConnection.Connected) {
+                listener.reconcileNow(context.applicationContext)
+            } else if (isNotificationAccessGranted(context)) {
+                Log.i(TAG, "requestActiveReconciliation: listener not connected, requesting rebind")
+                requestListenerRebind(context, accessGranted = true)
+            }
+        }
+
         private val connectionState =
             MutableStateFlow<ListenerConnection>(ListenerConnection.Disconnected)
 

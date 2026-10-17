@@ -39,6 +39,8 @@ import io.github.triet4p.aegisf.data.BankDraftReviewRepository
 import io.github.triet4p.aegisf.data.IntakeRepository
 import io.github.triet4p.aegisf.data.LedgerRepository
 import io.github.triet4p.aegisf.data.NotificationAccessStore
+import io.github.triet4p.aegisf.notification.BankNotificationListener
+import io.github.triet4p.aegisf.notification.isNotificationAccessGranted
 import io.github.triet4p.aegisf.ui.BankDraftReviewScreen
 import io.github.triet4p.aegisf.ui.BankNotificationSettingsScreen
 import io.github.triet4p.aegisf.ui.LayaProvisioningScreen
@@ -93,6 +95,13 @@ class MainActivity : ComponentActivity() {
 
     private val bankDraftReviewRepository: BankDraftReviewRepository by lazy {
         (application as AegisApplication).container.bankDraftReviewRepository
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (isNotificationAccessGranted(this)) {
+            BankNotificationListener.requestActiveReconciliation(this)
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

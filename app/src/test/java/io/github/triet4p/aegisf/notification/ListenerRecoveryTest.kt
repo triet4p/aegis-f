@@ -100,6 +100,8 @@ class ListenerRecoveryTest {
         Dispatchers.setMain(StandardTestDispatcher())
         BankNotificationListener.updateIntakeRepository(null)
         BankNotificationListener.updateAllowedPackages(emptySet())
+        accessGrantedForTest = null
+        rebinderForTest = null
     }
 
     @After
@@ -107,6 +109,8 @@ class ListenerRecoveryTest {
         Dispatchers.resetMain()
         BankNotificationListener.updateIntakeRepository(null)
         BankNotificationListener.updateAllowedPackages(emptySet())
+        accessGrantedForTest = null
+        rebinderForTest = null
     }
 
     @Test
@@ -476,6 +480,73 @@ class ListenerRecoveryTest {
         )
         assertTrue(reconciled.isEmpty())
         assertEquals(0, probe.contentReads())
+    }
+
+    @Test
+    fun `requestActiveReconciliation while connected reconciles active posts without reconnect`() = runTest {
+        val database = LedgerDatabase.build(context)
+        val intake = SignalingIntakeRepository(database)
+        BankNotificationListener.updateIntakeRepository(intake)
+        store.addPackage(bankPackage)
+        val active = posted(bankPackage, ACTIVE_KEY, POSTED_AT, notification(text = vietinBankText))
+
+        val listener = Robolectric.buildService(BankNotificationListener::class.java).create().get()
+        listener.ioDispatcher = Dispatchers.IO.limitedParallelism(1)
+        listener.activeNotificationsForTest = { emptyArray() }
+        try {
+            listener.onListenerConnected()
+            advanceUntilIdle()
+            assertTrue(intake.drafts().isEmpty())
+
+            // Notification arrives while listener is connected; active reconciliation updates drafts.
+            listener.activeNotificationsForTest = { arrayOf(active) }
+            BankNotificationListener.requestActiveReconciliation(context)
+            kotlinx.coroutines.withContext(Dispatchers.Default.limitedParallelism(1)) {
+                withTimeout(10_000L) { intake.stored.await() }
+            }
+
+            assertEquals(1, intake.drafts().size)
+            assertEquals(ACTIVE_KEY, intake.drafts().single().notificationKey)
+        } finally {
+            listener.activeNotificationsForTest = null
+            listener.ioDispatcher = Dispatchers.IO
+            listener.onListenerDisconnected()
+            advanceUntilIdle()
+            database.close()
+        }
+    }
+
+    @Test
+    fun `requestActiveReconciliation while disconnected requests rebind when access is granted`() {
+        accessGrantedForTest = true
+        var rebindCalls = 0
+        rebinderForTest = { rebindCalls += 1 }
+        try {
+            BankNotificationListener.requestActiveReconciliation(context)
+            assertEquals(1, rebindCalls)
+        } finally {
+            accessGrantedForTest = null
+            rebinderForTest = null
+        }
+    }
+
+    @Test
+    fun `disconnect with granted access automatically requests rebind`() = runTest {
+        val listener = Robolectric.buildService(BankNotificationListener::class.java).create().get()
+        listener.ioDispatcher = StandardTestDispatcher(testScheduler)
+        accessGrantedForTest = true
+        var rebindCalls = 0
+        rebinderForTest = { rebindCalls += 1 }
+        try {
+            listener.onListenerConnected()
+            advanceUntilIdle()
+            listener.onListenerDisconnected()
+            assertEquals(1, rebindCalls)
+        } finally {
+            accessGrantedForTest = null
+            rebinderForTest = null
+            listener.ioDispatcher = Dispatchers.IO
+        }
     }
 
     /** A real posted notification carrying routing metadata plus the supported fields. */

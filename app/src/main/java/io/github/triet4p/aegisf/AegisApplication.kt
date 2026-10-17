@@ -1,6 +1,8 @@
 package io.github.triet4p.aegisf
 
 import android.app.Application
+import io.github.triet4p.aegisf.notification.BankNotificationListener
+import io.github.triet4p.aegisf.notification.isNotificationAccessGranted
 import io.github.triet4p.aegisf.data.AppContainer
 
 /**
@@ -17,6 +19,9 @@ class AegisApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        if (isNotificationAccessGranted(this)) {
+            BankNotificationListener.requestActiveReconciliation(this)
+        }
     }
 
     /** Test/emulator lifecycle hook; production process teardown also reclaims native resources. */

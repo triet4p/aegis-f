@@ -7,6 +7,10 @@ and no release has been tagged or published. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Resolved missing recent bank notification intake caused by listener disconnection after app updates and system process management: added automatic lifecycle rebind on app resume and review entry when notification access is granted, hooked active-notification reconciliation to app startup, resume, and review screen entry to ingest any notifications currently in the status bar, and added privacy-safe diagnostic logging (reason, state, count only) across listener and intake pipelines.
+
 ### Added
 
 - English Laya artifact reference (host-side, not in the app): pinned the English 421M checkpoint and ONNX export revisions with license, graph operator and input/output contract, tokenizer and option-marker layout, head budget, and calibration temperatures; added a reference runner that decides through the real artifact with an explicit unknown no-fit option, plus labeled English expense examples covering supported, ambiguous, and boundary inputs. No on-device inference was claimed at S4.1.
