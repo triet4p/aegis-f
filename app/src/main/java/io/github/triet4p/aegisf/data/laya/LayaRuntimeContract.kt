@@ -9,7 +9,9 @@ package io.github.triet4p.aegisf.data.laya
  * retrieval. The runtime accepts caller-owned correction rules but does not store or learn
  * them; explicit persistence and remember/remove controls belong to S4.7. [LayaInferenceLifecycle]
  * owns one bounded background worker, latest-only pending work, serialized session use, and
- * safe release after non-cancellable native calls. Suggestion UI remains S4.6.
+ * safe release after non-cancellable native calls. S4.6 presents review-only suggestions for
+ * new expense entry; income, transfers, and correction forms remain manual. Persistent rules
+ * remain S4.7, and notification review remains S4.8.
  *
  * States, in the order the app meets them:
  *

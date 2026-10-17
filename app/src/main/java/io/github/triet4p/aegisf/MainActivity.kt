@@ -79,6 +79,9 @@ class MainActivity : ComponentActivity() {
     private val ledgerRepository: LedgerRepository by lazy {
         (application as AegisApplication).container.ledgerRepository
     }
+    private val layaInferenceLifecycle by lazy {
+        (application as AegisApplication).container.layaInferenceLifecycle
+    }
 
     private val notificationAccessStore: NotificationAccessStore by lazy {
         (application as AegisApplication).container.notificationAccessStore
@@ -167,10 +170,10 @@ class MainActivity : ComponentActivity() {
 
                     LaunchDestination.NewTransaction -> TransactionEditorScreen(
                         repository = ledgerRepository,
+                        layaInferenceLifecycle = layaInferenceLifecycle,
                         transactionId = null,
                         onNavigateUp = { destination = LaunchDestination.Home },
                     )
-
                     is LaunchDestination.Detail -> TransactionDetailScreen(
                         repository = ledgerRepository,
                         transactionId = current.transactionId,
@@ -181,6 +184,7 @@ class MainActivity : ComponentActivity() {
 
                     is LaunchDestination.Edit -> TransactionEditorScreen(
                         repository = ledgerRepository,
+                        layaInferenceLifecycle = layaInferenceLifecycle,
                         transactionId = current.transactionId,
                         // A saved correction and a cancelled one both lead back to the detail
                         // view, which re-reads the stored row: only a save has changed it.

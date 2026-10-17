@@ -164,20 +164,20 @@ arriving through the listener on a phone. What is actually verified today:
 
 The following capabilities are not available yet:
 
-- **No category-suggestion UI in manual entry or notification review yet.** S4.4 adds the
-  candidate-planning core: explicit caller-supplied exact-description corrections take
-  precedence, then deterministic category-name matching, then model scoring over all active
-  categories that fit or a token-budgeted shortlist when they do not. It keeps stable category
-  ids, includes an explicit no-fit result, and reports omitted-candidate uncertainty; empty or
-  unsupported evidence stays manual. The current category schema stores names only, so the
-  oversized shortlist cannot use category descriptions or aliases and returns manual review
-  when no name evidence can prioritize candidates. The planner does not save or confirm a
-  financial record. S4.5 adds a process-owned background lifecycle with one active request
-  and a one-slot latest-pending queue. Caller cancellation withdraws result delivery without
-  claiming native ORT work stopped; the session stays open until native execution returns,
-  and idle sessions are released on a bounded timer. Notification callbacks do not access or
-  retain the model, and notification persistence keeps its independent IO path. Suggestion UI
-  remains S4.6; persistent correction rules remain S4.7.
+- **Manual-entry suggestions are review-only; notification-review suggestions are not implemented.**
+  S4.4 supplies current-category planning with caller-supplied corrections, deterministic
+  category-name matching, a token-budgeted shortlist, an explicit no-fit result, and
+  omitted-candidate uncertainty. S4.5 runs decisions through a process-owned bounded lifecycle.
+  S4.6 uses that lifecycle only on new manual expense forms and resolves results by stable id
+  against fresh category rows; income, transfers, and corrections remain manual.
+  A suggestion never changes the category field or saves a record until the user explicitly
+  chooses **Use suggestion**; the user may instead choose a category or ignore the result.
+  Description/type edits, manual category selection, category metadata changes, and leaving the
+  form invalidate pending results. Missing or unready models, no-fit decisions, and stale rows
+  remain manual, and normal Save validation is unchanged. The name-only shortlist measured
+  recall of **1/6** on the accepted labeled positive examples; this remains an S4.9 adoption risk,
+  not an accuracy claim. Persistent correction rules remain S4.7 and notification-review
+  suggestions remain S4.8.
 - **No bank account connection.** The review inbox uses only permitted notification drafts; the app
   does not log in to a bank or request SMS, accessibility, or notification-posting permissions.
 - **No cloud service, sync, or account.** There is no login, no server, and no network use at all.
@@ -185,8 +185,9 @@ The following capabilities are not available yet:
 - **No multi-currency, receipt OCR, voice input, or shared accounts**, and no published release: the
   APK is built and installed privately by its owner.
 
-Planned work (real-bank device verification of the notification intake, on-device category
-suggestions, new-category suggestions and bounded ledger Q&A, then a personal daily-use release)
+Planned work (real-bank device verification of the notification intake, on-device category-
+suggestion adoption evaluation, new-category suggestions and bounded ledger Q&A, then a personal
+daily-use release)
 is described in [docs/PLAN.md](docs/PLAN.md).
 
 ## Your data
@@ -253,7 +254,7 @@ developer setup guide rather than uninstalling the app.
 - **Sprint 2 — VND ledger and user-defined categories: complete and accepted**, including the
   user-run offline, force-stop persistence, and month-boundary checks on the physical phone. Its
   delivery commit is local only and has not been pushed.
-- Host-side unit tests pass (169 tests, 0 failures, 0 skipped; no emulator or
+- Host-side unit tests pass (176 tests, 0 failures, 0 skipped; no emulator or
   device). Room-backed tests cover persistence across close/reopen, exact VND
   boundaries and refusals, category history, filters, month-edge summary
   inclusion, notification intake and pending-draft persistence, review
@@ -261,6 +262,11 @@ developer setup guide rather than uninstalling the app.
   latest-pending, serialization, and release/reopen races plus a real listener
   callback-to-Room insert while controlled inference is blocked; that overlap
   uses an in-memory Room database and is not a disk-reopen or device UI result.
+  S4.6 adds seven state-machine checks for explicit acceptance, manual/ignored
+  choices, stale form/category snapshots, no-fit/unavailable results, and
+  out-of-order completion. These host checks do not render Compose or exercise Android-native
+  inference; the task-scoped S4.6-A2 phone check observed the actual manual-entry
+  surface and on-device suggestion path ([sanitized evidence](artifacts/sprint-4/workers/S4.6-A2.md)).
 - **Sprint 3 — bank notifications to reviewable drafts: under way.** The opt-in access/allowlist
   setup, the privacy-first intake filter (package checked before any content is read, OTP and
   security messages, group summaries, and empty or fully redacted payloads discarded), parsing

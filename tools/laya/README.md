@@ -1,8 +1,8 @@
-# Laya reference tooling (S4.1–S4.5)
+# Laya reference tooling (S4.1–S4.6)
 
 Host-side reference for the English Laya decision artifact, Android runtime,
-local model import, category-candidate planning, and the S4.5 inference lifecycle.
-No committed graph weights.
+local model import, category-candidate planning, background lifecycle, and
+manual-entry suggestion state machine. No committed graph weights.
 
 ### S4.4 candidate-planning contract
 
@@ -24,8 +24,9 @@ so this retrieval is deliberately limited to that metadata.
 Model decisions carry the selected stable id alongside the metadata snapshot. Before use,
 the caller must use `LayaCandidatePlanner.resolveCurrent` with fresh rows; a missing,
 archived, renamed, or duplicate id is rejected as stale. The candidate contract never
-writes or confirms a financial record. S4.4 does not connect suggestions to an entry or
-notification UI, and its host smoke is not Android/SAF proof.
+writes or confirms a financial record. S4.6 connects the result only to new manual expense
+creation; notification-review suggestions remain S4.8. Host proof is not
+Compose UI, Android-native inference, or physical-device evidence.
 
 ### S4.5 background inference lifecycle
 
@@ -48,6 +49,36 @@ cancellation, and close ownership, not Android native inference or physical UI
 responsiveness. The user-only phone procedure remains in
 [`docs/developer-setup.md` §6](../../docs/developer-setup.md#6-user-run-s42-parity-probe-phone-onnx-runtime-android).
 
+### S4.6 manual-entry suggestion UI
+
+New expense creation calls `AppContainer.layaInferenceLifecycle.suggest`
+with the live active-category rows. Income, transfers, corrections, and
+notification review stay manual. A request is tied to its form identity,
+description, transaction type, and full category snapshot. Description/type
+changes, manual category selection, category updates, and leaving the form
+withdraw stale results through the existing lifecycle; cancellation after ORT
+starts withdraws delivery without claiming to stop native execution.
+
+Before display, the result is resolved with `LayaCandidatePlanner.resolveCurrent`
+against fresh category rows. **Use suggestion** explicitly changes only the
+category field; manually choosing a category or **Ignore** keeps the user's
+choice and does not save a record. Missing/unready models, no-fit results, and
+stale metadata leave normal manual entry available. S4.7 owns persistent
+correction rules, while S4.8 owns notification suggestions.
+
+`ManualCategorySuggestionMachineTest` covers explicit acceptance, manual and
+ignored choices, changed descriptions/types/forms, category snapshots, unknown
+and unavailable states, and late/out-of-order completion. This is host
+state-machine evidence only, not Compose rendering or Android-native inference.
+The real Compose/on-device UI check was exercised under the explicit, task-scoped
+S4.6-A2 authorization; its sanitized evidence is in
+[`artifacts/sprint-4/workers/S4.6-A2.md`](../../artifacts/sprint-4/workers/S4.6-A2.md).
+For the narrow permitted procedure and device limits, see
+[`docs/developer-setup.md` §6](../../docs/developer-setup.md#s46-manual-entry-suggestion-ui-task-scoped-aegis-phone-check).
+The S4.4 name-only shortlist's measured recall remains **1/6** on the accepted
+labeled positive examples and is an S4.9 adoption risk; no confidence threshold
+or quality claim is added here.
+
 The candidate regressions and real-weight host smoke run with:
 
 ```powershell
@@ -63,7 +94,8 @@ user-only.
   folder into app-private storage, verifies each file's size and SHA-256, then
   checks the real runtime before publication. The user procedure is in
   [`docs/developer-setup.md` §7](../../docs/developer-setup.md#7-user-run-s43-local-model-provisioning).
-  This is not a network downloader or a category-suggestion UI.
+  Model setup is not a network downloader; category suggestions appear only in
+  the separate S4.6 manual-expense form.
   Check and import cancellation stays visibly busy until the active file or
   native runtime check finishes; incomplete staging is discarded without
   replacing installed model data.

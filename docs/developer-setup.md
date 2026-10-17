@@ -1,6 +1,6 @@
 # Command-line developer setup
 
-This is the supported development path for Aegis F: the official Android SDK command-line tools, the project's Gradle Wrapper, and `adb` to a physical phone. Android Studio and an emulator are **not** required; no project step uses them. Commands are split into **PC-side** (worker-verified) and **user-run device** commands (never run by a worker; all phone contact is user-only).
+This is the supported development path for Aegis F: the official Android SDK command-line tools, the project's Gradle Wrapper, and `adb` to a physical phone. Android Studio and an emulator are **not** required; no project step uses them. Device access is user-operated by default. A worker may operate only Aegis F and only when the active task explicitly authorizes a narrow, app-scoped check; that permission does not extend to other apps, bank activity, notification content, ledger/model mutation, or system/security settings. Other device procedures remain user-run.
 
 Verified state (2026-10-15, Sprint 2): the pinned toolchain below built the debug APK from a genuinely new process; the Room persistence and ledger unit tests (`:app:testDebugUnitTest`, Robolectric against the real database file) passed on the host with 31 tests and no failures; and the manual transaction creation form was exercised on the real launcher Activity against the real Room database (see the S2.4 creation proof). Earlier verification (2026-10-14): the user reported that the S1.5 launch checks and the S1.6 A/B update-path checks passed. Historical evidence: [S1.1 toolchain](../artifacts/sprint-1/S1.1-a1/toolchain.md), [S1.2 SDK setup](../artifacts/sprint-1/S1.2-a1/sdk-setup.md), [S1.4 build](../artifacts/sprint-1/S1.4-a1/build-proof.md), [S1.5 launch](../artifacts/sprint-1/S1.5-a2/launch-proof.md), [S1.6 A/B update](../artifacts/sprint-1/S1.6-a1/update-proof.md), [S1.6 clean APK](../artifacts/sprint-1/S1.6-a2/clean-proof.md), [S2.1 storage](../artifacts/sprint-2/S2.1-a2/storage-proof.md). The fresh-process reproduction of the commands in sections 2–3 is recorded in [S1.7 docs proof](../artifacts/sprint-1/S1.7-a1/docs-proof.md).
 
@@ -166,6 +166,7 @@ Set-Location F:\ai-ml\aegis-f
 - Manual offline use and date semantics (S2.8): manual ledger use needs no model file, notification access, login, network, or bank integration — the manifest declares no runtime permission and the only permission entry is the dependency-generated, signature-protected `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`; the packaged APK carries no model/asset bundle and the sources make no network/notification/login call (static packaging/source evidence only — real offline device behaviour stays a user-only check). A typed date/time is the wall-clock moment in the device's current default zone (`ManualDateTime`, `YYYY-MM-DD` + `HH:mm`, no whitespace, impossible dates refused rather than rolled over), and the month card counts the half-open device-local month `[local midnight on the 1st, local midnight on the 1st of the next month)`. Current-month checks therefore set **transaction dates** around the month start/end; they never change the phone's system clock for membership, except the one resume check that moves the phone one day past a month boundary (then sets the date back).
 - Laya artifact reference (S4.1, host-side): `tools/laya/reference_runner.py` reproduces the exact checkpoint sequence/marker/temperature contract against the real pinned ONNX bundle (machine-local ambient download, never committed) and decides with an explicit `unknown` no-fit option; `tools/laya/expense_examples.json` holds the labeled English examples and `tools/laya/PROVENANCE.md` the pinned revisions, hashes, license, graph operators, and parity evidence. Runtime needs `onnxruntime`, `tokenizers`, and `numpy` in the ambient Python. This proves host reference behavior only — Android parity, latency, and memory are later Sprint 4 concerns.
 - Laya Android runtime (S4.2, host-side): the app's own tokenizer/sequence/calibration port is proven against the real pinned weights without ORT Java natives — `LayaTokenizerTest` (52 golden strings incl. added-token splits, `[MASK]` lstrip, whitespace runs, NFC variants), `LayaSequenceTest` (9/9 exact `input_ids`/marker positions incl. mask-injection and a 131-option refusal), `LayaCalibrationTest` (9/9 real-logit decisions incl. the two honest unknown misses), `LayaLiveParityTest` (the app's exact input bytes through the real weights via `tools/laya/run_tensors.py`, asserting the S4.1 reference choices), and `LayaRuntimeStatesTest` (missing/corrupt bundle states report without a session). Host JVMs here cannot load ORT Java natives (measured: even the proven 1.21.1 DLL fails under `java.exe` while loading under `python.exe`), so the ARM64 session open stays a user-run device step (§6 below); the desktop ORT artifact is deliberately not a dependency.
+- S4.6 manual-entry suggestion gate: `ManualCategorySuggestionMachineTest` checks explicit accept, manual-choice/ignore suppression, expense-only eligibility (Income stays manual), description/type/form identity, category-snapshot staleness, unknown/unavailable outcomes, and late/out-of-order results. This is host state-machine evidence only: it does not render the Compose editor or execute Android-native inference. The actual editor surface remains a user-only phone check below.
 
 ## 4. Physical device (observed facts)
 
@@ -181,11 +182,11 @@ Recorded from the user's own `adb` observation, without serial numbers or accoun
 | `ro.config.low_ram` | empty (not declared; do **not** assume `false`) |
 | adb state | `device` (authorized) |
 
-These are capability facts, not a claim about app performance, model inference latency, or memory headroom. The device is the user's phone; no worker contacts it.
+These are capability facts, not a claim about app performance, model inference latency, or memory headroom. The phone is user-owned; this documentation grants no general worker device access.
 
 ## 5. User-run install, open, and reopen
 
-These commands are **user-only**. They are run in the user's own PowerShell session, with the phone connected over USB, USB debugging authorized, and the phone identified as the intended device.
+These commands are normally user-run from the user's own PowerShell session, with the intended phone connected over USB and USB debugging authorized. Worker use of `adb` requires explicit authorization in the active Aegis task and is limited to the assigned app-scoped operations; it does not authorize other apps, bank activity, notification access, or system/security changes.
 
 ```powershell
 adb -d install -r 'F:\ai-ml\aegis-f\app\build\outputs\apk\debug\app-debug.apk'
@@ -262,17 +263,16 @@ S2.8 differential checks — offline persistence and month boundaries only (user
 - Offline delete + month edges (transaction dates only — never change the system clock): still offline, delete `S2.8 A` (card **B + 125,000 VND**; five test records remain), then record `S2.8 prior edge` = **11000** dated the last day of the previous month (e.g. `2026-09-30`, `23:59`) and `S2.8 next edge` = **17000** dated the first day of the next month (e.g. `2026-11-01`, `00:00`): neither moves the card — it still reads **B + 125,000 VND**. Correct `S2.8 next edge`'s date to today: the card reads **B + 142,000 VND**; correct it back to `2026-11-01`: the card returns to **B + 125,000 VND**. Delete the remaining five test records (`S2.8 B`, `S2.8 income`, `S2.8 move`, `S2.8 prior edge`, `S2.8 next edge`; `S2.8 A` is already gone — card back to **B**), force-stop and relaunch once more, restore connectivity, and confirm **B** and the pre-existing records are untouched. The archived `S2.8 check` category may be kept for its history.
 
 Bank-notification intake checks (S3.8, user-run): the supported notification format, the host-verified behavior, and what is still unverified on a phone are stated in the [README](../README.md#supported-bank-notification-formats-and-what-is-verified), and the consolidated step list with expected results lives in the [S3.8 bank-intake verification handoff](../artifacts/sprint-3/handoffs/S3.8-A1.md). The reference-related limitations in that record are corrected by the [S3.8-A2 correction handoff](../artifacts/sprint-3/handoffs/S3.8-A2.md): the bank format still states no reference field, and a reference-like `ND:` value is ordinary description text that distinguishes two statements. Nothing there is run by a worker: phone contact stays user-only, and no notification body, account identifier, balance, or OTP may be recorded or shared.
-**Evidence distinction to keep clear:** the user-reported device checks so far were made with the S1.5 package and the S1.6 A/B packages (`versionCode` 1–3). Installing the current clean `versionCode = 4` package with the command above is still a user-run step whose result has not been reported.
+**Evidence distinction to keep clear:** the S1.5 and S1.6 device checks used the S1.5 package and S1.6 A/B packages (`versionCode` 1–3). The current debug `versionCode = 4` package was installed in place and exercised for S4.6-A2; see the [sanitized phone evidence](../artifacts/sprint-4/workers/S4.6-A2.md). That limited Aegis UI observation does not replace unrelated task-specific device checks or the final user real-experience gate.
 
 ## 6. User-run S4.2 parity probe (phone, ONNX Runtime Android)
 
 These steps are **user-only** (workers never contact the phone): they install the
 debug build, stage the pinned model bundle into app-private storage, and run the
 real on-device `LayaRuntime` through the process-owned `LayaInferenceLifecycle`
-used by the debug-only probe. This remains a parity-verification procedure;
-normal local provisioning is the in-app folder import in §7. The probe creates
-no ledger records, changes no categories, and touches no notification path. It
-is verification tooling, not suggestion UI (reserved for S4.6).
+used by the debug-only probe. It remains parity-verification tooling, not the
+manual-entry suggestion UI; see the task-scoped S4.6 phone check below. The probe creates
+no ledger records, changes no categories, and touches no notification path.
 
 Prerequisites: the phone from §4 (HONOR ALT-LX2, Android 14/API 34, ARM64,
 4096-byte pages) with USB debugging authorized (`adb devices` shows `device`),
@@ -359,6 +359,70 @@ Expected evidence to return (paste the report JSON, plus the on-screen verdict l
 
 Privacy: the report carries only the nine fixed English example strings, category names, probabilities, timings, and device facts (model, API, ABI, page size). No ledger content, notification body, account identifier, or OTP is involved.
 
+### S4.6 manual-entry suggestion UI (task-scoped Aegis phone check)
+
+This section records the actual **Record a transaction** surface check. A worker
+may run app-scoped `adb` enumeration, `install -r`, launch, UI capture and
+interaction, and read-only Aegis-app inspection only when the active task
+explicitly authorizes those operations. This scope does not allow other-app or
+bank activity, notification content, model/ledger changes, or system/security
+settings changes. For this check, use the already-provisioned model if present;
+never uninstall, clear app data, replace a model, or alter existing ledger or
+category data to manufacture a test state.
+
+1. Build the debug APK from the repository root:
+
+   ```powershell
+   .\gradlew.bat --no-daemon :app:assembleDebug --console=plain
+   ```
+
+2. With the intended phone authorized, install in place using the command from
+   §5 (or tap **Aegis F** if this build is already installed):
+
+   ```powershell
+   adb -d install -r 'F:\ai-ml\aegis-f\app\build\outputs\apk\debug\app-debug.apk'
+   ```
+
+   `install -r` updates the same app and preserves its app data; never
+   uninstall or use `pm clear`.
+
+3. Open **Aegis F** and tap **Record a transaction**. Leave **Type** as
+   **Expense**, enter an amount, and enter a description containing one unique
+   active category name as an exact phrase. Suggestions are expense-only;
+   Income and transfers remain manual. When the local lifecycle returns that
+   current category, verify **Use suggestion** appears; the category field must
+   not change until tapped. Tap it and verify the field changes but no record
+   is saved. Choose a different category (or **No category**) manually and
+   verify that choice stays selected. Change the description to ask again,
+   then tap **Ignore**; verify the category and other fields remain unchanged.
+
+4. Navigate Back or tap **Cancel** without pressing **Save transaction**. Open
+   **Saved transactions** and confirm the test description was not added. If
+   the model is already missing or unready, observe the unavailable message and
+   confirm the category picker and normal manual form remain usable; do not
+   remove or replace an installed model to test that state.
+
+A description that does not match category names may exercise neural scoring
+when the model is ready; record its result as observed, including a no-fit
+outcome. The name-only shortlist's measured recall remains **1/6** on the
+accepted labeled positive examples, so this check makes no suggestion-quality
+claim. Category edits, pending-request races, and lifecycle cancellation are
+covered by host state-machine tests, not by pretending this phone procedure
+observes every race.
+
+The task-scoped S4.6-A2 phone observation used the installed debug `versionCode 4`
+build: an exact active-category phrase produced a current-category suggestion;
+**Use suggestion** changed the category field only, a distinct manual choice
+stayed selected across a subsequent suggestion, and **Ignore** preserved that
+choice and the other form fields. A no-fit result still left manual category
+selection available. Both forms were canceled without saving, and the unique
+test markers were absent from **Saved transactions**. No model or persisted
+category/ledger data was changed, and no notification data was read or cleared.
+The unavailable-model state was not forced. The sanitized evidence is in
+[`S4.6-A2`](../artifacts/sprint-4/workers/S4.6-A2.md). This is scoped evidence,
+not general worker device authority or a substitute for the final user
+real-experience gate.
+
 ## 7. User-run S4.3 local model provisioning
 
 The normal model setup path is in the app, not a shell transfer or a network
@@ -398,8 +462,9 @@ external-weight files outside Git.
 
 The app has no model download request: network may be used externally for the
 initial pinned artifact acquisition, but file import, model verification, and
-the existing inference runtime are local. This provisioning path does not yet
-surface category suggestions or write model results to the ledger.
+the existing inference runtime are local. Category suggestions appear only in
+the separate manual expense form; provisioning itself does not surface or save
+suggestions or ledger records.
 
 ### S4.3-A2 final APK check and cancellation (user-only)
 
@@ -591,7 +656,7 @@ user-only procedure above is the physical check.
 - Do **not** capture or share raw notification content, SMS, or log buffers that may contain bank transaction text, account numbers, card digits, OTPs, or other identifiers. Bank-notification intake **is** part of this build, so this rule is load-bearing for every check below: no notification body, account identifier, balance, or OTP may be recorded, exported, or pasted anywhere, and a redacted draft screenshot with amounts and states is the most that should be kept.
 - Do not paste device serial numbers, account names, or other identifiers into shared documents or artifacts. Model, Android version, API level, ABI, page size, and memory are sufficient.
 - No administrator elevation and no system-wide configuration change is part of this setup or of troubleshooting.
-- Workers never run `adb` against the phone; the user runs device commands and reports observations.
+- Worker `adb` use requires explicit task-scoped authorization for the assigned Aegis-app operation; otherwise device steps remain user-run.
 
 ## 8. Why no Android Studio or emulator
 
