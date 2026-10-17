@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- S4.2 debug-only manifest addition: exposes the parity probe activity in debug builds
+     only, so release builds never ship it. Removed before release in S4.9. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity
+            android:name="io.github.triet4p.aegisf.layaprobe.LayaParityProbeActivity"
+            android:exported="true"
+            android:label="S4.2 parity probe" />
+    </application>
+</manifest>

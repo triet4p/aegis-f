@@ -56,6 +56,12 @@ dependencies {
     // UI coroutines (screen state, Room Flow collection, suspend writes from dialogs).
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 
+    // On-device English category decisions: ONNX Runtime Android session (CPU) plus the
+    // app's own exact tokenizer/sequence/calibration port (S4.2). The AAR's arm64 JNI
+    // libraries are 16 KB-aligned from 1.22.0, covering both the phone's 4096-byte pages
+    // and newer 16 KB devices without a separate ABI build.
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.22.0")
+
     // Host-side (Robolectric) tests run against the real Room/SQLite database.
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.17")

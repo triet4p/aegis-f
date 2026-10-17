@@ -45,3 +45,10 @@ models/
 *.mlmodel
 *.litertlm
 *.bin
+
+# The Laya tokenizer asset is derived data, not model weights: it carries only the
+# pinned public tokenizer's vocab/merges/added-token table (1.3 MB, reproducible via
+# `tools/laya/export_tokenizer_asset.py`) and no graph weights, so the runtime can load
+# it without parsing JSON on-device. The graph itself (`*.onnx`, external weights) stays
+# out of Git and arrives via S4.3 provisioning instead.
+!app/src/main/assets/laya/laya_tokenizer.bin

@@ -165,6 +165,7 @@ Set-Location F:\ai-ml\aegis-f
 - Current-month expense summary (S2.7): the home screen opens with a compact **THIS MONTH** card that names the device-local calendar month (for example `October 2026`) and shows that month's confirmed spending in exact whole dong, with one breakdown row per category that has spending — including `No category` for unfiled spending and `(archived)` for a category archived after its records were filed. It reads the same live Room streams as the rest of the app, so a save, a correction, or a deletion changes the total on its own; the `Saved transactions` filters are pure browsing state and cannot narrow it. Money is summed with `VndMoney.checkedAddToTotal`, and a total past `Long.MAX_VALUE` is shown as a labeled lower bound instead of wrapping. The month it names is the one the device is in *now*: the clock and the device zone are read together when the panel first appears, whenever the home screen resumes after the app was in the background (so a phone that crossed a month boundary, or moved to another zone, while the app was away reports the month it is actually in, not the one it computed before the pause), and again at the first midnight of the next month for a screen left open across it. The throwaway host smoke on the real launcher (real file-backed database, 411x891dp) observed the sprint's exact figures: **165,000 VND** with income, an internal transfer, a draft, and neighbouring-month records stored; **170,000 VND** after correcting 120,000 to 125,000 with the archived category still attributed; **125,000 VND** after deleting the 45,000 record; and then the honest empty-month state. Permanent coverage: `ui/ExpenseSummaryTest` (5 tests) and `ui/ExpenseSummaryPersistenceTest` (3 tests, including the S2.8 month-edge close/reopen case: records on the last millisecond of September, the first instant of October, the last millisecond of October, and the first instant of November, with an edit across the edge, an archive, and a deletion, all surviving a real file-backed Room close/reopen). Evidence: [S2.7 summary proof](../artifacts/sprint-2/S2.7-a1/summary-proof.md), [S2.7 resume proof](../artifacts/sprint-2/S2.7-a2/month-resume-proof.md), and [S2.8 offline/persistence proof](../artifacts/sprint-2/S2.8-a1/offline-persistence-proof.md).
 - Manual offline use and date semantics (S2.8): manual ledger use needs no model file, notification access, login, network, or bank integration — the manifest declares no runtime permission and the only permission entry is the dependency-generated, signature-protected `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`; the packaged APK carries no model/asset bundle and the sources make no network/notification/login call (static packaging/source evidence only — real offline device behaviour stays a user-only check). A typed date/time is the wall-clock moment in the device's current default zone (`ManualDateTime`, `YYYY-MM-DD` + `HH:mm`, no whitespace, impossible dates refused rather than rolled over), and the month card counts the half-open device-local month `[local midnight on the 1st, local midnight on the 1st of the next month)`. Current-month checks therefore set **transaction dates** around the month start/end; they never change the phone's system clock for membership, except the one resume check that moves the phone one day past a month boundary (then sets the date back).
 - Laya artifact reference (S4.1, host-side): `tools/laya/reference_runner.py` reproduces the exact checkpoint sequence/marker/temperature contract against the real pinned ONNX bundle (machine-local ambient download, never committed) and decides with an explicit `unknown` no-fit option; `tools/laya/expense_examples.json` holds the labeled English examples and `tools/laya/PROVENANCE.md` the pinned revisions, hashes, license, graph operators, and parity evidence. Runtime needs `onnxruntime`, `tokenizers`, and `numpy` in the ambient Python. This proves host reference behavior only — Android parity, latency, and memory are later Sprint 4 concerns.
+- Laya Android runtime (S4.2, host-side): the app's own tokenizer/sequence/calibration port is proven against the real pinned weights without ORT Java natives — `LayaTokenizerTest` (52 golden strings incl. added-token splits, `[MASK]` lstrip, whitespace runs, NFC variants), `LayaSequenceTest` (9/9 exact `input_ids`/marker positions incl. mask-injection and a 131-option refusal), `LayaCalibrationTest` (9/9 real-logit decisions incl. the two honest unknown misses), `LayaLiveParityTest` (the app's exact input bytes through the real weights via `tools/laya/run_tensors.py`, asserting the S4.1 reference choices), and `LayaRuntimeStatesTest` (missing/corrupt bundle states report without a session). Host JVMs here cannot load ORT Java natives (measured: even the proven 1.21.1 DLL fails under `java.exe` while loading under `python.exe`), so the ARM64 session open stays a user-run device step (§6 below); the desktop ORT artifact is deliberately not a dependency.
 
 ## 4. Physical device (observed facts)
 
@@ -261,10 +262,102 @@ S2.8 differential checks — offline persistence and month boundaries only (user
 - Offline delete + month edges (transaction dates only — never change the system clock): still offline, delete `S2.8 A` (card **B + 125,000 VND**; five test records remain), then record `S2.8 prior edge` = **11000** dated the last day of the previous month (e.g. `2026-09-30`, `23:59`) and `S2.8 next edge` = **17000** dated the first day of the next month (e.g. `2026-11-01`, `00:00`): neither moves the card — it still reads **B + 125,000 VND**. Correct `S2.8 next edge`'s date to today: the card reads **B + 142,000 VND**; correct it back to `2026-11-01`: the card returns to **B + 125,000 VND**. Delete the remaining five test records (`S2.8 B`, `S2.8 income`, `S2.8 move`, `S2.8 prior edge`, `S2.8 next edge`; `S2.8 A` is already gone — card back to **B**), force-stop and relaunch once more, restore connectivity, and confirm **B** and the pre-existing records are untouched. The archived `S2.8 check` category may be kept for its history.
 
 Bank-notification intake checks (S3.8, user-run): the supported notification format, the host-verified behavior, and what is still unverified on a phone are stated in the [README](../README.md#supported-bank-notification-formats-and-what-is-verified), and the consolidated step list with expected results lives in the [S3.8 bank-intake verification handoff](../artifacts/sprint-3/handoffs/S3.8-A1.md). The reference-related limitations in that record are corrected by the [S3.8-A2 correction handoff](../artifacts/sprint-3/handoffs/S3.8-A2.md): the bank format still states no reference field, and a reference-like `ND:` value is ordinary description text that distinguishes two statements. Nothing there is run by a worker: phone contact stays user-only, and no notification body, account identifier, balance, or OTP may be recorded or shared.
-
 **Evidence distinction to keep clear:** the user-reported device checks so far were made with the S1.5 package and the S1.6 A/B packages (`versionCode` 1–3). Installing the current clean `versionCode = 4` package with the command above is still a user-run step whose result has not been reported.
 
-## 6. Update path and troubleshooting
+## 6. User-run S4.2 parity probe (phone, ONNX Runtime Android)
+
+These steps are **user-only** (no worker contacts the phone): they install the
+debug build, transfer the pinned model bundle into app-private storage, run the
+real on-device `LayaRuntime` through a debug-only probe screen, and pull its
+report. The probe creates no ledger records, changes no categories, and touches
+no notification path; provisioning UI is S4.3 and suggestion UI is S4.6 — this is
+verification scaffolding only, removed before release in S4.9.
+
+Prerequisites: the phone from §4 (HONOR ALT-LX2, Android 14/API 34, ARM64,
+4096-byte pages) with USB debugging authorized (`adb devices` shows `device`),
+plus the pinned bundle on the PC — the `receptron/laya-onnx` revision `68f27dfe`
+snapshot (see `tools/laya/PROVENANCE.md` for sizes/hashes) and the committed
+tokenizer asset. The bundle files stay out of Git; only this one manual transfer
+places them on the phone. The install below is `install -r` (in-place update:
+same package, same debug certificate, existing app data preserved) — never
+uninstall, never clear app data.
+
+Run the checked-in helper from a fresh PowerShell window (from §2) at the repo
+root. It verifies the four pinned files (exact size + SHA-256) before touching
+the phone, installs the debug APK, stages via shell-owned `/data/local/tmp`
+with narrow readable-only permissions (`755` dirs / `644` files — deliberately
+never world-writable), copies the exact four files `LayaRuntime.open` requires
+into app-private storage, frees the staging copy, clears any stale report
+before launch (so a retrieved report can only be from this run), launches the
+probe (it auto-runs; the button re-runs it), polls until the fresh report
+appears (~1–2 min for the 1.6 GB cold load + 9 inferences), validates it parses
+as JSON with `verdict` + `state`, and saves it:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\laya\Invoke-S42ParityProbe.ps1
+```
+
+The copy-ready invocation on this host is exactly that line run from
+`F:\ai-ml\aegis-f`, with these verified defaults (override only with `-BundleDir`
+/ `-TokenizerAsset` / `-ApkPath` / `-ReportOut`):
+
+- Bundle snapshot (revision `68f27dfe`, SHA-256-verified):
+  `F:\llms\hf\models\hub\models--receptron--laya-onnx\snapshots\68f27dfe5a27a54fb2b1fefc432f43f972e90868`
+  holding `laya.onnx` (3,807,291 B), `laya.onnx.data` (1,685,258,240 B),
+  `laya_config.json` (369 B).
+- Tokenizer asset (committed, SHA-256-verified):
+  `F:\ai-ml\aegis-f\app\src\main\assets\laya\laya_tokenizer.bin` (1,317,378 B).
+- Debug APK carrying the probe (release builds have none):
+  `F:\ai-ml\aegis-f\app\build\outputs\apk\debug\app-debug.apk`
+  (`versionCode = 4`, package `io.github.triet4p.aegisf`; probe component
+  `io.github.triet4p.aegisf.layaprobe.LayaParityProbeActivity`).
+- Report destination:
+  `F:\ai-ml\aegis-f\artifacts\sprint-4\reviews\S42-parity-report.json`.
+
+To preview every device command without executing (local pins are still
+verified), append `-DryRun`. For a slow device, extend the poll budget, e.g.
+`-TimeoutSeconds 600`. Benign `adb` progress printed on stderr (for example
+`adb push` transfer lines) is treated as ordinary device output and never
+aborts a step whose exit code is 0; every `adb` step still fails loudly on a
+nonzero exit and prints the exact command plus device output; a `FAIL`/`NO_RUN`
+report verdict is still saved and printed verbatim — return it as observed,
+never tune it.
+
+The helper performs exactly these device commands (shown here so the record is
+complete; prefer running the helper over retyping them):
+
+```powershell
+adb -d install -r 'F:\ai-ml\aegis-f\app\build\outputs\apk\debug\app-debug.apk'
+adb -d shell "mkdir -p /data/local/tmp/laya-model"
+adb -d push 'F:\llms\hf\models\hub\models--receptron--laya-onnx\snapshots\68f27dfe5a27a54fb2b1fefc432f43f972e90868\laya.onnx' /data/local/tmp/laya-model/laya.onnx
+adb -d push 'F:\llms\hf\models\hub\models--receptron--laya-onnx\snapshots\68f27dfe5a27a54fb2b1fefc432f43f972e90868\laya.onnx.data' /data/local/tmp/laya-model/laya.onnx.data
+adb -d push 'F:\llms\hf\models\hub\models--receptron--laya-onnx\snapshots\68f27dfe5a27a54fb2b1fefc432f43f972e90868\laya_config.json' /data/local/tmp/laya-model/laya_config.json
+adb -d push 'F:\ai-ml\aegis-f\app\src\main\assets\laya\laya_tokenizer.bin' /data/local/tmp/laya-model/laya_tokenizer.bin
+adb -d shell "chmod 755 /data/local/tmp/laya-model"
+adb -d shell "chmod 644 /data/local/tmp/laya-model/laya.onnx /data/local/tmp/laya-model/laya.onnx.data /data/local/tmp/laya-model/laya_config.json /data/local/tmp/laya-model/laya_tokenizer.bin"
+adb -d shell "run-as io.github.triet4p.aegisf mkdir -p files/laya/model/tokenizer files/laya/parity"
+adb -d shell "run-as io.github.triet4p.aegisf cp /data/local/tmp/laya-model/laya.onnx /data/local/tmp/laya-model/laya.onnx.data /data/local/tmp/laya-model/laya_config.json files/laya/model/"
+adb -d shell "run-as io.github.triet4p.aegisf cp /data/local/tmp/laya-model/laya_tokenizer.bin files/laya/model/tokenizer/laya_tokenizer.bin"
+adb -d shell "run-as io.github.triet4p.aegisf ls -l files/laya/model/laya.onnx files/laya/model/laya.onnx.data files/laya/model/laya_config.json files/laya/model/tokenizer/laya_tokenizer.bin"
+adb -d shell "rm -rf /data/local/tmp/laya-model"
+adb -d shell "run-as io.github.triet4p.aegisf rm -f files/laya/parity/S42-parity-report.json"
+adb -d shell am start -n io.github.triet4p.aegisf/io.github.triet4p.aegisf.layaprobe.LayaParityProbeActivity
+adb -d exec-out run-as io.github.triet4p.aegisf cat files/laya/parity/S42-parity-report.json
+```
+
+The final `cat` is polled (every 5 s, 300 s budget): earlier absence means the
+run has not finished, because the stale report was cleared before launch.
+
+Expected evidence to return (paste the report JSON, plus the on-screen verdict line):
+
+- `device_model` HONOR ALT-LX2, `android_api` 34, `abis[0]` `arm64-v8a`, `page_size_bytes` 4096.
+- `state` `Ready` (anything else names the exact missing/corrupt cause — return it verbatim instead of parity numbers).
+- `verdict` `PASS`: all nine `cases[].match` true, with `android_choice` equal to the S4.1 reference outcomes (`unknown`, `Housing`, `Transport`, `Health`, `unknown`, `unknown`, `Food`, `unknown`, `unknown` in example order), and the `meaningful-rent` entry carrying `reference_match` true (Housing 0.9796, confidence 0.9336). Per-case `latency_ms` and `open_ms` are observed cold/warm timings for S4.9, not pass/fail gates here.
+- A `FAIL` verdict still returns the full report: mismatched `android_choice` values are recorded as observed misses (like the S4.1 food/long-state unknowns), not tuned away.
+
+Privacy: the report carries only the nine fixed English example strings, category names, probabilities, timings, and device facts (model, API, ABI, page size). No ledger content, notification body, account identifier, or OTP is involved.
+
+## 7. Update path and troubleshooting
 
 **Updating in place.** Install an updated APK over the existing one with `adb -d install -r <apk>`. For the update to be accepted and to keep existing app data:
 
@@ -290,11 +383,11 @@ Bank-notification intake checks (S3.8, user-run): the supported notification for
 - No administrator elevation and no system-wide configuration change is part of this setup or of troubleshooting.
 - Workers never run `adb` against the phone; the user runs device commands and reports observations.
 
-## 7. Why no Android Studio or emulator
+## 8. Why no Android Studio or emulator
 
 The build path needs only the JDK, the SDK command-line tools (platform, build tools, platform-tools), and the Gradle Wrapper — all installed and pinned above. Android Studio is a graphical front end over the same tools and adds nothing required here. An emulator is not used because acceptance is defined against the user's physical phone: an emulator would not prove the real device's ABI, memory, page size, OEM behavior, or install/update path. Debugging is done with `adb` plus the user's manual observations.
 
-## 8. Official references
+## 9. Official references
 
 - [sdkmanager](https://developer.android.com/tools/sdkmanager) and [Android CLI](https://developer.android.com/tools/agents/android-cli) — package installation and the `sdkmanager` deprecation notice
 - [Build and install from the command line](https://developer.android.com/build/building-cmdline) — `assembleDebug` and `adb install -r`

@@ -113,6 +113,7 @@ and no release has been tagged or published. Format follows
   established, and that answer previously threw inside the background reconciliation that runs
   after a (re)connect. Nothing is read, stored, or claimed in that case, the drafts already saved
   are left exactly as they are, and the next (re)connect reconciles normally.
+- Fixed the user-run S4.2 on-device parity-probe procedure: replaced the manual steps (which left an unresolved bundle placeholder and no staging/polling guidance) with a checked-in PowerShell driver that verifies pinned bundle hashes first, uses narrow readable-only staging permissions, clears stale reports before launch, polls for the fresh report with a timeout, and validates it before saving. Bundle hashing uses .NET file-stream SHA-256 rather than the Get-FileHash cmdlet, so the documented Windows PowerShell 5.1 invocation works as well as pwsh. Native adb output is captured through a process launcher that treats benign stderr progress (for example `adb push` transfer lines) as ordinary child output instead of a terminating error under Windows PowerShell 5.1, while a genuinely failing adb step still aborts with its exit code and original output. On-phone parity still awaits the user running it; no on-device result is claimed yet.
 
 ## [Sprint 2] — VND ledger and user-defined categories
 

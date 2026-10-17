@@ -157,8 +157,11 @@ The following capabilities are not available yet:
   build yet. Supported bank fields are extracted deterministically and still require your review;
   type and category choices are explicit. Separately, Sprint 4 has selected and reproduced the
   English Laya decision artifact on the host (reference runner and labeled expense examples under
-  `tools/laya/`, provenance in `tools/laya/PROVENANCE.md`); it is not wired into the app and no
-  on-device inference is claimed.
+  `tools/laya/`, provenance in `tools/laya/PROVENANCE.md`) and integrated its Android decision
+  runtime (`data/laya/`: exact tokenizer/sequence/calibration port plus an ONNX Runtime Android
+  session, proven against the real weights on the host and awaiting the user-run on-phone parity
+  probe in `docs/developer-setup.md` §6); the runtime is not wired into any entry form, review
+  screen, or notification path yet, and no on-device inference is claimed until that probe passes.
 - **No bank account connection.** The review inbox uses only permitted notification drafts; the app
   does not log in to a bank or request SMS, accessibility, or notification-posting permissions.
 - **No cloud service, sync, or account.** There is no login, no server, and no network use at all.

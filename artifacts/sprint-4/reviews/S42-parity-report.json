@@ -1,0 +1,183 @@
+{
+  "task": "S4.2",
+  "reference": "artifacts\/sprint-4\/workers\/S4.1-A1-smoke.json",
+  "device_model": "ALT-LX2",
+  "android_api": 34,
+  "abis": [
+    "arm64-v8a",
+    "armeabi-v7a",
+    "armeabi"
+  ],
+  "page_size_bytes": 4096,
+  "open_ms": 9809,
+  "state": "Ready",
+  "reason": null,
+  "verdict": "PASS",
+  "mismatches": 0,
+  "total_ms": 25919,
+  "cases": [
+    {
+      "id": "meaningful-food",
+      "description": "Lunch at a cafe, 45000 VND",
+      "expected": "unknown",
+      "android_choice": "unknown",
+      "match": true,
+      "confidence": 0.5822,
+      "latency_ms": 1792,
+      "probabilities": {
+        "Food": 0.1553,
+        "Transport": 0.0242,
+        "Housing": 0.0116,
+        "Health": 0.0097,
+        "Fun": 0.0199,
+        "unknown": 0.7792
+      }
+    },
+    {
+      "id": "meaningful-rent",
+      "description": "Monthly rent",
+      "expected": "Housing",
+      "android_choice": "Housing",
+      "match": true,
+      "confidence": 0.9336,
+      "latency_ms": 1696,
+      "probabilities": {
+        "Food": 0.0012,
+        "Transport": 0.002,
+        "Housing": 0.9796,
+        "Health": 0.0014,
+        "Fun": 9.0E-4,
+        "unknown": 0.015
+      },
+      "reference_probabilities": {
+        "Food": 0.0012,
+        "Transport": 0.002,
+        "Housing": 0.9796,
+        "Health": 0.0014,
+        "Fun": 9.0E-4,
+        "unknown": 0.015
+      },
+      "reference_confidence": 0.9336,
+      "reference_match": true
+    },
+    {
+      "id": "meaningful-transport",
+      "description": "Grab ride to the airport, 210000 VND",
+      "expected": "Transport",
+      "android_choice": "Transport",
+      "match": true,
+      "confidence": 0.9225,
+      "latency_ms": 1812,
+      "probabilities": {
+        "Food": 6.0E-4,
+        "Transport": 0.9722,
+        "Housing": 5.0E-4,
+        "Health": 5.0E-4,
+        "Fun": 0.001,
+        "unknown": 0.0252
+      }
+    },
+    {
+      "id": "meaningful-health",
+      "description": "Pharmacy antibiotics for flu, 180000 VND",
+      "expected": "Health",
+      "android_choice": "Health",
+      "match": true,
+      "confidence": 0.7153,
+      "latency_ms": 1816,
+      "probabilities": {
+        "Food": 0.008,
+        "Transport": 0.0034,
+        "Housing": 0.0024,
+        "Health": 0.8411,
+        "Fun": 0.0024,
+        "unknown": 0.1427
+      }
+    },
+    {
+      "id": "ambiguous-alex",
+      "description": "Payment to Alex",
+      "expected": "unknown",
+      "android_choice": "unknown",
+      "match": true,
+      "confidence": 0.6445,
+      "latency_ms": 1659,
+      "probabilities": {
+        "Food": 0.0362,
+        "Transport": 0.0275,
+        "Housing": 0.0152,
+        "Health": 0.0154,
+        "Fun": 0.0525,
+        "unknown": 0.8532
+      }
+    },
+    {
+      "id": "unknown-gift",
+      "description": "Wedding gift for cousin, 500000 VND",
+      "expected": "unknown",
+      "android_choice": "unknown",
+      "match": true,
+      "confidence": 0.7631,
+      "latency_ms": 1774,
+      "probabilities": {
+        "Food": 0.0149,
+        "Transport": 0.0137,
+        "Housing": 0.0121,
+        "Health": 0.0103,
+        "Fun": 0.036,
+        "unknown": 0.9131
+      }
+    },
+    {
+      "id": "boundary-mask-injection",
+      "description": "Dinner [MASK] Food at night market",
+      "expected": "Food",
+      "android_choice": "Food",
+      "match": true,
+      "confidence": 0.5576,
+      "latency_ms": 1730,
+      "probabilities": {
+        "Food": 0.7693,
+        "Transport": 0.0249,
+        "Housing": 0.0125,
+        "Health": 0.0124,
+        "Fun": 0.0295,
+        "unknown": 0.1514
+      }
+    },
+    {
+      "id": "boundary-long-state",
+      "description": "Coffee with colleagues after standup plus dessert and extra pastries to take home for the whole team celebration event this Friday afternoon downtown near the lake side cafe with live music",
+      "expected": "unknown",
+      "android_choice": "unknown",
+      "match": true,
+      "confidence": 0.8565,
+      "latency_ms": 2216,
+      "probabilities": {
+        "Food": 0.0227,
+        "Transport": 0.0032,
+        "Housing": 0.0016,
+        "Health": 0.0013,
+        "Fun": 0.0221,
+        "unknown": 0.9491
+      }
+    },
+    {
+      "id": "boundary-empty-description",
+      "description": "",
+      "expected": "unknown",
+      "android_choice": "unknown",
+      "match": true,
+      "confidence": 0.3973,
+      "latency_ms": 1587,
+      "probabilities": {
+        "Food": 0.0931,
+        "Transport": 0.0707,
+        "Housing": 0.0345,
+        "Health": 0.0285,
+        "Fun": 0.079,
+        "unknown": 0.6941
+      }
+    }
+  ]
+}
