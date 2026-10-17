@@ -9,7 +9,17 @@ and no release has been tagged or published. Format follows
 
 ### Added
 
-- English Laya artifact reference (host-side, not in the app): pinned the English 421M checkpoint and ONNX export revisions with license, graph operator and input/output contract, tokenizer and option-marker layout, head budget, and calibration temperatures; added a reference runner that decides through the real artifact with an explicit unknown no-fit option, plus labeled English expense examples covering supported, ambiguous, and boundary inputs. No on-device inference is claimed.
+- English Laya artifact reference (host-side, not in the app): pinned the English 421M checkpoint and ONNX export revisions with license, graph operator and input/output contract, tokenizer and option-marker layout, head budget, and calibration temperatures; added a reference runner that decides through the real artifact with an explicit unknown no-fit option, plus labeled English expense examples covering supported, ambiguous, and boundary inputs. No on-device inference was claimed at S4.1.
+- Added an optional **Model setup** page to import the pinned Laya export from a
+  user-selected local folder. Files stream into app-private storage with bounded
+  memory and exact size/SHA-256 checks; the model is published only after the
+  local ONNX runtime probe succeeds. Missing, corrupt, and incompatible states
+  are shown explicitly, a verified installation is not replaced accidentally,
+  and manual transaction entry remains independent. Model acquisition is an
+  explicit transfer; the app does not download weights or infer over a network.
+- Model setup now offers explicit cancel actions for model checks and imports. The page stays
+  busy until the active file or native runtime operation finishes, then discards incomplete
+  staging without replacing the installed model.
 - Bank-notification opt-in setup: the home screen's **Bank notifications** page
   shows notification-access status, listener binding, and the user-chosen bank package allowlist,
   opens the system notification-access and app-info screens (including restricted-settings

@@ -36,8 +36,19 @@ opt-in notification review inbox — every bank-derived record still requires th
   drafts, and records dated outside the current month are excluded. It follows saves, corrections, and
   deletions, and it follows the phone into a new month.
 - **Local persistence** — the ledger survives closing the app, swiping it away from the recent-apps
-  view, and force-stopping it. The app needs no model file, no login, no network, and no bank
-  integration. Bank-notification access is optional and off by default.
+  view, and force-stopping it. The manual ledger does not require a model file, login, network, or
+  bank integration. Bank-notification access is optional and off by default.
+- **Offline model setup (optional)** — the home screen's **Model setup** page reports whether the
+  pinned model is missing, corrupt/incompatible, or locally verified. It can import the three
+  pinned export files from a user-selected folder, streams them into app-private storage while
+  checking their exact sizes and SHA-256 hashes, and publishes only after the local ONNX runtime
+  probe succeeds. Model acquisition is an explicit user transfer; the app does not download
+  weights or use a network for inference. Manual recording works without a model, and provisioning
+  never creates or changes a ledger record. Check and import cancellation stays
+  visibly busy until the active file or native runtime operation finishes;
+  incomplete staging is discarded without replacing the installed model. The
+  user-only import steps are in
+  [developer setup §7](docs/developer-setup.md#7-user-run-s43-local-model-provisioning).
 - **Bank notification setup, filtering, parsing, and pending drafts (opt-in, no
   auto-confirmation)** — the home screen's **Bank notifications** page shows whether
   system notification access is granted, whether the listener is connected, and which
@@ -153,15 +164,14 @@ arriving through the listener on a phone. What is actually verified today:
 
 The following capabilities are not available yet:
 
-- **No AI inference in the app.** There is no decision model, SLM, or category suggestion in the
-  build yet. Supported bank fields are extracted deterministically and still require your review;
-  type and category choices are explicit. Separately, Sprint 4 has selected and reproduced the
-  English Laya decision artifact on the host (reference runner and labeled expense examples under
-  `tools/laya/`, provenance in `tools/laya/PROVENANCE.md`) and integrated its Android decision
-  runtime (`data/laya/`: exact tokenizer/sequence/calibration port plus an ONNX Runtime Android
-  session, proven against the real weights on the host and awaiting the user-run on-phone parity
-  probe in `docs/developer-setup.md` §6); the runtime is not wired into any entry form, review
-  screen, or notification path yet, and no on-device inference is claimed until that probe passes.
+- **No category suggestions in the app yet.** Sprint 4 has selected and reproduced the English Laya
+  decision artifact on the host (reference runner and labeled expense examples under `tools/laya/`,
+  provenance in `tools/laya/PROVENANCE.md`), integrated the exact Android tokenizer/sequence/
+  calibration port and ONNX Runtime session, and added the optional local model import/status page.
+  The physical phone has passed the S4.2 runtime parity probe (details in `docs/developer-setup.md`
+  §6). A verified local model is not yet connected to an entry form, review screen, or notification
+  path: suggestion selection and UI belong to later Sprint 4 tasks. Nothing from the model silently
+  confirms or changes a ledger record.
 - **No bank account connection.** The review inbox uses only permitted notification drafts; the app
   does not log in to a bank or request SMS, accessibility, or notification-posting permissions.
 - **No cloud service, sync, or account.** There is no login, no server, and no network use at all.

@@ -41,6 +41,7 @@ import io.github.triet4p.aegisf.data.LedgerRepository
 import io.github.triet4p.aegisf.data.NotificationAccessStore
 import io.github.triet4p.aegisf.ui.BankDraftReviewScreen
 import io.github.triet4p.aegisf.ui.BankNotificationSettingsScreen
+import io.github.triet4p.aegisf.ui.LayaProvisioningScreen
 import io.github.triet4p.aegisf.ui.CategoryManagerScreen
 import io.github.triet4p.aegisf.ui.CurrentMonthExpenseSummary
 import io.github.triet4p.aegisf.ui.TransactionDetailScreen
@@ -56,6 +57,8 @@ private sealed interface LaunchDestination : java.io.Serializable {
     data object Transactions : LaunchDestination
     data object NewTransaction : LaunchDestination
     data object BankNotifications : LaunchDestination
+
+    data object ModelProvisioning : LaunchDestination
 
     data object BankDraftInbox : LaunchDestination
 
@@ -116,11 +119,16 @@ class MainActivity : ComponentActivity() {
                         onRecordTransaction = { destination = LaunchDestination.NewTransaction },
                         onBrowseTransactions = { destination = LaunchDestination.Transactions },
                         onBankNotifications = { destination = LaunchDestination.BankNotifications },
+                        onProvisioning = { destination = LaunchDestination.ModelProvisioning },
                         onReviewBankDrafts = { destination = LaunchDestination.BankDraftInbox },
                     )
 
                     LaunchDestination.BankNotifications -> BankNotificationSettingsScreen(
                         accessStore = notificationAccessStore,
+                        onNavigateUp = { destination = LaunchDestination.Home },
+                    )
+
+                    LaunchDestination.ModelProvisioning -> LayaProvisioningScreen(
                         onNavigateUp = { destination = LaunchDestination.Home },
                     )
 
@@ -236,6 +244,7 @@ private fun LaunchScreen(
     onRecordTransaction: () -> Unit,
     onBrowseTransactions: () -> Unit,
     onBankNotifications: () -> Unit,
+    onProvisioning: () -> Unit,
     onReviewBankDrafts: () -> Unit,
 ) {
     Surface(
@@ -378,6 +387,36 @@ private fun LaunchScreen(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text("Bank notifications")
+                    }
+                }
+            }
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = "OFFLINE MODEL",
+                        style = MaterialTheme.typography.labelLarge,
+                        letterSpacing = 1.2.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = "Check the pinned local model or import it from a folder. " +
+                            "This is optional; manual transaction entry works either way.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    OutlinedButton(
+                        onClick = onProvisioning,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Model setup")
                     }
                 }
             }

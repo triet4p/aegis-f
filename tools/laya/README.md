@@ -1,7 +1,17 @@
-# Laya reference tooling (S4.1–S4.2)
+# Laya reference tooling (S4.1–S4.3)
 
 Host-side reference for the English Laya decision artifact, plus the S4.2 Android
-runtime's tokenizer asset exporter. No committed weights.
+runtime's tokenizer asset exporter and the S4.3 app-side local model import path.
+No committed graph weights.
+
+- The app's **Model setup** page explicitly imports the pinned export from a local
+  folder into app-private storage, verifies each file's size and SHA-256, then
+  checks the real runtime before publication. The user procedure is in
+  [`docs/developer-setup.md` §7](../../docs/developer-setup.md#7-user-run-s43-local-model-provisioning).
+  This is not a network downloader or a category-suggestion UI.
+  Check and import cancellation stays visibly busy until the active file or
+  native runtime check finishes; incomplete staging is discarded without
+  replacing installed model data.
 
 - [`PROVENANCE.md`](PROVENANCE.md) — pinned revisions/hashes, license, graph
   operators, I/O contract, tokenizer/marker/head-budget/calibration values,
@@ -55,5 +65,5 @@ python tools/laya/reference_runner.py --model-dir <bundle-dir> --examples tools/
 
 `<bundle-dir>` holds the five pinned `receptron/laya-onnx` files at revision
 `68f27dfe5a27a54fb2b1fefc432f43f972e90868` (see `PROVENANCE.md` for hashes).
-Inference is offline; only the one-time bundle acquisition uses network.
-Android runtime parity, latency, and memory are S4.2/S4.9 concerns, not claimed here.
+The accepted S4.2 on-device parity probe proves the runtime against the pinned bundle;
+performance and memory evaluation remain S4.9.

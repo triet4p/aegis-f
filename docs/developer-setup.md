@@ -266,21 +266,23 @@ Bank-notification intake checks (S3.8, user-run): the supported notification for
 
 ## 6. User-run S4.2 parity probe (phone, ONNX Runtime Android)
 
-These steps are **user-only** (no worker contacts the phone): they install the
-debug build, transfer the pinned model bundle into app-private storage, run the
-real on-device `LayaRuntime` through a debug-only probe screen, and pull its
-report. The probe creates no ledger records, changes no categories, and touches
-no notification path; provisioning UI is S4.3 and suggestion UI is S4.6 — this is
-verification scaffolding only, removed before release in S4.9.
+These steps are **user-only** (workers never contact the phone): they install the
+debug build, stage the pinned model bundle into app-private storage, run the real
+on-device `LayaRuntime` through a debug-only probe screen, and pull its report.
+This remains a parity-verification procedure; normal local provisioning is the
+in-app folder import in §7. The probe creates no ledger records, changes no
+categories, and touches no notification path. It is verification tooling, not
+suggestion UI (reserved for S4.6).
 
 Prerequisites: the phone from §4 (HONOR ALT-LX2, Android 14/API 34, ARM64,
 4096-byte pages) with USB debugging authorized (`adb devices` shows `device`),
 plus the pinned bundle on the PC — the `receptron/laya-onnx` revision `68f27dfe`
 snapshot (see `tools/laya/PROVENANCE.md` for sizes/hashes) and the committed
-tokenizer asset. The bundle files stay out of Git; only this one manual transfer
-places them on the phone. The install below is `install -r` (in-place update:
-same package, same debug certificate, existing app data preserved) — never
-uninstall, never clear app data.
+tokenizer asset. Bundle files stay out of Git. This debug helper performs a
+separate user-run transfer; the app's S4.3 provisioning page can instead import
+the three pinned export files from a local folder. The install below is
+`install -r` (in-place update: same package, same debug certificate, existing
+app data preserved) — never uninstall, never clear app data.
 
 Run the checked-in helper from a fresh PowerShell window (from §2) at the repo
 root. It verifies the four pinned files (exact size + SHA-256) before touching
@@ -357,7 +359,119 @@ Expected evidence to return (paste the report JSON, plus the on-screen verdict l
 
 Privacy: the report carries only the nine fixed English example strings, category names, probabilities, timings, and device facts (model, API, ABI, page size). No ledger content, notification body, account identifier, or OTP is involved.
 
-## 7. Update path and troubleshooting
+## 7. User-run S4.3 local model provisioning
+
+The normal model setup path is in the app, not a shell transfer or a network
+downloader. It is **user-only** to inspect or operate the phone. The selected
+artifact is the pinned English `receptron/laya-onnx` export listed in
+[`tools/laya/PROVENANCE.md`](../tools/laya/PROVENANCE.md); keep all graph and
+external-weight files outside Git.
+
+1. If the pinned bundle is not already on the phone, acquire that exact snapshot
+   on the PC and use the phone's USB file-transfer mode (or another local file
+   transfer) to place `laya.onnx`, `laya.onnx.data`, and `laya_config.json`
+   together in a folder visible to the Android file picker, for example
+   `Downloads/Laya-model`. The app supplies its tokenizer asset internally.
+   Keep enough free phone storage for the source folder and the app-private copy
+   while importing.
+2. Open **Aegis F** → **Model setup**. The page checks the current app-private
+   model by streaming its pinned hashes and opening the real local runtime. If
+   it already says **Ready — verified on this device**, stop: the existing
+   installation is intact and must not be re-imported or cleared.
+3. When the page reports **Model missing or incomplete**, choose **Choose model
+   folder**; when it reports a corrupt/incompatible installation, choose
+   **Replace with verified model** only after selecting the pinned files.
+   Select the folder containing the three named export files. The page shows
+   copy progress; it checks each exact size and SHA-256 and opens the candidate
+   runtime before publishing it to app-private storage.
+4. Continue only if the page reports **Ready — verified on this device**.
+   A missing, wrong-hash, interrupted, or runtime-incompatible file reports its
+   cause and never appears Ready. The previous app-private model is retained
+   until a replacement has passed all checks. The import does not touch the
+   ledger or notification settings, and manual transaction entry remains
+   available whether the model is ready or not.
+5. Leave the page, force-stop and reopen the app, then revisit **Model setup**.
+   It rechecks the stored files and runtime rather than trusting an in-memory
+   flag. To confirm manual operation without creating financial data, open
+   **Record a transaction** and return without saving. Do not uninstall the app,
+   clear app storage, or delete existing ledger data.
+
+The app has no model download request: network may be used externally for the
+initial pinned artifact acquisition, but file import, model verification, and
+the existing inference runtime are local. This provisioning path does not yet
+surface category suggestions or write model results to the ledger.
+
+### S4.3-A2 final APK check and cancellation (user-only)
+
+The final debug APK is `F:\ai-ml\aegis-f\app\build\outputs\apk\debug\app-debug.apk`.
+With the intended phone connected and authorized, use the in-place update command
+from PowerShell at the repository root:
+
+```powershell
+adb -d install -r 'F:\ai-ml\aegis-f\app\build\outputs\apk\debug\app-debug.apk'
+```
+
+This is the same package (`io.github.triet4p.aegisf`) and existing debug signing
+key; `install -r` updates the app without clearing its private model or ledger
+data. Never uninstall the app, clear its storage, or delete
+`files/laya/model` to manufacture a Missing state. If Android reports a
+signature or installation error, stop and return the exact error rather than
+trying a destructive workaround.
+
+1. Launch **Aegis F** and open **Model setup**. Record the initial status text
+   or a screenshot before making any import choice.
+
+2. If it already says **Ready — verified on this device**, do not choose a
+   folder, replace the model, or clear data. Return that screenshot/text as
+   proof that the existing installation stayed Ready after the APK update.
+   This is **existing-readiness proof only**, not proof of a new SAF import.
+   Do not proceed with the import branch below.
+
+3. If the initial status is **Model missing or incomplete** or
+   **Model corrupt or incompatible**, use the existing pinned source folder on
+   the PC:
+   `F:\llms\hf\models\hub\models--receptron--laya-onnx\snapshots\68f27dfe5a27a54fb2b1fefc432f43f972e90868`.
+   Copy `laya.onnx`, `laya.onnx.data`, and `laya_config.json` together, with
+   those exact names, to a phone folder visible in Android Files (for example
+   `Downloads/Laya-model`) using local USB file transfer or another local
+   transfer. The app supplies its tokenizer. Keep enough free storage for the
+   source files and the app-private staged copy at the same time.
+
+4. On **Model setup**, choose **Choose model folder** for Missing or
+   **Replace with verified model** for Corrupt or incompatible; select the
+   folder containing the three files. Wait for
+   **Ready — verified on this device** and record the final status and
+   approximate transfer time. A fresh import is established only by this
+   completed folder selection and Ready result.
+
+5. If an import is available and cancellation is being checked, tap
+   **Cancel import** (or press system Back) while progress is running. The page
+   must remain busy and say cancellation is requested while the active file
+   read or native runtime open finishes; those operations cannot be interrupted
+   immediately. Wait until **Import cancelled** appears before leaving. At that
+   point the incomplete staging copy was discarded and the prior installed
+   model was not replaced; **Return to ledger** is available. If the final
+   verified publication already completed before the cancellation request was
+   observed, the page may instead finish at Ready; report that exact result,
+   not a stopped import. To establish a fresh import after a cancelled result,
+   the user may select the same folder again and let that new, explicit import
+   complete.
+
+6. After a **Ready** result (either an existing installation or the completed
+   import), force-stop and reopen the app, revisit **Model setup**, and record
+   the rechecked status. Open **Record a transaction**, then return without
+   pressing Save; no test transaction should be created. These are
+   non-destructive restart/manual-entry checks and do not turn an existing
+   Ready installation into fresh SAF-import proof.
+
+Return the initial status, the final/restart status, whether the starting
+installation was already Ready or a new folder import completed, any
+cancellation status and approximate copy time, and the no-save manual-entry
+observation. If the initial state was already Ready, the required safe choice
+is to preserve it and return that existing-readiness evidence; never delete it
+solely to test a fresh import.
+
+## 8. Update path and troubleshooting
 
 **Updating in place.** Install an updated APK over the existing one with `adb -d install -r <apk>`. For the update to be accepted and to keep existing app data:
 
