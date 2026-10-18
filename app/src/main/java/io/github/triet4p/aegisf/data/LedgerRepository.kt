@@ -39,6 +39,22 @@ data class TransactionCorrection(
 )
 
 /**
+ * What permanently removing one category affected: the stored transactions that are now
+ * uncategorized, the saved rules that went with the category, and the still-pending bank
+ * drafts whose pre-set category was cleared.
+ *
+ * The ledger rows themselves are never counted as removed, because none is: a delete keeps
+ * every record and only clears a link. The same type reports what a deletion *would* change
+ * (for the confirmation) and what it *did* change (the return value), so the two can be
+ * compared rather than assumed equal.
+ */
+data class CategoryDeletionImpact(
+    val uncategorizedTransactionCount: Int,
+    val removedRuleCount: Int,
+    val clearedPendingReviewCount: Int,
+)
+
+/**
  * Reads and writes the ledger and explicit, description-scoped category rules.
  *
  * Data rules live here rather than in a screen:
@@ -52,8 +68,11 @@ data class TransactionCorrection(
  *   assignment;
  * - an internal transfer carries no category;
  * - active category names are unique, compared without case;
- * - a category that transactions still refer to cannot be deleted, so the historical link
- *   survives;
+ * - deleting a category removes its own row and is distinct from archiving: every stored
+ *   record filed under it is kept — amount, type, moment, description, and totals intact —
+ *   and only loses the category link, while the saved rules that named the category are
+ *   removed with it and a still-pending draft's pre-set category is cleared so the reviewer
+ *   chooses again;
  * - a correction replaces only the user-editable fields of the record it names, keeping the
  *   record's id, creation time, confirmation, and provenance, and stamping the revision time;
  * - every rejection leaves the stored records untouched.
@@ -121,18 +140,36 @@ class LedgerRepository(
     }
 
     /**
-     * Deletes a category outright. Only an unreferenced category can be deleted; a
-     * category with stored transactions is rejected instead of being detached from them.
+     * Permanently deletes a category, its own row included, whether or not records refer to
+     * it. This is distinct from [archiveCategory]: archive keeps the category so past records
+     * stay filed under it, while a delete cannot be undone and no placeholder row is left
+     * behind.
+     *
+     * The removal runs as one database transaction that first clears every reference to the
+     * category — stored transactions lose the link and become uncategorized, still-pending
+     * drafts lose their pre-set choice — and removes the saved rules that named it, then
+     * deletes the row. No ledger row is ever deleted, and every other stored value is left
+     * untouched, so the month's totals do not move.
+     *
+     * @return what the removal changed, counted inside that transaction.
      */
-    suspend fun deleteCategory(categoryId: Long) {
+    suspend fun deleteCategory(categoryId: Long): CategoryDeletionImpact {
         val category = requireCategory(categoryId)
-        if (categoryDao.countReferencingTransactions(categoryId) > 0) {
-            throw LedgerValidationException(
-                "Category \"${category.name}\" is still attached to stored transactions; " +
-                    "archive it instead so the historical link is kept.",
-            )
-        }
-        categoryDao.delete(category)
+        return categoryDao.deletePermanently(category)
+    }
+
+    /**
+     * What deleting [categoryId] would change right now, for a confirmation that names the
+     * real impact instead of guessing. Reading never writes, and [deleteCategory] returns the
+     * counts it actually applied, so a change between the two is visible rather than hidden.
+     */
+    suspend fun categoryDeletionImpact(categoryId: Long): CategoryDeletionImpact {
+        val category = requireCategory(categoryId)
+        return CategoryDeletionImpact(
+            uncategorizedTransactionCount = categoryDao.countReferencingTransactions(category.id),
+            removedRuleCount = categoryDao.countReferencingRules(category.id),
+            clearedPendingReviewCount = categoryDao.countReferencingPendingReviews(category.id),
+        )
     }
 
     /** All categories, including archived ones. */

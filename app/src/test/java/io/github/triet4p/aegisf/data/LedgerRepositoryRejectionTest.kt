@@ -185,9 +185,8 @@ class LedgerRepositoryRejectionTest {
     }
 
     @Test
-    fun `a category still attached to records cannot be deleted`() = runTest {
+    fun `deleting a category with stored records detaches them instead of refusing`() = runTest {
         val food = repository.addCategory("Food")
-        val unused = repository.addCategory("Filters")
         val lunch = repository.addTransaction(
             TransactionInput(
                 type = TransactionType.EXPENSE,
@@ -198,15 +197,17 @@ class LedgerRepositoryRejectionTest {
             ),
         )
 
+        val impact = repository.deleteCategory(food)
+
+        // The record keeps its amount and description and only loses the category link; the
+        // category row is gone, and a second delete of the same id is refused.
+        assertEquals(1, impact.uncategorizedTransactionCount)
+        val stored = repository.findTransaction(lunch)!!
+        assertEquals(45_000L, stored.amountVnd)
+        assertEquals("Lunch", stored.description)
+        assertNull(stored.categoryId)
+        assertNull(repository.findCategory(food))
         expectRejection { repository.deleteCategory(food) }
-
-        // The stored record keeps pointing at the category it was filed under.
-        assertEquals(food, repository.findTransaction(lunch)!!.categoryId)
-        assertEquals(listOf(food, unused).sorted(), repository.categories().map { it.id }.sorted())
-
-        repository.deleteCategory(unused)
-        assertNull(repository.findCategory(unused))
-        assertEquals(listOf(food), repository.categories().map { it.id })
     }
 
     @Test

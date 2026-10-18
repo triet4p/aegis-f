@@ -12,8 +12,10 @@ import androidx.room.PrimaryKey
  * The amount is [amountVnd], a positive whole-dong magnitude of at least 1. No sign is
  * stored: [type] supplies the direction. [categoryId] may be null because an unknown
  * category must not prevent saving a record, and it references a [CategoryEntity] with
- * RESTRICT on delete — a category that transactions still refer to cannot be deleted,
- * which keeps the historical link instead of silently detaching it.
+ * RESTRICT on delete, so a category rows still point at cannot be removed behind their
+ * backs. A permanent category deletion therefore clears those links first, inside the same
+ * transaction, and only then deletes the category: the record keeps its id, amount, type,
+ * moment, description, confirmation, and provenance, and simply becomes uncategorized.
  */
 @Entity(
     tableName = "transactions",

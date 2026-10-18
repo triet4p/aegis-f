@@ -366,6 +366,12 @@ private fun TransactionFormScreen(
             selectedCategoryId != storedRecord?.categoryId ->
             "\"${currentSelectedCategory.name}\" was archived while this form was open. " +
                 "Choose an active category; saving will refuse this assignment."
+        // A category deleted while this form was open leaves its id selected but no row
+        // behind it. Saying so is what keeps the stale name from looking like a live choice;
+        // saving it is refused by the repository's own category check.
+        allCategories != null && selectedCategoryId != null && currentSelectedCategory == null ->
+            "The category this form had selected no longer exists: it was deleted. Choose " +
+                "another category or No category; saving will refuse the removed one."
         storedCategory != null && storedCategory.archived &&
             selectedCategoryId == storedCategory.id ->
             "\"${storedCategory.name}\" is archived. This record keeps it unless you choose " +
@@ -625,9 +631,18 @@ private fun TransactionFormScreen(
     if (categoryPickerVisible) {
         CategoryPickerDialog(
             categories = activeCategories,
-            retainedCategory = storedCategory?.let { stored ->
-                allCategories?.firstOrNull { it.id == stored.id } ?: stored
-            }?.takeIf { it.archived },
+            // The retained option is the record's own archived category, and it is only
+            // offered while a row for it still exists: the stored snapshot is used just
+            // while the live list is still loading, so a category deleted during this form
+            // cannot come back as a picker choice.
+            retainedCategory = storedCategory
+                ?.takeIf { it.archived }
+                ?.let { stored ->
+                    when (val loaded = allCategories) {
+                        null -> stored
+                        else -> loaded.firstOrNull { it.id == stored.id }
+                    }
+                },
             selectedCategoryId = selectedCategoryId,
             onSelect = { id, name ->
                 suggestionMachine.chooseManually(suggestionIntent)

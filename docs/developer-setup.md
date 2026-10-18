@@ -516,6 +516,47 @@ the existing inference runtime are local. Category suggestions appear only in
 the separate manual expense form; provisioning itself does not surface or save
 suggestions or ledger records.
 
+### S4.11 permanent category delete (task-scoped Aegis phone check)
+
+When the active task authorizes the Aegis-only phone path, use only a
+disposable category you created for the check; never delete or modify an
+existing user category, and never save or confirm a transaction:
+
+1. Open **Manage categories** and add a uniquely named disposable category.
+   Leave and reopen the screen: it is still listed.
+2. Tap **Delete** on its row. The confirmation names the category, states that
+   the removal cannot be undone and leaves no placeholder name or id, and
+   reports the counts this delete will change: how many saved transactions
+   become uncategorized, how many remembered rules for it are removed, and
+   whether a draft awaiting review had it pre-set. Tap **Cancel**: the category
+   is still listed and nothing else changed.
+3. Optionally attach a synthetic rule to it (**Record a transaction** → enter a
+   unique synthetic description → choose the disposable category → **Remember …
+   for this description** → leave the form without saving). Reopening the delete
+   confirmation must then report that one remembered rule is removed with it.
+4. Tap **Delete permanently**. The row disappears and the status message reports
+   what the delete changed. Re-enter the screen, open **Record a transaction**,
+   and verify the category is gone from the category picker and from the model's
+   ranked distribution, and that its exact description no longer resolves to a
+   remembered rule (a model suggestion or no-fit result is the expected
+   fallback).
+5. Force-stop and reopen the app: the category is still absent and the rule
+   still does not match. Leave the form with Back/Cancel — never **Save
+   transaction** — and confirm the home card's confirmed-expense count, total,
+   and category rows are exactly what they were before the check.
+
+The S4.11-A1 host tests prove the whole post-state: records keep every field
+except the cleared link, totals and the uncategorized bucket are unchanged, the
+category is gone and its id is never reissued, rule rows are removed while an
+unrelated rule keeps working, and a pending draft loses its pre-set category
+while a removed id is refused both on save and on confirm. The task-scoped phone
+smoke observed the confirmation with its rule count, **Cancel** preserving the
+category, the permanent delete with its status message, absence from the row
+list, the picker, and the ranked distribution, the rule no longer matching, and
+identical home totals before and after; the disposable category and its rule
+were both removed. Sanitized details are in
+[`S4.11-A1`](../artifacts/sprint-4/workers/S4.11-A1.md).
+
 ### S4.3-A2 final APK check and cancellation (user-only)
 
 The final debug APK is `F:\ai-ml\aegis-f\app\build\outputs\apk\debug\app-debug.apk`.

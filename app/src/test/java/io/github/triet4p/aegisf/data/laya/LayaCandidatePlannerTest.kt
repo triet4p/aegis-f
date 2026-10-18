@@ -299,6 +299,44 @@ class LayaCandidatePlannerTest {
     }
 
     @Test
+    fun `a permanently deleted category id resolves stale and its row is not selectable`() {
+        val tokenizer = tokenizer()
+        val deleted = category(81L, "Food")
+        val kept = category(82L, "Transport")
+        val plan = LayaCandidatePlanner.plan(tokenizer, "Dinner at home", listOf(deleted, kept))
+            as LayaCandidatePlanner.Plan.Model
+        val decision = LayaCandidatePlanner.modelDecision(
+            plan,
+            listOf(0.6, 0.15, 0.25),
+            0,
+            0.2,
+        ) as LayaCandidatePlanner.Decision.Category
+        assertEquals(81L, decision.categoryId)
+
+        // The row is gone from storage, so the top hit's stable id resolves to nothing (and is
+        // never re-pointed at whatever category holds a later id).
+        val stale = LayaCandidatePlanner.resolveCurrent(decision, listOf(kept))
+            as LayaCandidatePlanner.CurrentResolution.StaleCategory
+        assertEquals(81L, stale.categoryId)
+        assertEquals(LayaCandidatePlanner.StaleReason.MISSING_OR_ARCHIVED, stale.reason)
+
+        // An unknown-wins result keeps every ranked row visible with its own model share, but
+        // the deleted one has no current category to select while the kept one still has one.
+        val unknownWins = LayaCandidatePlanner.modelDecision(
+            plan,
+            listOf(0.15, 0.2, 0.65),
+            2,
+            0.1,
+        )
+        val manual = LayaCandidatePlanner.resolveCurrent(unknownWins, listOf(kept))
+            as LayaCandidatePlanner.CurrentResolution.ManualReview
+        val distribution = checkNotNull(manual.distribution)
+        assertEquals(listOf(82L, 81L), distribution.options.map { it.categoryId })
+        assertEquals(null, distribution.options.first { it.categoryId == 81L }.currentCategory)
+        assertEquals(kept, distribution.options.first { it.categoryId == 82L }.currentCategory)
+    }
+
+    @Test
     fun `rules and metadata matches carry no fabricated probabilities`() {
         val tokenizer = tokenizer()
         val categories = listOf(category(91L, "Food"), category(92L, "Monthly rent"))

@@ -7,8 +7,8 @@ opt-in notification review inbox — every bank-derived record still requires th
 - **Currency:** VND only. Amounts are exact whole dong, stored as signed 64-bit integers and shown
   with an explicit VND / `₫` indicator. There is no floating-point money and no currency conversion.
 - **Language:** English-first user interface.
-- **Categories:** unlimited user-defined categories — add, rename, and archive — with no
-  product-imposed count limit.
+- **Categories:** unlimited user-defined categories — add, rename, archive, and permanently
+  delete — with no product-imposed count limit.
 - **Entries:** expenses, income, and internal transfers, recorded manually with amount, type, date,
   time, optional description, and a category where applicable.
 - **Storage:** a local Room/SQLite database on the device; nothing leaves the phone.
@@ -19,9 +19,16 @@ opt-in notification review inbox — every bank-derived record still requires th
   time (`HH:mm`, device time zone), optional description, and a category. Amounts accept digits only:
   zero, negative, fractional, or out-of-range input is refused with a message and stores nothing. An
   internal transfer carries no category.
-- **Manage categories** — add, rename, and archive categories. A duplicate active name is refused
-  inline. Archiving keeps the category and its history: records already filed under it keep it, it is
-  shown as `(archived)`, and it is no longer offered for new records.
+- **Manage categories** — add, rename, archive, and permanently delete categories. A duplicate
+  active name is refused inline. Archiving keeps the category and its history: records already filed
+  under it keep it, it is shown as `(archived)`, and it is no longer offered for new records.
+  **Delete** is a separate, clearly labelled action for a category you no longer want at all, and
+  its confirmation names what that specific delete will change: how many saved transactions become
+  uncategorized, how many remembered rules for it are removed, and whether a draft awaiting review
+  had it pre-set. Cancelling changes nothing. The transactions themselves are never deleted — they
+  keep their amounts, types, dates, and descriptions, and monthly totals do not move — and the
+  removed category is gone from the picker, from later suggestions, and from the stored rules. A
+  delete that fails reports the reason instead of looking like a success.
 - **Saved transactions** — every stored record, newest first, with amount, type, description,
   category, and moment, including records saved in earlier sessions. Opening a record shows its
   detail with **Edit** (the same form, prefilled) and a **Delete** confirmation that names the record.
@@ -196,6 +203,9 @@ The following capabilities are not available yet:
   wins keep all rows selectable, explicit rules and category-name matches still short-circuit
   with no fabricated scores, and oversized subsets keep their evaluated-scope disclosure.
   Selecting any row only stages it into the category field; nothing is saved or confirmed.
+  A category permanently deleted while a suggestion is pending, or already selected, resolves stale
+  by its stable id: its ranked row keeps the model share it was given but has no current category to
+  select, and saving the removed id is refused, so a late decision cannot resurrect it.
   The S4.9 phone evaluation recorded 7/8 labeled top choices and only 1/6 expected-category
   shortlist recall with 206 active categories; keep the model review-only with manual fallback
   ([evaluation](artifacts/sprint-4/workers/S4.9-A1.md)).

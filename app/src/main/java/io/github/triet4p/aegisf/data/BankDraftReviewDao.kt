@@ -100,6 +100,14 @@ abstract class BankDraftReviewDao {
             return BankDraftReviewResult.AlreadyReviewed
         }
         if (draft.reviewRevision != expectedRevision) return BankDraftReviewResult.Changed
+        // The stored category id is not a foreign key, so this check is what stops a removed
+        // or archived category id from being written back and reappearing in review: a link
+        // whose category is gone must not outlive it. Confirmation applies the same rule
+        // before it creates a ledger row.
+        val categoryId = edits.categoryId
+        if (categoryId != null && countAssignableCategory(categoryId) == 0) {
+            return BankDraftReviewResult.CategoryUnavailable
+        }
         val updated = updateReviewFields(
             id = id,
             expectedRevision = expectedRevision,
