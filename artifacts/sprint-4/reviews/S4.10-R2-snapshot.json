@@ -1,0 +1,60 @@
+{
+  "agent_id": "S410EvidenceR2",
+  "attempt_id": "S4.10-R2",
+  "manifest_path": "artifacts/sprint-4/reviews/S4.10-R2-snapshot.json",
+  "report_path": "artifacts/sprint-4/reviews/S4.10-R2.md",
+  "schema": "omp-reviewed-snapshot/v1",
+  "snapshot": {
+    "base_commit_sha": "7e976beb8d26b2f63de577f281f27c0384ba3d96",
+    "git_c_root": "F:/ai-ml/aegis-f",
+    "repository": "F:/ai-ml/aegis-f/.git",
+    "scope": [
+      {
+        "base_blob_oid": "3e925a4852fbb15d68f1e532a6869ac592862b4b",
+        "base_mode": "100644",
+        "path": "CHANGELOG.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "f14f2c68aa34fa10682636a6641d4088d6ee7fd283db5657d63960fcf56f7115"
+      },
+      {
+        "base_blob_oid": "85d861205ecd770b34bd010e5aa16b049cf3a1ff",
+        "base_mode": "100644",
+        "path": "README.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "b4778525347fab6aac067c3429bbe10bc098695f1da09c56cf016f98321fe5df"
+      },
+      {
+        "base_blob_oid": "ea0cc9c0cf0082bd2e4c5f762c9e28fe1e8fceb0",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/ui/BankDraftReviewScreen.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "944f8e35cab7b6b6e7ed34f5fd687de029b1336d053aad3d7197da5efaddc608"
+      },
+      {
+        "base_blob_oid": "dca5f9c49747abb9fc8b7aa069a34fc0e3060988",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/ui/BankDraftSuggestionGateTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "d7029e6b95d9430df618749cd2214a4b8b4d37d876e0f9fea90837336c49c659"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-4/workers/S4.10-A2.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "796918476fa0ee65e44e35b890e91f9ce13f5ba71b984d627bb1138bd86adf53"
+      }
+    ],
+    "target_ref": "refs/heads/main",
+    "worktree": "F:/ai-ml/aegis-f"
+  },
+  "snapshot_sha256": "a3dd5280f7c3f22332ebe02a5f011bfa087223ee8beff772df7f1f3d31562dc5",
+  "task_id": "S4.10",
+  "worker_artifact_path": "artifacts/sprint-4/workers/S4.10-A2.md",
+  "worker_attempt_id": "S4.10-A2"
+}

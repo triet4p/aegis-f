@@ -1,0 +1,140 @@
+{
+  "agent_id": "S49EvidenceR1",
+  "attempt_id": "S4.9-R1",
+  "manifest_path": "artifacts/sprint-4/reviews/S4.9-R1-snapshot.json",
+  "report_path": "artifacts/sprint-4/reviews/S4.9-R1.md",
+  "schema": "omp-reviewed-snapshot/v1",
+  "snapshot": {
+    "base_commit_sha": "bbb77eed492880a33708aa844dba960d46213ec3",
+    "git_c_root": "F:/ai-ml/aegis-f",
+    "repository": "F:/ai-ml/aegis-f/.git",
+    "scope": [
+      {
+        "base_blob_oid": "57688f8a4aa059bf67e436ce6cc2118ddd8f52dd",
+        "base_mode": "100644",
+        "path": "CHANGELOG.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "173271e3e988d1b3d08b2388573b9ce7e5dde177d5c8cfc4a8b54558fc26358c"
+      },
+      {
+        "base_blob_oid": "dc3b28a020f4bb3fda8380eec4c1705a1154d86f",
+        "base_mode": "100644",
+        "path": "README.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "48e8dcbcaeeae07242ce1fa6cc38c941cd756e208fb311b19e86d22077eeb4ff"
+      },
+      {
+        "base_blob_oid": "a5212d0b5f9539c7c212e2af720770229ba84ad2",
+        "base_mode": "100644",
+        "path": "app/src/debug/AndroidManifest.xml",
+        "status": "deleted",
+        "worktree_mode": null,
+        "worktree_raw_sha256": null
+      },
+      {
+        "base_blob_oid": "54668de8ca832cf5a7fdb62b20e0a3c6b1f4be22",
+        "base_mode": "100644",
+        "path": "app/src/debug/java/io/github/triet4p/aegisf/layaprobe/LayaParityProbeActivity.kt",
+        "status": "deleted",
+        "worktree_mode": null,
+        "worktree_raw_sha256": null
+      },
+      {
+        "base_blob_oid": "7a12ae5052d87652f2b1b08b52c45537fc414118",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/laya/LayaInferenceLifecycle.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "b126980faff8abf1b54bd6c7cd247845f79c70ea8ac3fdf77440631dc1fccc6f"
+      },
+      {
+        "base_blob_oid": "c7e2caab68dc3f83dff5d12b0103866e4e529cf7",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/laya/LayaRuntime.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "e4147662fa0d4ef214ce308835f0308b4601c4549ac5692246dc6f54826c09c4"
+      },
+      {
+        "base_blob_oid": "3b00dd0b954aecef6655aa1e97538e8a9fdf97a2",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/laya/LayaRuntimeContract.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "bc61536ce8b9cf9d710b3175dd3d585b933c1869c53eb8da8ef359df8991adde"
+      },
+      {
+        "base_blob_oid": "76c3d776b0e78d88ca063e21e396512ca1e11045",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/laya/LayaInferenceLifecycleTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "754ae277c474aabba73a55a5081065762893f1f5b22d7f53003961120462e205"
+      },
+      {
+        "base_blob_oid": "88b898cd0458a71c8d8f8b6a322244316ba140c1",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/notification/InferenceIntakeIndependenceTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "03acb91d9d090ce6fc881186f08f58834d3b4f69b8f3c3d11cb66fb011a120d5"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-4/workers/S4.9-A1-evaluation.json",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "f62a69fe6f4942f9b504341ba7b7bfd21ab46a6a8efa7ada7fa81131ec63bb8b"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-4/workers/S4.9-A1.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "f7093d1afec7bc0d63e2881e590f2607a2cd5a96806073751208ef83c9e9c07b"
+      },
+      {
+        "base_blob_oid": "16821aa80e39faddc9470d92b1c2d29191878eaa",
+        "base_mode": "100644",
+        "path": "docs/developer-setup.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "04485787e7ab424032937ac988a5b3f881c64c12fdabd82e23bbe5af2fa5e9b5"
+      },
+      {
+        "base_blob_oid": "da73bdfdd553807a874b6a6e8e6f9d7ba4a32b27",
+        "base_mode": "100644",
+        "path": "tools/laya/Invoke-S42ParityProbe.ps1",
+        "status": "deleted",
+        "worktree_mode": null,
+        "worktree_raw_sha256": null
+      },
+      {
+        "base_blob_oid": "2bfc626236428e7d041d5bc0d8a52a25411dd3ef",
+        "base_mode": "100644",
+        "path": "tools/laya/PROVENANCE.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "60dd4c184722d6438f38edc23de511fdadebab7a16c25af54d224d0497e83157"
+      },
+      {
+        "base_blob_oid": "84f9f331d1bf227a23393b24d470db700dbc998c",
+        "base_mode": "100644",
+        "path": "tools/laya/README.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "b8a101076f0df816a1a6247e09b632a17d91e5119554a7f3e6e57748f1ab8c1f"
+      }
+    ],
+    "target_ref": "refs/heads/main",
+    "worktree": "F:/ai-ml/aegis-f"
+  },
+  "snapshot_sha256": "821c3d5247463fff8d4d380cef2c1d160aaf2912a691e05af492bce499cd6dbe",
+  "task_id": "S4.9",
+  "worker_artifact_path": "artifacts/sprint-4/workers/S4.9-A1.md",
+  "worker_attempt_id": "S4.9-A1"
+}

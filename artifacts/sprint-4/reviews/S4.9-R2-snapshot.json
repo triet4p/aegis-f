@@ -1,0 +1,36 @@
+{
+  "agent_id": "S49EvidenceR2",
+  "attempt_id": "S4.9-R2",
+  "manifest_path": "artifacts/sprint-4/reviews/S4.9-R2-snapshot.json",
+  "report_path": "artifacts/sprint-4/reviews/S4.9-R2.md",
+  "schema": "omp-reviewed-snapshot/v1",
+  "snapshot": {
+    "base_commit_sha": "1516cc7bda81b179219f56bd7f9c3100578e91e3",
+    "git_c_root": "F:/ai-ml/aegis-f",
+    "repository": "F:/ai-ml/aegis-f/.git",
+    "scope": [
+      {
+        "base_blob_oid": "123dfefb0a6a0b29f1e177dc42526386ddb7ebff",
+        "base_mode": "100644",
+        "path": "README.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "f950217ac682f5accf70d637028519526b913ece56fb2726d51de2dd5f4404b4"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-4/workers/S4.9-A2.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "1b08e332899cf71a0e9174304ad02640c4973f4093850b9c793a07ace4511348"
+      }
+    ],
+    "target_ref": "refs/heads/main",
+    "worktree": "F:/ai-ml/aegis-f"
+  },
+  "snapshot_sha256": "b69458d0b201bdf21720de9199cdda5839fff822b0af9d2fcb8273abd4e7577e",
+  "task_id": "S4.9",
+  "worker_artifact_path": "artifacts/sprint-4/workers/S4.9-A2.md",
+  "worker_attempt_id": "S4.9-A2"
+}

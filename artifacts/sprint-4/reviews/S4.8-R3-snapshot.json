@@ -1,0 +1,132 @@
+{
+ "agent_id": "S48EvidenceR3",
+ "attempt_id": "S4.8-R3",
+ "manifest_path": "artifacts/sprint-4/reviews/S4.8-R3-snapshot.json",
+ "report_path": "artifacts/sprint-4/reviews/S4.8-R3.md",
+ "schema": "omp-reviewed-snapshot/v1",
+ "snapshot": {
+  "base_commit_sha": "e4ef0b5a0ccf1f5c44bd4fca5a9c78596e549573",
+  "git_c_root": "F:/ai-ml/aegis-f",
+  "repository": "F:/ai-ml/aegis-f/.git",
+  "scope": [
+   {
+    "base_blob_oid": "e5c3970efa2cf7d19af2c083c2837ed5b716d891",
+    "base_mode": "100644",
+    "path": "CHANGELOG.md",
+    "status": "modified",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "f91aad81a13e3f0bfe2e05f7cea40a8df4924e75f3a7068ccc8d33bff1bb1b93"
+   },
+   {
+    "base_blob_oid": "cb31266483251ef9b2131622740714106633fff4",
+    "base_mode": "100644",
+    "path": "README.md",
+    "status": "modified",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "3951840bcbc9f7c43bccf1dbace65f404d8adefd4fade7cd5f17a3d9ee9c625c"
+   },
+   {
+    "base_blob_oid": "64317c243e97eece999cab7fd7988e164124483b",
+    "base_mode": "100644",
+    "path": "app/src/main/java/io/github/triet4p/aegisf/MainActivity.kt",
+    "status": "modified",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "08446ca7bc31fc659966034230b1e29b38526343ae8a64797a9ad784077ca4ec"
+   },
+   {
+    "base_blob_oid": "683ae6a392f531943400f54449fe1be46335a4ab",
+    "base_mode": "100644",
+    "path": "app/src/main/java/io/github/triet4p/aegisf/data/laya/LayaRuntimeContract.kt",
+    "status": "modified",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "316873cd1fdb9449cff9da59b53be6cbeb5ee1a461833cf7f32bb14c0e19e71d"
+   },
+   {
+    "base_blob_oid": "4d493bc75d86e3ee7eecac04717d6fee02f19884",
+    "base_mode": "100644",
+    "path": "app/src/main/java/io/github/triet4p/aegisf/ui/BankDraftReviewScreen.kt",
+    "status": "modified",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "cfd0b0e498917a75e35f2824cfefc152065d650264ddd960f9d02320c2db564e"
+   },
+   {
+    "base_blob_oid": null,
+    "base_mode": null,
+    "path": "app/src/main/java/io/github/triet4p/aegisf/ui/BankDraftSuggestion.kt",
+    "status": "added",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "65bbece6985331f224ead4fdacabd8a9baceb439dcc582a826318bbc1bc9b7d2"
+   },
+   {
+    "base_blob_oid": null,
+    "base_mode": null,
+    "path": "app/src/test/java/io/github/triet4p/aegisf/ui/BankDraftSuggestionGateTest.kt",
+    "status": "added",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "5dd4dd0743168347490f06f0b066d4f94f248ebe4af1bf69ac8ef59adb0ccd10"
+   },
+   {
+    "base_blob_oid": null,
+    "base_mode": null,
+    "path": "artifacts/sprint-4/handoffs/S4.8-A2-handoff.md",
+    "status": "added",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "c561284d234fd327064b298dc0a3f4ca9140b32d96f355ccc71bac37b3a0daae"
+   },
+   {
+    "base_blob_oid": null,
+    "base_mode": null,
+    "path": "artifacts/sprint-4/handoffs/S4.8-A3-handoff.md",
+    "status": "added",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "f74172f1efe4504be457efa2a6de4439cd82ac8f3c65ab5d8e825e327870d864"
+   },
+   {
+    "base_blob_oid": null,
+    "base_mode": null,
+    "path": "artifacts/sprint-4/workers/S4.8-A2.md",
+    "status": "added",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "be8a6eed5bf358061bb7c49a5cfddfef9bf1ae454860e88c88cf7bff02556cb7"
+   },
+   {
+    "base_blob_oid": null,
+    "base_mode": null,
+    "path": "artifacts/sprint-4/workers/S4.8-A3.md",
+    "status": "added",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "8029112dc4f9cf602cf51f6e31bcba170b99fd030cd4bc8e6a16e27b733c8374"
+   },
+   {
+    "base_blob_oid": null,
+    "base_mode": null,
+    "path": "artifacts/sprint-4/workers/S4.8-A4.md",
+    "status": "added",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "d78f4e33da101f9886dac72d8bcbfa194c00d52b0318ebd1024d6b664059fb00"
+   },
+   {
+    "base_blob_oid": "a968585499aaeacff893726a3e6b08bfe3f35fa7",
+    "base_mode": "100644",
+    "path": "docs/developer-setup.md",
+    "status": "modified",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "bb2bf617b695668f041832af230b7e849edf3961f247240f2154deff06a4378b"
+   },
+   {
+    "base_blob_oid": "52ca7651718c7b3bf67b90af1e6332f47ef016e8",
+    "base_mode": "100644",
+    "path": "tools/laya/README.md",
+    "status": "modified",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "96a0b484d7badf87d649ebda9ab66c0aec4ff5ef09ddcd109b67afc2fd7bac51"
+   }
+  ],
+  "target_ref": "refs/heads/main",
+  "worktree": "F:/ai-ml/aegis-f"
+ },
+ "snapshot_sha256": "537eb07649115b6710083400799cf8a27e27186586c30a4ec047b2f52e0a7415",
+ "task_id": "S4.8",
+ "worker_artifact_path": "artifacts/sprint-4/workers/S4.8-A4.md",
+ "worker_attempt_id": "S4.8-A4"
+}

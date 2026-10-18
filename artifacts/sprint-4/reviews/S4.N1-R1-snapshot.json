@@ -1,0 +1,100 @@
+{
+ "agent_id": "S4N1EvidenceR1",
+ "attempt_id": "S4.N1-R1",
+ "manifest_path": "artifacts/sprint-4/reviews/S4.N1-R1-snapshot.json",
+ "report_path": "artifacts/sprint-4/reviews/S4.N1-R1.md",
+ "schema": "omp-reviewed-snapshot/v1",
+ "snapshot": {
+  "base_commit_sha": "963f16c30c2e1fe1db6e8e409fa34363f20d26ba",
+  "git_c_root": "F:/ai-ml/aegis-f",
+  "repository": "F:/ai-ml/aegis-f/.git",
+  "scope": [
+   {
+    "base_blob_oid": null,
+    "base_mode": null,
+    "path": ".agents/memory/lessons-learned.md",
+    "status": "added",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "67357725d1f9f713b5257560f07594e97cd08f2e546c451c90424d25e7522a03"
+   },
+   {
+    "base_blob_oid": "79f0b6a8982c7fa46673b3eab9b012aa05da3843",
+    "base_mode": "100644",
+    "path": "CHANGELOG.md",
+    "status": "modified",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "12c1a409dc5da2ad627fdc1c23b2ed503744ccdcb245cfa8970e09ddc9f987a5"
+   },
+   {
+    "base_blob_oid": "c3164faa0797a2e703006c4efd76b904bf39b43e",
+    "base_mode": "100644",
+    "path": "app/src/main/java/io/github/triet4p/aegisf/AegisApplication.kt",
+    "status": "modified",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "bb7383e1b0e42fb7d874885b4224d85ea72ac8b1796552d32007e61e28dd8fea"
+   },
+   {
+    "base_blob_oid": "dbd4b7c94874aec774699a8842f7002a403b50ae",
+    "base_mode": "100644",
+    "path": "app/src/main/java/io/github/triet4p/aegisf/MainActivity.kt",
+    "status": "modified",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "21331dc07cf76dca15041c8ec9a8d47df90131c4c7eba05d74b7a6a6d08f4e10"
+   },
+   {
+    "base_blob_oid": "e9b032ff81881a555ecfdf10567899c478921a85",
+    "base_mode": "100644",
+    "path": "app/src/main/java/io/github/triet4p/aegisf/notification/BankNotificationListener.kt",
+    "status": "modified",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "c3bbbe3e989a2fe477626bcfb222651a2cd3faf9212a41e3b989956a66f02c27"
+   },
+   {
+    "base_blob_oid": "760b1cd5392b36a018973b8bb4f14aa84b4a25a8",
+    "base_mode": "100644",
+    "path": "app/src/main/java/io/github/triet4p/aegisf/notification/NotificationAccess.kt",
+    "status": "modified",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "2d4a76a87a4dab326e076a20992f17d4f7167ffc2a240494b00a8ae4c569242e"
+   },
+   {
+    "base_blob_oid": "307807cbb23b458c365cb0a779f97c8d84209f43",
+    "base_mode": "100644",
+    "path": "app/src/main/java/io/github/triet4p/aegisf/ui/BankDraftReviewScreen.kt",
+    "status": "modified",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "bcfde256ff68d56f56e87bf1e9ba9455994871829dc6d124549d5bbf38d44191"
+   },
+   {
+    "base_blob_oid": "3fb13d46ff3b68580b523ae8120705eb04667f99",
+    "base_mode": "100644",
+    "path": "app/src/test/java/io/github/triet4p/aegisf/notification/ListenerRecoveryTest.kt",
+    "status": "modified",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "e2d81c3aa9adde64f7a0edc25a2479fb4ab2c0852cc047f1302e6cfcd87bf5d4"
+   },
+   {
+    "base_blob_oid": null,
+    "base_mode": null,
+    "path": "artifacts/sprint-4/workers/S4.N1-A1.md",
+    "status": "added",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "5931c273b3b1ab257e3e26bc6cb7b745d26bef9b751d7408b4a6f007f02561da"
+   },
+   {
+    "base_blob_oid": "cf837a95d9ce7af24ae64022e6e8d28dcbdba6a3",
+    "base_mode": "100644",
+    "path": "docs/developer-setup.md",
+    "status": "modified",
+    "worktree_mode": "100644",
+    "worktree_raw_sha256": "3bcf67ce525abc267a8e3a9e8123aa506c08b650161d10e3c4bd68bade8b8164"
+   }
+  ],
+  "target_ref": "refs/heads/main",
+  "worktree": "F:/ai-ml/aegis-f"
+ },
+ "snapshot_sha256": "0ed470a6d4411ac60c4e8fda452692cd66957c47e72901f255c52525c88ef6a7",
+ "task_id": "S4.N1",
+ "worker_artifact_path": "artifacts/sprint-4/workers/S4.N1-A1.md",
+ "worker_attempt_id": "S4.N1-A1"
+}

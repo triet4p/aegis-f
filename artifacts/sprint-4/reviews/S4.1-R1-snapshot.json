@@ -1,0 +1,92 @@
+{
+  "schema": "omp-reviewed-snapshot/v1",
+  "task_id": "S4.1",
+  "attempt_id": "S4.1-R1",
+  "agent_id": "S41EvidenceR1",
+  "worker_attempt_id": "S4.1-A1",
+  "worker_artifact_path": "artifacts/sprint-4/workers/S4.1-A1.md",
+  "report_path": "artifacts/sprint-4/reviews/S4.1-R1.md",
+  "manifest_path": "artifacts/sprint-4/reviews/S4.1-R1-snapshot.json",
+  "snapshot": {
+    "repository": "F:/ai-ml/aegis-f/.git",
+    "worktree": "F:/ai-ml/aegis-f",
+    "git_c_root": "F:/ai-ml/aegis-f",
+    "target_ref": "refs/heads/main",
+    "base_commit_sha": "8ccca30371e5444d031a0179bf1c4a84acf5db1f",
+    "scope": [
+      {
+        "path": "CHANGELOG.md",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "afd044d40cc9f90af02c48a46a93da69e7a7b2ce",
+        "worktree_raw_sha256": "eb7037ae1079180f51beeffbccd4ec1dea42adbc56774cc6aa2b6b801dd22a29"
+      },
+      {
+        "path": "README.md",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "31562ea2400e3c07000e2c29bbe5ab08c052466b",
+        "worktree_raw_sha256": "e5fdfb8eaad651be712423c6a70f0ccc48b83fcde527f14a71abbcf9c23ed691"
+      },
+      {
+        "path": "artifacts/sprint-4/workers/S4.1-A1-smoke.json",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "eb61831d6a5a81779081ad9e7c1af535cc8713870287ede1141c70b029828417"
+      },
+      {
+        "path": "artifacts/sprint-4/workers/S4.1-A1.md",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "7db2d01befe1e06edec8ccba3a0877045b189071c23e03645dddbc369d226cf5"
+      },
+      {
+        "path": "docs/developer-setup.md",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "2349f80b02aae007b46845749dd406b8fc5b649b",
+        "worktree_raw_sha256": "9ff340d33886f0b47225c9460462a28f705b528e15b3182762c0efb7e3c4b85e"
+      },
+      {
+        "path": "tools/laya/PROVENANCE.md",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "2db88106c40eb4b7e90f9f12fd8d0bbd817281bcc0e530f23a4c9ccfb846d4c0"
+      },
+      {
+        "path": "tools/laya/README.md",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "58d05d04374826a8c9e6b323003382ff6345f2b5129f11973042c0b2c1cb9dfa"
+      },
+      {
+        "path": "tools/laya/expense_examples.json",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "0801f7376099e88da4ff78c9c816a05f6c6b01b7eabf9c4050a401483560dc8c"
+      },
+      {
+        "path": "tools/laya/reference_runner.py",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "734516f473b860c72fc4db04f0a2f2a5dc7488e080d8d05f3da2c78c65b199f7"
+      }
+    ]
+  },
+  "snapshot_sha256": "e464b96a81d72031695e0f47b1b573417c38d8878c08cb114942969ffd5ca0ec"
+}

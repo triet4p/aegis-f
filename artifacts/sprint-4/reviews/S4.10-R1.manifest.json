@@ -1,0 +1,100 @@
+{
+  "agent_id": "S410EvidenceR1",
+  "attempt_id": "S4.10-R1",
+  "manifest_path": "artifacts/sprint-4/reviews/S4.10-R1.manifest.json",
+  "report_path": "artifacts/sprint-4/reviews/S4.10-R1.md",
+  "schema": "omp-reviewed-snapshot/v1",
+  "snapshot": {
+    "base_commit_sha": "5589a9d6da1a2844e247c5fb4576dd9bd886d85d",
+    "git_c_root": "F:/ai-ml/aegis-f",
+    "repository": "F:/ai-ml/aegis-f/.git",
+    "scope": [
+      {
+        "base_blob_oid": "7aafc2e4a967cf838f3dae5d84a0fe9b40a5b348",
+        "base_mode": "100644",
+        "path": "CHANGELOG.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "e74146c38ea5c95e83e47be8146efdba4278cd3bacbea86d258466fa1734a51e"
+      },
+      {
+        "base_blob_oid": "a4b3389a74c42c1822bdb32b7b89c67d4788b325",
+        "base_mode": "100644",
+        "path": "README.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "b73496b679613360d7e051e240c8c1b72c77f983677deaab3aacc2282b37b043"
+      },
+      {
+        "base_blob_oid": "d6e858f672787fdebc29ebe6d44f29160c12cf99",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/laya/LayaCandidatePlanner.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "0d58008b4220a8c90bc5deef8950eb70596709f01d6610b22e1dd398b58ba8e5"
+      },
+      {
+        "base_blob_oid": "d319fe205abe99a0cf61144798f657880a263a9a",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/laya/LayaRuntimeContract.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "7ad2fe24a278df5ad189b13515915ac648e825d7efb1de8f525942eab84ca073"
+      },
+      {
+        "base_blob_oid": "04848553372b58b019f1a8095c1807a21782f762",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/ui/BankDraftReviewScreen.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "c5d403100504d22bb4e966817dffec90744f98273632d97389a2d90568f84b96"
+      },
+      {
+        "base_blob_oid": "703981ff23a7bcbcb8010727bdb1cb14da737979",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/ui/ManualCategorySuggestion.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "a336635e7f2c8fbebf8e8034152010d9ccf7caa8eb1eda9663277eedaf2372a1"
+      },
+      {
+        "base_blob_oid": "3397043af80d77f11d693c4048e04befcb076d88",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/ui/TransactionEditorScreen.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "20a2366f78b836182097fa3b5b1fa3760771807fd44615b1b83bc36d762bd771"
+      },
+      {
+        "base_blob_oid": "d10afd3bae3da46a2b471f50fd12c05faf8c4939",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/laya/LayaCandidatePlannerTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "a24dc9865843908c865781f6a6a091c6ae25f3a38595bdc370f0a4c4e9cb45da"
+      },
+      {
+        "base_blob_oid": "503ed9fbb10e27a1896409affca04bed14996335",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/ui/ManualCategorySuggestionMachineTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "9b08d05c7cf9d57b877674a75ccc515874de04cb43da3d62b68b0841310281fd"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-4/workers/S4.10-A1.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "99ef9a77e264c05900cfc8d2964af9e44275a1c890856e8b66e6571d62384648"
+      }
+    ],
+    "target_ref": "refs/heads/main",
+    "worktree": "F:/ai-ml/aegis-f"
+  },
+  "snapshot_sha256": "187638e43a1ebb428abeca0cc0300369b08e89254dacbb6c4e380823a50f416a",
+  "task_id": "S4.10",
+  "worker_artifact_path": "artifacts/sprint-4/workers/S4.10-A1.md",
+  "worker_attempt_id": "S4.10-A1"
+}

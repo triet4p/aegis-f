@@ -1,0 +1,100 @@
+{
+  "agent_id": "S410EvidenceR4",
+  "attempt_id": "S4.10-R4",
+  "manifest_path": "artifacts/sprint-4/reviews/S4.10-R4.manifest.json",
+  "report_path": "artifacts/sprint-4/reviews/S4.10-R4.md",
+  "schema": "omp-reviewed-snapshot/v1",
+  "snapshot": {
+    "base_commit_sha": "5629d0b376dd19c050a2bd2cb9db4c0ee18f134a",
+    "git_c_root": "F:/ai-ml/aegis-f",
+    "repository": "F:/ai-ml/aegis-f/.git",
+    "scope": [
+      {
+        "base_blob_oid": "c96754f1b0d8af5c615bbd94f6fe5b6689e5baac",
+        "base_mode": "100644",
+        "path": "CHANGELOG.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "d1dc41dde70bbbb044a362ef0124ef0ca169e379ab59d24457bb82af1e7506b2"
+      },
+      {
+        "base_blob_oid": "8ea5b4b2a5e9aef17f1b4c8fce471808ec0692a2",
+        "base_mode": "100644",
+        "path": "README.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "82b4e7638d966ab47105f90326e34a3d0cc65655c5b57b68640bbb8bbf0b5269"
+      },
+      {
+        "base_blob_oid": "7f292a4871100022d0e0f2bff41a12b03c981a97",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/laya/LayaRuntimeContract.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "90ab240a916d15fc4ee69aeda187e15b27a12533a689d9fd4bce47168ae6f085"
+      },
+      {
+        "base_blob_oid": "c3dc4e0a6a4c7b986959dca417946c1275e13f8f",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/ui/BankDraftReviewScreen.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "51c8db6cba919b176fb9eb965da718c68ec1529d079191d8ca8b2244dae629ba"
+      },
+      {
+        "base_blob_oid": "e95f1782894821482af6a2508d381a9fffe03063",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/ui/BankDraftSuggestion.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "da045eb3472011c8a5ede4c0353350843bd81435829777313c9b35b601a1dc11"
+      },
+      {
+        "base_blob_oid": "51779c40b221eac9d2d795ab016cf82967c9a120",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/ui/TransactionEditorScreen.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "496211e25c8b17cc8521ad28e827266dd186abdebc9313247d7f5355c3bc85e2"
+      },
+      {
+        "base_blob_oid": "25bc4ffee97f2197e7ea5dcf09f22dbf0fd28bc8",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/ui/BankDraftSuggestionGateTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "5b7cd401f943ddd1333ee8639b19c761ef8aaae25df5483a05f842bdf39d262b"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-4/workers/S4.10-A3.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "459634bdb19819bdfd3eed2f9153b0387c6d1a4bfb6ed3a668443e6065e596fc"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-4/workers/S4.10-A4.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "340946c1090b7a07adc03443c8aa25cd00e44cc852f852f53cb56311a14f55d2"
+      },
+      {
+        "base_blob_oid": "372c42ae43eb5fdd6a680dd8c24da082b07a1f41",
+        "base_mode": "100644",
+        "path": "tools/laya/README.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "aa2d63cda342d83466ad014ba5fe50643a96d735cc28fa46da54e098d768fa22"
+      }
+    ],
+    "target_ref": "refs/heads/main",
+    "worktree": "F:/ai-ml/aegis-f"
+  },
+  "snapshot_sha256": "ac3d746ca88cfc7eec6391c0e1d524f30f3bcf58ccf17c4a517e646f12a2ddb6",
+  "task_id": "S4.10",
+  "worker_artifact_path": "artifacts/sprint-4/workers/S4.10-A4.md",
+  "worker_attempt_id": "S4.10-A4"
+}
