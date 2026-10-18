@@ -711,6 +711,8 @@ private fun DraftDetailContent(
                 draft = draft,
                 state = suggestionMachine.state,
                 enabled = !busy,
+                memoText = memoText,
+                suggestionNote = suggestionNote,
                 onUseSuggestion = {
                     suggestionMachine.acceptSuggestion()?.let { category ->
                         selectedCategoryId = category.id
@@ -851,11 +853,24 @@ private fun DraftDetailContent(
     }
 }
 
+/**
+ * Bank review keeps the suggestion header visible for every settled machine state.
+ * The ordinary bank memo is usually opaque, coded, or non-English, so the gate yields
+ * null and the machine rests in Ignored/Waiting; hiding the panel there looks exactly
+ * like a missing feature (S4.10-A2 user finding). Only the transient Idle (no request
+ * yet, effect still to run) renders nothing. Inference still runs solely for eligible
+ * English and never receives codes/OTP.
+ */
+internal fun isBankDraftSuggestionPanelVisible(state: ManualCategorySuggestionState): Boolean =
+    state != ManualCategorySuggestionState.Idle
+
 @Composable
 private fun DraftSuggestionPanel(
     draft: PendingBankDraftEntity,
     state: ManualCategorySuggestionState,
     enabled: Boolean,
+    memoText: String,
+    suggestionNote: String,
     onUseSuggestion: () -> Unit,
     onUseRememberedRule: () -> Unit,
     onIgnoreSuggestion: () -> Unit,
@@ -863,16 +878,40 @@ private fun DraftSuggestionPanel(
     onChooseDistributionOption: (Long) -> Unit = {},
     onChooseNoCategory: () -> Unit = {},
 ) {
-    if (state == ManualCategorySuggestionState.Idle) return
-    if (state == ManualCategorySuggestionState.WaitingForDescription) return
-    if (state == ManualCategorySuggestionState.ManuallySelected) return
-    if (state == ManualCategorySuggestionState.Ignored) return
+    if (!isBankDraftSuggestionPanelVisible(state)) return
+    // The ordinary bank memo is usually opaque, coded, or non-English, so the gate
+    // yields null and the machine rests in Ignored/Waiting. Hiding the panel there
+    // looks exactly like a missing feature (S4.10-A2 user finding). Keep the header
+    // and a truthful reason visible instead; inference still runs only for eligible
+    // English and never receives codes/OTP.
+    val effectiveInput = draftSuggestionInput(draft, memoText, suggestionNote)
+    val noteBlank = suggestionNote.trim().isEmpty()
     val status = when (state) {
-        ManualCategorySuggestionState.Idle,
-        ManualCategorySuggestionState.WaitingForDescription,
-        ManualCategorySuggestionState.ManuallySelected,
-        ManualCategorySuggestionState.Ignored,
-        -> return
+        ManualCategorySuggestionState.Idle -> return
+        ManualCategorySuggestionState.WaitingForDescription ->
+            "No description to check yet. Enter the description or add a plain English " +
+                "note to request ranked probabilities. The bank memo stays unchanged. " +
+                "Manual choice and confirmation stay available."
+        ManualCategorySuggestionState.ManuallySelected ->
+            "Your category choice stays selected. The suggestion will not replace it " +
+                "for this input. Edit the description or note to request again."
+        ManualCategorySuggestionState.Ignored ->
+            if (effectiveInput == null) {
+                if (!noteBlank) {
+                    "That note is not eligible English for the on-device model, so nothing " +
+                        "was sent. The bank memo stays unchanged. Try a plain English note " +
+                        "(for example Monthly rent), or choose a category manually. Nothing " +
+                        "is confirmed or saved."
+                } else {
+                    "The bank memo is not eligible English for the on-device model, so nothing " +
+                        "was sent. Add a plain English note to request ranked probabilities, " +
+                        "or choose a category manually. The memo and saved description stay " +
+                        "unchanged. Nothing is confirmed or saved."
+                }
+            } else {
+                "Suggestion ignored. The selected category and other fields are unchanged. " +
+                    "Edit the description or note to request again."
+            }
         ManualCategorySuggestionState.LoadingCategories ->
             "Loading current categories. Choosing a category or confirming stays available."
         ManualCategorySuggestionState.Loading ->
@@ -884,8 +923,8 @@ private fun DraftSuggestionPanel(
             "Suggestions follow the description text; manual choice stays available."
         is ManualCategorySuggestionState.Suggested ->
             if (state.distribution != null) {
-                "The model ranked your current categories below from the separate " +
-                    "suggestion note. Pick one to fill the category field, or leave the " +
+                "The model ranked your current categories below from the eligible " +
+                    "input. Pick one to fill the category field, or leave the " +
                     "field unchanged. Nothing is confirmed or saved."
             } else {
                 "The model suggests a current category. It will not change the selected " +

@@ -195,7 +195,10 @@ The following capabilities are not available yet:
   unaccented Vietnamese), or OTP-like memos stay manual. Only the effective input (the note
   alone when present, otherwise the visible memo text) is ever offered; the note and the bank
   memo are never concatenated and the stored memo is never rewritten. The draft category field
-  changes only on explicit acceptance; confirmation still requires a separate action. S4.10
+  changes only on explicit acceptance; confirmation still requires a separate action. Draft
+  review always shows the Category suggestion header once its check settles: an ineligible
+  memo or note explains nothing was sent and points at the separate English note or manual
+  choice, so the ordinary bank path no longer looks like a missing feature. S4.10
   replaces the single-winner display with the model-returned ranked per-category probability
   distribution plus the same-softmax unknown share in both manual entry and eligible draft
   review: every evaluated active category is listed in descending calibrated probability with

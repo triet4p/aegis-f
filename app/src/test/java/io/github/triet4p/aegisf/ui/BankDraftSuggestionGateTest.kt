@@ -410,4 +410,35 @@ class BankDraftSuggestionGateTest {
         )
         assertEquals(ManualCategorySuggestionState.Idle, machine.state)
     }
+    @Test
+    fun `opaque memo keeps a visible panel state with no inference input`() {
+        // S4.10-A2 user finding: an ordinary opaque bank memo must not silently hide
+        // the whole feature. The gate still yields null (no inference input), while
+        // the review keeps the header visible with a reason and the note path.
+        val opaque = draft(memo = "CT DI notes")
+        assertNull(draftSuggestionInput(opaque, "CT DI notes", ""))
+        assertTrue(
+            isBankDraftSuggestionPanelVisible(ManualCategorySuggestionState.Ignored),
+        )
+        assertTrue(
+            isBankDraftSuggestionPanelVisible(
+                ManualCategorySuggestionState.WaitingForDescription,
+            ),
+        )
+        assertTrue(
+            isBankDraftSuggestionPanelVisible(ManualCategorySuggestionState.ManuallySelected),
+        )
+        assertFalse(isBankDraftSuggestionPanelVisible(ManualCategorySuggestionState.Idle))
+    }
+
+    @Test
+    fun `eligible note still reaches inference for an opaque memo`() {
+        // The visible reason above must not replace inference: a qualifying note on an
+        // opaque memo remains the effective input.
+        val opaque = draft(memo = "CT DI notes")
+        assertEquals(
+            "Monthly rent",
+            draftSuggestionInput(opaque, "CT DI notes", "Monthly rent"),
+        )
+    }
 }
