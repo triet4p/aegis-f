@@ -231,4 +231,98 @@ class LayaCandidatePlannerTest {
         ) as LayaCandidatePlanner.CurrentResolution.StaleCategory
         assertEquals(LayaCandidatePlanner.StaleReason.DUPLICATE_ID, duplicateId.reason)
     }
+
+    @Test
+    fun `full distribution ranks evaluated categories and unknown without fabrication`() {
+        val tokenizer = tokenizer()
+        val categories = listOf(
+            category(71L, "Food"),
+            category(72L, "Transport"),
+            category(73L, "Housing"),
+            category(74L, "Health"),
+        )
+        val plan = LayaCandidatePlanner.plan(tokenizer, "Coffee after work", categories)
+            as LayaCandidatePlanner.Plan.Model
+        assertEquals(listOf(71L, 72L, 73L, 74L), plan.categories.map { it.id })
+
+        // Synthetic calibrated shares: rank order and unknown come straight from the model
+        // vector; nothing is invented for unevaluated or omitted options.
+        val probabilities = listOf(0.1, 0.5, 0.2, 0.05, 0.15)
+        val decision = LayaCandidatePlanner.modelDecision(plan, probabilities, 1, 0.3)
+            as LayaCandidatePlanner.Decision.Category
+        assertEquals(72L, decision.categoryId)
+        val scores = checkNotNull(decision.scores)
+        assertEquals(listOf(72L, 73L, 71L, 74L), scores.ranked.map { it.categoryId })
+        assertEquals(0.15, scores.unknownProbability, 1e-9)
+        assertEquals(0.3, scores.confidence, 1e-9)
+
+        val resolved = LayaCandidatePlanner.resolveCurrent(decision, categories)
+            as LayaCandidatePlanner.CurrentResolution.ActiveCategory
+        val distribution = checkNotNull(resolved.distribution)
+        assertEquals(listOf(72L, 73L, 71L, 74L), distribution.options.map { it.categoryId })
+        assertEquals(0.15, distribution.unknownProbability, 1e-9)
+        assertTrue(distribution.options.all { it.currentCategory != null })
+        // Full-catalog subset scope stays explicit: a fitting in-budget set has no omission.
+        assertEquals(null, resolved.uncertainty)
+    }
+
+    @Test
+    fun `unknown top still exposes selectable rows and rejects stale ids`() {
+        val tokenizer = tokenizer()
+        val first = category(81L, "Food")
+        val second = category(82L, "Transport")
+        val plan = LayaCandidatePlanner.plan(tokenizer, "Dinner at home", listOf(first, second))
+            as LayaCandidatePlanner.Plan.Model
+        val decision = LayaCandidatePlanner.modelDecision(plan, listOf(0.2, 0.25, 0.55), 2, 0.1)
+        assertTrue(decision is LayaCandidatePlanner.Decision.Unknown)
+        val resolved = LayaCandidatePlanner.resolveCurrent(decision, listOf(first, second))
+            as LayaCandidatePlanner.CurrentResolution.ManualReview
+        assertEquals(LayaCandidatePlanner.ManualReason.MODEL_NO_FIT, resolved.reason)
+        val distribution = checkNotNull(resolved.distribution)
+        assertEquals(listOf(82L, 81L), distribution.options.map { it.categoryId })
+        assertEquals(0.55, distribution.unknownProbability, 1e-9)
+        assertTrue(distribution.options.all { it.currentCategory != null })
+
+        // A renamed top-hit resolves stale by stable id; the same invalidation shape will
+        // serve permanent deletion (S4.11) without a new mechanism.
+        val renamedDecision = LayaCandidatePlanner.modelDecision(
+            plan,
+            listOf(0.6, 0.1, 0.3),
+            0,
+            0.2,
+        ) as LayaCandidatePlanner.Decision.Category
+        val renamedResolution = LayaCandidatePlanner.resolveCurrent(
+            renamedDecision,
+            listOf(first.copy(name = "Meals"), second),
+        )
+        assertTrue(renamedResolution is LayaCandidatePlanner.CurrentResolution.StaleCategory)
+    }
+
+    @Test
+    fun `rules and metadata matches carry no fabricated probabilities`() {
+        val tokenizer = tokenizer()
+        val categories = listOf(category(91L, "Food"), category(92L, "Monthly rent"))
+        val rule = LayaCategoryCorrectionRule(" Monthly rent! ", 91L)
+        val corrected = LayaCandidatePlanner.plan(
+            tokenizer,
+            "Monthly rent",
+            categories,
+            correctionRules = listOf(rule),
+        )
+        val ruleDecision = LayaCandidatePlanner.decide(corrected) {
+            error("explicit correction must not call inference")
+        } as LayaCandidatePlanner.Decision.Category
+        assertEquals(null, ruleDecision.scores)
+        val ruleResolved = LayaCandidatePlanner.resolveCurrent(ruleDecision, categories)
+            as LayaCandidatePlanner.CurrentResolution.ActiveCategory
+        assertEquals(null, ruleResolved.scores)
+        assertEquals(null, ruleResolved.distribution)
+
+        val metadata = LayaCandidatePlanner.plan(tokenizer, "Monthly rent", categories)
+            as LayaCandidatePlanner.Plan.MetadataMatch
+        val metadataDecision = LayaCandidatePlanner.decide(metadata) {
+            error("exact metadata match must not call inference")
+        } as LayaCandidatePlanner.Decision.Category
+        assertEquals(null, metadataDecision.scores)
+    }
 }

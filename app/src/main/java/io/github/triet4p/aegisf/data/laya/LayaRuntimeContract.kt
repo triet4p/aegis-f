@@ -6,9 +6,15 @@ package io.github.triet4p.aegisf.data.laya
  *
  * S4.4 adds [LayaRuntime.suggest] and [LayaCandidatePlanner] to apply caller-supplied exact
  * correction rules, deterministic category-name matching, and budget-exact candidate
- * retrieval. S4.7 persists only deliberately remembered exact-description rules in the ledger
- * data layer and resolves an active match before manual-entry inference; the runtime still
- * receives only current category metadata and never stores or learns rules.
+ * retrieval. S4.10 keeps that pipeline and additionally surfaces the model-returned
+ * per-category calibrated distribution (plus the same-softmax unknown share) for
+ * deliberate user choice: explicit rules and category-name matches still short-circuit
+ * before inference with no fabricated probabilities, emissions always resolve against
+ * current active rows by stable id, and oversized subsets stay labeled with the
+ * evaluated scope rather than as full-catalog shares. S4.7 persists only deliberately
+ * remembered exact-description rules in the ledger data layer and resolves an active
+ * match before manual-entry inference; the runtime still receives only current category
+ * metadata and never stores or learns rules.
  * [LayaInferenceLifecycle] owns one bounded background worker, latest-only pending work,
  * serialized session use, and safe release after non-cancellable native calls. S4.6
  * presents review-only suggestions for new expense entry; income, transfers, and
@@ -22,7 +28,6 @@ package io.github.triet4p.aegisf.data.laya
  * identifier-only memos stay manual, and confirmation remains mandatory.
  *
  * States, in the order the app meets them:
- *
  * - [Missing]: no verified bundle is installed. Manual entry works unchanged; the app
  *   must not invent a suggestion.
  * - [CorruptOrIncompatible]: the bundle fails verification (hash, config, tokenizer asset,

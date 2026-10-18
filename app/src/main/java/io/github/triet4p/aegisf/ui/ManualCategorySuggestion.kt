@@ -54,6 +54,7 @@ internal sealed interface ManualCategorySuggestionState {
     data class Suggested(
         val category: CategoryEntity,
         val uncertainty: LayaCandidatePlanner.RetrievalUncertainty?,
+        val distribution: LayaCandidatePlanner.ScoredDistribution? = null,
     ) : ManualCategorySuggestionState
     data class Remembered(
         val category: CategoryEntity,
@@ -64,16 +65,19 @@ internal sealed interface ManualCategorySuggestionState {
     data class Accepted(
         val category: CategoryEntity,
         val uncertainty: LayaCandidatePlanner.RetrievalUncertainty?,
+        val distribution: LayaCandidatePlanner.ScoredDistribution? = null,
     ) : ManualCategorySuggestionState
     data class NoFit(
         val reason: LayaCandidatePlanner.ManualReason,
         val uncertainty: LayaCandidatePlanner.RetrievalUncertainty?,
+        val distribution: LayaCandidatePlanner.ScoredDistribution? = null,
     ) : ManualCategorySuggestionState
     data class Stale(val reason: LayaCandidatePlanner.StaleReason? = null) :
         ManualCategorySuggestionState
     data class Unavailable(val reason: UnavailableReason) : ManualCategorySuggestionState
     data object ManuallySelected : ManualCategorySuggestionState
     data object Ignored : ManualCategorySuggestionState
+    data object NoCategory : ManualCategorySuggestionState
 }
 
 internal enum class UnavailableReason { MISSING, INCOMPATIBLE, SUPERSEDED, CLOSED, FAILED }
@@ -124,9 +128,14 @@ internal class ManualCategorySuggestionMachine {
                 ManualCategorySuggestionState.Suggested(
                     category = resolution.category,
                     uncertainty = resolution.uncertainty,
+                    distribution = resolution.distribution,
                 )
             is LayaCandidatePlanner.CurrentResolution.ManualReview ->
-                ManualCategorySuggestionState.NoFit(resolution.reason, resolution.uncertainty)
+                ManualCategorySuggestionState.NoFit(
+                    resolution.reason,
+                    resolution.uncertainty,
+                    resolution.distribution,
+                )
             is LayaCandidatePlanner.CurrentResolution.StaleCategory ->
                 ManualCategorySuggestionState.Stale(resolution.reason)
         }
@@ -167,8 +176,45 @@ internal class ManualCategorySuggestionMachine {
 
     fun acceptSuggestion(): CategoryEntity? {
         val suggested = state as? ManualCategorySuggestionState.Suggested ?: return null
-        state = ManualCategorySuggestionState.Accepted(suggested.category, suggested.uncertainty)
+        state = ManualCategorySuggestionState.Accepted(
+            suggested.category,
+            suggested.uncertainty,
+            suggested.distribution,
+        )
         return suggested.category
+    }
+
+    /**
+     * Explicit per-row choice from the ranked distribution. Only an evaluated row whose
+     * stable id still resolves to a current active category may be staged; an invalid,
+     * missing, or stale row returns null and changes nothing. Unknown/manual/ignore
+     * never assign a category. The caller still owns the field update and the save.
+     * Works from both the top-hit state and the unknown-wins state, since both carry
+     * the same selectable distribution.
+     */
+    fun chooseDistributionOption(categoryId: Long): CategoryEntity? {
+        val suggested = state as? ManualCategorySuggestionState.Suggested
+        val noFit = state as? ManualCategorySuggestionState.NoFit
+        if (suggested == null && noFit == null) return null
+        val uncertainty = suggested?.uncertainty ?: noFit?.uncertainty
+        val distribution = suggested?.distribution ?: noFit?.distribution ?: return null
+        val target = distribution.options.firstOrNull { it.categoryId == categoryId }
+            ?.currentCategory ?: return null
+        state = ManualCategorySuggestionState.Accepted(
+            category = target,
+            uncertainty = uncertainty,
+            distribution = distribution,
+        )
+        return target
+    }
+
+    /** Explicit unknown/no-fit choice: stages no category and never assigns one. */
+    fun chooseNoCategoryOption(): Boolean {
+        val suggested = state as? ManualCategorySuggestionState.Suggested
+        val noFit = state as? ManualCategorySuggestionState.NoFit
+        if (suggested?.distribution == null && noFit?.distribution == null) return false
+        state = ManualCategorySuggestionState.NoCategory
+        return true
     }
 
     fun acceptRememberedRule(): CategoryEntity? {

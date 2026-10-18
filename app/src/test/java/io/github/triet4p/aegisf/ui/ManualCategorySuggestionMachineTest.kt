@@ -377,4 +377,118 @@ class ManualCategorySuggestionMachineTest {
         )
         assertEquals(ManualCategorySuggestionState.Stale(), machine.state)
     }
+
+    @Test
+    fun `ranked distribution allows a non top choice without saving`() {
+        val machine = ManualCategorySuggestionMachine()
+        val top = category(1L, "Food")
+        val other = category(2L, "Transport")
+        val categories = listOf(top, other)
+        val request = request(intent(), categories)
+        val token = checkNotNull(machine.begin(request))
+        val distribution = LayaCandidatePlanner.ScoredDistribution(
+            options = listOf(
+                LayaCandidatePlanner.ResolvedOption(1L, "Food", 0.5, top),
+                LayaCandidatePlanner.ResolvedOption(2L, "Transport", 0.3, other),
+            ),
+            unknownProbability = 0.2,
+            confidence = 0.1,
+        )
+        assertTrue(
+            machine.complete(
+                token,
+                request.intent,
+                request.categories,
+                request.categories,
+                LayaCandidatePlanner.CurrentResolution.ActiveCategory(
+                    category = top,
+                    source = LayaCandidatePlanner.SuggestionSource.MODEL,
+                    confidence = 0.1,
+                    uncertainty = null,
+                    scores = null,
+                    distribution = distribution,
+                ),
+            ),
+        )
+        // Tapping a non-top row only stages it; the machine itself saves nothing.
+        val staged = machine.chooseDistributionOption(2L)
+        assertEquals(other.id, staged?.id)
+        val accepted = machine.state as ManualCategorySuggestionState.Accepted
+        assertEquals(other.id, accepted.category.id)
+        assertEquals(distribution, accepted.distribution)
+    }
+
+    @Test
+    fun `unknown choice and invalid rows never assign a category`() {
+        val machine = ManualCategorySuggestionMachine()
+        val top = category(1L, "Food")
+        val stale = category(2L, "Transport")
+        val categories = listOf(top, stale)
+        val request = request(intent(), categories)
+        val token = checkNotNull(machine.begin(request))
+        val distribution = LayaCandidatePlanner.ScoredDistribution(
+            options = listOf(
+                LayaCandidatePlanner.ResolvedOption(1L, "Food", 0.4, top),
+                // Visible with its model share, but no current category: not selectable.
+                LayaCandidatePlanner.ResolvedOption(2L, "Transport", 0.35, null),
+            ),
+            unknownProbability = 0.25,
+            confidence = 0.05,
+        )
+        assertTrue(
+            machine.complete(
+                token,
+                request.intent,
+                request.categories,
+                request.categories,
+                LayaCandidatePlanner.CurrentResolution.ActiveCategory(
+                    category = top,
+                    source = LayaCandidatePlanner.SuggestionSource.MODEL,
+                    confidence = 0.05,
+                    uncertainty = null,
+                    scores = null,
+                    distribution = distribution,
+                ),
+            ),
+        )
+        assertEquals(null, machine.chooseDistributionOption(2L))
+        assertTrue(machine.state is ManualCategorySuggestionState.Suggested)
+        assertTrue(machine.chooseNoCategoryOption())
+        assertEquals(ManualCategorySuggestionState.NoCategory, machine.state)
+    }
+
+    @Test
+    fun `unknown top distribution stays selectable for manual review`() {
+        val machine = ManualCategorySuggestionMachine()
+        val first = category(1L, "Food")
+        val second = category(2L, "Transport")
+        val categories = listOf(first, second)
+        val request = request(intent(), categories)
+        val token = checkNotNull(machine.begin(request))
+        val distribution = LayaCandidatePlanner.ScoredDistribution(
+            options = listOf(
+                LayaCandidatePlanner.ResolvedOption(2L, "Transport", 0.25, second),
+                LayaCandidatePlanner.ResolvedOption(1L, "Food", 0.2, first),
+            ),
+            unknownProbability = 0.55,
+            confidence = 0.1,
+        )
+        assertTrue(
+            machine.complete(
+                token,
+                request.intent,
+                request.categories,
+                request.categories,
+                LayaCandidatePlanner.CurrentResolution.ManualReview(
+                    LayaCandidatePlanner.ManualReason.MODEL_NO_FIT,
+                    uncertainty = null,
+                    scores = null,
+                    distribution = distribution,
+                ),
+            ),
+        )
+        val staged = machine.chooseDistributionOption(1L)
+        assertEquals(first.id, staged?.id)
+        assertTrue(machine.state is ManualCategorySuggestionState.Accepted)
+    }
 }

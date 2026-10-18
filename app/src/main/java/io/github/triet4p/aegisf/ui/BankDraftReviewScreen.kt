@@ -733,6 +733,20 @@ private fun DraftDetailContent(
                     suggestionMachine.chooseManually(suggestionIntent)
                     suggestionRevision += 1
                 },
+                onChooseDistributionOption = { categoryId ->
+                    suggestionMachine.chooseDistributionOption(categoryId)?.let { category ->
+                        selectedCategoryId = category.id
+                        categoryResolved = true
+                        feedback = null
+                    }
+                },
+                onChooseNoCategory = {
+                    if (suggestionMachine.chooseNoCategoryOption()) {
+                        selectedCategoryId = null
+                        categoryResolved = true
+                        feedback = null
+                    }
+                },
             )
             if (selectedType == TransactionType.TRANSFER) {
                 Text(
@@ -846,6 +860,8 @@ private fun DraftSuggestionPanel(
     onUseRememberedRule: () -> Unit,
     onIgnoreSuggestion: () -> Unit,
     onChooseManually: () -> Unit,
+    onChooseDistributionOption: (Long) -> Unit = {},
+    onChooseNoCategory: () -> Unit = {},
 ) {
     if (state == ManualCategorySuggestionState.Idle) return
     if (state == ManualCategorySuggestionState.WaitingForDescription) return
@@ -867,15 +883,22 @@ private fun DraftSuggestionPanel(
         ManualCategorySuggestionState.NotApplicableToKind ->
             "Suggestions follow the description text; manual choice stays available."
         is ManualCategorySuggestionState.Suggested ->
-            "The model suggests a current category. It will not change the selected " +
-                "category unless you accept it."
+            if (state.distribution != null) {
+                "The model ranked your current categories below from the separate " +
+                    "suggestion note. Pick one to fill the category field, or leave the " +
+                    "field unchanged. Nothing is confirmed or saved."
+            } else {
+                "The model suggests a current category. It will not change the selected " +
+                    "category unless you accept it."
+            }
         is ManualCategorySuggestionState.Remembered ->
             if (state.accepted) {
                 "The saved exact-description rule was accepted. The category field changed " +
-                    "only at your request; nothing has been saved."
+                    "only at your request; nothing has been saved. This is a saved rule, not " +
+                    "a model score."
             } else {
                 "A saved exact-description rule matches. It does not change the category " +
-                    "field until you accept it."
+                    "field until you accept it. This is a saved rule, not a model score."
             }
         ManualCategorySuggestionState.RuleRemoved ->
             "The saved rule was removed."
@@ -883,13 +906,21 @@ private fun DraftSuggestionPanel(
             "The suggestion is selected at your request. Review it before confirming; " +
                 "nothing has been saved."
         is ManualCategorySuggestionState.NoFit ->
-            "No category suggestion is available for this description. Choose one manually " +
-                "or choose No category explicitly."
+            if (state.distribution != null) {
+                "Unknown scored highest, so nothing was preselected. The ranked " +
+                    "categories below stay selectable. Nothing is confirmed or saved."
+            } else {
+                "No category suggestion is available for this description. Choose one manually " +
+                    "or choose No category explicitly."
+            }
         is ManualCategorySuggestionState.Stale ->
             "Category data changed while this suggestion was checked. It was not applied; " +
                 "choose from current categories instead."
         is ManualCategorySuggestionState.Unavailable ->
             "A suggestion is unavailable right now. Manual choice and confirmation still work."
+        ManualCategorySuggestionState.NoCategory ->
+            "Unknown / no fit is selected: no category will be filed unless you pick " +
+                "one. Nothing is confirmed or saved."
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
@@ -920,12 +951,43 @@ private fun DraftSuggestionPanel(
         }
         when (state) {
             is ManualCategorySuggestionState.Suggested -> {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = onUseSuggestion, enabled = enabled) {
-                        Text("Use suggestion")
+                val distribution = state.distribution
+                if (distribution != null) {
+                    ManualDistributionList(
+                        distribution = distribution,
+                        enabled = enabled,
+                        onChooseDistributionOption = onChooseDistributionOption,
+                        onChooseNoCategory = onChooseNoCategory,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = onIgnoreSuggestion, enabled = enabled) {
+                            Text("Ignore")
+                        }
                     }
-                    OutlinedButton(onClick = onIgnoreSuggestion, enabled = enabled) {
-                        Text("Ignore")
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = onUseSuggestion, enabled = enabled) {
+                            Text("Use suggestion")
+                        }
+                        OutlinedButton(onClick = onIgnoreSuggestion, enabled = enabled) {
+                            Text("Ignore")
+                        }
+                    }
+                }
+            }
+            is ManualCategorySuggestionState.NoFit -> {
+                val distribution = state.distribution
+                if (distribution != null) {
+                    ManualDistributionList(
+                        distribution = distribution,
+                        enabled = enabled,
+                        onChooseDistributionOption = onChooseDistributionOption,
+                        onChooseNoCategory = onChooseNoCategory,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = onIgnoreSuggestion, enabled = enabled) {
+                            Text("Ignore")
+                        }
                     }
                 }
             }
@@ -946,6 +1008,11 @@ private fun DraftSuggestionPanel(
                 }
             }
             is ManualCategorySuggestionState.Accepted -> {
+                OutlinedButton(onClick = onChooseManually, enabled = enabled) {
+                    Text("Keep manual choice")
+                }
+            }
+            is ManualCategorySuggestionState.NoCategory -> {
                 OutlinedButton(onClick = onChooseManually, enabled = enabled) {
                     Text("Keep manual choice")
                 }

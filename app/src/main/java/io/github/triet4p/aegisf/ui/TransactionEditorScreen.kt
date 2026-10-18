@@ -55,9 +55,16 @@ import io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner
 import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
 import io.github.triet4p.aegisf.data.laya.LayaInferenceOutcome
 import io.github.triet4p.aegisf.data.laya.LayaRuntimeContract
+import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
+
+/** Calibrated model shares render as whole percents; values are never fabricated. */
+internal fun formatProbability(probability: Double): String {
+    val percent = (probability * 100.0).coerceIn(0.0, 100.0)
+    return String.format(Locale.US, "%.0f%%", percent)
+}
 
 /**
  * Manual transaction editor: one stored record per Save.
@@ -590,6 +597,20 @@ private fun TransactionFormScreen(
                 },
                 onRememberCategoryRule = ::rememberSelectedCategoryRule,
                 onRemoveRememberedRule = ::removeRememberedCategoryRule,
+                onChooseDistributionOption = { categoryId ->
+                    suggestionMachine.chooseDistributionOption(categoryId)?.let { category ->
+                        selectedCategoryId = category.id
+                        selectedCategoryName = category.name
+                        categoryError = null
+                    }
+                },
+                onChooseNoCategory = {
+                    if (suggestionMachine.chooseNoCategoryOption()) {
+                        selectedCategoryId = null
+                        selectedCategoryName = null
+                        categoryError = null
+                    }
+                },
                 saving = saving,
                 editing = editing,
                 // The guard is checked before the coroutine starts, so two taps inside one
@@ -724,6 +745,8 @@ private fun TransactionForm(
     onRememberCategoryRule: () -> Unit,
     onRemoveRememberedRule: () -> Unit,
     onIgnoreSuggestion: () -> Unit,
+    onChooseDistributionOption: (Long) -> Unit,
+    onChooseNoCategory: () -> Unit,
     saving: Boolean,
     editing: Boolean,
     onSave: () -> Unit,
@@ -851,6 +874,8 @@ private fun TransactionForm(
                 onIgnore = onIgnoreSuggestion,
                 onRemember = onRememberCategoryRule,
                 onRemoveRememberedRule = onRemoveRememberedRule,
+                onChooseDistributionOption = onChooseDistributionOption,
+                onChooseNoCategory = onChooseNoCategory,
             )
         }
 
@@ -887,6 +912,8 @@ private fun ManualSuggestionPanel(
     onIgnore: () -> Unit,
     onRemember: () -> Unit,
     onRemoveRememberedRule: () -> Unit,
+    onChooseDistributionOption: (Long) -> Unit = {},
+    onChooseNoCategory: () -> Unit = {},
 ) {
     if (state == ManualCategorySuggestionState.Idle) return
 
@@ -906,28 +933,46 @@ private fun ManualSuggestionPanel(
             "Laya category suggestions are for spending descriptions. Choose an income category " +
                 "manually; normal entry and saving remain available."
         is ManualCategorySuggestionState.Suggested ->
-            "Laya suggests “${state.category.name}” from your current categories. It will not " +
-                "change the selected category unless you accept it."
+            if (state.distribution != null) {
+                "The model ranked your current categories below. Pick one to fill the " +
+                    "category field, or leave the field unchanged. Nothing is saved."
+            } else {
+                "Laya suggests “${state.category.name}” from your current categories. It will not " +
+                    "change the selected category unless you accept it."
+            }
         is ManualCategorySuggestionState.Remembered ->
             if (state.manualSelection) {
                 "Your manual category choice stays selected. The saved rule for " +
                     "“${state.category.name}” remains separate and is not overwritten."
             } else if (state.accepted) {
                 "The saved exact-description rule for “${state.category.name}” was accepted. " +
-                    "The category field changed only at your request; nothing has been saved."
+                    "The category field changed only at your request; nothing has been saved. " +
+                    "This is a saved rule, not a model score."
             } else {
                 "A saved exact-description rule matches “${state.category.name}”. It does not " +
-                    "change the category field until you accept it."
+                    "change the category field until you accept it. This is a saved rule, not " +
+                    "a model score."
             }
         ManualCategorySuggestionState.RuleRemoved ->
             "The saved rule was removed. No remembered rule applies to this description now."
         is ManualCategorySuggestionState.Accepted ->
-            "“${state.category.name}” is selected in the category field at your request. " +
-                "Review it before saving; nothing has been saved."
+            if (state.distribution != null) {
+                "“${state.category.name}” from the ranked model list is selected in the " +
+                    "category field at your request. Review it before saving; nothing has " +
+                    "been saved."
+            } else {
+                "“${state.category.name}” is selected in the category field at your request. " +
+                    "Review it before saving; nothing has been saved."
+            }
         is ManualCategorySuggestionState.NoFit -> when (state.reason) {
             LayaCandidatePlanner.ManualReason.MODEL_NO_FIT ->
-                "The model returned no fitting category. Choose one manually or save without " +
-                    "a category."
+                if (state.distribution != null) {
+                    "Unknown scored highest, so nothing was preselected. The ranked " +
+                        "categories below stay selectable. Nothing is saved."
+                } else {
+                    "The model returned no fitting category. Choose one manually or save without " +
+                        "a category."
+                }
             LayaCandidatePlanner.ManualReason.NO_METADATA_EVIDENCE ->
                 "The current category names did not identify candidates to check. Choose a " +
                     "category manually or save without one."
@@ -966,6 +1011,9 @@ private fun ManualSuggestionPanel(
             "Your category choice stays selected. Laya will not replace it for this description."
         ManualCategorySuggestionState.Ignored ->
             "Suggestion ignored. The selected category and other record fields are unchanged."
+        ManualCategorySuggestionState.NoCategory ->
+            "No category will be filed for this description unless you pick one. " +
+                "Saving without a category remains available."
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -979,10 +1027,15 @@ private fun ManualSuggestionPanel(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        val uncertainty = when (state) {
-            is ManualCategorySuggestionState.Suggested -> state.uncertainty
-            is ManualCategorySuggestionState.Accepted -> state.uncertainty
-            is ManualCategorySuggestionState.NoFit -> state.uncertainty
+        val uncertainty = when (val current = state) {
+            is ManualCategorySuggestionState.Suggested -> current.uncertainty
+            is ManualCategorySuggestionState.Accepted -> current.uncertainty
+            is ManualCategorySuggestionState.NoFit -> current.uncertainty
+            else -> null
+        }
+        val pendingDistribution = when (val current = state) {
+            is ManualCategorySuggestionState.Suggested -> current.distribution
+            is ManualCategorySuggestionState.NoFit -> current.distribution
             else -> null
         }
         if (uncertainty != null && uncertainty.omittedCategoryCount > 0) {
@@ -997,12 +1050,43 @@ private fun ManualSuggestionPanel(
         }
         when (state) {
             is ManualCategorySuggestionState.Suggested -> {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = onAccept, enabled = enabled) {
-                        Text("Use suggestion")
+                val distribution = state.distribution
+                if (distribution != null) {
+                    ManualDistributionList(
+                        distribution = distribution,
+                        enabled = enabled,
+                        onChooseDistributionOption = onChooseDistributionOption,
+                        onChooseNoCategory = onChooseNoCategory,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = onIgnore, enabled = enabled) {
+                            Text("Ignore")
+                        }
                     }
-                    OutlinedButton(onClick = onIgnore, enabled = enabled) {
-                        Text("Ignore")
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = onAccept, enabled = enabled) {
+                            Text("Use suggestion")
+                        }
+                        OutlinedButton(onClick = onIgnore, enabled = enabled) {
+                            Text("Ignore")
+                        }
+                    }
+                }
+            }
+            is ManualCategorySuggestionState.NoFit -> {
+                val distribution = state.distribution
+                if (distribution != null) {
+                    ManualDistributionList(
+                        distribution = distribution,
+                        enabled = enabled,
+                        onChooseDistributionOption = onChooseDistributionOption,
+                        onChooseNoCategory = onChooseNoCategory,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = onIgnore, enabled = enabled) {
+                            Text("Ignore")
+                        }
                     }
                 }
             }
@@ -1025,20 +1109,37 @@ private fun ManualSuggestionPanel(
                     }
                 }
             }
-            else -> if (rememberableCategoryName != null) {
-                Text(
-                    text = "This rule matches only the description as written (case and repeated " +
-                        "spaces are ignored). No other descriptions or records change.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                OutlinedButton(
-                    onClick = onRemember,
-                    enabled = enabled,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("Remember ${rememberableCategoryName} for this description")
-                }
+            is ManualCategorySuggestionState.Accepted -> Unit
+            is ManualCategorySuggestionState.NoCategory -> Unit
+            is ManualCategorySuggestionState.Stale -> Unit
+            is ManualCategorySuggestionState.Unavailable -> Unit
+            ManualCategorySuggestionState.ManuallySelected -> Unit
+            ManualCategorySuggestionState.Ignored -> Unit
+            ManualCategorySuggestionState.LoadingCategories -> Unit
+            ManualCategorySuggestionState.WaitingForDescription -> Unit
+            ManualCategorySuggestionState.Loading -> Unit
+            ManualCategorySuggestionState.NoActiveCategories -> Unit
+            ManualCategorySuggestionState.NotApplicableToKind -> Unit
+            ManualCategorySuggestionState.RuleRemoved -> Unit
+            ManualCategorySuggestionState.Idle -> Unit
+        }
+        if (state !is ManualCategorySuggestionState.Suggested &&
+            state !is ManualCategorySuggestionState.NoFit &&
+            state !is ManualCategorySuggestionState.Remembered &&
+            rememberableCategoryName != null
+        ) {
+            Text(
+                text = "This rule matches only the description as written (case and repeated " +
+                    "spaces are ignored). No other descriptions or records change.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(
+                onClick = onRemember,
+                enabled = enabled,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Remember ${rememberableCategoryName} for this description")
             }
         }
         if (ruleActionError != null) {
@@ -1047,6 +1148,57 @@ private fun ManualSuggestionPanel(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )
+        }
+    }
+}
+
+/**
+ * Ranked model distribution shared by manual entry and bank review. Rows list the
+ * evaluated categories in descending calibrated probability plus the unknown/no-fit
+ * row from the same softmax; selecting any evaluated row only stages it for the
+ * caller's explicit field update and never saves.
+ */
+@Composable
+internal fun ManualDistributionList(
+    distribution: LayaCandidatePlanner.ScoredDistribution,
+    enabled: Boolean,
+    onChooseDistributionOption: (Long) -> Unit,
+    onChooseNoCategory: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = "Model probabilities over the evaluated options; confidence " +
+                "${formatProbability(distribution.confidence)} is the overall " +
+                "sharpness, not a per-category guarantee.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        distribution.options.forEach { option ->
+            val current = option.currentCategory
+            OutlinedButton(
+                onClick = { onChooseDistributionOption(option.categoryId) },
+                enabled = enabled && current != null,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    if (current != null) {
+                        "${current.name} — ${formatProbability(option.probability)}"
+                    } else {
+                        "${option.snapshotName} — ${formatProbability(option.probability)} (unavailable)"
+                    },
+                )
+            }
+        }
+        OutlinedButton(
+            onClick = onChooseNoCategory,
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Unknown / no fit — ${formatProbability(distribution.unknownProbability)}")
         }
     }
 }

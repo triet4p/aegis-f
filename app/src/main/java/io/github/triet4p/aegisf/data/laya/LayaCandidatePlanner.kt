@@ -50,6 +50,31 @@ object LayaCandidatePlanner {
         ) : Plan
     }
 
+    /**
+     * One evaluated category's calibrated share of the model distribution. Omitted
+     * categories never appear here: no score is fabricated for unevaluated options.
+     */
+    data class ScoredCategory(
+        val categoryId: Long,
+        val snapshotName: String,
+        /** Calibrated softmax probability over exactly the evaluated options plus unknown. */
+        val probability: Double,
+    )
+
+    /**
+     * The full model-returned distribution for one request. [ranked] covers only the
+     * evaluated categories in descending probability order (ties keep plan order, so the
+     * first row is always the decision top); [unknownProbability] is the calibrated no-fit
+     * share from the same softmax. [confidence] is the Jev sharpness over that same
+     * vector — a peakedness score, never a per-category accuracy claim. Subset scope
+     * travels in [RetrievalUncertainty] alongside, never relabeled as full-catalog.
+     */
+    data class CategoryScores(
+        val ranked: List<ScoredCategory>,
+        val unknownProbability: Double,
+        val confidence: Double,
+    )
+
     sealed interface Decision {
         data class Category(
             val categoryId: Long,
@@ -57,13 +82,42 @@ object LayaCandidatePlanner {
             val source: SuggestionSource,
             val confidence: Double?,
             val uncertainty: RetrievalUncertainty? = null,
+            /** Model path only; explicit rules and category-name matches carry no scores. */
+            val scores: CategoryScores? = null,
         ) : Decision
 
         data class Unknown(
             val reason: ManualReason,
             val uncertainty: RetrievalUncertainty? = null,
+            /** Set only when a model plan scored unknown highest; the rows stay selectable. */
+            val scores: CategoryScores? = null,
         ) : Decision
     }
+
+    /**
+     * One evaluated row re-checked against fresh metadata at display time. A null
+     * [currentCategory] means the stable id no longer resolves (archived, renamed,
+     * missing, or duplicated): the model probability is still shown truthfully, but the
+     * row is not selectable. Permanent deletion (S4.11) reuses this same stable-id
+     * invalidation without a new mechanism.
+     */
+    data class ResolvedOption(
+        val categoryId: Long,
+        val snapshotName: String,
+        val probability: Double,
+        val currentCategory: CategoryEntity?,
+    )
+
+    /**
+     * The display-ready distribution: evaluated rows in rank order plus the calibrated
+     * unknown share from the same softmax. [confidence] is the Jev sharpness over that
+     * same vector — a peakedness score, never a per-category accuracy claim.
+     */
+    data class ScoredDistribution(
+        val options: List<ResolvedOption>,
+        val unknownProbability: Double,
+        val confidence: Double,
+    )
 
     sealed interface CurrentResolution {
         data class ActiveCategory(
@@ -71,11 +125,15 @@ object LayaCandidatePlanner {
             val source: SuggestionSource,
             val confidence: Double?,
             val uncertainty: RetrievalUncertainty?,
+            val scores: CategoryScores? = null,
+            val distribution: ScoredDistribution? = null,
         ) : CurrentResolution
 
         data class ManualReview(
             val reason: ManualReason,
             val uncertainty: RetrievalUncertainty?,
+            val scores: CategoryScores? = null,
+            val distribution: ScoredDistribution? = null,
         ) : CurrentResolution
 
         data class StaleCategory(
@@ -290,7 +348,7 @@ object LayaCandidatePlanner {
         is Plan.Model -> error("A model plan needs an inference result")
     }
 
-    /** Calibrates model plans and maps the positional decision; direct plans never invoke inference. */
+    /** Calibrates model plans and maps the full positional distribution; direct plans never invoke inference. */
     fun decide(
         plan: Plan,
         logitsFor: (LayaSequence.Built) -> List<Double>,
@@ -300,12 +358,18 @@ object LayaCandidatePlanner {
             val calibrated = LayaCalibration.decide(logitsFor(plan.built))
             modelDecision(
                 plan = plan,
+                probabilities = calibrated.probabilities,
                 bestIndex = calibrated.bestIndex,
                 confidence = calibrated.confidence,
             )
         }
     }
 
+    /**
+     * Backwards-compatible positional entry kept for callers that only assert the top
+     * category (older tests). It carries no distribution: production inference must use
+     * the full-probability overload so every evaluated row is preserved.
+     */
     fun modelDecision(plan: Plan.Model, bestIndex: Int, confidence: Double): Decision {
         require(confidence in 0.0..1.0) { "confidence must be calibrated in [0, 1]" }
         require(bestIndex in 0..plan.categories.size) { "best index $bestIndex is out of range" }
@@ -322,10 +386,69 @@ object LayaCandidatePlanner {
         )
     }
 
-    /** Resolves by stable id against fresh metadata; renamed, archived, missing, or duplicate ids are stale. */
+    /**
+     * Maps one calibrated softmax over exactly the evaluated options plus the final
+     * unknown slot. The ranked rows preserve the model-returned per-category shares;
+     * subset scope stays in [RetrievalUncertainty] and is never presented as a
+     * full-catalog distribution.
+     */
+    fun modelDecision(
+        plan: Plan.Model,
+        probabilities: List<Double>,
+        bestIndex: Int,
+        confidence: Double,
+    ): Decision {
+        require(confidence in 0.0..1.0) { "confidence must be calibrated in [0, 1]" }
+        require(probabilities.size == plan.categories.size + 1) {
+            "probabilities must cover every evaluated category plus unknown"
+        }
+        require(bestIndex in 0..plan.categories.size) { "best index $bestIndex is out of range" }
+        for (probability in probabilities) {
+            require(probability in 0.0..1.0) { "probability $probability is not calibrated in [0, 1]" }
+        }
+        val ranked = plan.categories.mapIndexed { index, category ->
+            index to ScoredCategory(
+                categoryId = category.id,
+                snapshotName = category.name,
+                probability = probabilities[index],
+            )
+        }.sortedWith(
+            compareByDescending<Pair<Int, ScoredCategory>> { it.second.probability }
+                .thenBy { it.first },
+        ).map { it.second }
+        val scores = CategoryScores(
+            ranked = ranked,
+            unknownProbability = probabilities[plan.categories.size],
+            confidence = confidence,
+        )
+        if (bestIndex == plan.categories.size) {
+            return Decision.Unknown(ManualReason.MODEL_NO_FIT, plan.uncertainty, scores)
+        }
+        val category = plan.categories[bestIndex]
+        return Decision.Category(
+            categoryId = category.id,
+            snapshotName = category.name,
+            source = SuggestionSource.MODEL,
+            confidence = confidence,
+            uncertainty = plan.uncertainty,
+            scores = scores,
+        )
+    }
+
+    /**
+     * Resolves by stable id against fresh metadata; renamed, archived, missing, or
+     * duplicate ids are stale. Model scores always resolve to the display distribution:
+     * valid rows stay selectable, invalid rows stay visible with no selectable category,
+     * and permanent deletion (S4.11) reuses this same invalidation path.
+     */
     fun resolveCurrent(decision: Decision, currentCategories: List<CategoryEntity>): CurrentResolution =
         when (decision) {
-            is Decision.Unknown -> CurrentResolution.ManualReview(decision.reason, decision.uncertainty)
+            is Decision.Unknown -> CurrentResolution.ManualReview(
+                decision.reason,
+                decision.uncertainty,
+                decision.scores,
+                distribution = resolveDistribution(decision.scores, currentCategories),
+            )
             is Decision.Category -> {
                 var current: CategoryEntity? = null
                 var matchCount = 0
@@ -358,10 +481,39 @@ object LayaCandidatePlanner {
                         source = decision.source,
                         confidence = decision.confidence,
                         uncertainty = decision.uncertainty,
+                        scores = decision.scores,
+                        distribution = resolveDistribution(decision.scores, currentCategories),
                     )
                 }
             }
         }
+
+    private fun resolveDistribution(
+        scores: CategoryScores?,
+        currentCategories: List<CategoryEntity>,
+    ): ScoredDistribution? {
+        if (scores == null) return null
+        val byId = HashMap<Long, MutableList<CategoryEntity>>(currentCategories.size * 2 + 1)
+        for (category in currentCategories) {
+            byId.getOrPut(category.id) { ArrayList(2) }.add(category)
+        }
+        val options = scores.ranked.map { scored ->
+            val matches = byId[scored.categoryId].orEmpty()
+            val current = matches.singleOrNull()?.takeUnless { it.archived }
+                ?.takeIf { it.name == scored.snapshotName }
+            ResolvedOption(
+                categoryId = scored.categoryId,
+                snapshotName = scored.snapshotName,
+                probability = scored.probability,
+                currentCategory = current,
+            )
+        }
+        return ScoredDistribution(
+            options = options,
+            unknownProbability = scores.unknownProbability,
+            confidence = scores.confidence,
+        )
+    }
 
     private fun buildSequence(
         tokenizer: LayaTokenizer,
