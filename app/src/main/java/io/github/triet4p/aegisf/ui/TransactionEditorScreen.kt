@@ -17,6 +17,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -940,7 +944,7 @@ private fun ManualSuggestionPanel(
             "Enter a description to request a suggestion. You can still choose a category or " +
                 "save without one."
         ManualCategorySuggestionState.Loading ->
-            "Checking saved exact-description rules before local model inference. Manual " +
+            "Working: checking saved rules, then running the local model if needed. Manual " +
                 "category selection and saving remain available."
         ManualCategorySuggestionState.NoActiveCategories ->
             "No active categories are available. You can save without a category."
@@ -1030,17 +1034,22 @@ private fun ManualSuggestionPanel(
             "No category will be filed for this description unless you pick one. " +
                 "Saving without a category remains available."
     }
-
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = "Category suggestion",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        val busy = state == ManualCategorySuggestionState.LoadingCategories ||
+            state == ManualCategorySuggestionState.Loading
+        if (busy) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
         Text(
             text = status,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
         )
         val uncertainty = when (val current = state) {
             is ManualCategorySuggestionState.Suggested -> current.uncertainty

@@ -16,7 +16,11 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -325,8 +329,8 @@ private fun DraftDetailContent(
         val noteTrimmed = suggestionNote.trim()
         val effectiveInput = draftSuggestionInput(draft, memoText, suggestionNote)
         if (effectiveInput == null) {
-            // A present but non-meaningful note yields null on purpose rather than
-            // falling back to the memo: junk in the note field must not silently
+            // A present but safety-blocked note yields null on purpose rather than
+            // falling back to the memo: a code/OTP in the note field must not silently
             // reuse the bank text. Only a truly empty note defers to the memo state.
             if (noteTrimmed.isEmpty() && trimmed.isEmpty()) {
                 suggestionMachine.waitForDescription()
@@ -683,13 +687,12 @@ private fun DraftDetailContent(
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
-            // Optional suggestion-only English hint. Kept in its own field so typed text
-            // can never concatenate with the stored bank memo: the gate evaluates this
-            // note alone, the keyboard autocomplete inside it cannot poison bank text,
-            // and the note is never written to the draft or the confirmed description.
-            // Autocorrect stays enabled here so the field records what the phone
-            // keyboard actually delivered; the gate simply treats a diacritic note as
-            // non-meaningful and leaves the draft manual.
+            // Optional suggestion-only hint: English works best because the pinned model
+            // is English-first, but any language is tried. Kept in its own field so typed
+            // text can never concatenate with the stored bank memo: the gate evaluates
+            // this note alone, the keyboard autocomplete inside it cannot poison bank
+            // text, and the note is never written to the draft or the confirmed
+            // description. Only OTP/security-like text and reference codes stay manual.
             OutlinedTextField(
                 value = suggestionNote,
                 onValueChange = {
@@ -699,11 +702,11 @@ private fun DraftDetailContent(
                     suggestionNote = it
                     feedback = null
                 },
-                label = { Text("Suggestion note (optional English)") },
+                label = { Text("Suggestion note (optional, English works best)") },
                 placeholder = { Text("For example Monthly rent") },
                 singleLine = true,
                 supportingText = {
-                    Text("Suggestion hint only. It never changes the bank memo or the saved description.")
+                    Text("Hint only, any language is tried. It never changes the bank memo or the saved description.")
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -855,11 +858,9 @@ private fun DraftDetailContent(
 
 /**
  * Bank review keeps the suggestion header visible for every settled machine state.
- * The ordinary bank memo is usually opaque, coded, or non-English, so the gate yields
- * null and the machine rests in Ignored/Waiting; hiding the panel there looks exactly
- * like a missing feature (S4.10-A2 user finding). Only the transient Idle (no request
- * yet, effect still to run) renders nothing. Inference still runs solely for eligible
- * English and never receives codes/OTP.
+ * Only the transient Idle (no request yet, effect still to run) renders nothing.
+ * Inference runs for any non-blank note/memo except narrow OTP/security/reference-code
+ * blocks, and never receives codes/OTP.
  */
 internal fun isBankDraftSuggestionPanelVisible(state: ManualCategorySuggestionState): Boolean =
     state != ManualCategorySuggestionState.Idle
@@ -879,18 +880,19 @@ private fun DraftSuggestionPanel(
     onChooseNoCategory: () -> Unit = {},
 ) {
     if (!isBankDraftSuggestionPanelVisible(state)) return
-    // The ordinary bank memo is usually opaque, coded, or non-English, so the gate
-    // yields null and the machine rests in Ignored/Waiting. Hiding the panel there
-    // looks exactly like a missing feature (S4.10-A2 user finding). Keep the header
-    // and a truthful reason visible instead; inference still runs only for eligible
-    // English and never receives codes/OTP.
+    // The ordinary bank memo is usually opaque or coded, so the gate may yield null
+    // and the machine rests in Ignored/Waiting. Hiding the panel there looks exactly
+    // like a missing feature (S4.10-A2 user finding). Keep the header and a truthful
+    // reason visible instead. Loading states below show indeterminate progress while
+    // the lifecycle opens/verifies the model or runs inference.
     val effectiveInput = draftSuggestionInput(draft, memoText, suggestionNote)
     val noteBlank = suggestionNote.trim().isEmpty()
     val status = when (state) {
         ManualCategorySuggestionState.Idle -> return
         ManualCategorySuggestionState.WaitingForDescription ->
-            "No description to check yet. Enter the description or add a plain English " +
-                "note to request ranked probabilities. The bank memo stays unchanged. " +
+            "No description to check yet. Enter the description or add a suggestion " +
+                "note (English works best; any language is tried) to request ranked " +
+                "probabilities. The bank memo stays unchanged. " +
                 "Manual choice and confirmation stay available."
         ManualCategorySuggestionState.ManuallySelected ->
             "Your category choice stays selected. The suggestion will not replace it " +
@@ -898,14 +900,13 @@ private fun DraftSuggestionPanel(
         ManualCategorySuggestionState.Ignored ->
             if (effectiveInput == null) {
                 if (!noteBlank) {
-                    "That note is not eligible English for the on-device model, so nothing " +
-                        "was sent. The bank memo stays unchanged. Try a plain English note " +
-                        "(for example Monthly rent), or choose a category manually. Nothing " +
+                    "That note was held back for safety (possible code or security " +
+                        "text), so nothing was sent. The bank memo stays unchanged. " +
+                        "Edit the note, or choose a category manually. Nothing " +
                         "is confirmed or saved."
                 } else {
-                    "The bank memo is not eligible English for the on-device model, so nothing " +
-                        "was sent. Add a plain English note to request ranked probabilities, " +
-                        "or choose a category manually. The memo and saved description stay " +
+                    "That text was held back for safety (possible code or security " +
+                        "text), so nothing was sent. The memo and saved description stay " +
                         "unchanged. Nothing is confirmed or saved."
                 }
             } else {
@@ -915,7 +916,7 @@ private fun DraftSuggestionPanel(
         ManualCategorySuggestionState.LoadingCategories ->
             "Loading current categories. Choosing a category or confirming stays available."
         ManualCategorySuggestionState.Loading ->
-            "Checking saved exact-description rules before local model inference. " +
+            "Working: checking saved rules, then running the local model if needed. " +
                 "Choosing a category or confirming stays available."
         ManualCategorySuggestionState.NoActiveCategories ->
             "No active categories are available. Choose No category explicitly to confirm."
@@ -923,9 +924,9 @@ private fun DraftSuggestionPanel(
             "Suggestions follow the description text; manual choice stays available."
         is ManualCategorySuggestionState.Suggested ->
             if (state.distribution != null) {
-                "The model ranked your current categories below from the eligible " +
-                    "input. Pick one to fill the category field, or leave the " +
-                    "field unchanged. Nothing is confirmed or saved."
+                "The model ranked your current categories below from the note or memo text " +
+                    "(English works best; any language is tried). Pick one to fill the " +
+                    "category field, or leave the field unchanged. Nothing is confirmed or saved."
             } else {
                 "The model suggests a current category. It will not change the selected " +
                     "category unless you accept it."
@@ -967,10 +968,16 @@ private fun DraftSuggestionPanel(
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        val busy = state == ManualCategorySuggestionState.LoadingCategories ||
+            state == ManualCategorySuggestionState.Loading
+        if (busy) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
         Text(
             text = status,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
         )
         val uncertainty = when (state) {
             is ManualCategorySuggestionState.Suggested -> state.uncertainty

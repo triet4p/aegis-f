@@ -27,8 +27,8 @@ the caller must use `LayaCandidatePlanner.resolveCurrent` with fresh rows; a mis
 archived, renamed, or duplicate id is rejected as stale. The candidate contract never
 writes or confirms a financial record. S4.6 connects the result to new manual expense
 creation, and S4.8 connects the same review-only path to notification-draft review through
-an English-meaningfulness gate (`BankDraftSuggestion.draftSuggestionInput` / `isMeaningfulEnglishForSuggestion`).
-Host proof is not Compose UI, Android-native inference, or physical-device evidence.
+the bank suggestion input (`BankDraftSuggestion.draftSuggestionInput`, English-preferred
+advisory with narrow OTP/security/reference-code blocks only since S4.10-A3).
 
 ### S4.5 background inference lifecycle
 
@@ -68,19 +68,18 @@ against fresh category rows. **Use suggestion** and **Use remembered category** 
 explicitly change only the category field; **Remember for this description** saves no
 transaction, and **Remove rule** deletes only that normalized description's rule. Rule
 matching is exact apart from case and whitespace normalization; there is no automatic
-learning or fuzzy generalization. Missing/unready models, no-fit results, and stale metadata
-machine: only a meaningful English memo (or an explicit English note typed in the separate
-suggestion field when the stored memo is opaque or unsupported) reaches the saved-rule lookup
-and bounded inference; only the effective input (the note alone when present, otherwise the
-visible memo text) is ever offered and the two are never concatenated. Opaque,
-reference-code, identifier-only, non-English (including unaccented Vietnamese), and
+machine: any non-blank memo or explicit note typed in the separate suggestion field
+(English works best; any language is tried) reaches the saved-rule lookup and bounded
+inference; only the effective input (the note alone when present, otherwise the visible
+memo text) is ever offered and the two are never concatenated. Blank text stays manual;
+only narrow OTP/security-like text and bank reference codes stay manual.
 
 `ManualCategorySuggestionMachineTest` covers explicit acceptance, rule-first/no-inference,
 pattern misses, late rule-result rejection after form/category changes, manual and ignored
 choices, changed descriptions/types/forms, category snapshots, archived-rule fallback,
 unknown/unavailable states, and late/out-of-order completion. `BankDraftSuggestionGateTest`
-(S4.8) covers meaningful-English/opaque/Vietnamese/identifier-only gating, explicit
-English notes on unresolved/unsupported drafts, OTP exclusion, rule precedence, explicit
+covers advisory short/Vietnamese inputs, blank/manual and code/OTP safety blocks,
+explicit notes on unresolved/unsupported drafts, rule precedence, explicit
 acceptance, draft switching, and stale rename/archive handling.
 `RememberedCategoryRulePersistenceTest` covers reopen, exact isolation, stable category
 identity across rename, archive invalidation, explicit removal, and no ledger writes. These

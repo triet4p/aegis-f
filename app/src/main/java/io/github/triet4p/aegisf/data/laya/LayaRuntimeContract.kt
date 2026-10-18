@@ -19,13 +19,14 @@ package io.github.triet4p.aegisf.data.laya
  * serialized session use, and safe release after non-cancellable native calls. S4.6
  * presents review-only suggestions for new expense entry; income, transfers, and
  * correction forms remain manual. S4.8 connects the same review-only path to
- * notification-draft review: only a meaningful English memo (or an explicit English
- * note typed in the separate suggestion field when the stored memo is opaque or
- * unsupported) is offered to the saved rule lookup and model inference. Only the
+ * notification-draft review: any non-blank memo or explicit note typed in the separate
+ * suggestion field is offered to the saved rule lookup and model inference
+ * (English-preferred advisory; the pinned model is English-first and no multilingual
+ * quality is claimed). Only the
  * effective input (the note alone when present, otherwise the visible memo text) is
  * ever offered; the two are never concatenated and the stored memo is never
- * rewritten. Opaque/reference-code/non-English (including unaccented Vietnamese)/
- * identifier-only memos stay manual, and confirmation remains mandatory.
+ * rewritten. Blank text stays manual, and only OTP/security-like text and bank
+ * reference codes stay manual; confirmation remains mandatory.
  *
  * States, in the order the app meets them:
  * - [Missing]: no verified bundle is installed. Manual entry works unchanged; the app

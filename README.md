@@ -189,18 +189,21 @@ The following capabilities are not available yet:
   action, or writes a transaction. Income, transfers, and corrections remain manual.
   Description/type edits, manual category selection, category metadata changes, and leaving the
   form invalidate pending results. S4.8 connects the same review-only path to notification
-  drafts: only a meaningful English memo (or an explicit English note typed in the separate
-  suggestion field when the stored memo is opaque or unsupported) is offered to the saved-rule
-  lookup and bounded model inference, while opaque, reference-code, non-English (including
-  unaccented Vietnamese), or OTP-like memos stay manual. Only the effective input (the note
+  drafts: any non-blank memo or explicit note typed in the separate suggestion field is
+  offered to the saved-rule lookup and bounded model inference (English works best because
+  the pinned model is English-first; any language is tried and no multilingual quality is
+  claimed), while blank text stays manual and only OTP/security-like text and bank
+  reference codes stay manual. Only the effective input (the note
   alone when present, otherwise the visible memo text) is ever offered; the note and the bank
   memo are never concatenated and the stored memo is never rewritten. The draft category field
   changes only on explicit acceptance; confirmation still requires a separate action. Draft
-  review always shows the Category suggestion header once its check settles: an ineligible
-  memo or note explains nothing was sent and points at the separate English note or manual
-  choice, so the ordinary bank path no longer looks like a missing feature. S4.10
+  review always shows the Category suggestion header once its check settles, with an
+  indeterminate progress bar plus truthful busy text while rules/model work runs; manual
+  entry shows the same visible busy state. A safety-blocked
+  memo or note explains nothing was sent, so the ordinary bank path no longer looks like
+  a missing feature. S4.10
   replaces the single-winner display with the model-returned ranked per-category probability
-  distribution plus the same-softmax unknown share in both manual entry and eligible draft
+  distribution plus the same-softmax unknown share in both manual entry and draft
   review: every evaluated active category is listed in descending calibrated probability with
   the overall Jev confidence labeled as sharpness (never a per-category guarantee), unknown
   wins keep all rows selectable, explicit rules and category-name matches still short-circuit

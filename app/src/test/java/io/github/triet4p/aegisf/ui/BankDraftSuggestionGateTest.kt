@@ -17,14 +17,15 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * Consumer-behavior regressions for S4.8 draft-review suggestion gating.
+ * Consumer-behavior regressions for S4.10-A3 draft-review suggestion input.
  *
- * These pin the gates a reviewer would notice going wrong: meaningful parsed English is
- * eligible, opaque/Vietnamese/identifier-only memos stay manual, an explicit English note
- * in the separate suggestion field is evaluated alone and never concatenated with the
- * bank memo (its text never touches stored bank fields), OTP-like text never becomes
- * inference input, rules resolve before inference, and explicit category choice wins
- * over a pending suggestion with no silent confirmation.
+ * English-preferred advisory only: any non-blank note/memo reaches the saved-rule
+ * lookup and bounded inference (including short phrases and Vietnamese text), while
+ * only narrow OTP/security-like text and reference codes stay manual. The explicit
+ * note is evaluated alone and never concatenated with the bank memo (its text never
+ * touches stored bank fields), rules resolve before inference, and explicit category
+ * choice wins over a pending suggestion with no silent confirmation. No multilingual
+ * quality is claimed; unsupported-language quality is a review decision.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -66,43 +67,83 @@ class BankDraftSuggestionGateTest {
     )
 
     @Test
-    fun `meaningful parsed English memo is eligible`() {
-        assertEquals("Lunch at a cafe", draftSuggestionInput(draft(), "Lunch at a cafe"))
-    }
-
-    @Test
-    fun `everyday unseen English expenses are eligible`() {
-        // R2 false negatives: none of these share fixture wording beyond general English,
-        // yet each must reach the lookup/model so it can resolve or return unknown.
-        assertTrue(isMeaningfulEnglishForSuggestion("Electric bill"))
-        assertTrue(isMeaningfulEnglishForSuggestion("Water bill"))
-        assertTrue(isMeaningfulEnglishForSuggestion("Doctor visit"))
-        assertTrue(isMeaningfulEnglishForSuggestion("Dentist checkup"))
-        assertTrue(isMeaningfulEnglishForSuggestion("Flight to Hanoi"))
-        assertTrue(isMeaningfulEnglishForSuggestion("Gym membership"))
-        assertTrue(isMeaningfulEnglishForSuggestion("Internet subscription"))
-        assertTrue(isMeaningfulEnglishForSuggestion("Car repair bill"))
-        assertTrue(isMeaningfulEnglishForSuggestion("Shop ride"))
-        assertEquals("Electric bill", draftSuggestionInput(draft(memo = "Electric bill"), "Electric bill"))
-        assertEquals("Doctor visit", draftSuggestionInput(draft(memo = "Doctor visit"), "Doctor visit"))
-    }
-
-    @Test
-    fun `monthly rent and payment to Alex are eligible English`() {
+    fun `short and Vietnamese inputs reach inference`() {
+        // S4.10-A3: no language/word-list/short-phrase block. These previously
+        // gated inputs must now reach the rule lookup/model (quality stays a review
+        // decision, never a filter).
+        assertEquals("lunch", draftSuggestionInput(draft(memo = "lunch"), "lunch"))
+        assertEquals("buy lunch", draftSuggestionInput(draft(memo = "buy lunch"), "buy lunch"))
+        assertEquals("buy breakfast", draftSuggestionInput(draft(memo = "buy breakfast"), "buy breakfast"))
+        assertEquals("buy", draftSuggestionInput(draft(memo = "buy"), "buy"))
         assertEquals("Monthly rent", draftSuggestionInput(draft(memo = "Monthly rent"), "Monthly rent"))
+        assertEquals("Electric bill", draftSuggestionInput(draft(memo = "Electric bill"), "Electric bill"))
         assertEquals(
-            "Payment to Alex",
-            draftSuggestionInput(draft(memo = "Payment to Alex"), "Payment to Alex"),
+            "an trua",
+            draftSuggestionInput(draft(memo = "an trua"), "an trua"),
         )
+        assertFalse(isBlockedForSuggestionSafety("buy lunch"))
+        assertFalse(isBlockedForSuggestionSafety("an trua"))
     }
 
     @Test
-    fun `english note with amount stays eligible and codes stay manual`() {
-        assertTrue(isMeaningfulEnglishForSuggestion("Lunch at a cafe, 45000 VND"))
-        assertTrue(isMeaningfulEnglishForSuggestion("Monthly rent"))
-        assertFalse(isMeaningfulEnglishForSuggestion("CT DI382K26A0"))
-        assertFalse(isMeaningfulEnglishForSuggestion("T5RYKH8N"))
-        assertNull(draftSuggestionInput(draft(memo = "CT DI382K26A0"), "CT DI382K26A0"))
+    fun `explicit note is evaluated alone and never concatenated`() {
+        val stored = draft(
+            memoState = IntakeFieldState.UNRESOLVED,
+            memo = null,
+            reason = "REDACTED",
+        )
+        assertEquals("buy lunch", draftSuggestionInput(stored, "", "buy lunch"))
+        assertEquals("Monthly rent", draftSuggestionInput(stored, "", "Monthly rent"))
+        assertNull(draftSuggestionInput(stored, ""))
+        assertNull(stored.memo)
+    }
+
+    @Test
+    fun `explicit note on unsupported format reaches inference`() {
+        val stored = draft(
+            memoState = IntakeFieldState.MISSING,
+            memo = null,
+            parseStatus = IntakeParseStatus.UNSUPPORTED_FORMAT,
+        )
+        assertEquals("buy lunch", draftSuggestionInput(stored, "", "buy lunch"))
+        assertEquals("Monthly rent", draftSuggestionInput(stored, "", "Monthly rent"))
+    }
+
+    @Test
+    fun `blank inputs stay manual`() {
+        assertNull(draftSuggestionInput(draft(memo = ""), ""))
+        assertNull(draftSuggestionInput(draft(memo = "   "), "   "))
+    }
+
+    @Test
+    fun `reference codes stay manual even with English words`() {
+        // Addressed-to/transaction-code wrappers around any phrasing must not reach
+        // inference: the codes would otherwise travel to the model as description.
+        assertNull(
+            draftSuggestionInput(
+                draft(memo = "CT DI382K26A0 Lunch at a cafe T5RYKH8N"),
+                "CT DI382K26A0 Lunch at a cafe T5RYKH8N",
+            ),
+        )
+        assertTrue(isBlockedForSuggestionSafety("CT DI382K26A0 Lunch at a cafe T5RYKH8N"))
+        assertTrue(isBlockedForSuggestionSafety("T5RYKH8N"))
+    }
+
+    @Test
+    fun `safety-blocked note never inherits memo text`() {
+        val stored = draft(memo = "CT DI:382K26A0 QR - Thanh toan order 26101719; tai iPay")
+        assertEquals("Monthly rent", draftSuggestionInput(stored, stored.memo.orEmpty(), "Monthly rent"))
+        assertEquals("buy lunch", draftSuggestionInput(stored, stored.memo.orEmpty(), "buy lunch"))
+        // A code-bearing note yields null rather than reusing the bank memo.
+        assertNull(draftSuggestionInput(stored, stored.memo.orEmpty(), "note T5RYKH8N"))
+        assertEquals(stored.memo, "CT DI:382K26A0 QR - Thanh toan order 26101719; tai iPay")
+    }
+
+    @Test
+    fun `otp-like text never becomes inference input`() {
+        assertNull(draftSuggestionInput(draft(memo = "Your OTP is 123456"), "Your OTP is 123456"))
+        assertTrue(isBlockedForSuggestionSafety("Your OTP is 123456"))
+        assertTrue(isBlockedForSuggestionSafety("m\u00E3 otp 123456"))
     }
 
     @Test
@@ -124,124 +165,6 @@ class BankDraftSuggestionGateTest {
         } as io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner.Decision.Category
         assertEquals(1L, decision.categoryId)
     }
-
-    @Test
-    fun `opaque identifier-only memo stays manual`() {
-        assertNull(draftSuggestionInput(draft(memo = "REF#101"), "REF#101"))
-        assertNull(draftSuggestionInput(draft(memo = "AB 12"), "AB 12"))
-        assertNull(draftSuggestionInput(draft(memo = ""), ""))
-        assertNull(draftSuggestionInput(draft(memo = "   "), "   "))
-    }
-
-    @Test
-    fun `Vietnamese memo stays manual`() {
-        assertNull(draftSuggestionInput(draft(memo = "Chuy\u1EC3n ti\u1EC1n \u0103n tr\u01B0a"), "Chuy\u1EC3n ti\u1EC1n \u0103n tr\u01B0a"))
-        assertNull(draftSuggestionInput(draft(memo = "Chuyen tien an trua"), "Chuyen tien an trua"))
-        assertNull(draftSuggestionInput(draft(memo = "Thanh toan tien dien"), "Thanh toan tien dien"))
-        assertFalse(isMeaningfulEnglishForSuggestion("Chuyen tien an trua"))
-        assertFalse(isMeaningfulEnglishForSuggestion("Thanh toan tien dien"))
-    }
-
-    @Test
-    fun `Vietnamese banking memo with a loanword stays manual`() {
-        // R2 false positives: one recognizable English token inside a Vietnamese memo
-        // is not enough to admit the whole memo to the English-first model.
-        assertFalse(isMeaningfulEnglishForSuggestion("Thanh toan VNPay payment don hang 12345"))
-        assertFalse(isMeaningfulEnglishForSuggestion("QR payment tai cua hang"))
-        assertFalse(isMeaningfulEnglishForSuggestion("ShopeePay payment tien com"))
-        assertFalse(isMeaningfulEnglishForSuggestion("Chuyen tien an trua cafe"))
-        assertFalse(isMeaningfulEnglishForSuggestion("Thanh toan tien nha rent"))
-        assertFalse(isMeaningfulEnglishForSuggestion("CK coffee Highlands"))
-        assertNull(
-            draftSuggestionInput(
-                draft(memo = "Thanh toan VNPay payment don hang 12345"),
-                "Thanh toan VNPay payment don hang 12345",
-            ),
-        )
-        assertNull(
-            draftSuggestionInput(
-                draft(memo = "Chuyen tien an trua cafe"),
-                "Chuyen tien an trua cafe",
-            ),
-        )
-    }
-
-    @Test
-    fun `unsupported-language ASCII memo stays manual`() {
-        assertNull(draftSuggestionInput(draft(memo = "Nap tien dien thoai"), "Nap tien dien thoai"))
-        assertNull(draftSuggestionInput(draft(memo = "CK NHANH 123 THANH TOAN"), "CK NHANH 123 THANH TOAN"))
-    }
-
-    @Test
-    fun `bank memo with reference codes stays manual even with English words`() {
-        // Addressed-to/transaction-code wrappers around English phrasing must not reach
-        // inference: the codes would otherwise travel to the model as description.
-        assertNull(
-            draftSuggestionInput(
-                draft(memo = "CT DI382K26A0 Lunch at a cafe T5RYKH8N"),
-                "CT DI382K26A0 Lunch at a cafe T5RYKH8N",
-            ),
-        )
-        assertFalse(isMeaningfulEnglishForSuggestion("CT DI:382K26A0 Lunch at a cafe T5RYKH8N"))
-    }
-
-    @Test
-    fun `explicit English note is evaluated alone and never concatenated`() {
-        val stored = draft(
-            memoState = IntakeFieldState.UNRESOLVED,
-            memo = null,
-            reason = "REDACTED",
-        )
-        assertEquals("Monthly rent", draftSuggestionInput(stored, "", "Monthly rent"))
-        assertNull(draftSuggestionInput(stored, ""))
-        assertNull(stored.memo)
-    }
-
-    @Test
-    fun `explicit English note on unsupported format is eligible`() {
-        val stored = draft(
-            memoState = IntakeFieldState.MISSING,
-            memo = null,
-            parseStatus = IntakeParseStatus.UNSUPPORTED_FORMAT,
-        )
-        assertEquals("Monthly rent", draftSuggestionInput(stored, "", "Monthly rent"))
-        assertNull(draftSuggestionInput(stored, "", "REF#101"))
-    }
-
-    @Test
-    fun `note on stored bank memo never inherits memo text`() {
-        // The R2 failure mode: note typed into a stored-memo draft must stand alone.
-        val stored = draft(memo = "CT DI:382K26A0 QR - Thanh toan order 26101719; tai iPay")
-        assertEquals("Monthly rent", draftSuggestionInput(stored, stored.memo.orEmpty(), "Monthly rent"))
-        assertNull(draftSuggestionInput(stored, stored.memo.orEmpty(), ""))
-        // Junk in the note field suppresses rather than reuses the bank memo.
-        assertNull(draftSuggestionInput(stored, stored.memo.orEmpty(), "xyz 123"))
-        assertFalse(isMeaningfulEnglishForSuggestion("Lunch at a c\u00E0e"))
-        assertNull(draftSuggestionInput(stored, stored.memo.orEmpty(), "Lunch at a c\u00E0e"))
-        assertEquals(stored.memo, "CT DI:382K26A0 QR - Thanh toan order 26101719; tai iPay")
-    }
-
-    @Test
-    fun `autocorrect diacritic note stays manual`() {
-        val stored = draft(memo = "CT DI:382K26A0 QR - Thanh toan order 26101719; tai iPay")
-        assertNull(draftSuggestionInput(stored, stored.memo.orEmpty(), "Lunch at a c\u00E0e, 45000 VND"))
-        assertEquals(stored.memo, "CT DI:382K26A0 QR - Thanh toan order 26101719; tai iPay")
-    }
-
-    @Test
-    fun `narrow example-specific wording stays manual`() {
-        // Words tied only to labeled examples (standup, colleagues) carry no general
-        // evidence, so a note using only them stays reviewable, never forced.
-        assertFalse(isMeaningfulEnglishForSuggestion("Standup celebration downtown"))
-        assertNull(draftSuggestionInput(draft(memo = "Standup celebration downtown"), "Standup celebration downtown"))
-    }
-
-    @Test
-    fun `otp-like text never becomes inference input`() {
-        assertNull(draftSuggestionInput(draft(memo = "Your OTP is 123456"), "Your OTP is 123456"))
-        assertFalse(isMeaningfulEnglishForSuggestion("m\u00E3 otp 123456"))
-    }
-
     @Test
     fun `remembered rule resolves before inference for draft memo`() = runTest {
         val food = category(1L, "Food")
@@ -411,12 +334,13 @@ class BankDraftSuggestionGateTest {
         assertEquals(ManualCategorySuggestionState.Idle, machine.state)
     }
     @Test
-    fun `opaque memo keeps a visible panel state with no inference input`() {
-        // S4.10-A2 user finding: an ordinary opaque bank memo must not silently hide
-        // the whole feature. The gate still yields null (no inference input), while
-        // the review keeps the header visible with a reason and the note path.
+    fun `opaque memo keeps a visible panel state and any note reaches inference`() {
+        // S4.10-A2 visibility: an ordinary opaque memo keeps the header visible.
+        // S4.10-A3 advisory: the note/memo text itself is no longer gated.
         val opaque = draft(memo = "CT DI notes")
-        assertNull(draftSuggestionInput(opaque, "CT DI notes", ""))
+        assertEquals("CT DI notes", draftSuggestionInput(opaque, "CT DI notes", ""))
+        assertEquals("buy lunch", draftSuggestionInput(opaque, "CT DI notes", "buy lunch"))
+        assertEquals("Monthly rent", draftSuggestionInput(opaque, "CT DI notes", "Monthly rent"))
         assertTrue(
             isBankDraftSuggestionPanelVisible(ManualCategorySuggestionState.Ignored),
         )
@@ -429,16 +353,5 @@ class BankDraftSuggestionGateTest {
             isBankDraftSuggestionPanelVisible(ManualCategorySuggestionState.ManuallySelected),
         )
         assertFalse(isBankDraftSuggestionPanelVisible(ManualCategorySuggestionState.Idle))
-    }
-
-    @Test
-    fun `eligible note still reaches inference for an opaque memo`() {
-        // The visible reason above must not replace inference: a qualifying note on an
-        // opaque memo remains the effective input.
-        val opaque = draft(memo = "CT DI notes")
-        assertEquals(
-            "Monthly rent",
-            draftSuggestionInput(opaque, "CT DI notes", "Monthly rent"),
-        )
     }
 }
