@@ -49,7 +49,7 @@ class PendingBankDraftPersistenceTest {
     private fun open(): LedgerDatabase = LedgerDatabase.build(context)
 
     private fun repository(database: LedgerDatabase) = IntakeRepository(
-        draftDao = database.pendingBankDraftDao(),
+        database = database,
         clock = clock,
     )
 
@@ -135,6 +135,7 @@ class PendingBankDraftPersistenceTest {
                 categoryDao = database.categoryDao(),
                 transactionDao = database.transactionDao(),
                 rememberedCategoryRuleDao = database.rememberedCategoryRuleDao(),
+                captureMessageDao = database.captureMessageDao(),
                 clock = clock,
             )
             ledger.addTransaction(

@@ -86,6 +86,7 @@ class LedgerRepository(
     private val categoryDao: CategoryDao,
     private val transactionDao: TransactionDao,
     private val rememberedCategoryRuleDao: RememberedCategoryRuleDao,
+    private val captureMessageDao: CaptureMessageDao,
     private val clock: LedgerClock = SystemLedgerClock,
 ) {
 
@@ -242,6 +243,9 @@ class LedgerRepository(
      * and [TransactionEntity.updatedAtEpochMillis] records when the correction happened; the
      * row keeps its id, its creation time, its confirmation, and its provenance, so a
      * correction never looks like a new record and never changes how the record came to exist.
+
+     * A migrated legacy-description capture is revised in the same transaction, so explicit
+     * correction does not leave an obsolete text copy behind; immutable bank evidence is separate.
      *
      * The category the record already carries may be kept after it has been archived — that
      * link is existing historical attribution — while a different archived category is still
@@ -256,7 +260,7 @@ class LedgerRepository(
             categoryId = correction.categoryId,
             retainedCategoryId = stored.categoryId,
         )
-        transactionDao.update(
+        transactionDao.updateWithLegacyDescription(
             stored.copy(
                 type = correction.type,
                 amountVnd = correction.amountVnd,
@@ -265,13 +269,17 @@ class LedgerRepository(
                 categoryId = correction.categoryId,
                 updatedAtEpochMillis = clock.nowEpochMillis(),
             ),
+            captureMessageDao,
         )
     }
 
-    /** Deletes a stored transaction. Deleting an unknown id is a no-op. */
+    /**
+     * Deletes a transaction and text-clears its migrated legacy description capture in the
+     * same transaction. Deleting an unknown id is a no-op.
+     */
     suspend fun deleteTransaction(transactionId: Long) {
         val stored = transactionDao.findById(transactionId) ?: return
-        transactionDao.delete(stored)
+        transactionDao.deleteWithLegacyDescription(stored, captureMessageDao)
     }
 
     /** Newest first, with the stored id as a stable tie-breaker. */

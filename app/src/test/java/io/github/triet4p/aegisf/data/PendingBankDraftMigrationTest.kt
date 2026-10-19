@@ -70,13 +70,14 @@ class PendingBankDraftMigrationTest {
                 database.categoryDao(),
                 database.transactionDao(),
                 database.rememberedCategoryRuleDao(),
+                database.captureMessageDao(),
                 clock,
             )
             assertEquals(1, ledger.transactions().size)
             assertEquals(45_000L, ledger.transactions().single().amountVnd)
             assertEquals(1, ledger.categories().size)
 
-            val drafts = IntakeRepository(database.pendingBankDraftDao(), clock)
+            val drafts = IntakeRepository(database, clock)
             assertEquals(0, drafts.drafts().size)
             // The table the chain built is the identity table the app writes through: storing a
             // delivery and replaying it leaves exactly one draft.
@@ -120,7 +121,7 @@ class PendingBankDraftMigrationTest {
 
         val database = LedgerDatabase.build(context)
         try {
-            val drafts = IntakeRepository(database.pendingBankDraftDao(), clock)
+            val drafts = IntakeRepository(database, clock)
             val migrated = drafts.drafts().single()
             assertEquals(MIGRATED_DRAFT_ID, migrated.id)
             assertEquals(BANK_PACKAGE, migrated.sourcePackage)
@@ -150,6 +151,7 @@ class PendingBankDraftMigrationTest {
                 database.categoryDao(),
                 database.transactionDao(),
                 database.rememberedCategoryRuleDao(),
+                database.captureMessageDao(),
                 clock,
             )
             assertEquals(1, ledger.transactions().size)
@@ -197,7 +199,7 @@ class PendingBankDraftMigrationTest {
 
             val database = LedgerDatabase.build(context)
             try {
-                val drafts = IntakeRepository(database.pendingBankDraftDao(), clock)
+                val drafts = IntakeRepository(database, clock)
                 val stored = drafts.drafts().sortedBy { it.id }
                 assertEquals(
                     listOf(MIGRATED_DRAFT_ID, LEGACY_LATER_DRAFT_ID),
@@ -215,6 +217,7 @@ class PendingBankDraftMigrationTest {
                     database.categoryDao(),
                     database.transactionDao(),
                     database.rememberedCategoryRuleDao(),
+                    database.captureMessageDao(),
                     clock,
                 )
                 assertEquals(1, ledger.transactions().size)
@@ -261,7 +264,7 @@ class PendingBankDraftMigrationTest {
 
             val database = LedgerDatabase.build(context)
             try {
-                val drafts = IntakeRepository(database.pendingBankDraftDao(), clock)
+                val drafts = IntakeRepository(database, clock)
                 val migrated = drafts.drafts().single()
                 assertEquals(MIGRATED_DRAFT_ID, migrated.id)
                 assertEquals(IntakeReviewStatus.CONFIRMED, migrated.reviewStatus)
@@ -303,6 +306,7 @@ class PendingBankDraftMigrationTest {
                     database.categoryDao(),
                     database.transactionDao(),
                     database.rememberedCategoryRuleDao(),
+                    database.captureMessageDao(),
                     clock,
                 )
                 assertEquals(1, ledger.transactions().size)
@@ -346,11 +350,12 @@ class PendingBankDraftMigrationTest {
 
             val database = LedgerDatabase.build(context)
             try {
-                val storedDraft = IntakeRepository(database.pendingBankDraftDao(), clock).drafts().single()
+                val storedDraft = IntakeRepository(database, clock).drafts().single()
                 val ledger = LedgerRepository(
                     database.categoryDao(),
                     database.transactionDao(),
                     database.rememberedCategoryRuleDao(),
+                    database.captureMessageDao(),
                     clock,
                 )
                 assertEquals(LedgerDatabase.VERSION.toLong(), storedVersion(database))
@@ -365,10 +370,10 @@ class PendingBankDraftMigrationTest {
                 // The post/evidence pair still resolves to the same terminal row after migration.
                 assertEquals(
                     MIGRATED_DRAFT_ID,
-                    IntakeRepository(database.pendingBankDraftDao(), clock)
+                    IntakeRepository(database, clock)
                         .storePermitted(BANK_PACKAGE, FIRST_KEY, POSTED_AT, sample()),
                 )
-                assertEquals(1, IntakeRepository(database.pendingBankDraftDao(), clock).drafts().size)
+                assertEquals(1, IntakeRepository(database, clock).drafts().size)
             } finally {
                 database.close()
             }

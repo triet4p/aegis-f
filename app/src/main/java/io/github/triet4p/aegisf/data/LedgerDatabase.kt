@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
  * The app's only local database: user-defined categories, ledger records, explicit remembered
- * category rules, and bank-notification drafts.
+ * category rules, bank-notification drafts, and versioned source captures.
  *
  * Schema versioning rules for this database:
  *
@@ -33,6 +33,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         TransactionEntity::class,
         PendingBankDraftEntity::class,
         RememberedCategoryRuleEntity::class,
+        CaptureMessageEntity::class,
     ],
     version = LedgerDatabase.VERSION,
     exportSchema = true,
@@ -52,8 +53,11 @@ abstract class LedgerDatabase : RoomDatabase() {
     /** Explicit description-scoped category rules for manual expense entry. */
     abstract fun rememberedCategoryRuleDao(): RememberedCategoryRuleDao
 
+    /** Versioned user captures, manual annotations, and immutable permitted bank evidence refs. */
+    abstract fun captureMessageDao(): CaptureMessageDao
+
     companion object {
-        const val VERSION = 6
+        const val VERSION = 7
 
         /** File name of the on-device database. */
         const val NAME = "aegis-ledger.db"
@@ -287,6 +291,69 @@ abstract class LedgerDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Version 6 to 7: add versioned durable captures without rewriting ledger or draft rows.
+         *
+         * Parsed bank drafts contribute only their already-allowed memo plus a stable local draft
+         * identity. Unsupported drafts are not copied into this source-text table. Existing
+         * transaction descriptions are labeled legacy-origin annotations; the old schema did not
+         * record an annotation capture instant or timezone, so those remain unknown.
+         */
+        val MIGRATION_6_7: Migration = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `capture_messages` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`captureKind` TEXT NOT NULL, " +
+                        "`sourceKind` TEXT NOT NULL, " +
+                        "`sourceIdentity` TEXT NOT NULL, " +
+                        "`bodyText` TEXT, " +
+                        "`capturedAtEpochMillis` INTEGER, " +
+                        "`captureTimezone` TEXT, " +
+                        "`revision` INTEGER NOT NULL, " +
+                        "`originRef` TEXT, " +
+                        "`tombstone` INTEGER NOT NULL)",
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                        "`index_capture_messages_sourceKind_sourceIdentity` " +
+                        "ON `capture_messages` (`sourceKind`, `sourceIdentity`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_capture_messages_originRef` " +
+                        "ON `capture_messages` (`originRef`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS " +
+                        "`index_capture_messages_capturedAtEpochMillis` " +
+                        "ON `capture_messages` (`capturedAtEpochMillis`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS " +
+                        "`index_capture_messages_tombstone_capturedAtEpochMillis` " +
+                        "ON `capture_messages` (`tombstone`, `capturedAtEpochMillis`)",
+                )
+                db.execSQL(
+                    "INSERT INTO `capture_messages` (`captureKind`, `sourceKind`, " +
+                        "`sourceIdentity`, `bodyText`, `capturedAtEpochMillis`, `captureTimezone`, " +
+                        "`revision`, `originRef`, `tombstone`) " +
+                        "SELECT 'BANK_EVIDENCE_REF', 'BANK_NOTIFICATION', " +
+                        "'BANK_DRAFT:' || `id`, " +
+                        "CASE WHEN `memoState` = 'PRESENT' THEN `memo` ELSE NULL END, " +
+                        "`postedAtEpochMillis`, NULL, 0, 'BANK_DRAFT:' || `id`, 0 " +
+                        "FROM `pending_bank_drafts` WHERE `parseStatus` = 'PARSED'",
+                )
+                db.execSQL(
+                    "INSERT INTO `capture_messages` (`captureKind`, `sourceKind`, " +
+                        "`sourceIdentity`, `bodyText`, `capturedAtEpochMillis`, `captureTimezone`, " +
+                        "`revision`, `originRef`, `tombstone`) " +
+                        "SELECT 'MANUAL_ANNOTATION', 'LEGACY_LEDGER_DESCRIPTION', " +
+                        "'legacy-ledger:' || `id`, `description`, NULL, NULL, 0, " +
+                        "'LEDGER_RECORD:' || `id`, 0 FROM `transactions`",
+                )
+            }
+        }
+
         /** Builds the production database on the app's real file directory. */
         fun build(context: Context): LedgerDatabase =
             Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, NAME)
@@ -296,6 +363,7 @@ abstract class LedgerDatabase : RoomDatabase() {
                     MIGRATION_3_4,
                     MIGRATION_4_5,
                     MIGRATION_5_6,
+                    MIGRATION_6_7,
                 )
                 .build()
 

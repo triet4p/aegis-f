@@ -40,7 +40,7 @@ import org.robolectric.annotation.Config
 class InferenceIntakeIndependenceTest {
 
     private class SignalingIntakeRepository(database: LedgerDatabase) :
-        IntakeRepository(database.pendingBankDraftDao()) {
+        IntakeRepository(database) {
         val storedDraft = CompletableDeferred<Long>()
 
         override suspend fun storePermitted(

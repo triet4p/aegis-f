@@ -40,7 +40,7 @@ class BankDraftReviewTest {
     private fun open(): LedgerDatabase = LedgerDatabase.build(context)
 
     private fun intake(database: LedgerDatabase) = IntakeRepository(
-        draftDao = database.pendingBankDraftDao(),
+        database = database,
         clock = clock,
     )
 
@@ -87,6 +87,7 @@ class BankDraftReviewTest {
                 first.categoryDao(),
                 first.transactionDao(),
                 first.rememberedCategoryRuleDao(),
+                first.captureMessageDao(),
                 clock,
             )
             val categoryId = ledger.addCategory("Transport")
@@ -142,6 +143,7 @@ class BankDraftReviewTest {
                     reopened.categoryDao(),
                     reopened.transactionDao(),
                     reopened.rememberedCategoryRuleDao(),
+                    reopened.captureMessageDao(),
                     clock,
                 )
                 val durable = reopenedIntake.drafts().single()
@@ -179,6 +181,7 @@ class BankDraftReviewTest {
                 database.categoryDao(),
                 database.transactionDao(),
                 database.rememberedCategoryRuleDao(),
+                database.captureMessageDao(),
                 clock,
             )
             val categoryId = ledger.addCategory("Shopping")
@@ -245,6 +248,7 @@ class BankDraftReviewTest {
                 database.categoryDao(),
                 database.transactionDao(),
                 database.rememberedCategoryRuleDao(),
+                database.captureMessageDao(),
                 clock,
             )
             val concurrentDraftId = storeSample(database)
@@ -300,6 +304,7 @@ class BankDraftReviewTest {
                 database.categoryDao(),
                 database.transactionDao(),
                 database.rememberedCategoryRuleDao(),
+                database.captureMessageDao(),
                 clock,
             )
             val draftId = intake(database).storePermitted(

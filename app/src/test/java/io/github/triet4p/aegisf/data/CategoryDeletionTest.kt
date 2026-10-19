@@ -46,6 +46,7 @@ class CategoryDeletionTest {
             categoryDao = database.categoryDao(),
             transactionDao = database.transactionDao(),
             rememberedCategoryRuleDao = database.rememberedCategoryRuleDao(),
+            captureMessageDao = database.captureMessageDao(),
             clock = FixedLedgerClock(),
         )
     }

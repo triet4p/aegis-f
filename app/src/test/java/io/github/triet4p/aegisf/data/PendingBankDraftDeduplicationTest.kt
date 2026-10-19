@@ -69,7 +69,7 @@ class PendingBankDraftDeduplicationTest {
     private fun open(): LedgerDatabase = LedgerDatabase.build(context)
 
     private fun repository(database: LedgerDatabase) =
-        IntakeRepository(draftDao = database.pendingBankDraftDao(), clock = clock)
+        IntakeRepository(database = database, clock = clock)
 
     @Test
     fun `an exact callback replay stores one draft and reports the same id`() = runTest {
@@ -311,6 +311,7 @@ class PendingBankDraftDeduplicationTest {
                     categoryDao = database.categoryDao(),
                     transactionDao = database.transactionDao(),
                     rememberedCategoryRuleDao = database.rememberedCategoryRuleDao(),
+                    captureMessageDao = database.captureMessageDao(),
                     clock = clock,
                 )
                 val firstReview = review.confirmDraft(firstId, 0, confirmableEdits("REF#101"))
@@ -356,6 +357,7 @@ class PendingBankDraftDeduplicationTest {
                 categoryDao = database.categoryDao(),
                 transactionDao = database.transactionDao(),
                 rememberedCategoryRuleDao = database.rememberedCategoryRuleDao(),
+                captureMessageDao = database.captureMessageDao(),
                 clock = clock,
             )
             val confirmed = ledger.addTransaction(
@@ -411,6 +413,7 @@ class PendingBankDraftDeduplicationTest {
                 categoryDao = database.categoryDao(),
                 transactionDao = database.transactionDao(),
                 rememberedCategoryRuleDao = database.rememberedCategoryRuleDao(),
+                captureMessageDao = database.captureMessageDao(),
                 clock = clock,
             )
             val confirmed = ledger.addTransaction(
@@ -457,6 +460,7 @@ class PendingBankDraftDeduplicationTest {
                 val ledger = LedgerRepository(
                     categoryDao = database.categoryDao(),
                     rememberedCategoryRuleDao = database.rememberedCategoryRuleDao(),
+                    captureMessageDao = database.captureMessageDao(),
                     transactionDao = database.transactionDao(),
                     clock = clock,
                 )

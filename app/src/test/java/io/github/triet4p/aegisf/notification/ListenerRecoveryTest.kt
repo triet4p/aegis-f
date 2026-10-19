@@ -63,7 +63,7 @@ class ListenerRecoveryTest {
      */
     private class SignalingIntakeRepository(
         database: LedgerDatabase,
-    ) : IntakeRepository(database.pendingBankDraftDao()) {
+    ) : IntakeRepository(database) {
         val stored = kotlinx.coroutines.CompletableDeferred<Long>()
 
         override suspend fun storePermitted(
@@ -188,7 +188,7 @@ class ListenerRecoveryTest {
     @Test
     fun `reconciliation rejects unlisted otp and group posts without storing bodies`() = runTest {
         val database = LedgerDatabase.build(context)
-        val intake = IntakeRepository(database.pendingBankDraftDao())
+        val intake = IntakeRepository(database)
         BankNotificationListener.updateIntakeRepository(intake)
         store.addPackage(bankPackage)
         val active = listOf(
@@ -219,7 +219,7 @@ class ListenerRecoveryTest {
     fun `a disconnect mid reconcile stops further writes without touching drafts`() = runTest {
         val database = LedgerDatabase.build(context)
         val firstStored = kotlinx.coroutines.CompletableDeferred<Long>()
-        val recording = object : IntakeRepository(database.pendingBankDraftDao()) {
+        val recording = object : IntakeRepository(database) {
             override suspend fun storePermitted(
                 sourcePackage: String,
                 notificationKey: String?,
@@ -278,11 +278,11 @@ class ListenerRecoveryTest {
         // A draft persisted before this connect: an active answer the system cannot give must
         // leave the durable drafts exactly as they are — not cleared, not rewritten, and not
         // duplicated by a spurious write.
-        val durableId = IntakeRepository(database.pendingBankDraftDao())
+        val durableId = IntakeRepository(database)
             .storePermitted(bankPackage, ACTIVE_KEY, POSTED_AT, sampleContent())
         val writes = mutableListOf<String>()
         BankNotificationListener.updateIntakeRepository(
-            object : IntakeRepository(database.pendingBankDraftDao()) {
+            object : IntakeRepository(database) {
                 override suspend fun storePermitted(
                     sourcePackage: String,
                     notificationKey: String?,
@@ -314,7 +314,7 @@ class ListenerRecoveryTest {
             advanceUntilIdle()
 
             assertTrue(writes.isEmpty())
-            val drafts = IntakeRepository(database.pendingBankDraftDao()).drafts()
+            val drafts = IntakeRepository(database).drafts()
             assertEquals(1, drafts.size)
             assertEquals(durableId, drafts.single().id)
             assertEquals(ACTIVE_KEY, drafts.single().notificationKey)
@@ -331,14 +331,15 @@ class ListenerRecoveryTest {
     @Test
     fun `a confirmed draft is never reopened by its own re read post`() = runTest {
         val database = LedgerDatabase.build(context)
-        val intake = IntakeRepository(database.pendingBankDraftDao())
+        val intake = IntakeRepository(database)
         val ledger = LedgerRepository(
             database.categoryDao(),
             database.transactionDao(),
             database.rememberedCategoryRuleDao(),
+            database.captureMessageDao(),
         )
         val reconciled = kotlinx.coroutines.CompletableDeferred<Long>()
-        val signaling = object : IntakeRepository(database.pendingBankDraftDao()) {
+        val signaling = object : IntakeRepository(database) {
             override suspend fun storePermitted(
                 sourcePackage: String,
                 notificationKey: String?,
@@ -408,11 +409,12 @@ class ListenerRecoveryTest {
         val draftId: Long
         val transactionId: Long
         try {
-            val intake = IntakeRepository(first.pendingBankDraftDao())
+            val intake = IntakeRepository(first)
             val ledger = LedgerRepository(
                 first.categoryDao(),
                 first.transactionDao(),
                 first.rememberedCategoryRuleDao(),
+                first.captureMessageDao(),
             )
             draftId = intake.storePermitted(bankPackage, ACTIVE_KEY, POSTED_AT, sampleContent())
             transactionId = ledger.addTransaction(
@@ -436,11 +438,12 @@ class ListenerRecoveryTest {
         // recovered, and the still-active delivery resolves to the same row.
         val restarted = LedgerDatabase.build(context)
         try {
-            val intake = IntakeRepository(restarted.pendingBankDraftDao())
+            val intake = IntakeRepository(restarted)
             val ledger = LedgerRepository(
                 restarted.categoryDao(),
                 restarted.transactionDao(),
                 restarted.rememberedCategoryRuleDao(),
+                restarted.captureMessageDao(),
             )
             assertEquals(draftId, intake.drafts().single().id)
             assertEquals(IntakeReviewStatus.CONFIRMED, intake.drafts().single().reviewStatus)

@@ -39,6 +39,7 @@ class AppContainer(context: Context) {
             categoryDao = database.categoryDao(),
             transactionDao = database.transactionDao(),
             rememberedCategoryRuleDao = database.rememberedCategoryRuleDao(),
+            captureMessageDao = database.captureMessageDao(),
         )
     }
     /** Draft corrections, dismissal, and their atomic ledger confirmation transition. */
@@ -49,10 +50,14 @@ class AppContainer(context: Context) {
         )
     }
 
+    /** Explicit persistence API for independently saved user captures and manual annotations. */
+    val captureMessageRepository: CaptureMessageRepository by lazy {
+        CaptureMessageRepository(dao = database.captureMessageDao())
+    }
 
     /** Pending bank-notification drafts: reviewable intake, never ledger records. */
     val intakeRepository: IntakeRepository by lazy {
-        IntakeRepository(draftDao = database.pendingBankDraftDao())
+        IntakeRepository(database = database)
     }
 
     /** The user's bank-notification preferences: access choices, not ledger data. */

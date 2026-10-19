@@ -3,12 +3,18 @@ package io.github.triet4p.aegisf.notification
 import android.app.Notification
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import io.github.triet4p.aegisf.data.CaptureKind
+import io.github.triet4p.aegisf.data.CaptureSourceKind
 import io.github.triet4p.aegisf.data.IntakeDirection
 import io.github.triet4p.aegisf.data.IntakeFieldState
 import io.github.triet4p.aegisf.data.IntakeParseStatus
 import io.github.triet4p.aegisf.data.IntakeRepository
+import io.github.triet4p.aegisf.data.LedgerDatabase
 import io.github.triet4p.aegisf.data.NotificationAccessStore
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -17,6 +23,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -40,11 +47,13 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class NotificationIntakePersistenceTest {
 
-    private class RecordingIntakeRepository : IntakeRepository(
-        draftDao = RecordingDraftDao(),
-    ) {
+    private class RecordingIntakeRepository(
+        val database: LedgerDatabase,
+    ) : IntakeRepository(database) {
+        private val callerThread = Thread.currentThread()
         val storedPackages = mutableListOf<String>()
-        var storedOnTestDispatcher = false
+        var storedOnBackgroundThread = false
+        val stored = CompletableDeferred<Long>()
 
         override suspend fun storePermitted(
             sourcePackage: String,
@@ -52,43 +61,21 @@ class NotificationIntakePersistenceTest {
             postedAtEpochMillis: Long,
             content: PermittedNotificationContent,
         ): Long {
-            // Runs on the listener's ioDispatcher (this test's dispatcher here,
-            // Dispatchers.IO in production), never inline in the main-thread callback:
-            // the callback only launches the write, and flushing the dispatcher runs it.
-            storedOnTestDispatcher = true
+            storedOnBackgroundThread = Thread.currentThread() !== callerThread
             storedPackages += sourcePackage
-            return super.storePermitted(sourcePackage, notificationKey, postedAtEpochMillis, content)
-        }
-    }
-
-    private class RecordingDraftDao : io.github.triet4p.aegisf.data.PendingBankDraftDao() {
-        val rows = mutableListOf<io.github.triet4p.aegisf.data.PendingBankDraftEntity>()
-
-        override suspend fun storedDraftId(deliveryId: String, evidenceDigest: String): Long? =
-            rows.firstOrNull {
-                it.deliveryId == deliveryId && it.evidenceDigest == evidenceDigest
-            }?.id
-
-        override suspend fun earliestDraftWithEvidence(evidenceDigest: String): Long? =
-            rows.filter { it.evidenceDigest == evidenceDigest }.minOfOrNull { it.id }
-
-        override suspend fun insertIgnoringStoredIdentity(
-            draft: io.github.triet4p.aegisf.data.PendingBankDraftEntity,
-        ): Long {
-            if (storedDraftId(draft.deliveryId, draft.evidenceDigest) != null) {
-                return -1L
+            val id = try {
+                super.storePermitted(sourcePackage, notificationKey, postedAtEpochMillis, content)
+            } catch (failure: Throwable) {
+                stored.completeExceptionally(failure)
+                throw failure
             }
-            val stored = draft.copy(id = (rows.maxOfOrNull { it.id } ?: 0L) + 1L)
-            rows += stored
-            return stored.id
+            stored.complete(id)
+            return id
         }
-
-        override suspend fun findById(id: Long) = rows.firstOrNull { it.id == id }
-
-        override suspend fun findAll() = rows.toList()
-
-        override fun observeAll() = kotlinx.coroutines.flow.MutableStateFlow(rows.toList())
     }
+
+    private suspend fun awaitStored(repository: RecordingIntakeRepository): Long =
+        withContext(Dispatchers.IO) { withTimeout(5_000L) { repository.stored.await() } }
 
     private lateinit var context: Context
     private lateinit var store: NotificationAccessStore
@@ -96,6 +83,7 @@ class NotificationIntakePersistenceTest {
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
+        context.deleteDatabase(LedgerDatabase.NAME)
         context.getSharedPreferences(
             NotificationAccessStore.FILE_NAME,
             Context.MODE_PRIVATE,
@@ -115,12 +103,11 @@ class NotificationIntakePersistenceTest {
 
     @Test
     fun `a permitted post persists one parsed draft on the background dispatcher`() = runTest {
-        val dispatcher = StandardTestDispatcher(testScheduler)
         val listener = Robolectric.buildService(BankNotificationListener::class.java)
             .create()
             .get()
-        listener.ioDispatcher = dispatcher
-        val recorder = RecordingIntakeRepository()
+        listener.ioDispatcher = Dispatchers.IO
+        val recorder = RecordingIntakeRepository(LedgerDatabase.build(context))
         BankNotificationListener.updateIntakeRepository(recorder)
 
         try {
@@ -132,22 +119,33 @@ class NotificationIntakePersistenceTest {
             listener.onNotificationPosted(
                 ContentReadProbe(bankPackage, 1, notification(text = vietinBankText)),
             )
-            // The background step runs on the listener's ioDispatcher (this test's
-            // dispatcher), not inline in the callback: flushing it persists the draft.
+            // The callback only launches the IO write; this completion signal follows the
+            // real Room transaction rather than merely draining a test dispatcher.
             advanceUntilIdle()
+            val persistedId = awaitStored(recorder)
 
             assertEquals(listOf(bankPackage), recorder.storedPackages)
-            assertTrue(recorder.storedOnTestDispatcher)
+            assertTrue(recorder.storedOnBackgroundThread)
             val stored = recorder.drafts().single()
+            assertEquals(persistedId, stored.id)
             assertEquals(50_000L, stored.amountVnd)
             assertEquals(IntakeDirection.DEBIT, stored.direction)
             assertEquals("2026-10-16", stored.statedDate)
             assertEquals("07:38", stored.statedTime)
             assertEquals(IntakeFieldState.UNRESOLVED, stored.memoState)
+            val sourceEvidence = recorder.database.captureMessageDao()
+                .findAllIncludingTombstones()
+                .single()
+            assertEquals(CaptureKind.BANK_EVIDENCE_REF, sourceEvidence.captureKind)
+            assertEquals(CaptureSourceKind.BANK_NOTIFICATION, sourceEvidence.sourceKind)
+            assertEquals("BANK_DRAFT:${stored.id}", sourceEvidence.originRef)
+            assertNull(sourceEvidence.bodyText)
+            assertEquals(0, sourceEvidence.revision)
         } finally {
             listener.ioDispatcher = Dispatchers.IO
             listener.onListenerDisconnected()
             advanceUntilIdle()
+            recorder.database.close()
         }
     }
 
@@ -158,7 +156,7 @@ class NotificationIntakePersistenceTest {
             .create()
             .get()
         listener.ioDispatcher = dispatcher
-        val recorder = RecordingIntakeRepository()
+        val recorder = RecordingIntakeRepository(LedgerDatabase.build(context))
         BankNotificationListener.updateIntakeRepository(recorder)
 
         try {
@@ -180,21 +178,22 @@ class NotificationIntakePersistenceTest {
 
             assertTrue(recorder.storedPackages.isEmpty())
             assertEquals(0, unlisted.contentReads())
+            assertTrue(recorder.database.captureMessageDao().findAllIncludingTombstones().isEmpty())
         } finally {
             listener.ioDispatcher = Dispatchers.IO
             listener.onListenerDisconnected()
             advanceUntilIdle()
+            recorder.database.close()
         }
     }
 
     @Test
     fun `an init window post persists after readiness in arrival order`() = runTest {
-        val dispatcher = StandardTestDispatcher(testScheduler)
         val listener = Robolectric.buildService(BankNotificationListener::class.java)
             .create()
             .get()
-        listener.ioDispatcher = dispatcher
-        val recorder = RecordingIntakeRepository()
+        listener.ioDispatcher = Dispatchers.IO
+        val recorder = RecordingIntakeRepository(LedgerDatabase.build(context))
         BankNotificationListener.updateIntakeRepository(recorder)
 
         try {
@@ -209,6 +208,7 @@ class NotificationIntakePersistenceTest {
             assertTrue(recorder.storedPackages.isEmpty())
 
             advanceUntilIdle()
+            awaitStored(recorder)
             assertEquals(bankPackages, BankNotificationListener.allowedPackages)
             assertTrue(recorder.storedPackages == listOf(bankPackage))
             assertTrue(early.contentReads() > 0)
@@ -216,6 +216,7 @@ class NotificationIntakePersistenceTest {
             listener.ioDispatcher = Dispatchers.IO
             listener.onListenerDisconnected()
             advanceUntilIdle()
+            recorder.database.close()
         }
     }
 
@@ -226,7 +227,7 @@ class NotificationIntakePersistenceTest {
             .create()
             .get()
         listener.ioDispatcher = dispatcher
-        val recorder = RecordingIntakeRepository()
+        val recorder = RecordingIntakeRepository(LedgerDatabase.build(context))
         BankNotificationListener.updateIntakeRepository(recorder)
 
         try {
@@ -245,6 +246,7 @@ class NotificationIntakePersistenceTest {
             listener.ioDispatcher = Dispatchers.IO
             listener.onListenerDisconnected()
             advanceUntilIdle()
+            recorder.database.close()
         }
     }
 

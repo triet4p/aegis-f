@@ -31,6 +31,7 @@ class RememberedCategoryRulePersistenceTest {
         categoryDao = database.categoryDao(),
         transactionDao = database.transactionDao(),
         rememberedCategoryRuleDao = database.rememberedCategoryRuleDao(),
+        captureMessageDao = database.captureMessageDao(),
     )
 
     @Test

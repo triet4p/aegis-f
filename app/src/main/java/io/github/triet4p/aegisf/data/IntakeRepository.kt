@@ -1,5 +1,6 @@
 package io.github.triet4p.aegisf.data
 
+import androidx.room.withTransaction
 import io.github.triet4p.aegisf.notification.BankDirection
 import io.github.triet4p.aegisf.notification.BankNotificationParse
 import io.github.triet4p.aegisf.notification.BankSource
@@ -40,9 +41,12 @@ import io.github.triet4p.aegisf.notification.parseBankNotification
  * two similar amounts and moments are one transaction.
  */
 open class IntakeRepository(
-    private val draftDao: PendingBankDraftDao,
+    private val database: LedgerDatabase,
     private val clock: LedgerClock = SystemLedgerClock,
 ) {
+    private val draftDao = database.pendingBankDraftDao()
+    private val captureMessageDao = database.captureMessageDao()
+
     /**
      * Parses [content] deterministically and stores it as a pending draft, returning the id of
      * the draft that represents this delivery.
@@ -68,29 +72,89 @@ open class IntakeRepository(
         content: PermittedNotificationContent,
     ): Long {
         val parsed = parseBankNotification(content)
-        return draftDao.store(
-            PendingBankDraftEntity(
-                deliveryId = draftDeliveryId(sourcePackage, notificationKey, postedAtEpochMillis),
-                sourcePackage = sourcePackage,
-                notificationKey = notificationKey,
-                postedAtEpochMillis = postedAtEpochMillis,
-                bank = parsed.bankName(),
-                parseStatus = parsed.parseStatus(),
-                amountState = parsed.amountField().state(),
-                amountVnd = parsed.amountField().value(),
-                amountUnresolvedReason = parsed.amountField().reasonName(),
-                direction = parsed.bankDirection().toIntakeDirection(),
-                momentState = parsed.momentField().state(),
-                statedDate = parsed.momentField().value()?.date,
-                statedTime = parsed.momentField().value()?.time,
-                momentUnresolvedReason = parsed.momentField().reasonName(),
-                memoState = parsed.memoField().state(),
-                memo = parsed.memoField().value(),
-                memoUnresolvedReason = parsed.memoField().reasonName(),
-                createdAtEpochMillis = clock.nowEpochMillis(),
-            ),
+        val draft = PendingBankDraftEntity(
+            deliveryId = draftDeliveryId(sourcePackage, notificationKey, postedAtEpochMillis),
+            sourcePackage = sourcePackage,
+            notificationKey = notificationKey,
+            postedAtEpochMillis = postedAtEpochMillis,
+            bank = parsed.bankName(),
+            parseStatus = parsed.parseStatus(),
+            amountState = parsed.amountField().state(),
+            amountVnd = parsed.amountField().value(),
+            amountUnresolvedReason = parsed.amountField().reasonName(),
+            direction = parsed.bankDirection().toIntakeDirection(),
+            momentState = parsed.momentField().state(),
+            statedDate = parsed.momentField().value()?.date,
+            statedTime = parsed.momentField().value()?.time,
+            momentUnresolvedReason = parsed.momentField().reasonName(),
+            memoState = parsed.memoField().state(),
+            memo = parsed.memoField().value(),
+            memoUnresolvedReason = parsed.memoField().reasonName(),
+            createdAtEpochMillis = clock.nowEpochMillis(),
         )
+        return database.withTransaction {
+            val draftId = draftDao.store(draft)
+            if (draft.parseStatus == IntakeParseStatus.PARSED) {
+                storeBankEvidenceReference(draftId, draft)
+            }
+            draftId
+        }
     }
+
+    /**
+     * Stores only the parser's permitted memo as bank source text. The draft and its source
+     * reference share one Room transaction so a failed reference write leaves the earlier
+     * database state intact.
+     */
+    private suspend fun storeBankEvidenceReference(
+        draftId: Long,
+        draft: PendingBankDraftEntity,
+    ) {
+        val sourceIdentity = bankEvidenceSourceIdentity(draftId)
+        val expected = CaptureMessageEntity(
+            captureKind = CaptureKind.BANK_EVIDENCE_REF,
+            sourceKind = CaptureSourceKind.BANK_NOTIFICATION,
+            sourceIdentity = sourceIdentity,
+            bodyText = draft.memo.takeIf { draft.memoState == IntakeFieldState.PRESENT },
+            capturedAtEpochMillis = draft.postedAtEpochMillis,
+            captureTimezone = null,
+            revision = 0,
+            originRef = sourceIdentity,
+        )
+        val existing = captureMessageDao.findBySourceIdentity(
+            CaptureSourceKind.BANK_NOTIFICATION,
+            sourceIdentity,
+        )
+        if (existing != null) {
+            check(existing.matchesSourceReference(expected)) {
+                "Bank evidence source identity $sourceIdentity has conflicting stored provenance."
+            }
+            return
+        }
+        val insertedId = captureMessageDao.insert(expected)
+        if (insertedId == -1L) {
+            val raced = captureMessageDao.findBySourceIdentity(
+                CaptureSourceKind.BANK_NOTIFICATION,
+                sourceIdentity,
+            )
+            check(raced != null && raced.matchesSourceReference(expected)) {
+                "Bank evidence source identity $sourceIdentity could not be stored consistently."
+            }
+        }
+    }
+
+    private fun CaptureMessageEntity.matchesSourceReference(
+        expected: CaptureMessageEntity,
+    ): Boolean =
+        captureKind == expected.captureKind &&
+            sourceKind == expected.sourceKind &&
+            sourceIdentity == expected.sourceIdentity &&
+            bodyText == expected.bodyText &&
+            capturedAtEpochMillis == expected.capturedAtEpochMillis &&
+            captureTimezone == expected.captureTimezone &&
+            revision == expected.revision &&
+            originRef == expected.originRef &&
+            tombstone == expected.tombstone
 
     /** All persisted drafts, newest first — what a restarted process recovers. */
     suspend fun drafts(): List<PendingBankDraftEntity> = draftDao.findAll()

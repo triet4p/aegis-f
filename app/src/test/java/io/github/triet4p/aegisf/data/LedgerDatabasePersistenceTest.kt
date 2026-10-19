@@ -57,6 +57,7 @@ class LedgerDatabasePersistenceTest {
                 categoryDao = database.categoryDao(),
                 transactionDao = database.transactionDao(),
                 rememberedCategoryRuleDao = database.rememberedCategoryRuleDao(),
+                captureMessageDao = database.captureMessageDao(),
                 clock = clock,
             ),
         )

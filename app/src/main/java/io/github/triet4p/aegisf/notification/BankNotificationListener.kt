@@ -373,8 +373,9 @@ class BankNotificationListener : NotificationListenerService() {
 
         private fun intakeRepositoryFor(context: android.content.Context) =
             intakeRepository ?: io.github.triet4p.aegisf.data.IntakeRepository(
-                io.github.triet4p.aegisf.data.LedgerDatabase.build(context.applicationContext)
-                    .pendingBankDraftDao(),
+                database = io.github.triet4p.aegisf.data.LedgerDatabase.build(
+                    context.applicationContext,
+                ),
             )
     }
 }
