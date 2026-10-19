@@ -107,7 +107,7 @@ class CaptureMessageMigrationTest {
             assertEquals(-1L, duplicate)
             assertEquals(bankEvidence, database.captureMessageDao().findById(bankEvidence.id))
 
-            val captureRepository = CaptureMessageRepository(database.captureMessageDao())
+            val captureRepository = CaptureMessageRepository(database)
             assertEquals(
                 CaptureMessageWriteResult.ImmutableSource,
                 captureRepository.revise(legacyManual.id, 0, "direct annotation mutation"),

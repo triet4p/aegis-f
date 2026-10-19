@@ -34,6 +34,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         PendingBankDraftEntity::class,
         RememberedCategoryRuleEntity::class,
         CaptureMessageEntity::class,
+        NoteEventEntity::class,
+        ContextLinkEntity::class,
     ],
     version = LedgerDatabase.VERSION,
     exportSchema = true,
@@ -56,8 +58,14 @@ abstract class LedgerDatabase : RoomDatabase() {
     /** Versioned user captures, manual annotations, and immutable permitted bank evidence refs. */
     abstract fun captureMessageDao(): CaptureMessageDao
 
+    /** Interpreted events of a capture, one row per source span. */
+    abstract fun noteEventDao(): NoteEventDao
+
+    /** Proposed, accepted, and refused links between an event and a pending draft. */
+    abstract fun contextLinkDao(): ContextLinkDao
+
     companion object {
-        const val VERSION = 7
+        const val VERSION = 8
 
         /** File name of the on-device database. */
         const val NAME = "aegis-ledger.db"
@@ -354,6 +362,90 @@ abstract class LedgerDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Version 7 to 8: add the event interpretations and their context links.
+         *
+         * The new tables start empty, because version 7 stored no event reading and no link.
+         * Nothing that version 7 already held is rewritten: the captures, their source
+         * identities and revisions, the bank drafts, the categories, the rules, and the
+         * ledger records keep their rows, ids, and values, and the confirmed totals computed
+         * from them are unchanged by the upgrade.
+         */
+        val MIGRATION_7_8: Migration = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `note_events` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`captureId` INTEGER NOT NULL, " +
+                        "`eventIdentity` TEXT NOT NULL, " +
+                        "`spanStart` INTEGER NOT NULL, " +
+                        "`spanEnd` INTEGER NOT NULL, " +
+                        "`normalizedText` TEXT, " +
+                        "`amountVnd` INTEGER, " +
+                        "`merchant` TEXT, " +
+                        "`anchorDate` TEXT, " +
+                        "`anchorTime` TEXT, " +
+                        "`anchorTimezone` TEXT, " +
+                        "`intervalEndDate` TEXT, " +
+                        "`intervalEndTime` TEXT, " +
+                        "`extractionVersion` TEXT NOT NULL, " +
+                        "`unresolvedReason` TEXT, " +
+                        "`status` TEXT NOT NULL, " +
+                        "`revision` INTEGER NOT NULL, " +
+                        "`sourceRevision` INTEGER NOT NULL, " +
+                        "`createdAtEpochMillis` INTEGER NOT NULL, " +
+                        "FOREIGN KEY(`captureId`) REFERENCES `capture_messages`(`id`) " +
+                        "ON UPDATE CASCADE ON DELETE CASCADE)",
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                        "`index_note_events_captureId_eventIdentity` " +
+                        "ON `note_events` (`captureId`, `eventIdentity`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_note_events_captureId` " +
+                        "ON `note_events` (`captureId`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_note_events_status` " +
+                        "ON `note_events` (`status`)",
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `context_links` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`eventId` INTEGER NOT NULL, " +
+                        "`draftId` INTEGER NOT NULL, " +
+                        "`state` TEXT NOT NULL, " +
+                        "`evidence` TEXT, " +
+                        "`revision` INTEGER NOT NULL, " +
+                        "`userOverride` TEXT, " +
+                        "`activeEventId` INTEGER, " +
+                        "`createdAtEpochMillis` INTEGER NOT NULL, " +
+                        "FOREIGN KEY(`eventId`) REFERENCES `note_events`(`id`) " +
+                        "ON UPDATE CASCADE ON DELETE CASCADE, " +
+                        "FOREIGN KEY(`draftId`) REFERENCES `pending_bank_drafts`(`id`) " +
+                        "ON UPDATE CASCADE ON DELETE CASCADE)",
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                        "`index_context_links_eventId_draftId` " +
+                        "ON `context_links` (`eventId`, `draftId`)",
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_context_links_activeEventId` " +
+                        "ON `context_links` (`activeEventId`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_context_links_draftId` " +
+                        "ON `context_links` (`draftId`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_context_links_state` " +
+                        "ON `context_links` (`state`)",
+                )
+            }
+        }
+
         /** Builds the production database on the app's real file directory. */
         fun build(context: Context): LedgerDatabase =
             Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, NAME)
@@ -364,6 +456,7 @@ abstract class LedgerDatabase : RoomDatabase() {
                     MIGRATION_4_5,
                     MIGRATION_5_6,
                     MIGRATION_6_7,
+                    MIGRATION_7_8,
                 )
                 .build()
 

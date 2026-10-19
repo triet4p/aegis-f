@@ -504,7 +504,11 @@ class LedgerDatabasePersistenceTest {
 
         suspend fun awaitLatest(predicate: (List<TransactionEntity>) -> Boolean) {
             withTimeout(15_000) {
-                while (emissions.none(predicate)) {
+                while (true) {
+                    // The collector appends on another thread, so the wait reads a snapshot
+                    // taken under the list's own lock instead of iterating the live list.
+                    val snapshot = synchronized(emissions) { emissions.toList() }
+                    if (snapshot.any(predicate)) return@withTimeout
                     delay(20)
                 }
             }

@@ -192,7 +192,12 @@ class NotificationIntakePersistenceTest {
         val listener = Robolectric.buildService(BankNotificationListener::class.java)
             .create()
             .get()
-        listener.ioDispatcher = Dispatchers.IO
+        // The connect load runs on the test scheduler, like the sibling readiness test: the
+        // post below has to be seen as "not ready yet", and that is only a fact while the
+        // load has not run. On a real thread pool the load can finish first, and the post
+        // would then be a live post that the callback is allowed to read immediately.
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        listener.ioDispatcher = dispatcher
         val recorder = RecordingIntakeRepository(LedgerDatabase.build(context))
         BankNotificationListener.updateIntakeRepository(recorder)
 

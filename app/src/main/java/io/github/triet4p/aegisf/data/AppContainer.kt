@@ -52,7 +52,12 @@ class AppContainer(context: Context) {
 
     /** Explicit persistence API for independently saved user captures and manual annotations. */
     val captureMessageRepository: CaptureMessageRepository by lazy {
-        CaptureMessageRepository(dao = database.captureMessageDao())
+        CaptureMessageRepository(database = database)
+    }
+
+    /** Stored event interpretations of a capture and their proposed, accepted, and refused links. */
+    val eventContextRepository: EventContextRepository by lazy {
+        EventContextRepository(database = database)
     }
 
     /** Pending bank-notification drafts: reviewable intake, never ledger records. */

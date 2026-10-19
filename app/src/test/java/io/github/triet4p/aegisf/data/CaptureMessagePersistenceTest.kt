@@ -34,7 +34,7 @@ class CaptureMessagePersistenceTest {
     private fun open(): LedgerDatabase = LedgerDatabase.build(context)
 
     private fun captures(database: LedgerDatabase) = CaptureMessageRepository(
-        dao = database.captureMessageDao(),
+        database = database,
         clock = clock,
         timezoneId = { CAPTURE_ZONE },
     )
