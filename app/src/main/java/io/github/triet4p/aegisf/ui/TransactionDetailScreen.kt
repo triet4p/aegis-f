@@ -33,6 +33,7 @@ import io.github.triet4p.aegisf.data.CategoryEntity
 import io.github.triet4p.aegisf.data.LedgerRepository
 import io.github.triet4p.aegisf.data.TransactionEntity
 import io.github.triet4p.aegisf.data.VndMoney
+import io.github.triet4p.aegisf.data.WorkflowQueryService
 import kotlinx.coroutines.launch
 
 /**
@@ -53,6 +54,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun TransactionDetailScreen(
     repository: LedgerRepository,
+    queryService: WorkflowQueryService,
     transactionId: Long,
     onEdit: () -> Unit,
     onDeleted: () -> Unit,
@@ -61,13 +63,13 @@ fun TransactionDetailScreen(
 ) {
     var state by remember(transactionId) { mutableStateOf<DetailState>(DetailState.Loading) }
     LaunchedEffect(transactionId) {
-        val record = repository.findTransaction(transactionId)
+        val record = queryService.findLedgerRecord(transactionId)
         state = if (record == null) {
             DetailState.Missing
         } else {
             DetailState.Found(
                 record = record,
-                category = record.categoryId?.let { repository.findCategory(it) },
+                category = record.categoryId?.let { queryService.findCategory(it) },
             )
         }
     }

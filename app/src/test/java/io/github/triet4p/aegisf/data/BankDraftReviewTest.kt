@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import io.github.triet4p.aegisf.notification.PermittedNotificationContent
 import io.github.triet4p.aegisf.ui.ManualDateTime
-import io.github.triet4p.aegisf.ui.summarizeMonthExpenses
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -82,6 +81,7 @@ class BankDraftReviewTest {
         val deviceZone = TimeZone.getTimeZone("Asia/Ho_Chi_Minh")
         TimeZone.setDefault(deviceZone)
         val first = open()
+        val query = WorkflowQueryService(first)
         try {
             val ledger = LedgerRepository(
                 first.categoryDao(),
@@ -94,7 +94,7 @@ class BankDraftReviewTest {
             val intakeRepository = intake(first)
             val reviewRepository = review(first)
             val draftId = storeSample(first)
-            val original = intakeRepository.drafts().single()
+            val original = WorkflowQueryService(first).draftCandidates(ALL_DRAFTS).items.single()
             val corrections = edits(
                 type = TransactionType.EXPENSE,
                 amountText = "60000",
@@ -108,7 +108,7 @@ class BankDraftReviewTest {
 
             assertTrue(result is BankDraftReviewResult.Confirmed)
             val transactionId = (result as BankDraftReviewResult.Confirmed).transactionId
-            val transaction = ledger.findTransaction(transactionId)!!
+            val transaction = query.findLedgerRecord(transactionId)!!
             assertEquals(TransactionType.EXPENSE, transaction.type)
             assertEquals(60_000L, transaction.amountVnd)
             assertEquals(
@@ -120,7 +120,7 @@ class BankDraftReviewTest {
             assertEquals(ConfirmationStatus.CONFIRMED, transaction.confirmation)
             assertEquals(RecordSource.BANK_NOTIFICATION, transaction.source)
 
-            val confirmedDraft = intakeRepository.drafts().single()
+            val confirmedDraft = WorkflowQueryService(first).draftCandidates(ALL_DRAFTS).items.single()
             assertEquals(IntakeReviewStatus.CONFIRMED, confirmedDraft.reviewStatus)
             assertEquals(transactionId, confirmedDraft.confirmedTransactionId)
             assertEquals(original.deliveryId, confirmedDraft.deliveryId)
@@ -133,10 +133,11 @@ class BankDraftReviewTest {
 
             // The exact delivery still identifies the corrected terminal row, not a new draft.
             assertEquals(draftId, storeSample(first))
-            assertEquals(1, ledger.transactions().size)
+            assertEquals(1, query.ledgerRecords(ALL_LEDGER_RECORDS).items.size)
             first.close()
 
             val reopened = open()
+            val reopenedQuery = WorkflowQueryService(reopened)
             try {
                 val reopenedIntake = intake(reopened)
                 val reopenedLedger = LedgerRepository(
@@ -146,21 +147,21 @@ class BankDraftReviewTest {
                     reopened.captureMessageDao(),
                     clock,
                 )
-                val durable = reopenedIntake.drafts().single()
+                val durable = WorkflowQueryService(reopened).draftCandidates(ALL_DRAFTS).items.single()
                 assertEquals(draftId, durable.id)
                 assertEquals(IntakeReviewStatus.CONFIRMED, durable.reviewStatus)
                 assertEquals(transactionId, durable.confirmedTransactionId)
-                assertEquals(1, reopenedLedger.transactions().size)
+                assertEquals(1, reopenedQuery.ledgerRecords(ALL_LEDGER_RECORDS).items.size)
                 assertEquals(draftId, storeSample(reopened))
 
                 // Existing deletion behavior clears only the FK link; terminal replay identity
                 // still prevents the deleted bank-derived record from being recreated.
                 reopenedLedger.deleteTransaction(transactionId)
-                val afterDelete = reopenedIntake.drafts().single()
+                val afterDelete = WorkflowQueryService(reopened).draftCandidates(ALL_DRAFTS).items.single()
                 assertEquals(IntakeReviewStatus.CONFIRMED, afterDelete.reviewStatus)
                 assertNull(afterDelete.confirmedTransactionId)
                 assertEquals(draftId, storeSample(reopened))
-                assertTrue(reopenedLedger.transactions().isEmpty())
+                assertTrue(reopenedQuery.ledgerRecords(ALL_LEDGER_RECORDS).items.isEmpty())
             } finally {
                 reopened.close()
             }
@@ -176,6 +177,7 @@ class BankDraftReviewTest {
         val zone = TimeZone.getTimeZone("Asia/Ho_Chi_Minh")
         TimeZone.setDefault(zone)
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val ledger = LedgerRepository(
                 database.categoryDao(),
@@ -213,7 +215,7 @@ class BankDraftReviewTest {
                 ) is BankDraftReviewResult.Confirmed,
             )
 
-            val transactions = ledger.transactions()
+            val transactions = query.ledgerRecords(ALL_LEDGER_RECORDS).items
             assertEquals(3, transactions.size)
             assertEquals(1, transactions.count { it.type == TransactionType.EXPENSE })
             assertEquals(1, transactions.count { it.type == TransactionType.INCOME })
@@ -223,14 +225,14 @@ class BankDraftReviewTest {
                 ManualDateTime.toEpochMillis("2026-10-16", "07:38", zone),
                 zone,
             )
-            val summary = summarizeMonthExpenses(
+            val summary = summarizeConfirmedSpending(
                 transactions,
                 monthStart,
                 ManualDateTime.nextMonthStartEpochMillis(monthStart, zone),
             )
-            assertEquals(1, summary.expenseCount)
+            assertEquals(1, summary.recordCount)
             assertEquals(50_000L, summary.totalVnd)
-            val reviewedDrafts = drafts.drafts()
+            val reviewedDrafts = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items
             assertEquals(3, reviewedDrafts.count { it.reviewStatus == IntakeReviewStatus.CONFIRMED })
             assertEquals(IntakeFieldState.UNRESOLVED, reviewedDrafts.first { it.id == incomeId }.memoState)
         } finally {
@@ -242,6 +244,7 @@ class BankDraftReviewTest {
     @Test
     fun `concurrent confirm writes one record and dismiss blocks stale confirmation and replay`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val reviewRepository = review(database)
             val ledger = LedgerRepository(
@@ -263,8 +266,8 @@ class BankDraftReviewTest {
             }.awaitAll()
             assertEquals(1, results.count { it is BankDraftReviewResult.Confirmed })
             assertEquals(7, results.count { it == BankDraftReviewResult.AlreadyReviewed })
-            assertEquals(1, ledger.transactions().size)
-            assertEquals(IntakeReviewStatus.CONFIRMED, intake(database).drafts().single().reviewStatus)
+            assertEquals(1, query.ledgerRecords(ALL_LEDGER_RECORDS).items.size)
+            assertEquals(IntakeReviewStatus.CONFIRMED, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.single().reviewStatus)
 
             val dismissedId = storeSample(database, POSTED_AT + 60_000L)
             assertEquals(BankDraftReviewResult.Dismissed, reviewRepository.dismissDraft(dismissedId))
@@ -273,22 +276,22 @@ class BankDraftReviewTest {
                 reviewRepository.confirmDraft(dismissedId, 0, edits(TransactionType.EXPENSE)),
             )
             assertEquals(dismissedId, storeSample(database, POSTED_AT + 60_000L))
-            val dismissed = intake(database).drafts().single { it.id == dismissedId }
+            val dismissed = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.single { it.id == dismissedId }
             assertEquals(IntakeReviewStatus.DISMISSED, dismissed.reviewStatus)
             assertNull(dismissed.confirmedTransactionId)
-            assertEquals(1, ledger.transactions().size)
+            assertEquals(1, query.ledgerRecords(ALL_LEDGER_RECORDS).items.size)
             val monthMoment = ManualDateTime.toEpochMillis(
                 "2026-10-16",
                 "07:38",
                 TimeZone.getDefault(),
             )
             val monthStart = ManualDateTime.monthStartEpochMillis(monthMoment)
-            val summary = summarizeMonthExpenses(
-                ledger.transactions(),
+            val summary = summarizeConfirmedSpending(
+                query.ledgerRecords(ALL_LEDGER_RECORDS).items,
                 monthStart,
                 ManualDateTime.nextMonthStartEpochMillis(monthStart),
             )
-            assertEquals(1, summary.expenseCount)
+            assertEquals(1, summary.recordCount)
             assertEquals(50_000L, summary.totalVnd)
         } finally {
             database.close()
@@ -298,6 +301,7 @@ class BankDraftReviewTest {
     @Test
     fun `missing required values are reported without creating a transaction`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val reviewRepository = review(database)
             val ledger = LedgerRepository(
@@ -342,8 +346,8 @@ class BankDraftReviewTest {
                 ),
                 result,
             )
-            assertTrue(ledger.transactions().isEmpty())
-            assertEquals(IntakeReviewStatus.PENDING, intake(database).drafts().single().reviewStatus)
+            assertTrue(query.ledgerRecords(ALL_LEDGER_RECORDS).items.isEmpty())
+            assertEquals(IntakeReviewStatus.PENDING, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.single().reviewStatus)
 
             val completed = edits(
                 type = TransactionType.INCOME,
@@ -353,7 +357,7 @@ class BankDraftReviewTest {
                 categoryResolved = true,
             )
             assertTrue(reviewRepository.confirmDraft(draftId, 0, completed) is BankDraftReviewResult.Confirmed)
-            assertEquals(1, ledger.transactions().size)
+            assertEquals(1, query.ledgerRecords(ALL_LEDGER_RECORDS).items.size)
         } finally {
             database.close()
         }
@@ -362,12 +366,13 @@ class BankDraftReviewTest {
     @Test
     fun `saved corrections reject stale editors and duplicate link keeps prior review state`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val reviewRepository = review(database)
             val firstId = storeSample(database)
             val laterId = storeSample(database, POSTED_AT + 60_000L)
-            val firstDraft = intake(database).drafts().first { it.id == firstId }
-            val laterDraft = intake(database).drafts().first { it.id == laterId }
+            val firstDraft = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.first { it.id == firstId }
+            val laterDraft = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.first { it.id == laterId }
             assertEquals(firstId, laterDraft.possibleDuplicateOfDraftId)
 
             val firstEdits = edits(TransactionType.EXPENSE)
@@ -385,7 +390,7 @@ class BankDraftReviewTest {
             )
             assertTrue(reviewRepository.confirmDraft(firstId, 1, firstEdits) is BankDraftReviewResult.Confirmed)
 
-            val latest = intake(database).drafts()
+            val latest = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items
             val duplicate = latest.single { it.id == laterId }
             val prior = latest.single { it.id == duplicate.possibleDuplicateOfDraftId }
             assertEquals(IntakeReviewStatus.CONFIRMED, prior.reviewStatus)
@@ -405,7 +410,7 @@ class BankDraftReviewTest {
                 POSTED_AT + 180_000L,
                 sample(amount = "-60,000 VND"),
             )
-            val related = intake(database).drafts()
+            val related = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items
             val dismissedPrior = related.single { it.id == dismissedAnchorId }
             val laterCandidate = related.single { it.id == laterCandidateId }
             assertEquals(dismissedAnchorId, laterCandidate.possibleDuplicateOfDraftId)

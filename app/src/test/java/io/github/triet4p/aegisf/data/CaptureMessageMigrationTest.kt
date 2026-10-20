@@ -31,6 +31,7 @@ class CaptureMessageMigrationTest {
     fun `populated version six migration preserves user data and adds truthful source rows`() = runTest {
         writeVersionSixDatabase()
         val database = LedgerDatabase.build(context)
+        val query = WorkflowQueryService(database)
         try {
             val room = database.openHelper.writableDatabase
             assertEquals(LedgerDatabase.VERSION.toLong(), scalar(room, "PRAGMA user_version"))
@@ -54,7 +55,7 @@ class CaptureMessageMigrationTest {
             assertEquals("Manual description", transactions.getValue(MANUAL_EXPENSE_ID).description)
             assertEquals("Bank-confirmed description", transactions.getValue(BANK_INCOME_ID).description)
 
-            val drafts = IntakeRepository(database).drafts().associateBy { it.id }
+            val drafts = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.associateBy { it.id }
             assertEquals(setOf(PENDING_DRAFT_ID, CONFIRMED_DRAFT_ID, DISMISSED_DRAFT_ID), drafts.keys)
             assertEquals(IntakeReviewStatus.PENDING, drafts.getValue(PENDING_DRAFT_ID).reviewStatus)
             assertEquals(3, drafts.getValue(PENDING_DRAFT_ID).reviewRevision)
@@ -137,7 +138,7 @@ class CaptureMessageMigrationTest {
             assertNull(deletedLegacy.bodyText)
             assertTrue(deletedLegacy.tombstone)
             assertEquals(2, deletedLegacy.revision)
-            assertNull(ledger.findTransaction(MANUAL_EXPENSE_ID))
+            assertNull(query.findLedgerRecord(MANUAL_EXPENSE_ID))
         } finally {
             database.close()
         }
@@ -147,6 +148,7 @@ class CaptureMessageMigrationTest {
     fun `failed version six migration rolls back schema changes and preserves populated rows`() = runTest {
         writeVersionSixDatabase(abortCaptureBackfill = true)
         val database = LedgerDatabase.build(context)
+        val query = WorkflowQueryService(database)
         var failed = false
         try {
             database.openHelper.writableDatabase

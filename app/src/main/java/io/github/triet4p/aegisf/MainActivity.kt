@@ -37,9 +37,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.triet4p.aegisf.data.BankDraftReviewRepository
 import io.github.triet4p.aegisf.data.ClassificationSnapshotRepository
-import io.github.triet4p.aegisf.data.IntakeRepository
 import io.github.triet4p.aegisf.data.LedgerRepository
 import io.github.triet4p.aegisf.data.NotificationAccessStore
+import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.notification.BankNotificationListener
 import io.github.triet4p.aegisf.notification.isNotificationAccessGranted
 import io.github.triet4p.aegisf.ui.BankDraftReviewScreen
@@ -90,8 +90,9 @@ class MainActivity : ComponentActivity() {
         (application as AegisApplication).container.notificationAccessStore
     }
 
-    private val intakeRepository: IntakeRepository by lazy {
-        (application as AegisApplication).container.intakeRepository
+    /** The app's one read surface: the typed, bounded queries the screens read through. */
+    private val workflowQueryService: WorkflowQueryService by lazy {
+        (application as AegisApplication).container.workflowQueryService
     }
 
     private val bankDraftReviewRepository: BankDraftReviewRepository by lazy {
@@ -131,7 +132,7 @@ class MainActivity : ComponentActivity() {
                 }
                 when (val current = destination) {
                     LaunchDestination.Home -> LaunchScreen(
-                        repository = ledgerRepository,
+                        queryService = workflowQueryService,
                         onManageCategories = { destination = LaunchDestination.Categories },
                         onRecordTransaction = { destination = LaunchDestination.NewTransaction },
                         onBrowseTransactions = { destination = LaunchDestination.Transactions },
@@ -150,7 +151,7 @@ class MainActivity : ComponentActivity() {
                     )
 
                     LaunchDestination.BankDraftInbox -> BankDraftReviewScreen(
-                        intakeRepository = intakeRepository,
+                        queryService = workflowQueryService,
                         reviewRepository = bankDraftReviewRepository,
                         ledgerRepository = ledgerRepository,
                         layaInferenceLifecycle = layaInferenceLifecycle,
@@ -161,7 +162,7 @@ class MainActivity : ComponentActivity() {
                     )
 
                     is LaunchDestination.BankDraftDetail -> BankDraftReviewScreen(
-                        intakeRepository = intakeRepository,
+                        queryService = workflowQueryService,
                         reviewRepository = bankDraftReviewRepository,
                         ledgerRepository = ledgerRepository,
                         layaInferenceLifecycle = layaInferenceLifecycle,
@@ -173,11 +174,12 @@ class MainActivity : ComponentActivity() {
 
                     LaunchDestination.Categories -> CategoryManagerScreen(
                         repository = ledgerRepository,
+                        queryService = workflowQueryService,
                         onNavigateUp = { destination = LaunchDestination.Home },
                     )
 
                     LaunchDestination.Transactions -> TransactionListScreen(
-                        repository = ledgerRepository,
+                        queryService = workflowQueryService,
                         filters = transactionFilters,
                         onFiltersChange = { transactionFilters = it },
                         filtersExpanded = transactionFiltersExpanded,
@@ -188,12 +190,14 @@ class MainActivity : ComponentActivity() {
 
                     LaunchDestination.NewTransaction -> TransactionEditorScreen(
                         repository = ledgerRepository,
+                        queryService = workflowQueryService,
                         layaInferenceLifecycle = layaInferenceLifecycle,
                         transactionId = null,
                         onNavigateUp = { destination = LaunchDestination.Home },
                     )
                     is LaunchDestination.Detail -> TransactionDetailScreen(
                         repository = ledgerRepository,
+                        queryService = workflowQueryService,
                         transactionId = current.transactionId,
                         onEdit = { destination = LaunchDestination.Edit(current.transactionId) },
                         onDeleted = { destination = LaunchDestination.Transactions },
@@ -202,6 +206,7 @@ class MainActivity : ComponentActivity() {
 
                     is LaunchDestination.Edit -> TransactionEditorScreen(
                         repository = ledgerRepository,
+                        queryService = workflowQueryService,
                         layaInferenceLifecycle = layaInferenceLifecycle,
                         transactionId = current.transactionId,
                         // A saved correction and a cancelled one both lead back to the detail
@@ -255,13 +260,13 @@ private fun AegisTheme(content: @Composable () -> Unit) {
  * The home screen: the current month's confirmed spending, then the ways into recording,
  * browsing, reviewing bank drafts, and categorising.
  *
- * The summary reads the ledger itself through [repository], so it appears before any other
- * action is taken and is refreshed by the same live stream every other screen uses. Nothing
- * on this screen writes to the ledger.
+ * The summary reads the ledger itself through the shared confirmed-ledger aggregate, so it
+ * appears before any other action is taken and is refreshed by the same live read every
+ * other screen uses. Nothing on this screen writes to the ledger.
  */
 @Composable
 private fun LaunchScreen(
-    repository: LedgerRepository,
+    queryService: WorkflowQueryService,
     onManageCategories: () -> Unit,
     onRecordTransaction: () -> Unit,
     onBrowseTransactions: () -> Unit,
@@ -297,7 +302,7 @@ private fun LaunchScreen(
 
             // The month's own figure, above every action: it is what the user came to check,
             // and it counts the whole ledger rather than anything a browsing filter selects.
-            CurrentMonthExpenseSummary(repository = repository)
+            CurrentMonthExpenseSummary(queryService = queryService)
 
             Surface(
                 modifier = Modifier.fillMaxWidth(),

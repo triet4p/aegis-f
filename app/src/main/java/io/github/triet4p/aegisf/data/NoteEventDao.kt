@@ -27,6 +27,26 @@ abstract class NoteEventDao {
     @Query("SELECT * FROM note_events WHERE captureId = :captureId ORDER BY spanStart, id")
     abstract suspend fun findForCapture(captureId: Long): List<NoteEventEntity>
 
+    /**
+     * A bounded page of the stored readings.
+     *
+     * [captureId] narrows the read to one capture and [status] to one interpretation
+     * state; both are open when they are null. The order is the capture, then the source
+     * span, then the stored id, so a reading always keeps its place inside its capture.
+     */
+    @Query(
+        "SELECT * FROM note_events WHERE " +
+            "(:captureId IS NULL OR captureId = :captureId) AND " +
+            "(:status IS NULL OR status = :status) " +
+            "ORDER BY captureId ASC, spanStart ASC, id ASC LIMIT :limit OFFSET :offset",
+    )
+    abstract suspend fun findPage(
+        captureId: Long?,
+        status: String?,
+        limit: Int,
+        offset: Int,
+    ): List<NoteEventEntity>
+
     @Query(
         "SELECT * FROM note_events WHERE captureId = :captureId AND eventIdentity = :eventIdentity " +
             "LIMIT 1",

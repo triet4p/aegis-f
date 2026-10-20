@@ -52,7 +52,7 @@ class RememberedCategoryRulePersistenceTest {
             assertNull(
                 firstRepository.findRememberedCategoryForDescription("Synthetic cafe Pattern!"),
             )
-            assertTrue(firstRepository.transactions().isEmpty())
+            assertTrue(WorkflowQueryService(first).ledgerRecords(ALL_LEDGER_RECORDS).items.isEmpty())
         } finally {
             first.close()
         }
@@ -109,7 +109,7 @@ class RememberedCategoryRulePersistenceTest {
                     "Synthetic cafe Pattern",
                 ),
             )
-            assertTrue(reopenedRepository.transactions().isEmpty())
+            assertTrue(WorkflowQueryService(reopened).ledgerRecords(ALL_LEDGER_RECORDS).items.isEmpty())
         } finally {
             reopened.close()
         }
@@ -133,7 +133,7 @@ class RememberedCategoryRulePersistenceTest {
                     repository.findRememberedCategoryForDescription("Synthetic pattern"),
                 )
             }
-            assertTrue(repository.transactions().isEmpty())
+            assertTrue(WorkflowQueryService(database).ledgerRecords(ALL_LEDGER_RECORDS).items.isEmpty())
         } finally {
             database.close()
         }

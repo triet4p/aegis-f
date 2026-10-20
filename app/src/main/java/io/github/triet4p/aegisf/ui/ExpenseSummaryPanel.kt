@@ -26,10 +26,12 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import io.github.triet4p.aegisf.data.CategoryEntity
-import io.github.triet4p.aegisf.data.LedgerRepository
-import io.github.triet4p.aegisf.data.TransactionEntity
+import io.github.triet4p.aegisf.data.LedgerAggregate
+import io.github.triet4p.aegisf.data.LedgerCategorySpending
+import io.github.triet4p.aegisf.data.LedgerDateRange
+import io.github.triet4p.aegisf.data.LedgerSpending
 import io.github.triet4p.aegisf.data.VndMoney
+import io.github.triet4p.aegisf.data.WorkflowQueryService
 import kotlinx.coroutines.delay
 import java.util.TimeZone
 
@@ -37,10 +39,13 @@ import java.util.TimeZone
  * This calendar month's confirmed spending, on the home screen: the exact whole-dong total
  * and one row per category it is made of.
  *
- * The panel reads the same live Room streams as the rest of the app — the stored records and
- * the stored categories — so saving, correcting, or deleting a record anywhere changes the
- * total and the breakdown on its own, and closing and reopening the app shows the same
- * figures because they are derived from the same database file.
+ * The panel reads the shared confirmed-ledger aggregate of the same database file every
+ * launch opens, so saving, correcting, or deleting a record anywhere changes the total and
+ * the breakdown on its own, and closing and reopening the app shows the same figures
+ * because they are derived from the same stored records. The figure itself is the shared
+ * aggregate, not a second summary of its own: the same exact whole-dong total, the same
+ * exclusion of income, transfers, and drafts, and the same category breakdown every other
+ * reader of the ledger gets.
  *
  * The month is the device-local calendar month from [ManualDateTime], the same zone the
  * editor writes dates in, and the panel names it (`October 2026`) so the figure is never
@@ -60,18 +65,9 @@ import java.util.TimeZone
  */
 @Composable
 fun CurrentMonthExpenseSummary(
-    repository: LedgerRepository,
+    queryService: WorkflowQueryService,
     modifier: Modifier = Modifier,
 ) {
-    // Hoisted so each collected flow has a stable identity: building one on every
-    // recomposition would restart the collection (and blank the figures) each time.
-    val transactionFlow = remember(repository) { repository.observeTransactions() }
-    val categoryFlow = remember(repository) { repository.observeCategories() }
-    // Null until the first emission: it distinguishes "still reading the ledger" from
-    // "this month really has nothing in it".
-    val records: List<TransactionEntity>? by transactionFlow.collectAsState(initial = null)
-    val categories: List<CategoryEntity>? by categoryFlow.collectAsState(initial = null)
-
     // The month on screen is a snapshot of the device clock and the device's zone, taken
     // together so the heading, the range, and the records can never come from different
     // readings of either. It is re-taken when the screen resumes — an app that spent time in
@@ -95,20 +91,29 @@ fun CurrentMonthExpenseSummary(
         shownMonth = ShownMonth.read()
     }
 
-    val summary = remember(records, shownMonth) {
-        summarizeMonthExpenses(
-            records = records.orEmpty(),
-            monthStartEpochMillis = shownMonth.startEpochMillis,
-            monthEndExclusiveEpochMillis = shownMonth.endExclusiveEpochMillis,
+    // The figure is the shared confirmed-ledger aggregate of the shown month: the same
+    // exact whole-dong sum, the same exclusion of income, transfers, and drafts, and the
+    // same category breakdown every other reader of the ledger gets. Hoisted so the
+    // collected stream has a stable identity: building one on every recomposition would
+    // restart the collection and blank the figures each time.
+    val range = remember(shownMonth) {
+        LedgerDateRange.closed(
+            fromEpochMillis = shownMonth.startEpochMillis,
+            throughExclusiveEpochMillis = shownMonth.endExclusiveEpochMillis,
+            zoneId = shownMonth.zoneId,
         )
     }
-    val categoriesById = remember(categories) { categories.orEmpty().associateBy { it.id } }
+    val aggregateFlow = remember(queryService, range) {
+        queryService.observeConfirmedLedgerAggregate(range)
+    }
+    // Null until the first emission: it distinguishes "still reading the ledger" from
+    // "this month really has nothing in it".
+    val aggregate: LedgerAggregate? by aggregateFlow.collectAsState(initial = null)
 
     ExpenseSummaryCard(
         monthLabel = shownMonth.label,
-        summary = summary,
-        categoriesById = categoriesById,
-        loaded = records != null,
+        summary = aggregate?.spending,
+        loaded = aggregate != null,
         modifier = modifier,
     )
 }
@@ -123,6 +128,7 @@ fun CurrentMonthExpenseSummary(
 private data class ShownMonth(
     val startEpochMillis: Long,
     val endExclusiveEpochMillis: Long,
+    val zoneId: String,
     val label: String,
 ) {
     companion object {
@@ -134,6 +140,7 @@ private data class ShownMonth(
             return ShownMonth(
                 startEpochMillis = startEpochMillis,
                 endExclusiveEpochMillis = ManualDateTime.nextMonthStartEpochMillis(startEpochMillis, zone),
+                zoneId = zone.id,
                 label = ManualDateTime.monthFieldText(startEpochMillis, zone),
             )
         }
@@ -149,8 +156,7 @@ private data class ShownMonth(
 @Composable
 private fun ExpenseSummaryCard(
     monthLabel: String,
-    summary: ExpenseSummary,
-    categoriesById: Map<Long, CategoryEntity>,
+    summary: LedgerSpending?,
     loaded: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -182,13 +188,13 @@ private fun ExpenseSummaryCard(
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
 
-                summary.expenseCount == 0 -> Text(
+                summary == null || summary.recordCount == 0 -> Text(
                     text = "No confirmed expenses this month.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
 
-                else -> ExpenseSummaryFigures(summary = summary, categoriesById = categoriesById)
+                else -> ExpenseSummaryFigures(summary = summary)
             }
             Text(
                 text = "Confirmed expenses only. Income, internal transfers, and drafts are " +
@@ -203,8 +209,7 @@ private fun ExpenseSummaryCard(
 
 @Composable
 private fun ExpenseSummaryFigures(
-    summary: ExpenseSummary,
-    categoriesById: Map<Long, CategoryEntity>,
+    summary: LedgerSpending,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -217,18 +222,18 @@ private fun ExpenseSummaryFigures(
             color = MaterialTheme.colorScheme.onPrimaryContainer,
         )
         Text(
-            text = amountText(summary.totalVnd, summary.totalOverflowed),
+            text = amountText(summary.totalVnd, summary.overflowed),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onPrimaryContainer,
         )
     }
     Text(
-        text = expenseCountLabel(summary.expenseCount),
+        text = expenseCountLabel(summary.recordCount),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onPrimaryContainer,
     )
-    if (summary.totalOverflowed) {
+    if (summary.overflowed) {
         Text(
             text = "This month's total passed the largest whole-dong value. The amount above " +
                 "is a guaranteed lower bound, not the exact total.",
@@ -239,10 +244,24 @@ private fun ExpenseSummaryFigures(
     HorizontalDivider(color = MaterialTheme.colorScheme.outline)
     summary.categoryTotals.forEach { bucket ->
         DetailRow(
-            label = categoryLabel(bucket.categoryId?.let { categoriesById[it] }),
+            label = bucketLabel(bucket),
             value = amountText(bucket.totalVnd, bucket.overflowed),
         )
     }
+}
+
+/**
+ * The category a spending bucket is filed under, as shown on screen.
+ *
+ * An archived category is named as archived rather than hidden, because the records filed
+ * under it keep it; a bucket with no category is spending filed under no category, which is
+ * a bucket of its own and is never merged into a named one.
+ */
+private fun bucketLabel(bucket: LedgerCategorySpending): String = when {
+    bucket.categoryId == null -> "No category"
+    bucket.categoryName == null -> "Unknown category"
+    bucket.categoryArchived -> "${bucket.categoryName} (archived)"
+    else -> bucket.categoryName
 }
 
 /** "1 confirmed expense" / "N confirmed expenses" — what the total above is made of. */

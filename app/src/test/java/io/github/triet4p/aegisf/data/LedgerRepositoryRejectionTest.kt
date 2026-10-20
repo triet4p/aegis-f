@@ -27,12 +27,14 @@ class LedgerRepositoryRejectionTest {
 
     private lateinit var context: Context
     private lateinit var repository: LedgerRepository
+    private lateinit var query: WorkflowQueryService
 
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
         context.deleteDatabase(LedgerDatabase.NAME)
         val database = LedgerDatabase.build(context)
+        query = WorkflowQueryService(database)
         repository = LedgerRepository(
             categoryDao = database.categoryDao(),
             transactionDao = database.transactionDao(),
@@ -75,7 +77,7 @@ class LedgerRepositoryRejectionTest {
             )
         }
 
-        assertTrue(repository.transactions().isEmpty())
+        assertTrue(query.ledgerRecords(ALL_LEDGER_RECORDS).items.isEmpty())
     }
 
     @Test
@@ -89,7 +91,7 @@ class LedgerRepositoryRejectionTest {
             ),
         )
 
-        assertEquals(1L, repository.findTransaction(id)!!.amountVnd)
+        assertEquals(1L, query.findLedgerRecord(id)!!.amountVnd)
     }
 
     @Test
@@ -103,7 +105,7 @@ class LedgerRepositoryRejectionTest {
             ),
         )
 
-        assertEquals(Long.MAX_VALUE, repository.findTransaction(id)!!.amountVnd)
+        assertEquals(Long.MAX_VALUE, query.findLedgerRecord(id)!!.amountVnd)
     }
 
     @Test
@@ -122,7 +124,7 @@ class LedgerRepositoryRejectionTest {
             )
         }
 
-        assertTrue(repository.transactions().isEmpty())
+        assertTrue(query.ledgerRecords(ALL_LEDGER_RECORDS).items.isEmpty())
     }
 
     @Test
@@ -139,7 +141,7 @@ class LedgerRepositoryRejectionTest {
             )
         }
 
-        assertTrue(repository.transactions().isEmpty())
+        assertTrue(query.ledgerRecords(ALL_LEDGER_RECORDS).items.isEmpty())
     }
 
     @Test
@@ -151,8 +153,8 @@ class LedgerRepositoryRejectionTest {
         // Case differences are the same name for assignment purposes.
         expectRejection { repository.addCategory(" food ") }
 
-        assertEquals(listOf(food), repository.categories().map { it.id })
-        assertEquals("Food", repository.findCategory(food)!!.name)
+        assertEquals(listOf(food), query.categories(ALL_CATEGORIES).items.map { it.id })
+        assertEquals("Food", query.findCategory(food)!!.name)
     }
 
     @Test
@@ -162,12 +164,12 @@ class LedgerRepositoryRejectionTest {
 
         expectRejection { repository.renameCategory(rent, "food") }
 
-        assertEquals("Rent", repository.findCategory(rent)!!.name)
-        assertEquals(listOf(food, rent).sorted(), repository.categories().map { it.id }.sorted())
+        assertEquals("Rent", query.findCategory(rent)!!.name)
+        assertEquals(listOf(food, rent).sorted(), query.categories(ALL_CATEGORIES).items.map { it.id }.sorted())
 
         // Renaming to the category's own name is allowed and changes nothing.
         repository.renameCategory(rent, "Rent")
-        assertEquals("Rent", repository.findCategory(rent)!!.name)
+        assertEquals("Rent", query.findCategory(rent)!!.name)
     }
 
     @Test
@@ -175,14 +177,14 @@ class LedgerRepositoryRejectionTest {
         val food = repository.addCategory("Food")
         repository.archiveCategory(food)
 
-        assertEquals(listOf(food), repository.categories().map { it.id })
-        assertTrue(repository.findCategory(food)!!.archived)
+        assertEquals(listOf(food), query.categories(ALL_CATEGORIES).items.map { it.id })
+        assertTrue(query.findCategory(food)!!.archived)
 
         // The archived name becomes free again for a brand-new category.
         val newFood = repository.addCategory("Food")
-        assertFalse(repository.findCategory(newFood)!!.archived)
-        assertEquals(2, repository.categories().size)
-        assertEquals(listOf(newFood), repository.assignableCategories().filter { it.name == "Food" }.map { it.id })
+        assertFalse(query.findCategory(newFood)!!.archived)
+        assertEquals(2, query.categories(ALL_CATEGORIES).items.size)
+        assertEquals(listOf(newFood), query.categories(ALL_ASSIGNABLE_CATEGORIES).items.filter { it.name == "Food" }.map { it.id })
     }
 
     @Test
@@ -203,11 +205,11 @@ class LedgerRepositoryRejectionTest {
         // The record keeps its amount and description and only loses the category link; the
         // category row is gone, and a second delete of the same id is refused.
         assertEquals(1, impact.uncategorizedTransactionCount)
-        val stored = repository.findTransaction(lunch)!!
+        val stored = query.findLedgerRecord(lunch)!!
         assertEquals(45_000L, stored.amountVnd)
         assertEquals("Lunch", stored.description)
         assertNull(stored.categoryId)
-        assertNull(repository.findCategory(food))
+        assertNull(query.findCategory(food))
         expectRejection { repository.deleteCategory(food) }
     }
 
@@ -227,8 +229,8 @@ class LedgerRepositoryRejectionTest {
         repository.archiveCategory(food)
 
         // The record is still readable under the archived category.
-        assertEquals(food, repository.findTransaction(lunch)!!.categoryId)
-        assertTrue(repository.categories().none { !it.archived && it.id == food })
+        assertEquals(food, query.findLedgerRecord(lunch)!!.categoryId)
+        assertTrue(query.categories(ALL_CATEGORIES).items.none { !it.archived && it.id == food })
     }
 
     @Test
@@ -245,7 +247,7 @@ class LedgerRepositoryRejectionTest {
             ),
         )
         repository.archiveCategory(snacks)
-        val storedBefore = repository.findTransaction(lunch)!!
+        val storedBefore = query.findLedgerRecord(lunch)!!
 
         // Zero, a categorised transfer, and an archived category this record is not filed
         // under are all refused before anything reaches the database.
@@ -285,7 +287,7 @@ class LedgerRepositoryRejectionTest {
             )
         }
 
-        assertEquals(storedBefore, repository.findTransaction(lunch))
+        assertEquals(storedBefore, query.findLedgerRecord(lunch))
     }
 
     @Test
@@ -305,8 +307,8 @@ class LedgerRepositoryRejectionTest {
         expectRejection { repository.archiveCategory(9_999L) }
         expectRejection { repository.deleteCategory(9_999L) }
 
-        assertTrue(repository.transactions().isEmpty())
-        assertTrue(repository.categories().isEmpty())
+        assertTrue(query.ledgerRecords(ALL_LEDGER_RECORDS).items.isEmpty())
+        assertTrue(query.categories(ALL_CATEGORIES).items.isEmpty())
     }
 
     private suspend fun expectRejection(write: suspend () -> Unit): LedgerValidationException =

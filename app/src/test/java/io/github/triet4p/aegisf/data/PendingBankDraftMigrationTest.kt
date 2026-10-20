@@ -65,6 +65,7 @@ class PendingBankDraftMigrationTest {
         }
 
         val database = LedgerDatabase.build(context)
+        val query = WorkflowQueryService(database)
         try {
             val ledger = LedgerRepository(
                 database.categoryDao(),
@@ -73,18 +74,18 @@ class PendingBankDraftMigrationTest {
                 database.captureMessageDao(),
                 clock,
             )
-            assertEquals(1, ledger.transactions().size)
-            assertEquals(45_000L, ledger.transactions().single().amountVnd)
-            assertEquals(1, ledger.categories().size)
+            assertEquals(1, query.ledgerRecords(ALL_LEDGER_RECORDS).items.size)
+            assertEquals(45_000L, query.ledgerRecords(ALL_LEDGER_RECORDS).items.single().amountVnd)
+            assertEquals(1, query.categories(ALL_CATEGORIES).items.size)
 
             val drafts = IntakeRepository(database, clock)
-            assertEquals(0, drafts.drafts().size)
+            assertEquals(0, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.size)
             // The table the chain built is the identity table the app writes through: storing a
             // delivery and replaying it leaves exactly one draft.
             val stored = drafts.storePermitted(BANK_PACKAGE, FIRST_KEY, POSTED_AT, sample())
             val replay = drafts.storePermitted(BANK_PACKAGE, FIRST_KEY, POSTED_AT, sample())
             assertEquals(stored, replay)
-            assertEquals(1, drafts.drafts().size)
+            assertEquals(1, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.size)
             assertEquals(LedgerDatabase.VERSION.toLong(), storedVersion(database))
         } finally {
             database.close()
@@ -120,9 +121,10 @@ class PendingBankDraftMigrationTest {
         }
 
         val database = LedgerDatabase.build(context)
+        val query = WorkflowQueryService(database)
         try {
             val drafts = IntakeRepository(database, clock)
-            val migrated = drafts.drafts().single()
+            val migrated = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.single()
             assertEquals(MIGRATED_DRAFT_ID, migrated.id)
             assertEquals(BANK_PACKAGE, migrated.sourcePackage)
             assertEquals(FIRST_KEY, migrated.notificationKey)
@@ -145,7 +147,7 @@ class PendingBankDraftMigrationTest {
                 sample(),
             )
             assertEquals(MIGRATED_DRAFT_ID, replay)
-            assertEquals(1, drafts.drafts().size)
+            assertEquals(1, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.size)
 
             val ledger = LedgerRepository(
                 database.categoryDao(),
@@ -154,8 +156,8 @@ class PendingBankDraftMigrationTest {
                 database.captureMessageDao(),
                 clock,
             )
-            assertEquals(1, ledger.transactions().size)
-            assertEquals(MIGRATED_TRANSACTION_ID, ledger.transactions().single().id)
+            assertEquals(1, query.ledgerRecords(ALL_LEDGER_RECORDS).items.size)
+            assertEquals(MIGRATED_TRANSACTION_ID, query.ledgerRecords(ALL_LEDGER_RECORDS).items.single().id)
         } finally {
             database.close()
         }
@@ -198,9 +200,10 @@ class PendingBankDraftMigrationTest {
             }
 
             val database = LedgerDatabase.build(context)
+            val query = WorkflowQueryService(database)
             try {
                 val drafts = IntakeRepository(database, clock)
-                val stored = drafts.drafts().sortedBy { it.id }
+                val stored = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.sortedBy { it.id }
                 assertEquals(
                     listOf(MIGRATED_DRAFT_ID, LEGACY_LATER_DRAFT_ID),
                     stored.map { it.id },
@@ -211,7 +214,7 @@ class PendingBankDraftMigrationTest {
                 // that post writes nothing and reports the row that survived the upgrade.
                 val replay = drafts.storePermitted(BANK_PACKAGE, FIRST_KEY, POSTED_AT, sample())
                 assertEquals(MIGRATED_DRAFT_ID, replay)
-                assertEquals(2, drafts.drafts().size)
+                assertEquals(2, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.size)
 
                 val ledger = LedgerRepository(
                     database.categoryDao(),
@@ -220,8 +223,8 @@ class PendingBankDraftMigrationTest {
                     database.captureMessageDao(),
                     clock,
                 )
-                assertEquals(1, ledger.transactions().size)
-                assertEquals(MIGRATED_TRANSACTION_ID, ledger.transactions().single().id)
+                assertEquals(1, query.ledgerRecords(ALL_LEDGER_RECORDS).items.size)
+                assertEquals(MIGRATED_TRANSACTION_ID, query.ledgerRecords(ALL_LEDGER_RECORDS).items.single().id)
             } finally {
                 database.close()
             }
@@ -263,9 +266,10 @@ class PendingBankDraftMigrationTest {
             }
 
             val database = LedgerDatabase.build(context)
+            val query = WorkflowQueryService(database)
             try {
                 val drafts = IntakeRepository(database, clock)
-                val migrated = drafts.drafts().single()
+                val migrated = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.single()
                 assertEquals(MIGRATED_DRAFT_ID, migrated.id)
                 assertEquals(IntakeReviewStatus.CONFIRMED, migrated.reviewStatus)
                 assertEquals(MIGRATED_TRANSACTION_ID, migrated.confirmedTransactionId)
@@ -284,7 +288,7 @@ class PendingBankDraftMigrationTest {
                 // does not duplicate what the upgrade already had.
                 val replay = drafts.storePermitted(BANK_PACKAGE, FIRST_KEY, POSTED_AT, sample())
                 assertEquals(MIGRATED_DRAFT_ID, replay)
-                assertEquals(1, drafts.drafts().size)
+                assertEquals(1, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.size)
 
                 // And a later post under the same reused key is kept as its own flagged candidate
                 // instead of being deduplicated away, while the reviewed row stays terminal.
@@ -295,7 +299,7 @@ class PendingBankDraftMigrationTest {
                     sample(),
                 )
                 assertNotEquals(MIGRATED_DRAFT_ID, laterId)
-                val stored = drafts.drafts().sortedBy { it.id }
+                val stored = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.sortedBy { it.id }
                 assertEquals(2, stored.size)
                 assertEquals(IntakeReviewStatus.CONFIRMED, stored[0].reviewStatus)
                 assertEquals(MIGRATED_TRANSACTION_ID, stored[0].confirmedTransactionId)
@@ -309,8 +313,8 @@ class PendingBankDraftMigrationTest {
                     database.captureMessageDao(),
                     clock,
                 )
-                assertEquals(1, ledger.transactions().size)
-                assertEquals(MIGRATED_TRANSACTION_ID, ledger.transactions().single().id)
+                assertEquals(1, query.ledgerRecords(ALL_LEDGER_RECORDS).items.size)
+                assertEquals(MIGRATED_TRANSACTION_ID, query.ledgerRecords(ALL_LEDGER_RECORDS).items.single().id)
             } finally {
                 database.close()
             }
@@ -349,8 +353,9 @@ class PendingBankDraftMigrationTest {
             }
 
             val database = LedgerDatabase.build(context)
+            val query = WorkflowQueryService(database)
             try {
-                val storedDraft = IntakeRepository(database, clock).drafts().single()
+                val storedDraft = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.single()
                 val ledger = LedgerRepository(
                     database.categoryDao(),
                     database.transactionDao(),
@@ -365,7 +370,7 @@ class PendingBankDraftMigrationTest {
                 assertNull(storedDraft.reviewAmountText)
                 assertNull(storedDraft.reviewType)
                 assertEquals(0, storedDraft.reviewRevision)
-                assertEquals(MIGRATED_TRANSACTION_ID, ledger.transactions().single().id)
+                assertEquals(MIGRATED_TRANSACTION_ID, query.ledgerRecords(ALL_LEDGER_RECORDS).items.single().id)
 
                 // The post/evidence pair still resolves to the same terminal row after migration.
                 assertEquals(
@@ -373,7 +378,7 @@ class PendingBankDraftMigrationTest {
                     IntakeRepository(database, clock)
                         .storePermitted(BANK_PACKAGE, FIRST_KEY, POSTED_AT, sample()),
                 )
-                assertEquals(1, IntakeRepository(database, clock).drafts().size)
+                assertEquals(1, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.size)
             } finally {
                 database.close()
             }

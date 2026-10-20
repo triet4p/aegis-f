@@ -5,7 +5,9 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import io.github.triet4p.aegisf.data.CaptureKind
 import io.github.triet4p.aegisf.data.CaptureSourceKind
+import io.github.triet4p.aegisf.data.ALL_DRAFTS
 import io.github.triet4p.aegisf.data.IntakeDirection
+import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.data.IntakeFieldState
 import io.github.triet4p.aegisf.data.IntakeParseStatus
 import io.github.triet4p.aegisf.data.IntakeRepository
@@ -126,7 +128,7 @@ class NotificationIntakePersistenceTest {
 
             assertEquals(listOf(bankPackage), recorder.storedPackages)
             assertTrue(recorder.storedOnBackgroundThread)
-            val stored = recorder.drafts().single()
+            val stored = WorkflowQueryService(recorder.database).draftCandidates(ALL_DRAFTS).items.single()
             assertEquals(persistedId, stored.id)
             assertEquals(50_000L, stored.amountVnd)
             assertEquals(IntakeDirection.DEBIT, stored.direction)

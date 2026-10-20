@@ -1,6 +1,5 @@
 package io.github.triet4p.aegisf.data
 
-import kotlinx.coroutines.flow.Flow
 
 /**
  * The user-supplied part of a **new** transaction, before storage adds the id and timestamps.
@@ -173,20 +172,13 @@ class LedgerRepository(
         )
     }
 
-    /** All categories, including archived ones. */
-    suspend fun categories(): List<CategoryEntity> = categoryDao.findAll()
-
     /**
-     * The category list as a live stream. The collection re-emits whenever a category
-     * row changes, so the management screen never asks for a refresh and cannot show a
-     * stale list after an add, rename, or archive.
+     * All categories, including archived ones.
+     *
+     * Reading the stored categories is the shared query surface's work — see
+     * [WorkflowQueryService.categories] — so this repository keeps the writes and the
+     * rules that protect them, and no second read path.
      */
-    fun observeCategories(): Flow<List<CategoryEntity>> = categoryDao.observeAll()
-
-    /** Categories that can be attached to a new record: everything not archived. */
-    suspend fun assignableCategories(): List<CategoryEntity> = categoryDao.findAssignable()
-
-    suspend fun findCategory(categoryId: Long): CategoryEntity? = categoryDao.findById(categoryId)
 
     /**
      * Saves an explicit rule for this exact description. Matching ignores case and collapses
@@ -282,19 +274,11 @@ class LedgerRepository(
         transactionDao.deleteWithLegacyDescription(stored, captureMessageDao)
     }
 
-    /** Newest first, with the stored id as a stable tie-breaker. */
-    suspend fun transactions(): List<TransactionEntity> = transactionDao.findAll()
-
     /**
-     * The transaction list as a live stream. The collection re-emits in the same
-     * newest-first order whenever a transaction row changes, so the browsing list never
-     * asks for a refresh and cannot show a stale list after a create, correction, or
-     * deletion. Filters narrow what is shown; they never write.
+     * The stored records are read through the shared query surface — see
+     * [WorkflowQueryService.ledgerRecords] — so this repository keeps the writes and the
+     * rules that protect them, and no second read path.
      */
-    fun observeTransactions(): Flow<List<TransactionEntity>> = transactionDao.observeAll()
-
-    suspend fun findTransaction(transactionId: Long): TransactionEntity? =
-        transactionDao.findById(transactionId)
 
     // --- Validation ---------------------------------------------------------
 

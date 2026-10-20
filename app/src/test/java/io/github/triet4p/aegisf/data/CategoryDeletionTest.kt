@@ -3,7 +3,6 @@ package io.github.triet4p.aegisf.data
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import io.github.triet4p.aegisf.ui.ManualDateTime
-import io.github.triet4p.aegisf.ui.summarizeMonthExpenses
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -36,12 +35,14 @@ class CategoryDeletionTest {
     private lateinit var context: Context
     private lateinit var database: LedgerDatabase
     private lateinit var repository: LedgerRepository
+    private lateinit var query: WorkflowQueryService
 
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
         context.deleteDatabase(LedgerDatabase.NAME)
         database = LedgerDatabase.build(context)
+        query = WorkflowQueryService(database)
         repository = LedgerRepository(
             categoryDao = database.categoryDao(),
             transactionDao = database.transactionDao(),
@@ -59,13 +60,13 @@ class CategoryDeletionTest {
         assertEquals(CategoryDeletionImpact(0, 0, 0), repository.categoryDeletionImpact(unused))
         assertEquals(CategoryDeletionImpact(0, 0, 0), repository.deleteCategory(unused))
 
-        assertNull(repository.findCategory(unused))
-        assertEquals(listOf(food), repository.categories().map { it.id })
+        assertNull(query.findCategory(unused))
+        assertEquals(listOf(food), query.categories(ALL_CATEGORIES).items.map { it.id })
         // The removed id is not handed out again: a new category gets a fresh one, so nothing
         // that still names the old id can ever resolve to a different category.
         val replacement = repository.addCategory("Filters")
         assertTrue(replacement > unused)
-        assertEquals(null, repository.transactions().firstOrNull())
+        assertEquals(null, query.ledgerRecords(ALL_LEDGER_RECORDS).items.firstOrNull())
     }
 
     @Test
@@ -90,33 +91,33 @@ class CategoryDeletionTest {
                 categoryId = transport,
             ),
         )
-        val storedLunch = repository.findTransaction(lunch)!!
-        val totalBefore = repository.transactions().sumOf { it.amountVnd }
+        val storedLunch = query.findLedgerRecord(lunch)!!
+        val totalBefore = query.ledgerRecords(ALL_LEDGER_RECORDS).items.sumOf { it.amountVnd }
 
         assertEquals(CategoryDeletionImpact(1, 0, 0), repository.categoryDeletionImpact(food))
         assertEquals(CategoryDeletionImpact(1, 0, 0), repository.deleteCategory(food))
 
         // The record is identical except for the link: no amount, type, moment, description,
         // confirmation, provenance, or timestamp is rewritten by a category deletion.
-        assertEquals(storedLunch.copy(categoryId = null), repository.findTransaction(lunch))
-        assertEquals(transport, repository.findTransaction(salary)!!.categoryId)
-        assertEquals(listOf(lunch, salary).sorted(), repository.transactions().map { it.id }.sorted())
-        assertEquals(totalBefore, repository.transactions().sumOf { it.amountVnd })
+        assertEquals(storedLunch.copy(categoryId = null), query.findLedgerRecord(lunch))
+        assertEquals(transport, query.findLedgerRecord(salary)!!.categoryId)
+        assertEquals(listOf(lunch, salary).sorted(), query.ledgerRecords(ALL_LEDGER_RECORDS).items.map { it.id }.sorted())
+        assertEquals(totalBefore, query.ledgerRecords(ALL_LEDGER_RECORDS).items.sumOf { it.amountVnd })
 
         // The month's own figures come from those same rows, so they do not move either: the
         // detached expense now sits in the uncategorized bucket with its exact amount.
-        val summary = summarizeMonthExpenses(
-            records = repository.transactions(),
-            monthStartEpochMillis = ManualDateTime.monthStartEpochMillis(OCCURRED_AT),
-            monthEndExclusiveEpochMillis = ManualDateTime.nextMonthStartEpochMillis(OCCURRED_AT),
+        val summary = summarizeConfirmedSpending(
+            records = query.ledgerRecords(ALL_LEDGER_RECORDS).items,
+            fromEpochMillis = ManualDateTime.monthStartEpochMillis(OCCURRED_AT),
+            throughExclusiveEpochMillis = ManualDateTime.nextMonthStartEpochMillis(OCCURRED_AT),
         )
-        assertEquals(1, summary.expenseCount)
+        assertEquals(1, summary.recordCount)
         assertEquals(45_000L, summary.totalVnd)
         assertEquals(listOf(null to 45_000L), summary.categoryTotals.map { it.categoryId to it.totalVnd })
 
         // Gone from the category list and from the picker, while the unrelated one stays.
-        assertNull(repository.findCategory(food))
-        assertEquals(listOf(transport), repository.assignableCategories().map { it.id })
+        assertNull(query.findCategory(food))
+        assertEquals(listOf(transport), query.categories(ALL_ASSIGNABLE_CATEGORIES).items.map { it.id })
     }
 
     @Test
@@ -178,7 +179,7 @@ class CategoryDeletionTest {
         val afterRefusals = draftDao.findById(draftId)!!
         assertEquals(IntakeReviewStatus.PENDING, afterRefusals.reviewStatus)
         assertNull(afterRefusals.reviewCategoryId)
-        assertTrue(repository.transactions().isEmpty())
+        assertTrue(query.ledgerRecords(ALL_LEDGER_RECORDS).items.isEmpty())
 
         // The draft stays reviewable by hand: another category, then No category, both work.
         assertEquals(
@@ -193,10 +194,10 @@ class CategoryDeletionTest {
             review.confirmDraft(draftId, 3, edits(categoryId = null, resolved = true)) is
                 BankDraftReviewResult.Confirmed,
         )
-        val created = repository.transactions().single()
+        val created = query.ledgerRecords(ALL_LEDGER_RECORDS).items.single()
         assertEquals(DRAFT_AMOUNT_VND, created.amountVnd)
         assertNull(created.categoryId)
-        assertEquals(transport, repository.findCategory(transport)?.id)
+        assertEquals(transport, query.findCategory(transport)?.id)
     }
 
     @Test
@@ -212,15 +213,15 @@ class CategoryDeletionTest {
             ),
         )
         repository.archiveCategory(food)
-        val stored = repository.findTransaction(lunch)!!
+        val stored = query.findLedgerRecord(lunch)!!
 
         assertEquals(CategoryDeletionImpact(1, 0, 0), repository.deleteCategory(food))
 
         // No alias or archived remnant of the deleted category survives to be re-selected.
-        assertNull(repository.findCategory(food))
-        assertNull(repository.categories().firstOrNull { it.name == "Food" })
-        assertEquals(stored.copy(categoryId = null), repository.findTransaction(lunch))
-        assertEquals(45_000L, repository.findTransaction(lunch)!!.amountVnd)
+        assertNull(query.findCategory(food))
+        assertNull(query.categories(ALL_CATEGORIES).items.firstOrNull { it.name == "Food" })
+        assertEquals(stored.copy(categoryId = null), query.findLedgerRecord(lunch))
+        assertEquals(45_000L, query.findLedgerRecord(lunch)!!.amountVnd)
     }
 
     @Test
@@ -235,17 +236,17 @@ class CategoryDeletionTest {
                 categoryId = food,
             ),
         )
-        val categoriesBefore = repository.categories()
-        val transactionsBefore = repository.transactions()
+        val categoriesBefore = query.categories(ALL_CATEGORIES).items
+        val transactionsBefore = query.ledgerRecords(ALL_LEDGER_RECORDS).items
 
         val rejection = expectRejection { repository.deleteCategory(9_999L) }
         assertTrue(rejection.message.orEmpty().contains("9999"))
         expectRejection { repository.categoryDeletionImpact(9_999L) }
 
-        assertEquals(categoriesBefore, repository.categories())
-        assertEquals(transactionsBefore, repository.transactions())
-        assertNotNull(repository.findCategory(food))
-        assertEquals(food, repository.findTransaction(lunch)!!.categoryId)
+        assertEquals(categoriesBefore, query.categories(ALL_CATEGORIES).items)
+        assertEquals(transactionsBefore, query.ledgerRecords(ALL_LEDGER_RECORDS).items)
+        assertNotNull(query.findCategory(food))
+        assertEquals(food, query.findLedgerRecord(lunch)!!.categoryId)
     }
 
     private fun reviewRepository() = BankDraftReviewRepository(

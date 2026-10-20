@@ -57,7 +57,7 @@ class NoteEventMigrationTest {
             assertEquals("Manual description", transactions.getValue(MANUAL_EXPENSE_ID).description)
             assertEquals(FOOD_CATEGORY_ID, transactions.getValue(MANUAL_EXPENSE_ID).categoryId)
 
-            val drafts = IntakeRepository(database).drafts().associateBy { it.id }
+            val drafts = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.associateBy { it.id }
             assertEquals(setOf(PENDING_DRAFT_ID, CONFIRMED_DRAFT_ID), drafts.keys)
             assertEquals(IntakeReviewStatus.PENDING, drafts.getValue(PENDING_DRAFT_ID).reviewStatus)
             assertEquals(BANK_INCOME_ID, drafts.getValue(CONFIRMED_DRAFT_ID).confirmedTransactionId)

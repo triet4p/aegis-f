@@ -87,7 +87,17 @@ class CaptureMessagePersistenceTest {
             assertEquals(saved.sourceIdentity, deleted.sourceIdentity)
             assertEquals(saved.capturedAtEpochMillis, deleted.capturedAtEpochMillis)
             assertEquals(saved.captureTimezone, deleted.captureTimezone)
-            assertTrue(repository.activeCaptures().isEmpty())
+            assertTrue(
+                WorkflowQueryService(reopened)
+                    .sourceExcerpts(
+                        SourceQuery(
+                            state = SourceState.ACTIVE,
+                            bounds = QueryPageRequest(LIST_PAGE_SIZE),
+                        ),
+                    )
+                    .items
+                    .isEmpty(),
+            )
             assertEquals(1, reopened.captureMessageDao().findAllIncludingTombstones().size)
             assertEquals(
                 CaptureMessageWriteResult.AlreadyDeleted,
@@ -158,7 +168,7 @@ class CaptureMessagePersistenceTest {
         val reopened = open()
         try {
             assertEquals(evidence, reopened.captureMessageDao().findById(evidence.id))
-            assertEquals(draftId, IntakeRepository(reopened, clock).drafts().single().id)
+            assertEquals(draftId, WorkflowQueryService(reopened).draftCandidates(ALL_DRAFTS).items.single().id)
         } finally {
             reopened.close()
         }
@@ -167,6 +177,7 @@ class CaptureMessagePersistenceTest {
     @Test
     fun `unsupported bank content does not enter the capture source table`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val intake = IntakeRepository(database, clock)
             intake.storePermitted(
@@ -179,7 +190,7 @@ class CaptureMessagePersistenceTest {
                     bigText = null,
                 ),
             )
-            assertEquals(IntakeParseStatus.UNSUPPORTED_FORMAT, intake.drafts().single().parseStatus)
+            assertEquals(IntakeParseStatus.UNSUPPORTED_FORMAT, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.single().parseStatus)
             assertTrue(database.captureMessageDao().findAllIncludingTombstones().isEmpty())
         } finally {
             database.close()
@@ -189,6 +200,7 @@ class CaptureMessagePersistenceTest {
     @Test
     fun `manual annotations remain independent of confirmed ledger descriptions`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val ledger = LedgerRepository(
                 categoryDao = database.categoryDao(),
@@ -219,13 +231,13 @@ class CaptureMessagePersistenceTest {
                 repository.revise(annotationId, 0, REVISED_ANNOTATION),
             )
             assertEquals(originalAnnotation.sourceIdentity, repository.findById(annotationId)!!.sourceIdentity)
-            assertEquals("Ledger description", ledger.findTransaction(transactionId)!!.description)
+            assertEquals("Ledger description", query.findLedgerRecord(transactionId)!!.description)
             assertEquals(
                 CaptureMessageWriteResult.Deleted(2),
                 repository.delete(annotationId, 1),
             )
             assertNull(repository.findById(annotationId)!!.bodyText)
-            assertEquals("Ledger description", ledger.findTransaction(transactionId)!!.description)
+            assertEquals("Ledger description", query.findLedgerRecord(transactionId)!!.description)
         } finally {
             database.close()
         }
@@ -234,6 +246,7 @@ class CaptureMessagePersistenceTest {
     @Test
     fun `failed bank evidence write rolls back the new draft and preserves the old source row`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val sourceDao = database.captureMessageDao()
             val priorSourceId = sourceDao.insert(
@@ -271,7 +284,7 @@ class CaptureMessagePersistenceTest {
             }
 
             assertTrue(failed)
-            assertTrue(intake.drafts().isEmpty())
+            assertTrue(WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.isEmpty())
             assertEquals(priorSource, sourceDao.findById(priorSourceId))
             assertEquals(1, sourceDao.findAllIncludingTombstones().size)
         } finally {

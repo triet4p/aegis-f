@@ -1,5 +1,6 @@
-package io.github.triet4p.aegisf.ui
+package io.github.triet4p.aegisf.data
 
+import io.github.triet4p.aegisf.ui.ManualDateTime
 import io.github.triet4p.aegisf.data.ConfirmationStatus
 import io.github.triet4p.aegisf.data.RecordSource
 import io.github.triet4p.aegisf.data.TransactionEntity
@@ -21,7 +22,7 @@ import java.util.TimeZone
  * whole-dong value. [summarizeMonthExpenses] and the month bounds it is given are therefore
  * checked directly; rendering and the physical phone gate stay separate.
  */
-class ExpenseSummaryTest {
+class LedgerAggregateTest {
 
     private val hoChiMinh = TimeZone.getTimeZone("Asia/Ho_Chi_Minh")
     private val newYork = TimeZone.getTimeZone("America/New_York")
@@ -62,7 +63,7 @@ class ExpenseSummaryTest {
         val (monthStart, monthEnd) = monthOf("2026-10-15", "12:00", hoChiMinh)
         val transport = 8L
 
-        val summary = summarizeMonthExpenses(
+        val summary = summarizeConfirmedSpending(
             records = listOf(
                 record(1, 45_000L, at("2026-10-02", "09:00", hoChiMinh)),
                 record(
@@ -93,27 +94,25 @@ class ExpenseSummaryTest {
                 record(6, 99_000L, at("2026-09-30", "23:59", hoChiMinh)),
                 record(7, 77_000L, at("2026-11-01", "00:00", hoChiMinh)),
             ),
-            monthStartEpochMillis = monthStart,
-            monthEndExclusiveEpochMillis = monthEnd,
+            fromEpochMillis = monthStart,
+            throughExclusiveEpochMillis = monthEnd,
         )
 
-        assertEquals(monthStart, summary.monthStartEpochMillis)
-        assertEquals(monthEnd, summary.monthEndExclusiveEpochMillis)
-        assertEquals(2, summary.expenseCount)
+        assertEquals(2, summary.recordCount)
         assertEquals(165_000L, summary.totalVnd)
-        assertFalse(summary.totalOverflowed)
+        assertFalse(summary.overflowed)
 
         // The largest bucket first, and the uncategorised expense keeps a bucket of its own:
         // its share of the month is never folded into a named category or dropped.
         assertEquals(
             listOf(
-                CategoryExpenseTotal(
+                LedgerCategorySpending(
                     categoryId = transport,
                     totalVnd = 120_000L,
                     overflowed = false,
                     recordCount = 1,
                 ),
-                CategoryExpenseTotal(
+                LedgerCategorySpending(
                     categoryId = null,
                     totalVnd = 45_000L,
                     overflowed = false,
@@ -136,20 +135,20 @@ class ExpenseSummaryTest {
             assertEquals("2026-11-01", ManualDateTime.dateFieldText(monthEnd, zone))
             assertEquals("00:00", ManualDateTime.timeFieldText(monthEnd, zone))
 
-            val summary = summarizeMonthExpenses(
+            val summary = summarizeConfirmedSpending(
                 records = listOf(
                     record(1, 1L, monthStart - 1L),
                     record(2, 2L, monthStart),
                     record(3, 4L, monthEnd - 1L),
                     record(4, 8L, monthEnd),
                 ),
-                monthStartEpochMillis = monthStart,
-                monthEndExclusiveEpochMillis = monthEnd,
+                fromEpochMillis = monthStart,
+                throughExclusiveEpochMillis = monthEnd,
             )
 
             // 23:59:59.999 on 30 September and midnight on 1 November are out; the first
             // instant of the month and its last millisecond are in.
-            assertEquals(2, summary.expenseCount)
+            assertEquals(2, summary.recordCount)
             assertEquals(6L, summary.totalVnd)
             assertEquals(listOf(null), summary.categoryTotals.map { it.categoryId })
             assertEquals(listOf(2), summary.categoryTotals.map { it.recordCount })
@@ -168,16 +167,16 @@ class ExpenseSummaryTest {
         assertEquals("2026-04-01", ManualDateTime.dateFieldText(aprilStart, newYork))
         assertEquals(31L * DAY_MILLIS - 60L * 60L * 1000L, aprilStart - marchStart)
 
-        val march = summarizeMonthExpenses(
+        val march = summarizeConfirmedSpending(
             records = listOf(
                 record(1, 5L, marchStart),
                 record(2, 7L, aprilStart - 1L),
                 record(3, 11L, aprilStart),
             ),
-            monthStartEpochMillis = marchStart,
-            monthEndExclusiveEpochMillis = aprilStart,
+            fromEpochMillis = marchStart,
+            throughExclusiveEpochMillis = aprilStart,
         )
-        assertEquals(2, march.expenseCount)
+        assertEquals(2, march.recordCount)
         assertEquals(12L, march.totalVnd)
     }
 
@@ -188,37 +187,37 @@ class ExpenseSummaryTest {
         val bucket = 3L
 
         // half + half + 1 is exactly Long.MAX_VALUE, the last whole-dong total there is.
-        val exact = summarizeMonthExpenses(
+        val exact = summarizeConfirmedSpending(
             records = listOf(
                 record(1, half, at("2026-10-05", "09:00", hoChiMinh), categoryId = bucket),
                 record(2, half, at("2026-10-06", "09:00", hoChiMinh), categoryId = bucket),
                 record(3, 1L, at("2026-10-07", "09:00", hoChiMinh), categoryId = bucket),
             ),
-            monthStartEpochMillis = monthStart,
-            monthEndExclusiveEpochMillis = monthEnd,
+            fromEpochMillis = monthStart,
+            throughExclusiveEpochMillis = monthEnd,
         )
         assertEquals(Long.MAX_VALUE, exact.totalVnd)
-        assertFalse(exact.totalOverflowed)
-        assertEquals(3, exact.expenseCount)
+        assertFalse(exact.overflowed)
+        assertEquals(3, exact.recordCount)
         assertEquals(Long.MAX_VALUE, exact.categoryTotals.single().totalVnd)
         assertFalse(exact.categoryTotals.single().overflowed)
 
         // One dong more cannot be a Long, so it is reported as the overflow state with a
         // proven lower bound instead of wrapping to a small or negative total.
-        val overflowed = summarizeMonthExpenses(
+        val overflowed = summarizeConfirmedSpending(
             records = listOf(
                 record(1, half, at("2026-10-05", "09:00", hoChiMinh), categoryId = bucket),
                 record(2, half, at("2026-10-06", "09:00", hoChiMinh), categoryId = bucket),
                 record(3, 1L, at("2026-10-07", "09:00", hoChiMinh), categoryId = bucket),
                 record(4, 1L, at("2026-10-08", "09:00", hoChiMinh), categoryId = bucket),
             ),
-            monthStartEpochMillis = monthStart,
-            monthEndExclusiveEpochMillis = monthEnd,
+            fromEpochMillis = monthStart,
+            throughExclusiveEpochMillis = monthEnd,
         )
-        assertTrue(overflowed.totalOverflowed)
+        assertTrue(overflowed.overflowed)
         assertEquals(Long.MAX_VALUE, overflowed.totalVnd)
         assertTrue(overflowed.totalVnd > 0L)
-        assertEquals(4, overflowed.expenseCount)
+        assertEquals(4, overflowed.recordCount)
         assertEquals(Long.MAX_VALUE, overflowed.categoryTotals.single().totalVnd)
         assertTrue(overflowed.categoryTotals.single().overflowed)
     }
@@ -249,10 +248,10 @@ class ExpenseSummaryTest {
         )
 
         listOf(emptyList(), nothingThatCounts).forEach { records ->
-            val summary = summarizeMonthExpenses(records, monthStart, monthEnd)
-            assertEquals(0, summary.expenseCount)
+            val summary = summarizeConfirmedSpending(records, monthStart, monthEnd)
+            assertEquals(0, summary.recordCount)
             assertEquals(0L, summary.totalVnd)
-            assertFalse(summary.totalOverflowed)
+            assertFalse(summary.overflowed)
             assertTrue(summary.categoryTotals.isEmpty())
         }
     }

@@ -4,7 +4,6 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import kotlinx.coroutines.flow.Flow
 
 /** Persistence boundary for immutable bank evidence references and explicitly saved user text. */
 @Dao
@@ -25,20 +24,40 @@ interface CaptureMessageDao {
         sourceIdentity: String,
     ): CaptureMessageEntity?
 
-    @Query(
-        "SELECT * FROM capture_messages WHERE tombstone = 0 " +
-            "ORDER BY capturedAtEpochMillis DESC, id DESC",
-    )
-    suspend fun findActive(): List<CaptureMessageEntity>
-
     @Query("SELECT * FROM capture_messages ORDER BY id")
     suspend fun findAllIncludingTombstones(): List<CaptureMessageEntity>
 
+    /**
+     * A bounded page of the stored sources.
+     *
+     * Every dimension is open when it is null: the capture kind, the source kind, the
+     * stored/deleted state, and the two ends of the captured-in range. A source whose
+     * capture instant is unknown — a legacy row that never recorded one — is in no range
+     * and is returned only by an unranged read.
+     *
+     * The order is the capture instant, newest first, with the stored id as the
+     * tie-breaker. A source without a capture instant sorts last, because an unknown
+     * instant is older than no instant at all rather than newer than everything.
+     */
     @Query(
-        "SELECT * FROM capture_messages WHERE tombstone = 0 " +
-            "ORDER BY capturedAtEpochMillis DESC, id DESC",
+        "SELECT * FROM capture_messages WHERE " +
+            "(:captureKind IS NULL OR captureKind = :captureKind) AND " +
+            "(:sourceKind IS NULL OR sourceKind = :sourceKind) AND " +
+            "(:tombstone IS NULL OR tombstone = :tombstone) AND " +
+            "(:fromEpochMillis IS NULL OR capturedAtEpochMillis >= :fromEpochMillis) AND " +
+            "(:throughExclusiveEpochMillis IS NULL OR " +
+            "capturedAtEpochMillis < :throughExclusiveEpochMillis) " +
+            "ORDER BY capturedAtEpochMillis DESC, id DESC LIMIT :limit OFFSET :offset",
     )
-    fun observeActive(): Flow<List<CaptureMessageEntity>>
+    suspend fun findPage(
+        captureKind: String?,
+        sourceKind: String?,
+        tombstone: Boolean?,
+        fromEpochMillis: Long?,
+        throughExclusiveEpochMillis: Long?,
+        limit: Int,
+        offset: Int,
+    ): List<CaptureMessageEntity>
 
     /** User-origin text rows only; legacy ledger descriptions follow the ledger edit lifecycle. */
     @Query(

@@ -8,6 +8,18 @@ import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 /**
+ * The one statement every bounded draft read uses.
+ *
+ * The paged read and the live paged read share it, so the rows a page holds and the rows
+ * the live stream holds can never be read by two different filters.
+ */
+private const val DRAFT_PAGE_SQL =
+    "SELECT * FROM pending_bank_drafts WHERE " +
+        "(:reviewStatus IS NULL OR reviewStatus = :reviewStatus) AND " +
+        "(:onlyDuplicates = 0 OR possibleDuplicateOfDraftId IS NOT NULL) " +
+        "ORDER BY createdAtEpochMillis DESC, id DESC LIMIT :limit OFFSET :offset"
+
+/**
  * Reads and writes [PendingBankDraftEntity] rows.
  *
  * Intake stores each permitted delivery through [store] as a pending row, or returns the row
@@ -98,12 +110,67 @@ abstract class PendingBankDraftDao {
     abstract suspend fun findAll(): List<PendingBankDraftEntity>
 
     /**
-     * The same rows as [findAll], but as a live stream: every insert re-emits the current
-     * rows in the same newest-first order, so a review screen recovers persisted drafts
-     * after a process restart instead of starting from an empty list.
+     * A bounded page of the stored drafts.
+     *
+     * [reviewStatus] selects the lifecycle state and null reads every state;
+     * [onlyDuplicates] narrows the read to the drafts that share their evidence with an
+     * earlier one. The order is the stored creation instant, newest first, with the
+     * stored id as the tie-breaker, so a page boundary is always between two whole
+     * drafts.
      */
-    @Query("SELECT * FROM pending_bank_drafts ORDER BY createdAtEpochMillis DESC, id DESC")
-    abstract fun observeAll(): Flow<List<PendingBankDraftEntity>>
+    @Query(DRAFT_PAGE_SQL)
+    abstract suspend fun findPage(
+        reviewStatus: String?,
+        onlyDuplicates: Int,
+        limit: Int,
+        offset: Int,
+    ): List<PendingBankDraftEntity>
+
+    /**
+     * The same bounded page as [findPage], as a live stream: every insert or review
+     * transition re-emits the current page in the same order.
+     */
+    @Query(DRAFT_PAGE_SQL)
+    abstract fun observePage(
+        reviewStatus: String?,
+        onlyDuplicates: Int,
+        limit: Int,
+        offset: Int,
+    ): Flow<List<PendingBankDraftEntity>>
+
+    /** One stored draft, as a live stream, so a review screen sees its own edits. */
+    @Query("SELECT * FROM pending_bank_drafts WHERE id = :id")
+    abstract fun observeById(id: Long): Flow<PendingBankDraftEntity?>
+
+    /**
+     * How many stored drafts are in one review state, as a live count.
+     *
+     * The count describes the whole inbox and not one page of it, so an inbox that pages
+     * through its drafts can still say how many are waiting.
+     */
+    @Query(
+        "SELECT COUNT(*) FROM pending_bank_drafts WHERE " +
+            "(:reviewStatus IS NULL OR reviewStatus = :reviewStatus)",
+    )
+    abstract fun observeCountByStatus(reviewStatus: String?): Flow<Int>
+
+    /**
+     * The drafts that share their evidence with the given ones: the earlier drafts they
+     * point at, and the later drafts that point at them.
+     *
+     * A possible duplicate is an uncertain identity, so both drafts are kept and review
+     * shows them beside each other. The read returns the families of the named drafts and
+     * nothing else, so it cannot grow with the number of stored drafts.
+     */
+    @Query(
+        "SELECT * FROM pending_bank_drafts WHERE " +
+            "id IN (SELECT possibleDuplicateOfDraftId FROM pending_bank_drafts " +
+            "WHERE id IN (:draftIds)) " +
+            "OR possibleDuplicateOfDraftId IN (:draftIds) " +
+            "ORDER BY id ASC",
+    )
+    abstract fun observeRelated(draftIds: List<Long>): Flow<List<PendingBankDraftEntity>>
+
 }
 
 /** What an ignored insert returns: the constraint kept the row that was already stored. */

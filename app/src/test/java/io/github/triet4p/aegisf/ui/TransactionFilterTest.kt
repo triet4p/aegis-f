@@ -1,5 +1,6 @@
 package io.github.triet4p.aegisf.ui
 
+import io.github.triet4p.aegisf.data.LedgerCategoryFilter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -18,10 +19,10 @@ import java.util.TimeZone
  * half-open inclusive-From/Through convention in the device zone, refused date ranges that
  * must not silently broaden, and combined dimensions that keep every constrained one.
  *
- * These tests pin [resolveDateFilter] and [applyTransactionFilters] directly — the same
- * functions the saved-transactions list calls — against real epoch millis, so a boundary
- * mistake or a dropped AND dimension fails here. Rendering, scrolling, and the physical
- * phone gate stay user-run.
+ * These tests pin [resolveDateFilter] directly — the same function the saved-transactions
+ * list calls — against real epoch millis, so a boundary mistake fails here. The record
+ * dimensions themselves are applied by the shared query surface and are pinned there.
+ * Rendering, scrolling, and the physical phone gate stay user-run.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -161,193 +162,38 @@ class TransactionFilterTest {
     }
 
     @Test
-    fun `combined filters keep only records that satisfy every constrained dimension`() {
-        val records = listOf(
-            io.github.triet4p.aegisf.data.TransactionEntity(
-                id = 1L,
-                type = io.github.triet4p.aegisf.data.TransactionType.EXPENSE,
-                amountVnd = 45_000L,
-                occurredAtEpochMillis = atTime("2026-10-15", "12:00", hoChiMinh),
-                description = "Lunch",
-                categoryId = 10L,
-                createdAtEpochMillis = 1L,
-                updatedAtEpochMillis = 1L,
-            ),
-            io.github.triet4p.aegisf.data.TransactionEntity(
-                id = 2L,
-                type = io.github.triet4p.aegisf.data.TransactionType.INCOME,
-                amountVnd = 1_000_000L,
-                occurredAtEpochMillis = atTime("2026-10-15", "12:00", hoChiMinh),
-                description = "Salary",
-                categoryId = 10L,
-                createdAtEpochMillis = 1L,
-                updatedAtEpochMillis = 1L,
-            ),
-            io.github.triet4p.aegisf.data.TransactionEntity(
-                id = 3L,
-                type = io.github.triet4p.aegisf.data.TransactionType.EXPENSE,
-                amountVnd = 120_000L,
-                occurredAtEpochMillis = atTime("2026-10-16", "12:00", hoChiMinh),
-                description = "Groceries",
-                categoryId = null,
-                createdAtEpochMillis = 1L,
-                updatedAtEpochMillis = 1L,
-            ),
-        )
-        val range = resolveDateFilter("2026-10-15", "2026-10-15", hoChiMinh).range!!
-
-        val kept = applyTransactionFilters(
-            records = records,
-            type = io.github.triet4p.aegisf.data.TransactionType.EXPENSE,
-            category = CategoryFilter.Specific(10L),
-            range = range,
-        )
-
-        assertEquals(listOf(1L), kept.map { it.id })
-
-        // Dropping one dimension widens to the records that satisfy the remaining two:
-        // the income record shares the day and the category but not the type.
-        val withoutType = applyTransactionFilters(
-            records = records,
-            type = null,
-            category = CategoryFilter.Specific(10L),
-            range = range,
-        )
-        assertEquals(listOf(1L, 2L), withoutType.map { it.id })
-    }
-
-    @Test
-    fun `the category dimensions distinguish all uncategorized and one archived category`() {
-        val archivedId = 10L
-        val records = listOf(
-            io.github.triet4p.aegisf.data.TransactionEntity(
-                id = 1L,
-                type = io.github.triet4p.aegisf.data.TransactionType.EXPENSE,
-                amountVnd = 45_000L,
-                occurredAtEpochMillis = 1_700_000_000_000L,
-                description = "Lunch",
-                categoryId = archivedId,
-                createdAtEpochMillis = 1L,
-                updatedAtEpochMillis = 1L,
-            ),
-            io.github.triet4p.aegisf.data.TransactionEntity(
-                id = 2L,
-                type = io.github.triet4p.aegisf.data.TransactionType.EXPENSE,
-                amountVnd = 120_000L,
-                occurredAtEpochMillis = 1_700_000_100_000L,
-                description = "Market",
-                categoryId = null,
-                createdAtEpochMillis = 1L,
-                updatedAtEpochMillis = 1L,
-            ),
-        )
-        val open = EpochRange(null, null)
-
+    fun `a category selection names a known category and an unknown id names itself unknown`() {
+        val selection = LedgerCategoryFilter.Specific(10L)
         assertEquals(
-            listOf(1L, 2L),
-            applyTransactionFilters(records, null, CategoryFilter.All, open).map { it.id },
+            "Food",
+            categorySelectionLabelForTest(
+                selection,
+                listOf(
+                    io.github.triet4p.aegisf.data.CategoryEntity(
+                        id = 10L,
+                        name = "Food",
+                        archived = false,
+                        createdAtEpochMillis = 1L,
+                        updatedAtEpochMillis = 1L,
+                    ),
+                ),
+            ),
         )
-        assertEquals(
-            listOf(2L),
-            applyTransactionFilters(records, null, CategoryFilter.Uncategorized, open)
-                .map { it.id },
-        )
-        assertEquals(
-            listOf(1L),
-            applyTransactionFilters(records, null, CategoryFilter.Specific(archivedId), open)
-                .map { it.id },
-        )
-        // A removed category's id matches nothing rather than falling back to everything.
-        assertTrue(
-            applyTransactionFilters(records, null, CategoryFilter.Specific(999L), open)
-                .isEmpty(),
-        )
-
-        // The selection is a stable id: renaming the category cannot be confused with a
-        // different category, and the archived id still selects its historical records.
-        val selection = CategoryFilter.Specific(archivedId)
-        assertEquals(CategoryFilter.Specific(archivedId), selection)
         assertEquals(
             "Unknown category",
             categorySelectionLabelForTest(selection, emptyList()),
         )
     }
 
-    @Test
-    fun `clearing every dimension returns the full list in the stored order`() {
-        val records = listOf(
-            io.github.triet4p.aegisf.data.TransactionEntity(
-                id = 3L,
-                type = io.github.triet4p.aegisf.data.TransactionType.TRANSFER,
-                amountVnd = 500_000L,
-                occurredAtEpochMillis = 1_700_000_300_000L,
-                description = "Move",
-                createdAtEpochMillis = 1L,
-                updatedAtEpochMillis = 1L,
-            ),
-            io.github.triet4p.aegisf.data.TransactionEntity(
-                id = 1L,
-                type = io.github.triet4p.aegisf.data.TransactionType.EXPENSE,
-                amountVnd = 45_000L,
-                occurredAtEpochMillis = 1_700_000_000_000L,
-                description = "Lunch",
-                createdAtEpochMillis = 1L,
-                updatedAtEpochMillis = 1L,
-            ),
-        )
-
-        val cleared = TransactionFilterState()
-        assertFalse(cleared.isActive)
-        val visible = applyTransactionFilters(
-            records = records,
-            type = cleared.type,
-            category = cleared.category,
-            range = EpochRange(null, null),
-        )
-
-        // The stored order passes through untouched: filtering never re-sorts.
-        assertEquals(listOf(3L, 1L), visible.map { it.id })
-    }
-
-    @Test
-    fun `equal occurred-at instants keep the stored id tie breaker under filters`() {
-        val moment = atTime("2026-10-15", "12:00", hoChiMinh)
-        val records = listOf(
-            io.github.triet4p.aegisf.data.TransactionEntity(
-                id = 2L,
-                type = io.github.triet4p.aegisf.data.TransactionType.EXPENSE,
-                amountVnd = 120_000L,
-                occurredAtEpochMillis = moment,
-                description = "Second",
-                createdAtEpochMillis = 1L,
-                updatedAtEpochMillis = 1L,
-            ),
-            io.github.triet4p.aegisf.data.TransactionEntity(
-                id = 1L,
-                type = io.github.triet4p.aegisf.data.TransactionType.EXPENSE,
-                amountVnd = 45_000L,
-                occurredAtEpochMillis = moment,
-                description = "First",
-                createdAtEpochMillis = 1L,
-                updatedAtEpochMillis = 1L,
-            ),
-        )
-        val range = resolveDateFilter("2026-10-15", "2026-10-15", hoChiMinh).range!!
-
-        val visible = applyTransactionFilters(records, null, CategoryFilter.All, range)
-
-        assertEquals(listOf(2L, 1L), visible.map { it.id })
-    }
-
     // The label helper is private to the list screen; this local copy asserts the tested
     // contract (an unknown id names itself unknown) without reaching into composition.
     private fun categorySelectionLabelForTest(
-        selection: CategoryFilter,
+        selection: LedgerCategoryFilter,
         categories: List<io.github.triet4p.aegisf.data.CategoryEntity>,
     ): String = when (selection) {
-        is CategoryFilter.All -> "All categories"
-        is CategoryFilter.Uncategorized -> "No category"
-        is CategoryFilter.Specific -> categories.firstOrNull { it.id == selection.categoryId }
+        is LedgerCategoryFilter.All -> "All categories"
+        is LedgerCategoryFilter.Uncategorized -> "No category"
+        is LedgerCategoryFilter.Specific -> categories.firstOrNull { it.id == selection.categoryId }
             ?.let { io.github.triet4p.aegisf.ui.categoryLabel(it) }
             ?: "Unknown category"
     }

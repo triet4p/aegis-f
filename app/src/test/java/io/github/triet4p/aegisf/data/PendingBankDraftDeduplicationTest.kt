@@ -74,14 +74,15 @@ class PendingBankDraftDeduplicationTest {
     @Test
     fun `an exact callback replay stores one draft and reports the same id`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val drafts = repository(database)
             val first = drafts.storePermitted(BANK_PACKAGE, FIRST_KEY, POSTED_AT, sample())
             val replay = drafts.storePermitted(BANK_PACKAGE, FIRST_KEY, POSTED_AT, sample())
 
             assertEquals(first, replay)
-            assertEquals(1, drafts.drafts().size)
-            assertEquals(POSTED_AT, drafts.drafts().single().postedAtEpochMillis)
+            assertEquals(1, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.size)
+            assertEquals(POSTED_AT, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.single().postedAtEpochMillis)
         } finally {
             database.close()
         }
@@ -90,6 +91,7 @@ class PendingBankDraftDeduplicationTest {
     @Test
     fun `the same delivered post seen again with its body in another field stores nothing`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val drafts = repository(database)
             val first = drafts.storePermitted(BANK_PACKAGE, FIRST_KEY, POSTED_AT, sample())
@@ -105,7 +107,7 @@ class PendingBankDraftDeduplicationTest {
             )
 
             assertEquals(first, reread)
-            assertEquals(1, drafts.drafts().size)
+            assertEquals(1, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.size)
         } finally {
             database.close()
         }
@@ -114,13 +116,14 @@ class PendingBankDraftDeduplicationTest {
     @Test
     fun `a delivery without a notification key still stores its own post once`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val drafts = repository(database)
             val first = drafts.storePermitted(BANK_PACKAGE, null, POSTED_AT, sample())
             val reread = drafts.storePermitted(BANK_PACKAGE, null, POSTED_AT, sample())
 
             assertEquals(first, reread)
-            assertEquals(1, drafts.drafts().size)
+            assertEquals(1, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.size)
         } finally {
             database.close()
         }
@@ -130,6 +133,7 @@ class PendingBankDraftDeduplicationTest {
     fun `two identical statements under a reused key at different posts stay two candidates`() =
         runTest {
             val database = open()
+            val query = WorkflowQueryService(database)
             try {
                 val drafts = repository(database)
                 // The user's sample carries only a debit amount, a stated minute, a masked memo,
@@ -146,7 +150,7 @@ class PendingBankDraftDeduplicationTest {
                 )
 
                 assertNotEquals(firstId, secondId)
-                val stored = drafts.drafts().sortedBy { it.id }
+                val stored = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.sortedBy { it.id }
                 assertEquals(2, stored.size)
                 assertEquals(50_000L, stored[0].amountVnd)
                 assertEquals(50_000L, stored[1].amountVnd)
@@ -163,6 +167,7 @@ class PendingBankDraftDeduplicationTest {
     @Test
     fun `keyless deliveries of equal evidence at different posts are both kept`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val drafts = repository(database)
             // Without a notification key the post time is the only thing distinguishing the two
@@ -176,7 +181,7 @@ class PendingBankDraftDeduplicationTest {
             )
 
             assertNotEquals(firstId, secondId)
-            val stored = drafts.drafts().sortedBy { it.id }
+            val stored = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.sortedBy { it.id }
             assertEquals(2, stored.size)
             assertEquals(firstId, stored[1].possibleDuplicateOfDraftId)
         } finally {
@@ -187,6 +192,7 @@ class PendingBankDraftDeduplicationTest {
     @Test
     fun `an unsupported payload replay stores nothing`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val drafts = repository(database)
             val unsupported = PermittedNotificationContent(
@@ -198,8 +204,8 @@ class PendingBankDraftDeduplicationTest {
             val replay = drafts.storePermitted(BANK_PACKAGE, FIRST_KEY, POSTED_AT, unsupported)
 
             assertEquals(first, replay)
-            assertEquals(1, drafts.drafts().size)
-            assertEquals(IntakeParseStatus.UNSUPPORTED_FORMAT, drafts.drafts().single().parseStatus)
+            assertEquals(1, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.size)
+            assertEquals(IntakeParseStatus.UNSUPPORTED_FORMAT, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.single().parseStatus)
         } finally {
             database.close()
         }
@@ -208,6 +214,7 @@ class PendingBankDraftDeduplicationTest {
     @Test
     fun `a changed statement under a reused key is stored beside the first`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val drafts = repository(database)
             val firstId = drafts.storePermitted(BANK_PACKAGE, FIRST_KEY, POSTED_AT, sample())
@@ -219,7 +226,7 @@ class PendingBankDraftDeduplicationTest {
             )
 
             assertNotEquals(firstId, secondId)
-            val stored = drafts.drafts().sortedBy { it.id }
+            val stored = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.sortedBy { it.id }
             assertEquals(2, stored.size)
             // The first statement is untouched: no key-based overwrite, no lost draft.
             assertEquals(50_000L, stored[0].amountVnd)
@@ -241,13 +248,14 @@ class PendingBankDraftDeduplicationTest {
     fun `two equal value transactions under different deliveries both remain, flagged for review`() =
         runTest {
             val database = open()
+            val query = WorkflowQueryService(database)
             try {
                 val drafts = repository(database)
                 val firstId = drafts.storePermitted(BANK_PACKAGE, FIRST_KEY, POSTED_AT, sample())
                 val secondId = drafts.storePermitted(BANK_PACKAGE, SECOND_KEY, POSTED_AT, sample())
 
                 assertNotEquals(firstId, secondId)
-                val stored = drafts.drafts().sortedBy { it.id }
+                val stored = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.sortedBy { it.id }
                 assertEquals(2, stored.size)
                 assertEquals(50_000L, stored[0].amountVnd)
                 assertEquals(50_000L, stored[1].amountVnd)
@@ -265,6 +273,7 @@ class PendingBankDraftDeduplicationTest {
     fun `two equal value transactions with different descriptions stay separate and unflagged`() =
         runTest {
             val database = open()
+            val query = WorkflowQueryService(database)
             try {
                 val drafts = repository(database)
                 // The same amount, bank minute, and account/balance lines on both deliveries, but
@@ -286,7 +295,7 @@ class PendingBankDraftDeduplicationTest {
                 )
 
                 assertNotEquals(firstId, secondId)
-                val stored = drafts.drafts().sortedBy { it.id }
+                val stored = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.sortedBy { it.id }
                 assertEquals(2, stored.size)
                 assertEquals(listOf(50_000L, 50_000L), stored.map { it.amountVnd })
                 assertEquals(listOf("2026-10-16", "2026-10-16"), stored.map { it.statedDate })
@@ -319,7 +328,7 @@ class PendingBankDraftDeduplicationTest {
 
                 assertTrue(firstReview is BankDraftReviewResult.Confirmed)
                 assertTrue(secondReview is BankDraftReviewResult.Confirmed)
-                val transactions = ledger.transactions().sortedBy { it.id }
+                val transactions = query.ledgerRecords(ALL_LEDGER_RECORDS).items.sortedBy { it.id }
                 assertEquals(2, transactions.size)
                 assertEquals(listOf("REF#101", "REF#102"), transactions.map { it.description })
                 assertEquals(listOf(50_000L, 50_000L), transactions.map { it.amountVnd })
@@ -331,13 +340,14 @@ class PendingBankDraftDeduplicationTest {
     @Test
     fun `a third identical statement points at the earliest one`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val drafts = repository(database)
             val firstId = drafts.storePermitted(BANK_PACKAGE, FIRST_KEY, POSTED_AT, sample())
             drafts.storePermitted(BANK_PACKAGE, SECOND_KEY, POSTED_AT, sample())
             drafts.storePermitted(BANK_PACKAGE, THIRD_KEY, POSTED_AT, sample())
 
-            val stored = drafts.drafts().sortedBy { it.id }
+            val stored = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.sortedBy { it.id }
             assertEquals(3, stored.size)
             assertNull(stored[0].possibleDuplicateOfDraftId)
             assertEquals(firstId, stored[1].possibleDuplicateOfDraftId)
@@ -350,6 +360,7 @@ class PendingBankDraftDeduplicationTest {
     @Test
     fun `a confirmed draft keeps its review state and ledger link through a replay`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val drafts = repository(database)
             val draftId = drafts.storePermitted(BANK_PACKAGE, FIRST_KEY, POSTED_AT, sample())
@@ -374,11 +385,11 @@ class PendingBankDraftDeduplicationTest {
             val replay = drafts.storePermitted(BANK_PACKAGE, FIRST_KEY, POSTED_AT, sample())
 
             assertEquals(draftId, replay)
-            val stored = drafts.drafts().single()
+            val stored = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.single()
             assertEquals(IntakeReviewStatus.CONFIRMED, stored.reviewStatus)
             assertEquals(confirmed, stored.confirmedTransactionId)
-            assertEquals(1, ledger.transactions().size)
-            assertEquals(confirmed, ledger.findTransaction(confirmed)!!.id)
+            assertEquals(1, query.ledgerRecords(ALL_LEDGER_RECORDS).items.size)
+            assertEquals(confirmed, query.findLedgerRecord(confirmed)!!.id)
         } finally {
             database.close()
         }
@@ -387,6 +398,7 @@ class PendingBankDraftDeduplicationTest {
     @Test
     fun `a dismissed draft stays dismissed through a replay`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val drafts = repository(database)
             val draftId = drafts.storePermitted(BANK_PACKAGE, FIRST_KEY, POSTED_AT, sample())
@@ -395,7 +407,7 @@ class PendingBankDraftDeduplicationTest {
             val replay = drafts.storePermitted(BANK_PACKAGE, FIRST_KEY, POSTED_AT, sample())
 
             assertEquals(draftId, replay)
-            val stored = drafts.drafts().single()
+            val stored = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.single()
             assertEquals(IntakeReviewStatus.DISMISSED, stored.reviewStatus)
             assertNull(stored.confirmedTransactionId)
         } finally {
@@ -406,6 +418,7 @@ class PendingBankDraftDeduplicationTest {
     @Test
     fun `a reused notification key never rewrites a reviewed draft`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val drafts = repository(database)
             val draftId = drafts.storePermitted(BANK_PACKAGE, FIRST_KEY, POSTED_AT, sample())
@@ -437,14 +450,14 @@ class PendingBankDraftDeduplicationTest {
             )
 
             assertNotEquals(draftId, later)
-            val stored = drafts.drafts().sortedBy { it.id }
+            val stored = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.sortedBy { it.id }
             assertEquals(2, stored.size)
             assertEquals(IntakeReviewStatus.CONFIRMED, stored[0].reviewStatus)
             assertEquals(confirmed, stored[0].confirmedTransactionId)
             assertEquals(50_000L, stored[0].amountVnd)
             assertEquals(IntakeReviewStatus.PENDING, stored[1].reviewStatus)
             assertEquals(60_000L, stored[1].amountVnd)
-            assertEquals(1, ledger.transactions().size)
+            assertEquals(1, query.ledgerRecords(ALL_LEDGER_RECORDS).items.size)
         } finally {
             database.close()
         }
@@ -454,6 +467,7 @@ class PendingBankDraftDeduplicationTest {
     fun `a later identical post under a reviewed key is a new candidate, never a reopened row`() =
         runTest {
             val database = open()
+            val query = WorkflowQueryService(database)
             try {
                 val drafts = repository(database)
                 val draftId = drafts.storePermitted(BANK_PACKAGE, FIRST_KEY, POSTED_AT, sample())
@@ -487,7 +501,7 @@ class PendingBankDraftDeduplicationTest {
                 )
 
                 assertNotEquals(draftId, laterId)
-                val stored = drafts.drafts().sortedBy { it.id }
+                val stored = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.sortedBy { it.id }
                 assertEquals(2, stored.size)
                 assertEquals(IntakeReviewStatus.CONFIRMED, stored[0].reviewStatus)
                 assertEquals(confirmed, stored[0].confirmedTransactionId)
@@ -496,7 +510,7 @@ class PendingBankDraftDeduplicationTest {
                 assertEquals(IntakeReviewStatus.PENDING, stored[1].reviewStatus)
                 assertNull(stored[1].confirmedTransactionId)
                 assertEquals(draftId, stored[1].possibleDuplicateOfDraftId)
-                assertEquals(1, ledger.transactions().size)
+                assertEquals(1, query.ledgerRecords(ALL_LEDGER_RECORDS).items.size)
             } finally {
                 database.close()
             }
@@ -524,7 +538,7 @@ class PendingBankDraftDeduplicationTest {
             )
 
             assertEquals(draftId, replay)
-            assertEquals(1, repository(restarted).drafts().size)
+            assertEquals(1, WorkflowQueryService(restarted).draftCandidates(ALL_DRAFTS).items.size)
 
             // A later post under the reused key is a different delivery, and it survives the
             // restart as its own flagged candidate instead of being deduplicated away.
@@ -536,7 +550,7 @@ class PendingBankDraftDeduplicationTest {
             )
 
             assertNotEquals(draftId, laterId)
-            val stored = repository(restarted).drafts().sortedBy { it.id }
+            val stored = WorkflowQueryService(restarted).draftCandidates(ALL_DRAFTS).items.sortedBy { it.id }
             assertEquals(2, stored.size)
             assertEquals(draftId, stored[1].possibleDuplicateOfDraftId)
         } finally {
@@ -548,10 +562,11 @@ class PendingBankDraftDeduplicationTest {
     fun `the delivery and evidence identity is enforced by the table, not only by a lookup`() =
         runTest {
             val database = open()
+            val query = WorkflowQueryService(database)
             try {
                 val drafts = repository(database)
                 drafts.storePermitted(BANK_PACKAGE, FIRST_KEY, POSTED_AT, sample())
-                val stored = drafts.drafts().single()
+                val stored = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.single()
 
                 // A second row for the same delivery and evidence is refused by the unique index
                 // even when it bypasses the store lookup, which is what keeps concurrent callbacks
@@ -577,7 +592,7 @@ class PendingBankDraftDeduplicationTest {
                 }
 
                 assertTrue(refused.isFailure)
-                assertEquals(1, drafts.drafts().size)
+                assertEquals(1, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.size)
             } finally {
                 database.close()
             }
@@ -586,12 +601,13 @@ class PendingBankDraftDeduplicationTest {
     @Test
     fun `concurrent callbacks for one delivery stay one draft`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val drafts = repository(database)
             val ids = coroutineScopeOfStores(drafts, FIRST_KEY, sample())
 
             assertEquals(1, ids.toSet().size)
-            assertEquals(1, drafts.drafts().size)
+            assertEquals(1, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.size)
         } finally {
             database.close()
         }
@@ -600,13 +616,14 @@ class PendingBankDraftDeduplicationTest {
     @Test
     fun `concurrent deliveries stating identical evidence both remain and one is flagged`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val drafts = repository(database)
             val ids = coroutineScopeOfStores(drafts, FIRST_KEY, sample()) +
                 coroutineScopeOfStores(drafts, SECOND_KEY, sample())
 
             assertEquals(2, ids.toSet().size)
-            val stored = drafts.drafts()
+            val stored = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items
             assertEquals(2, stored.size)
             assertEquals(1, stored.count { it.possibleDuplicateOfDraftId != null })
             assertEquals(

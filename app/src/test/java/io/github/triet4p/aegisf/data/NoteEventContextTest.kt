@@ -51,6 +51,7 @@ class NoteEventContextTest {
     @Test
     fun `two events from one note attach independently to different drafts`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val captureId = captures(database).saveQuickCapture(NOTE_TEXT)
             val fuelEvent = storeFuelEvent(database, captureId)
@@ -89,7 +90,7 @@ class NoteEventContextTest {
             assertEquals(fuelEvent.id, fuelLinks.single().activeEventId)
 
             // Linking a draft never touches the draft's own review lifecycle.
-            val drafts = IntakeRepository(database, clock).drafts().associateBy { it.id }
+            val drafts = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.associateBy { it.id }
             assertEquals(IntakeReviewStatus.PENDING, drafts.getValue(fuelDraft).reviewStatus)
             assertEquals(IntakeReviewStatus.PENDING, drafts.getValue(snackDraft).reviewStatus)
             assertNull(drafts.getValue(fuelDraft).confirmedTransactionId)
@@ -101,6 +102,7 @@ class NoteEventContextTest {
     @Test
     fun `a refused link stays refused across retries, restarts, and re-processing`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         val captureId = captures(database).saveQuickCapture(NOTE_TEXT)
         val fuelEvent = storeFuelEvent(database, captureId)
         val draftId = storeDraft(database, "fuel-key", 50_000L)
@@ -152,6 +154,7 @@ class NoteEventContextTest {
     @Test
     fun `invalid spans, stale capture revisions, and unknown references fail without mutation`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val captureId = captures(database).saveQuickCapture(NOTE_TEXT)
             val repository = events(database)
@@ -255,6 +258,7 @@ class NoteEventContextTest {
     @Test
     fun `an event holds one active draft while several events may describe one draft`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val captureId = captures(database).saveQuickCapture(NOTE_TEXT)
             val fuelEvent = storeFuelEvent(database, captureId)
@@ -292,6 +296,7 @@ class NoteEventContextTest {
     fun `editing the source clears the derived reading and its active links but keeps the refusal`() =
         runTest {
             val database = open()
+            val query = WorkflowQueryService(database)
             try {
                 val captureId = captures(database).saveQuickCapture(NOTE_TEXT)
                 val fuelEvent = storeFuelEvent(database, captureId)
@@ -344,6 +349,7 @@ class NoteEventContextTest {
     @Test
     fun `deleting the source leaves no derived text and no invalid link`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val captureId = captures(database).saveQuickCapture(NOTE_TEXT)
             val fuelEvent = storeFuelEvent(database, captureId)
@@ -377,6 +383,7 @@ class NoteEventContextTest {
     @Test
     fun `the same reading is stored once and the confirmed ledger is untouched`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val ledger = LedgerRepository(
                 categoryDao = database.categoryDao(),
@@ -421,7 +428,7 @@ class NoteEventContextTest {
             assertEquals(1, events(database).eventsForCapture(captureId).single().revision)
 
             // The confirmed record and its total are untouched by anything stored here.
-            val stored = ledger.findTransaction(transactionId)!!
+            val stored = query.findLedgerRecord(transactionId)!!
             assertEquals(45_000L, stored.amountVnd)
             assertEquals(TransactionType.EXPENSE, stored.type)
             assertEquals(

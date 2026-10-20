@@ -7,7 +7,10 @@ import android.service.notification.StatusBarNotification
 import androidx.test.core.app.ApplicationProvider
 import io.github.triet4p.aegisf.data.IntakeDirection
 import io.github.triet4p.aegisf.data.IntakeFieldState
+import io.github.triet4p.aegisf.data.ALL_DRAFTS
+import io.github.triet4p.aegisf.data.ALL_LEDGER_RECORDS
 import io.github.triet4p.aegisf.data.IntakeRepository
+import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.data.IntakeReviewStatus
 import io.github.triet4p.aegisf.data.LedgerDatabase
 import io.github.triet4p.aegisf.data.NotificationAccessStore
@@ -134,7 +137,7 @@ class ListenerRecoveryTest {
                 withTimeout(10_000L) { intake.stored.await() }
             }
 
-            val drafts = intake.drafts()
+            val drafts = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items
             assertEquals(1, drafts.size)
             assertEquals(storedId, drafts.single().id)
             assertEquals(ACTIVE_KEY, drafts.single().notificationKey)
@@ -174,8 +177,8 @@ class ListenerRecoveryTest {
             listener.onListenerConnected()
             advanceUntilIdle()
 
-            assertEquals(1, intake.drafts().size)
-            assertEquals(firstId, intake.drafts().single().id)
+            assertEquals(1, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.size)
+            assertEquals(firstId, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.single().id)
         } finally {
             listener.activeNotificationsForTest = null
             listener.ioDispatcher = Dispatchers.IO
@@ -205,7 +208,7 @@ class ListenerRecoveryTest {
             listener.onListenerConnected()
             advanceUntilIdle()
 
-            assertTrue(intake.drafts().isEmpty())
+            assertTrue(WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.isEmpty())
         } finally {
             listener.activeNotificationsForTest = null
             listener.ioDispatcher = Dispatchers.IO
@@ -260,8 +263,8 @@ class ListenerRecoveryTest {
 
             // The first still-active post was stored before the disconnect; the second one
             // never becomes a post-disconnect draft, while the stored draft is untouched.
-            assertEquals(1, recording.drafts().size)
-            assertEquals(ACTIVE_KEY, recording.drafts().single().notificationKey)
+            assertEquals(1, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.size)
+            assertEquals(ACTIVE_KEY, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.single().notificationKey)
         } finally {
             listener.activeNotificationsForTest = null
             listener.ioDispatcher = Dispatchers.IO
@@ -314,7 +317,7 @@ class ListenerRecoveryTest {
             advanceUntilIdle()
 
             assertTrue(writes.isEmpty())
-            val drafts = IntakeRepository(database).drafts()
+            val drafts = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items
             assertEquals(1, drafts.size)
             assertEquals(durableId, drafts.single().id)
             assertEquals(ACTIVE_KEY, drafts.single().notificationKey)
@@ -388,10 +391,10 @@ class ListenerRecoveryTest {
             }
 
             assertEquals(draftId, replayId)
-            val stored = intake.drafts().single()
+            val stored = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.single()
             assertEquals(IntakeReviewStatus.CONFIRMED, stored.reviewStatus)
             assertEquals(transactionId, stored.confirmedTransactionId)
-            assertEquals(1, ledger.transactions().size)
+            assertEquals(1, WorkflowQueryService(database).ledgerRecords(ALL_LEDGER_RECORDS).items.size)
             assertEquals(IntakeDirection.DEBIT, stored.direction)
             assertEquals(IntakeFieldState.UNRESOLVED, stored.memoState)
         } finally {
@@ -445,13 +448,13 @@ class ListenerRecoveryTest {
                 restarted.rememberedCategoryRuleDao(),
                 restarted.captureMessageDao(),
             )
-            assertEquals(draftId, intake.drafts().single().id)
-            assertEquals(IntakeReviewStatus.CONFIRMED, intake.drafts().single().reviewStatus)
-            assertEquals(1, ledger.transactions().size)
+            assertEquals(draftId, WorkflowQueryService(restarted).draftCandidates(ALL_DRAFTS).items.single().id)
+            assertEquals(IntakeReviewStatus.CONFIRMED, WorkflowQueryService(restarted).draftCandidates(ALL_DRAFTS).items.single().reviewStatus)
+            assertEquals(1, WorkflowQueryService(restarted).ledgerRecords(ALL_LEDGER_RECORDS).items.size)
             val replay = intake.storePermitted(bankPackage, ACTIVE_KEY, POSTED_AT, sampleContent())
             assertEquals(draftId, replay)
-            assertEquals(1, intake.drafts().size)
-            assertEquals(1, ledger.transactions().size)
+            assertEquals(1, WorkflowQueryService(restarted).draftCandidates(ALL_DRAFTS).items.size)
+            assertEquals(1, WorkflowQueryService(restarted).ledgerRecords(ALL_LEDGER_RECORDS).items.size)
         } finally {
             restarted.close()
         }
@@ -511,7 +514,7 @@ class ListenerRecoveryTest {
         try {
             listener.onListenerConnected()
             advanceUntilIdle()
-            assertTrue(intake.drafts().isEmpty())
+            assertTrue(WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.isEmpty())
 
             // Notification arrives while listener is connected; active reconciliation updates drafts.
             listener.activeNotificationsForTest = { arrayOf(active) }
@@ -520,8 +523,8 @@ class ListenerRecoveryTest {
                 withTimeout(10_000L) { intake.stored.await() }
             }
 
-            assertEquals(1, intake.drafts().size)
-            assertEquals(ACTIVE_KEY, intake.drafts().single().notificationKey)
+            assertEquals(1, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.size)
+            assertEquals(ACTIVE_KEY, WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.single().notificationKey)
         } finally {
             listener.activeNotificationsForTest = null
             listener.ioDispatcher = Dispatchers.IO

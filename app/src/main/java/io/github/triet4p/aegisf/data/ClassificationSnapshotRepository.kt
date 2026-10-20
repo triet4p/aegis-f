@@ -395,7 +395,7 @@ class ClassificationSnapshotRepository(
 }
 
 /** The comma-separated ids of a stored list. */
-private fun String.toIdList(): List<Long> =
+internal fun String.toIdList(): List<Long> =
     if (isEmpty()) emptyList() else split(",").map { it.toLong() }
 
 /** The comma-separated shares of a stored list. */

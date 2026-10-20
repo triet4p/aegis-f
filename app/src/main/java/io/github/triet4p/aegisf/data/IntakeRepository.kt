@@ -156,11 +156,11 @@ open class IntakeRepository(
             originRef == expected.originRef &&
             tombstone == expected.tombstone
 
-    /** All persisted drafts, newest first — what a restarted process recovers. */
-    suspend fun drafts(): List<PendingBankDraftEntity> = draftDao.findAll()
-
-    /** The persisted drafts as a live stream for review recovery. */
-    fun observeDrafts() = draftDao.observeAll()
+    /**
+     * The persisted drafts are read through the shared query surface — see
+     * [WorkflowQueryService.draftCandidates] — so this repository keeps the write that
+     * stores them and no second read path.
+     */
 
     private fun BankNotificationParse.bankName(): String = when (this) {
         is BankNotificationParse.Parsed -> bank.storageName()

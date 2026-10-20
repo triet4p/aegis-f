@@ -60,8 +60,14 @@ import io.github.triet4p.aegisf.data.IntakeDirection
 import io.github.triet4p.aegisf.data.IntakeFieldState
 import io.github.triet4p.aegisf.data.IntakeParseStatus
 import io.github.triet4p.aegisf.data.IntakeReviewStatus
-import io.github.triet4p.aegisf.data.IntakeRepository
+import io.github.triet4p.aegisf.data.CategoryQuery
+import io.github.triet4p.aegisf.data.CategoryState
+import io.github.triet4p.aegisf.data.DraftCandidateQuery
+import io.github.triet4p.aegisf.data.LIST_PAGE_SIZE
 import io.github.triet4p.aegisf.data.LedgerRepository
+import io.github.triet4p.aegisf.data.QueryPage
+import io.github.triet4p.aegisf.data.QueryPageRequest
+import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.data.LedgerValidationException
 import io.github.triet4p.aegisf.data.PendingBankDraftEntity
 import io.github.triet4p.aegisf.data.PredictionSource
@@ -75,6 +81,7 @@ import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
 import io.github.triet4p.aegisf.data.laya.LayaInferenceOutcome
 import io.github.triet4p.aegisf.data.laya.LayaRuntimeContract
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -86,7 +93,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BankDraftReviewScreen(
-    intakeRepository: IntakeRepository,
+    queryService: WorkflowQueryService,
     reviewRepository: BankDraftReviewRepository,
     ledgerRepository: LedgerRepository,
     layaInferenceLifecycle: LayaInferenceLifecycle,
@@ -102,12 +109,52 @@ fun BankDraftReviewScreen(
             BankNotificationListener.requestActiveReconciliation(context)
         }
     }
-    val draftsFlow = remember(intakeRepository) { intakeRepository.observeDrafts() }
-    val drafts by draftsFlow.collectAsState(initial = emptyList())
-    val categoriesFlow = remember(ledgerRepository) { ledgerRepository.observeCategories() }
-    val categories by categoriesFlow.collectAsState(initial = emptyList())
-    val activeCategories = remember(categories) { categories.filterNot { it.archived } }
-    val selectedDraft = draftId?.let { id -> drafts.firstOrNull { it.id == id } }
+    // The inbox lists the drafts that are still waiting for a decision. The read is bounded
+    // and states its own scope, and the screen pages through the drafts of that read, so
+    // every waiting draft is reachable and not only the first page of them.
+    var draftPageIndex by rememberSaveable { mutableIntStateOf(0) }
+    val draftQuery = remember(draftPageIndex) {
+        DraftCandidateQuery(
+            reviewStatus = IntakeReviewStatus.PENDING,
+            bounds = QueryPageRequest(LIST_PAGE_SIZE, offset = draftPageIndex * LIST_PAGE_SIZE),
+        )
+    }
+    val draftsFlow = remember(queryService, draftQuery) {
+        queryService.observeDraftCandidates(draftQuery)
+    }
+    val draftPage by draftsFlow.collectAsState(initial = null)
+    val drafts = draftPage?.items.orEmpty()
+    // How many drafts are waiting in all: the count describes the whole inbox, so the
+    // inbox can say so whichever page it is showing.
+    val waitingCount by remember(queryService) {
+        queryService.observeDraftCandidateCount(IntakeReviewStatus.PENDING)
+    }.collectAsState(initial = null)
+    // A page that lost its drafts steps back to the nearest page that still holds some,
+    // so the inbox never shows an empty page in the middle of the list.
+    ClampPageToRows(
+        pageIndex = draftPageIndex,
+        hasRows = draftPage?.items?.isNotEmpty(),
+        onClamp = { draftPageIndex = it },
+    )
+    // The drafts that share their evidence with the listed ones: a possible duplicate is
+    // kept and shown beside its partner, and the partner may already have been reviewed.
+    val relatedFlow = remember(queryService, drafts) {
+        queryService.observeRelatedDraftCandidates(drafts.map { it.id })
+    }
+    val relatedDrafts by relatedFlow.collectAsState(initial = emptyList())
+    // The opened draft is read on its own, so the detail view follows the draft's own
+    // decisions — a saved correction, a confirmation, a dismissal — as they are written.
+    val selectedDraftFlow = remember(queryService, draftId) {
+        draftId?.let { queryService.observeDraftCandidate(it) } ?: flowOf(null)
+    }
+    val selectedDraft by selectedDraftFlow.collectAsState(initial = null)
+    // The family of the opened draft itself: the earlier draft it points at, and the later
+    // drafts that point at it.
+    val selectedRelatedFlow = remember(queryService, draftId) {
+        draftId?.let { queryService.observeRelatedDraftCandidates(listOf(it)) }
+            ?: flowOf(emptyList())
+    }
+    val selectedRelatedDrafts by selectedRelatedFlow.collectAsState(initial = emptyList())
 
     BackHandler(enabled = draftId == null) { onNavigateUp() }
     Scaffold(
@@ -121,13 +168,20 @@ fun BankDraftReviewScreen(
             )
         },
     ) { innerPadding ->
+        val openedDraft = selectedDraft
         if (draftId == null) {
             InboxContent(
                 drafts = drafts,
+                relatedDrafts = relatedDrafts,
+                waitingCount = waitingCount,
+                pageIndex = draftPageIndex,
+                hasMore = draftPage?.hasMore == true,
                 contentModifier = Modifier.padding(innerPadding),
                 onSelectDraft = onSelectDraft,
+                onPreviousPage = { draftPageIndex -= 1 },
+                onNextPage = { draftPageIndex += 1 },
             )
-        } else if (selectedDraft == null) {
+        } else if (openedDraft == null) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -140,11 +194,11 @@ fun BankDraftReviewScreen(
             }
         } else {
             DraftDetailContent(
-                draft = selectedDraft,
-                allDrafts = drafts,
-                categories = categories,
+                draft = openedDraft,
+                allDrafts = selectedRelatedDrafts,
                 reviewRepository = reviewRepository,
                 ledgerRepository = ledgerRepository,
+                queryService = queryService,
                 layaInferenceLifecycle = layaInferenceLifecycle,
                 classificationSnapshotRepository = classificationSnapshotRepository,
                 contentModifier = Modifier.padding(innerPadding),
@@ -158,8 +212,14 @@ fun BankDraftReviewScreen(
 @Composable
 private fun InboxContent(
     drafts: List<PendingBankDraftEntity>,
+    relatedDrafts: List<PendingBankDraftEntity>,
+    waitingCount: Int?,
+    pageIndex: Int,
+    hasMore: Boolean,
     contentModifier: Modifier,
     onSelectDraft: (Long) -> Unit,
+    onPreviousPage: () -> Unit,
+    onNextPage: () -> Unit,
 ) {
     val pending = remember(drafts) {
         drafts.filter { it.reviewStatus == IntakeReviewStatus.PENDING }
@@ -178,15 +238,31 @@ private fun InboxContent(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            text = if (pending.isEmpty()) "No drafts waiting for review." else "${pending.size} waiting",
+            text = when {
+                waitingCount == 0 -> "No drafts waiting for review."
+                waitingCount != null -> "${waitingCount} waiting"
+                pending.isEmpty() && !hasMore -> "No drafts waiting for review."
+                hasMore -> "${pending.size} waiting on this page — more drafts are stored."
+                else -> "${pending.size} waiting"
+            },
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
+        )
+        // The drafts after this page are one page further on in the same read, so every
+        // waiting draft is reachable and the inbox says which page it is showing. The
+        // controls sit above the drafts, so they are reachable without walking past a
+        // whole page of them first.
+        PageControls(
+            pageIndex = pageIndex,
+            hasMore = hasMore,
+            onPrevious = onPreviousPage,
+            onNext = onNextPage,
         )
         pending.forEach { draft ->
             DraftInboxCard(
                 draft = draft,
                 possibleDuplicate = draft.possibleDuplicateOfDraftId?.let { priorId ->
-                    drafts.firstOrNull { it.id == priorId }
+                    relatedDrafts.firstOrNull { it.id == priorId }
                 },
                 onSelectDraft = { onSelectDraft(draft.id) },
                 onOpenDuplicate = { duplicateId -> onSelectDraft(duplicateId) },
@@ -265,9 +341,9 @@ private fun DraftInboxCard(
 private fun DraftDetailContent(
     draft: PendingBankDraftEntity,
     allDrafts: List<PendingBankDraftEntity>,
-    categories: List<CategoryEntity>,
     reviewRepository: BankDraftReviewRepository,
     ledgerRepository: LedgerRepository,
+    queryService: WorkflowQueryService,
     layaInferenceLifecycle: LayaInferenceLifecycle,
     classificationSnapshotRepository: ClassificationSnapshotRepository,
     contentModifier: Modifier,
@@ -322,14 +398,50 @@ private fun DraftDetailContent(
         ManualSuggestionIntent(draftFormIdentity, effective.orEmpty(), TransactionType.EXPENSE)
     }
     val latestSuggestionIntent by rememberUpdatedState(suggestionIntent)
-    val latestObservedCategories by rememberUpdatedState(categories)
+    // The whole catalog, live and read in bounded chunks: the model's candidate ranking
+    // needs every active category, and an archive or a rename of any of them has to
+    // invalidate a suggestion that was made against the catalog.
+    val catalog: List<CategoryEntity>? by remember(queryService) {
+        queryService.observeCategoryCatalog()
+    }.collectAsState(initial = null)
+    val latestObservedCategories by rememberUpdatedState(catalog)
+    // The choice list reads the catalog page by page, so every stored category can be
+    // chosen and not only the ones on the first page.
+    var categoryPageIndex by rememberSaveable(draft.id) { mutableIntStateOf(0) }
+    val categoryQuery = remember(categoryPageIndex) {
+        CategoryQuery(
+            state = CategoryState.ACTIVE,
+            bounds = QueryPageRequest(LIST_PAGE_SIZE, offset = categoryPageIndex * LIST_PAGE_SIZE),
+        )
+    }
+    val categoryPage: QueryPage<CategoryEntity>? by remember(queryService, categoryQuery) {
+        queryService.observeCategories(categoryQuery)
+    }.collectAsState(initial = null)
+    val choiceCategories = categoryPage?.items.orEmpty()
+    // The chosen category is read by its own id, so it stays visible and marked on every
+    // page of the choice list.
+    val chosenId = selectedCategoryId
+    val chosenCategory: CategoryEntity? by remember(queryService, chosenId) {
+        if (chosenId == null) {
+            flowOf(null)
+        } else {
+            queryService.observeCategory(chosenId)
+        }
+    }.collectAsState(initial = null)
+    // A page that lost its categories steps back to the nearest page that still holds
+    // some, so the choice list never shows an empty page in the middle of the catalog.
+    ClampPageToRows(
+        pageIndex = categoryPageIndex,
+        hasRows = categoryPage?.items?.isNotEmpty(),
+        onClamp = { categoryPageIndex = it },
+    )
     LaunchedEffect(
         ledgerRepository,
         layaInferenceLifecycle,
         draftFormIdentity,
         memoText,
         suggestionNote,
-        categories,
+        catalog,
         suggestionRevision,
     ) {
         if (!active) {
@@ -350,7 +462,7 @@ private fun DraftDetailContent(
             }
             return@LaunchedEffect
         }
-        val requestCategories = categories
+        val requestCategories = catalog ?: return@LaunchedEffect
         if (requestCategories.any { it.id <= 0L || it.name.trim().isEmpty() }) {
             suggestionMachine.ignore(latestSuggestionIntent)
             return@LaunchedEffect
@@ -382,7 +494,7 @@ private fun DraftDetailContent(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            val currentCategories = ledgerRepository.categories()
+            val currentCategories = queryService.categoryCatalog()
             suggestionMachine.unavailable(
                 token = token,
                 currentIntent = latestSuggestionIntent,
@@ -392,7 +504,7 @@ private fun DraftDetailContent(
             )
             return@LaunchedEffect
         }
-        val currentCategories = ledgerRepository.categories()
+        val currentCategories = queryService.categoryCatalog()
         val observedCategories = latestObservedCategories
         val outcome = when (decision) {
             is ManualCategoryDecision.Remembered -> {
@@ -814,7 +926,30 @@ private fun DraftDetailContent(
                     categoryResolved = true
                     feedback = null
                 }
-                categories.filterNot { it.archived }.forEach { category ->
+                // The categories after this page are one page further on in the same read,
+                // so every stored category can be chosen from here. The controls sit above
+                // the choices, so they are reachable without walking past a whole page of
+                // them first.
+                PageControls(
+                    pageIndex = categoryPageIndex,
+                    hasMore = categoryPage?.hasMore == true,
+                    onPrevious = { categoryPageIndex -= 1 },
+                    onNext = { categoryPageIndex += 1 },
+                )
+                val chosen = chosenCategory
+                if (chosen != null && choiceCategories.none { it.id == chosen.id }) {
+                    CategoryChoice(
+                        name = chosen.name,
+                        selected = true,
+                    ) {
+                        suggestionMachine.chooseManually(suggestionIntent)
+                        suggestionRevision += 1
+                        selectedCategoryId = chosen.id
+                        categoryResolved = true
+                        feedback = null
+                    }
+                }
+                choiceCategories.forEach { category ->
                     CategoryChoice(
                         name = category.name,
                         selected = category.id == selectedCategoryId,
@@ -826,7 +961,8 @@ private fun DraftDetailContent(
                         feedback = null
                     }
                 }
-                if (categories.none { !it.archived }) {
+                val knownCatalog = catalog
+                if (knownCatalog != null && knownCatalog.none { !it.archived }) {
                     Text(
                         "There are no active categories. You can explicitly choose No category.",
                         style = MaterialTheme.typography.bodySmall,

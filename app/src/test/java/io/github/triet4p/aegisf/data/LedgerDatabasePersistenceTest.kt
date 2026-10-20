@@ -8,6 +8,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
@@ -37,7 +38,11 @@ class LedgerDatabasePersistenceTest {
         override fun nowEpochMillis(): Long = now
     }
 
-    private class Ledger(val database: LedgerDatabase, val repository: LedgerRepository)
+    private class Ledger(
+        val database: LedgerDatabase,
+        val repository: LedgerRepository,
+        val query: WorkflowQueryService,
+    )
 
     private lateinit var context: Context
     private lateinit var clock: AdvancingLedgerClock
@@ -53,6 +58,7 @@ class LedgerDatabasePersistenceTest {
         val database = LedgerDatabase.build(context)
         return Ledger(
             database = database,
+            query = WorkflowQueryService(database),
             repository = LedgerRepository(
                 categoryDao = database.categoryDao(),
                 transactionDao = database.transactionDao(),
@@ -115,8 +121,8 @@ class LedgerDatabasePersistenceTest {
             ),
         )
 
-        val categoriesBeforeClose = first.repository.categories()
-        val transactionsBeforeClose = first.repository.transactions()
+        val categoriesBeforeClose = first.query.categories(ALL_CATEGORIES).items
+        val transactionsBeforeClose = first.query.ledgerRecords(ALL_LEDGER_RECORDS).items
 
         assertEquals(listOf(food, rent).sorted(), categoriesBeforeClose.map { it.id }.sorted())
 
@@ -124,10 +130,10 @@ class LedgerDatabasePersistenceTest {
 
         val second = open()
 
-        assertEquals(categoriesBeforeClose, second.repository.categories())
-        assertEquals(transactionsBeforeClose, second.repository.transactions())
+        assertEquals(categoriesBeforeClose, second.query.categories(ALL_CATEGORIES).items)
+        assertEquals(transactionsBeforeClose, second.query.ledgerRecords(ALL_LEDGER_RECORDS).items)
 
-        val reloadedLunch = second.repository.findTransaction(lunch)
+        val reloadedLunch = second.query.findLedgerRecord(lunch)
         assertNotNull("the stored transaction must still be readable", reloadedLunch)
         assertEquals(45_000L, reloadedLunch!!.amountVnd)
         assertEquals(TransactionType.EXPENSE, reloadedLunch.type)
@@ -140,14 +146,14 @@ class LedgerDatabasePersistenceTest {
         assertEquals(CREATED_AT, reloadedLunch.updatedAtEpochMillis)
 
         // A transfer keeps its own category-less shape, and a draft keeps its provenance.
-        assertEquals(TransactionType.TRANSFER, second.repository.findTransaction(savingsTransfer)!!.type)
-        assertNull(second.repository.findTransaction(savingsTransfer)!!.categoryId)
-        assertEquals(ConfirmationStatus.DRAFT, second.repository.findTransaction(draftFromBank)!!.confirmation)
-        assertEquals(RecordSource.BANK_NOTIFICATION, second.repository.findTransaction(draftFromBank)!!.source)
+        assertEquals(TransactionType.TRANSFER, second.query.findLedgerRecord(savingsTransfer)!!.type)
+        assertNull(second.query.findLedgerRecord(savingsTransfer)!!.categoryId)
+        assertEquals(ConfirmationStatus.DRAFT, second.query.findLedgerRecord(draftFromBank)!!.confirmation)
+        assertEquals(RecordSource.BANK_NOTIFICATION, second.query.findLedgerRecord(draftFromBank)!!.source)
 
-        assertEquals(1_000_000L, second.repository.findTransaction(salary)!!.amountVnd)
-        assertEquals(120_000L, second.repository.findTransaction(coffee)!!.amountVnd)
-        assertNotNull(second.repository.findCategory(rent))
+        assertEquals(1_000_000L, second.query.findLedgerRecord(salary)!!.amountVnd)
+        assertEquals(120_000L, second.query.findLedgerRecord(coffee)!!.amountVnd)
+        assertNotNull(second.query.findCategory(rent))
     }
 
     @Test
@@ -168,17 +174,17 @@ class LedgerDatabasePersistenceTest {
 
         val second = open()
 
-        val archivedCategory = second.repository.findCategory(food)
+        val archivedCategory = second.query.findCategory(food)
         assertNotNull(archivedCategory)
         assertTrue(archivedCategory!!.archived)
 
         // The historical record still points at the archived category.
-        val storedLunch = second.repository.findTransaction(lunch)
+        val storedLunch = second.query.findLedgerRecord(lunch)
         assertNotNull(storedLunch)
         assertEquals(food, storedLunch!!.categoryId)
 
         // The archived category is no longer offered for new assignments.
-        assertTrue(second.repository.assignableCategories().none { it.id == food })
+        assertTrue(second.query.categories(ALL_ASSIGNABLE_CATEGORIES).items.none { it.id == food })
 
         expectRejection {
             second.repository.addTransaction(
@@ -196,9 +202,9 @@ class LedgerDatabasePersistenceTest {
 
         // The rejected write left nothing behind, and the archived link survived.
         val third = open()
-        assertEquals(listOf(lunch), third.repository.transactions().map { it.id })
-        assertEquals(food, third.repository.findTransaction(lunch)!!.categoryId)
-        assertTrue(third.repository.findCategory(food)!!.archived)
+        assertEquals(listOf(lunch), third.query.ledgerRecords(ALL_LEDGER_RECORDS).items.map { it.id })
+        assertEquals(food, third.query.findLedgerRecord(lunch)!!.categoryId)
+        assertTrue(third.query.findCategory(food)!!.archived)
     }
 
     @Test
@@ -283,11 +289,11 @@ class LedgerDatabasePersistenceTest {
         first.database.close()
 
         val second = open()
-        val transactions = second.repository.transactions()
+        val transactions = second.query.ledgerRecords(ALL_LEDGER_RECORDS).items
         assertEquals(2, transactions.size)
         assertEquals(listOf(lunch, salary).sorted(), transactions.map { it.id }.sorted())
-        assertEquals(45_000L, second.repository.findTransaction(lunch)!!.amountVnd)
-        assertEquals(1_000_000L, second.repository.findTransaction(salary)!!.amountVnd)
+        assertEquals(45_000L, second.query.findLedgerRecord(lunch)!!.amountVnd)
+        assertEquals(1_000_000L, second.query.findLedgerRecord(salary)!!.amountVnd)
     }
 
     @Test
@@ -315,13 +321,13 @@ class LedgerDatabasePersistenceTest {
                 categoryId = food,
             ),
         )
-        val expected = first.repository.findTransaction(lunch)!!
-        assertEquals(1, first.repository.transactions().size)
+        val expected = first.query.findLedgerRecord(lunch)!!
+        assertEquals(1, first.query.ledgerRecords(ALL_LEDGER_RECORDS).items.size)
 
         first.database.close()
 
         val second = open()
-        val corrected = second.repository.findTransaction(lunch)!!
+        val corrected = second.query.findLedgerRecord(lunch)!!
         assertEquals(expected, corrected)
         assertEquals(125_000L, corrected.amountVnd)
         assertEquals("Coffee beans and filter", corrected.description)
@@ -346,7 +352,7 @@ class LedgerDatabasePersistenceTest {
             ),
         )
         first.repository.archiveCategory(snacks)
-        val beforeCorrection = first.repository.findTransaction(capturedBill)!!
+        val beforeCorrection = first.query.findLedgerRecord(capturedBill)!!
 
         clock.now = EDITED_AT
         first.repository.editTransaction(
@@ -363,14 +369,14 @@ class LedgerDatabasePersistenceTest {
         first.database.close()
 
         val second = open()
-        val corrected = second.repository.findTransaction(capturedBill)!!
-        assertEquals(1, second.repository.transactions().size)
+        val corrected = second.query.findLedgerRecord(capturedBill)!!
+        assertEquals(1, second.query.ledgerRecords(ALL_LEDGER_RECORDS).items.size)
         assertEquals(125_000L, corrected.amountVnd)
         assertEquals("Electricity bill, corrected", corrected.description)
         // The archived category the record was filed under is kept, not cleared and not
         // reassigned: correcting a record is not a new assignment.
         assertEquals(snacks, corrected.categoryId)
-        assertTrue(second.repository.findCategory(snacks)!!.archived)
+        assertTrue(second.query.findCategory(snacks)!!.archived)
         // How the record came to exist is not the correction's to rewrite.
         assertEquals(ConfirmationStatus.DRAFT, corrected.confirmation)
         assertEquals(RecordSource.BANK_NOTIFICATION, corrected.source)
@@ -407,9 +413,9 @@ class LedgerDatabasePersistenceTest {
         first.database.close()
 
         val second = open()
-        assertEquals(listOf(coffee), second.repository.transactions().map { it.id })
-        assertNull(second.repository.findTransaction(lunch))
-        assertEquals(food, second.repository.findCategory(food)!!.id)
+        assertEquals(listOf(coffee), second.query.ledgerRecords(ALL_LEDGER_RECORDS).items.map { it.id })
+        assertNull(second.query.findLedgerRecord(lunch))
+        assertEquals(food, second.query.findCategory(food)!!.id)
     }
 
     @Test
@@ -436,37 +442,41 @@ class LedgerDatabasePersistenceTest {
         // this test waits in real time instead of the virtual test clock.
         val emissions = Collections.synchronizedList(mutableListOf<List<CategoryEntity>>())
         val collector = launch(Dispatchers.IO) {
-            first.repository.observeCategories().collect { emissions += it }
+            first.query.observeCategories(ALL_CATEGORIES).map { it.items }.collect { emissions += it }
         }
 
-        suspend fun awaitEmissions(count: Int) {
+        // The waits look for content (the latest emission holding a row set), never for an
+        // emission index: the first emission may be the pre-write empty snapshot.
+        suspend fun awaitLatest(predicate: (List<CategoryEntity>) -> Boolean) {
             withTimeout(15_000) {
-                while (emissions.size < count) {
+                while (true) {
+                    // The collector appends on another thread, so the wait reads a snapshot
+                    // taken under the list's own lock instead of iterating the live list.
+                    val snapshot = synchronized(emissions) { emissions.toList() }
+                    if (snapshot.any(predicate)) return@withTimeout
                     delay(20)
                 }
             }
         }
 
         val food = first.repository.addCategory("Food")
-        awaitEmissions(1)
+        awaitLatest { rows -> rows.map { it.id } == listOf(food) }
         val rent = first.repository.addCategory("Rent")
-        awaitEmissions(2)
+        awaitLatest { rows -> rows.map { it.id } == listOf(food, rent) }
         first.repository.renameCategory(rent, "Housing")
-        awaitEmissions(3)
+        awaitLatest { rows -> rows.map { it.name } == listOf("Food", "Housing") }
         first.repository.archiveCategory(food)
-        awaitEmissions(4)
+        awaitLatest { rows -> rows.map { it.archived } == listOf(true, false) }
 
         collector.cancelAndJoin()
 
-        assertEquals(listOf(food), emissions[0].map { it.id })
-        assertEquals(listOf(food, rent), emissions[1].map { it.id })
-        assertEquals(listOf(food, rent), emissions[2].map { it.id })
-        assertEquals(listOf("Food", "Housing"), emissions[2].map { it.name })
-        assertEquals(listOf(food, rent), emissions[3].map { it.id })
-        assertEquals(listOf(true, false), emissions[3].map { it.archived })
+        val latest = synchronized(emissions) { emissions.toList() }.last()
+        assertEquals(listOf(food, rent), latest.map { it.id })
+        assertEquals(listOf("Food", "Housing"), latest.map { it.name })
+        assertEquals(listOf(true, false), latest.map { it.archived })
 
         // A new subscriber starts from the stored state, not from an empty list.
-        assertEquals(emissions.last(), first.repository.observeCategories().first())
+        assertEquals(emissions.last(), first.query.observeCategories(ALL_CATEGORIES).map { it.items }.first())
 
         first.database.close()
     }
@@ -476,14 +486,14 @@ class LedgerDatabasePersistenceTest {
         val first = open()
         val created = (1..60).map { index -> first.repository.addCategory("Category $index") }
 
-        val observed = first.repository.observeCategories().first()
+        val observed = first.query.observeCategories(ALL_CATEGORIES).map { it.items }.first()
         assertEquals(60, observed.size)
         assertEquals(created.toSet(), observed.map { it.id }.toSet())
-        assertEquals(60, first.repository.assignableCategories().size)
+        assertEquals(60, first.query.categories(ALL_ASSIGNABLE_CATEGORIES).items.size)
 
         // One more still fits: no cap is hidden behind the first page of results.
         first.repository.addCategory("One more category")
-        assertEquals(61, first.repository.observeCategories().first().size)
+        assertEquals(61, first.query.observeCategories(ALL_CATEGORIES).map { it.items }.first().size)
 
         first.database.close()
     }
@@ -499,7 +509,7 @@ class LedgerDatabasePersistenceTest {
         // index: the first emission may be the pre-write empty snapshot.
         val emissions = Collections.synchronizedList(mutableListOf<List<TransactionEntity>>())
         val collector = launch(Dispatchers.IO) {
-            first.repository.observeTransactions().collect { emissions += it }
+            first.query.observeLedgerRecords(ALL_LEDGER_RECORDS).map { it.items }.collect { emissions += it }
         }
 
         suspend fun awaitLatest(predicate: (List<TransactionEntity>) -> Boolean) {
@@ -550,7 +560,7 @@ class LedgerDatabasePersistenceTest {
         // it — the browsing list never asks for a refresh to see either.
         val secondEmissions = Collections.synchronizedList(mutableListOf<List<TransactionEntity>>())
         val collector2 = launch(Dispatchers.IO) {
-            first.repository.observeTransactions().collect { secondEmissions += it }
+            first.query.observeLedgerRecords(ALL_LEDGER_RECORDS).map { it.items }.collect { secondEmissions += it }
         }
 
         suspend fun awaitSecondLatest(predicate: (List<TransactionEntity>) -> Boolean) {
@@ -584,7 +594,7 @@ class LedgerDatabasePersistenceTest {
         // The stream survives close/reopen: it reads the same database file.
         first.database.close()
         val second = open()
-        assertEquals(listOf(tie, newer), second.repository.observeTransactions().first().map { it.id })
+        assertEquals(listOf(tie, newer), second.query.observeLedgerRecords(ALL_LEDGER_RECORDS).map { it.items }.first().map { it.id })
         second.database.close()
     }
 
@@ -606,19 +616,19 @@ class LedgerDatabasePersistenceTest {
         first.repository.renameCategory(food, "Groceries")
 
         // The record keeps its link; only the category's name changed.
-        assertEquals(food, first.repository.findTransaction(lunch)!!.categoryId)
-        assertEquals("Groceries", first.repository.findCategory(food)!!.name)
+        assertEquals(food, first.query.findLedgerRecord(lunch)!!.categoryId)
+        assertEquals("Groceries", first.query.findCategory(food)!!.name)
 
         first.database.close()
 
         val second = open()
-        val renamed = second.repository.findCategory(food)!!
+        val renamed = second.query.findCategory(food)!!
         assertEquals("Groceries", renamed.name)
         assertTrue(!renamed.archived)
-        assertEquals(food, second.repository.findTransaction(lunch)!!.categoryId)
+        assertEquals(food, second.query.findLedgerRecord(lunch)!!.categoryId)
 
         // The renamed category is still offered for new assignments.
-        assertTrue(second.repository.assignableCategories().any { it.id == food })
+        assertTrue(second.query.categories(ALL_ASSIGNABLE_CATEGORIES).items.any { it.id == food })
 
         second.database.close()
     }

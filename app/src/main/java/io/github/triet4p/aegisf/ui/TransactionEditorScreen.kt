@@ -36,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -48,6 +49,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.triet4p.aegisf.data.CategoryEntity
+import io.github.triet4p.aegisf.data.CategoryQuery
+import io.github.triet4p.aegisf.data.CategoryState
+import io.github.triet4p.aegisf.data.LIST_PAGE_SIZE
+import io.github.triet4p.aegisf.data.QueryPage
+import io.github.triet4p.aegisf.data.QueryPageRequest
 import io.github.triet4p.aegisf.data.LedgerRepository
 import io.github.triet4p.aegisf.data.LedgerValidationException
 import io.github.triet4p.aegisf.data.TransactionCorrection
@@ -55,6 +61,7 @@ import io.github.triet4p.aegisf.data.TransactionEntity
 import io.github.triet4p.aegisf.data.TransactionInput
 import io.github.triet4p.aegisf.data.TransactionType
 import io.github.triet4p.aegisf.data.VndMoney
+import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner
 import io.github.triet4p.aegisf.data.laya.LayaEffectiveContext
 import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
@@ -62,6 +69,7 @@ import io.github.triet4p.aegisf.data.laya.LayaInferenceOutcome
 import io.github.triet4p.aegisf.data.laya.LayaRuntimeContract
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -101,6 +109,7 @@ internal fun formatProbability(probability: Double): String {
 @Composable
 fun TransactionEditorScreen(
     repository: LedgerRepository,
+    queryService: WorkflowQueryService,
     layaInferenceLifecycle: LayaInferenceLifecycle,
     transactionId: Long?,
     onNavigateUp: () -> Unit,
@@ -109,6 +118,7 @@ fun TransactionEditorScreen(
     if (transactionId == null) {
         TransactionFormScreen(
             repository = repository,
+            queryService = queryService,
             layaInferenceLifecycle = layaInferenceLifecycle,
             storedRecord = null,
             storedCategory = null,
@@ -124,13 +134,13 @@ fun TransactionEditorScreen(
         mutableStateOf<StoredTransactionState>(StoredTransactionState.Loading)
     }
     LaunchedEffect(transactionId) {
-        val record = repository.findTransaction(transactionId)
+        val record = queryService.findLedgerRecord(transactionId)
         loaded = if (record == null) {
             StoredTransactionState.Missing
         } else {
             StoredTransactionState.Found(
                 record = record,
-                category = record.categoryId?.let { repository.findCategory(it) },
+                category = record.categoryId?.let { queryService.findCategory(it) },
             )
         }
     }
@@ -142,6 +152,7 @@ fun TransactionEditorScreen(
 
         is StoredTransactionState.Found -> TransactionFormScreen(
             repository = repository,
+            queryService = queryService,
             layaInferenceLifecycle = layaInferenceLifecycle,
             storedRecord = stored.record,
             storedCategory = stored.category,
@@ -169,6 +180,7 @@ private sealed interface StoredTransactionState {
 @Composable
 private fun TransactionFormScreen(
     repository: LedgerRepository,
+    queryService: WorkflowQueryService,
     layaInferenceLifecycle: LayaInferenceLifecycle,
     storedRecord: TransactionEntity?,
     storedCategory: CategoryEntity?,
@@ -205,11 +217,15 @@ private fun TransactionFormScreen(
     var savedRecordId by rememberSaveable { mutableStateOf<Long?>(null) }
     var savedRecord by remember { mutableStateOf<TransactionEntity?>(null) }
 
-    // The same live category rows drive the picker and the suggestion input. In particular,
-    // an archive or rename during inference invalidates that request's metadata snapshot.
-    val allCategories by repository.observeCategories().collectAsState(initial = null)
-    val activeCategories = remember(allCategories) {
-        allCategories?.filterNot { it.archived }
+    // The whole catalog, live and read in bounded chunks: the model's candidate ranking
+    // needs every active category, and an archive or a rename of any of them has to
+    // invalidate a suggestion that was made against the catalog. The picker itself reads
+    // the catalog page by page, so every stored category is reachable there.
+    val catalog: List<CategoryEntity>? by remember(queryService) {
+        queryService.observeCategoryCatalog()
+    }.collectAsState(initial = null)
+    val activeCategories = remember(catalog) {
+        catalog?.filterNot { it.archived }
     }
     var formIdentity by remember { mutableStateOf(Any()) }
     val suggestionMachine = remember(formIdentity) { ManualCategorySuggestionMachine() }
@@ -218,13 +234,13 @@ private fun TransactionFormScreen(
         ManualSuggestionIntent(formIdentity, descriptionText, selectedType)
     }
     val latestSuggestionIntent by rememberUpdatedState(suggestionIntent)
-    val latestObservedCategories by rememberUpdatedState(allCategories)
+    val latestObservedCategories by rememberUpdatedState(catalog)
 
     // Kept as an id so the confirmation survives a configuration change: the record is
     // re-read from storage instead of being held in unsaveable state.
     LaunchedEffect(savedRecordId) {
         val id = savedRecordId
-        savedRecord = if (id == null) null else repository.findTransaction(id)
+        savedRecord = if (id == null) null else queryService.findLedgerRecord(id)
     }
 
     val scope = rememberCoroutineScope()
@@ -236,7 +252,7 @@ private fun TransactionFormScreen(
         editing,
         descriptionText,
         selectedType,
-        allCategories,
+        catalog,
         suggestionRevision,
         savedRecordId,
     ) {
@@ -252,7 +268,7 @@ private fun TransactionFormScreen(
             }
             return@LaunchedEffect
         }
-        val requestCategories = allCategories
+        val requestCategories = catalog
         if (requestCategories == null) {
             suggestionMachine.waitForCategories()
             return@LaunchedEffect
@@ -283,7 +299,7 @@ private fun TransactionFormScreen(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            val currentCategories = repository.categories()
+            val currentCategories = queryService.categoryCatalog()
             suggestionMachine.unavailable(
                 token = token,
                 currentIntent = latestSuggestionIntent,
@@ -293,7 +309,7 @@ private fun TransactionFormScreen(
             )
             return@LaunchedEffect
         }
-        val currentCategories = repository.categories()
+        val currentCategories = queryService.categoryCatalog()
         val observedCategories = latestObservedCategories
         val outcome = when (decision) {
             is ManualCategoryDecision.Remembered -> {
@@ -352,7 +368,7 @@ private fun TransactionFormScreen(
 
 
     // Prefer the current row name when a category changes while the form is open.
-    val currentSelectedCategory = allCategories
+    val currentSelectedCategory = catalog
         ?.firstOrNull { it.id == selectedCategoryId }
     val categoryButtonLabel = when {
         selectedCategoryId == null -> null
@@ -375,7 +391,7 @@ private fun TransactionFormScreen(
         // A category deleted while this form was open leaves its id selected but no row
         // behind it. Saying so is what keeps the stale name from looking like a live choice;
         // saving it is refused by the repository's own category check.
-        allCategories != null && selectedCategoryId != null && currentSelectedCategory == null ->
+        catalog != null && selectedCategoryId != null && currentSelectedCategory == null ->
             "The category this form had selected no longer exists: it was deleted. Choose " +
                 "another category or No category; saving will refuse the removed one."
         storedCategory != null && storedCategory.archived &&
@@ -636,7 +652,7 @@ private fun TransactionFormScreen(
 
     if (categoryPickerVisible) {
         CategoryPickerDialog(
-            categories = activeCategories,
+            queryService = queryService,
             // The retained option is the record's own archived category, and it is only
             // offered while a row for it still exists: the stored snapshot is used just
             // while the live list is still loading, so a category deleted during this form
@@ -644,7 +660,7 @@ private fun TransactionFormScreen(
             retainedCategory = storedCategory
                 ?.takeIf { it.archived }
                 ?.let { stored ->
-                    when (val loaded = allCategories) {
+                    when (val loaded = catalog) {
                         null -> stored
                         else -> loaded.firstOrNull { it.id == stored.id }
                     }
@@ -1334,15 +1350,47 @@ private fun SavedTransactionPanel(
  * [retainedCategory] is the archived category the record being corrected already carries. It
  * is listed — marked archived — so the current filing is visible and can be kept, while no
  * other archived category is offered for a new assignment.
+ *
+ * The catalog is read page by page, so every stored category can be picked, not only the
+ * ones on the first page. The chosen category is read by its own id and stays visible and
+ * marked on every page, so walking the catalog never hides the current choice.
  */
 @Composable
 private fun CategoryPickerDialog(
-    categories: List<CategoryEntity>?,
+    queryService: WorkflowQueryService,
     retainedCategory: CategoryEntity?,
     selectedCategoryId: Long?,
     onSelect: (Long?, String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    var pageIndex by rememberSaveable { mutableIntStateOf(0) }
+    val categoryQuery = remember(pageIndex) {
+        CategoryQuery(
+            state = CategoryState.ACTIVE,
+            bounds = QueryPageRequest(LIST_PAGE_SIZE, offset = pageIndex * LIST_PAGE_SIZE),
+        )
+    }
+    val categoryPage: QueryPage<CategoryEntity>? by remember(queryService, categoryQuery) {
+        queryService.observeCategories(categoryQuery)
+    }.collectAsState(initial = null)
+    val categories = categoryPage?.items
+    // The chosen category is read by its own id, so it is named and marked on whichever
+    // page of the catalog the picker is showing.
+    val selectedRow: CategoryEntity? by remember(queryService, selectedCategoryId) {
+        if (selectedCategoryId == null) {
+            flowOf(null)
+        } else {
+            queryService.observeCategory(selectedCategoryId)
+        }
+    }.collectAsState(initial = null)
+    // A page that lost its categories steps back to the nearest page that still holds
+    // some, so the picker never shows an empty page in the middle of the catalog.
+    ClampPageToRows(
+        pageIndex = pageIndex,
+        hasRows = categoryPage?.items?.isNotEmpty(),
+        onClamp = { pageIndex = it },
+    )
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Category") },
@@ -1355,6 +1403,12 @@ private fun CategoryPickerDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
+                    PageControls(
+                        pageIndex = pageIndex,
+                        hasMore = categoryPage?.hasMore == true,
+                        onPrevious = { pageIndex -= 1 },
+                        onNext = { pageIndex += 1 },
+                    )
                     CategoryOption(
                         text = "No category",
                         selected = selectedCategoryId == null,
@@ -1367,6 +1421,14 @@ private fun CategoryPickerDialog(
                             onSelect = {
                                 onSelect(retainedCategory.id, retainedCategory.name)
                             },
+                        )
+                    }
+                    val chosen = selectedRow
+                    if (chosen != null && categories.none { it.id == chosen.id }) {
+                        CategoryOption(
+                            text = categoryLabel(chosen),
+                            selected = true,
+                            onSelect = { onSelect(chosen.id, chosen.name) },
                         )
                     }
                     categories.forEach { category ->

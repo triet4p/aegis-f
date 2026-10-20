@@ -1,7 +1,9 @@
-package io.github.triet4p.aegisf.ui
+package io.github.triet4p.aegisf.data
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import io.github.triet4p.aegisf.ui.ManualDateTime
+import io.github.triet4p.aegisf.ui.categoryLabel
 import io.github.triet4p.aegisf.data.ConfirmationStatus
 import io.github.triet4p.aegisf.data.LedgerClock
 import io.github.triet4p.aegisf.data.LedgerDatabase
@@ -14,6 +16,7 @@ import io.github.triet4p.aegisf.data.TransactionType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -45,13 +48,17 @@ import java.util.TimeZone
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
-class ExpenseSummaryPersistenceTest {
+class LedgerAggregatePersistenceTest {
 
     private class FixedLedgerClock(var now: Long = CREATED_AT) : LedgerClock {
         override fun nowEpochMillis(): Long = now
     }
 
-    private class Ledger(val database: LedgerDatabase, val repository: LedgerRepository)
+    private class Ledger(
+        val database: LedgerDatabase,
+        val repository: LedgerRepository,
+        val query: WorkflowQueryService,
+    )
 
     private val zone = TimeZone.getTimeZone("Asia/Ho_Chi_Minh")
     private val monthStartEpochMillis =
@@ -73,6 +80,7 @@ class ExpenseSummaryPersistenceTest {
         val database = LedgerDatabase.build(context)
         return Ledger(
             database = database,
+            query = WorkflowQueryService(database),
             repository = LedgerRepository(
                 categoryDao = database.categoryDao(),
                 transactionDao = database.transactionDao(),
@@ -87,7 +95,7 @@ class ExpenseSummaryPersistenceTest {
         ManualDateTime.toEpochMillis(date, time, zone)
 
     private fun summarize(rows: List<TransactionEntity>) =
-        summarizeMonthExpenses(rows, monthStartEpochMillis, monthEndExclusiveEpochMillis)
+        summarizeConfirmedSpending(rows, monthStartEpochMillis, monthEndExclusiveEpochMillis)
 
     @Test
     fun `a correction, a rename, an archive, and a deletion refresh the month summary`() =
@@ -159,20 +167,20 @@ class ExpenseSummaryPersistenceTest {
             // only changed when the screen asked again would be a stale figure. Room re-emits
             // on real threads, so this waits in real time and looks for content, never for an
             // emission index.
-            val summaries = Collections.synchronizedList(mutableListOf<ExpenseSummary>())
+            val summaries = Collections.synchronizedList(mutableListOf<LedgerSpending>())
             val collector = launch(Dispatchers.IO) {
-                first.repository.observeTransactions().collect { rows -> summaries += summarize(rows) }
+                first.query.observeLedgerRecords(ALL_LEDGER_RECORDS).map { it.items }.collect { rows -> summaries += summarize(rows) }
             }
 
-            suspend fun awaitSummary(predicate: (ExpenseSummary) -> Boolean) {
+            suspend fun awaitSummary(predicate: (LedgerSpending) -> Boolean) {
                 withTimeout(15_000) {
                     while (summaries.none(predicate)) delay(20)
                 }
             }
 
-            awaitSummary { it.expenseCount == 2 && it.totalVnd == 165_000L }
-            val seeded = summaries.last { it.expenseCount == 2 && it.totalVnd == 165_000L }
-            assertFalse(seeded.totalOverflowed)
+            awaitSummary { it.recordCount == 2 && it.totalVnd == 165_000L }
+            val seeded = summaries.last { it.recordCount == 2 && it.totalVnd == 165_000L }
+            assertFalse(seeded.overflowed)
             assertEquals(
                 listOf(transport to 120_000L, null to 45_000L),
                 seeded.categoryTotals.map { it.categoryId to it.totalVnd },
@@ -190,7 +198,7 @@ class ExpenseSummaryPersistenceTest {
                     categoryId = transport,
                 ),
             )
-            awaitSummary { it.expenseCount == 2 && it.totalVnd == 170_000L }
+            awaitSummary { it.recordCount == 2 && it.totalVnd == 170_000L }
             val corrected = summaries.last { it.totalVnd == 170_000L }
             assertEquals(
                 listOf(transport to 125_000L, null to 45_000L),
@@ -201,13 +209,13 @@ class ExpenseSummaryPersistenceTest {
             // spending keeps the same stable bucket and the screen names it as archived.
             first.repository.renameCategory(transport, "Travel")
             first.repository.archiveCategory(transport)
-            val archivedCategory = first.repository.findCategory(transport)!!
+            val archivedCategory = first.query.findCategory(transport)!!
             assertTrue(archivedCategory.archived)
             assertEquals("Travel", archivedCategory.name)
             assertEquals("Travel (archived)", categoryLabel(archivedCategory))
-            assertEquals(transport, first.repository.findTransaction(coffee)!!.categoryId)
-            val afterArchive = summarize(first.repository.transactions())
-            assertEquals(2, afterArchive.expenseCount)
+            assertEquals(transport, first.query.findLedgerRecord(coffee)!!.categoryId)
+            val afterArchive = summarize(first.query.ledgerRecords(ALL_LEDGER_RECORDS).items)
+            assertEquals(2, afterArchive.recordCount)
             assertEquals(170_000L, afterArchive.totalVnd)
             assertEquals(
                 listOf(transport to 125_000L, null to 45_000L),
@@ -215,8 +223,8 @@ class ExpenseSummaryPersistenceTest {
             )
 
             first.repository.deleteTransaction(lunch)
-            awaitSummary { it.expenseCount == 1 && it.totalVnd == 125_000L }
-            val afterDelete = summaries.last { it.expenseCount == 1 }
+            awaitSummary { it.recordCount == 1 && it.totalVnd == 125_000L }
+            val afterDelete = summaries.last { it.recordCount == 1 }
             assertEquals(listOf(transport), afterDelete.categoryTotals.map { it.categoryId })
             assertEquals(125_000L, afterDelete.categoryTotals.single().totalVnd)
 
@@ -226,11 +234,11 @@ class ExpenseSummaryPersistenceTest {
             // Closing and reopening is what the process does when Android restarts it: the
             // summary is derived from the stored rows, so it cannot be stale or a second copy.
             val second = open()
-            val afterRestart = summarize(second.repository.transactions())
-            assertEquals(1, afterRestart.expenseCount)
+            val afterRestart = summarize(second.query.ledgerRecords(ALL_LEDGER_RECORDS).items)
+            assertEquals(1, afterRestart.recordCount)
             assertEquals(125_000L, afterRestart.totalVnd)
             assertEquals(listOf(transport), afterRestart.categoryTotals.map { it.categoryId })
-            assertEquals("Travel (archived)", categoryLabel(second.repository.findCategory(transport)))
+            assertEquals("Travel (archived)", categoryLabel(second.query.findCategory(transport)))
             second.database.close()
         }
 
@@ -290,10 +298,10 @@ class ExpenseSummaryPersistenceTest {
                 ),
             )
 
-            val edgesOut = summarize(first.repository.transactions())
-            assertEquals(2, edgesOut.expenseCount)
+            val edgesOut = summarize(first.query.ledgerRecords(ALL_LEDGER_RECORDS).items)
+            assertEquals(2, edgesOut.recordCount)
             assertEquals(24_000L, edgesOut.totalVnd)
-            assertFalse(edgesOut.totalOverflowed)
+            assertFalse(edgesOut.overflowed)
             assertEquals(2, edgesOut.categoryTotals.single().recordCount)
 
             // Move the October-start record across the edge into September: only the
@@ -309,29 +317,29 @@ class ExpenseSummaryPersistenceTest {
                     categoryId = edges,
                 ),
             )
-            val afterEdit = summarize(first.repository.transactions())
-            assertEquals(1, afterEdit.expenseCount)
+            val afterEdit = summarize(first.query.ledgerRecords(ALL_LEDGER_RECORDS).items)
+            assertEquals(1, afterEdit.recordCount)
             assertEquals(13_000L, afterEdit.totalVnd)
 
             // Archive the category and delete the September-edge record: the archived link
             // stays on the remaining October record, and the deletion removes only its row.
             first.repository.archiveCategory(edges)
             first.repository.deleteTransaction(septemberEdge)
-            assertEquals(edges, first.repository.findTransaction(octoberEnd)!!.categoryId)
+            assertEquals(edges, first.query.findLedgerRecord(octoberEnd)!!.categoryId)
             first.database.close()
 
             val second = open()
-            val afterRestart = summarize(second.repository.transactions())
-            assertEquals(1, afterRestart.expenseCount)
+            val afterRestart = summarize(second.query.ledgerRecords(ALL_LEDGER_RECORDS).items)
+            assertEquals(1, afterRestart.recordCount)
             assertEquals(13_000L, afterRestart.totalVnd)
-            assertFalse(afterRestart.totalOverflowed)
+            assertFalse(afterRestart.overflowed)
             assertEquals(listOf(edges), afterRestart.categoryTotals.map { it.categoryId })
             assertEquals(13_000L, afterRestart.categoryTotals.single().totalVnd)
             assertEquals(1, afterRestart.categoryTotals.single().recordCount)
-            val keptCategory = second.repository.findCategory(edges)!!
+            val keptCategory = second.query.findCategory(edges)!!
             assertTrue(keptCategory.archived)
             assertEquals("S2.8 edges", keptCategory.name)
-            assertEquals(edges, second.repository.findTransaction(octoberEnd)!!.categoryId)
+            assertEquals(edges, second.query.findLedgerRecord(octoberEnd)!!.categoryId)
             second.database.close()
         }
 
@@ -366,10 +374,10 @@ class ExpenseSummaryPersistenceTest {
                 ),
             )
 
-            val exact = summarize(first.repository.transactions())
-            assertEquals(3, exact.expenseCount)
+            val exact = summarize(first.query.ledgerRecords(ALL_LEDGER_RECORDS).items)
+            assertEquals(3, exact.recordCount)
             assertEquals(Long.MAX_VALUE, exact.totalVnd)
-            assertFalse(exact.totalOverflowed)
+            assertFalse(exact.overflowed)
             assertFalse(exact.categoryTotals.single().overflowed)
 
             first.repository.addTransaction(
@@ -381,17 +389,17 @@ class ExpenseSummaryPersistenceTest {
                 ),
             )
 
-            val overflowed = summarize(first.repository.transactions())
-            assertEquals(4, overflowed.expenseCount)
+            val overflowed = summarize(first.query.ledgerRecords(ALL_LEDGER_RECORDS).items)
+            assertEquals(4, overflowed.recordCount)
             assertEquals(Long.MAX_VALUE, overflowed.totalVnd)
-            assertTrue(overflowed.totalOverflowed)
+            assertTrue(overflowed.overflowed)
             assertTrue(overflowed.categoryTotals.single().overflowed)
 
             // The refusal is a report, not a rewrite: every stored amount is still its own
             // exact whole-dong value.
             assertEquals(
                 listOf(1L, 1L, half, half).sorted(),
-                first.repository.transactions().map { it.amountVnd }.sorted(),
+                first.query.ledgerRecords(ALL_LEDGER_RECORDS).items.map { it.amountVnd }.sorted(),
             )
             first.database.close()
         }

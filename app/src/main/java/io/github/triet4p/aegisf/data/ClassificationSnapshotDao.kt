@@ -23,6 +23,24 @@ abstract class ClassificationSnapshotDao {
     @Query("SELECT * FROM classification_snapshots WHERE draftId = :draftId LIMIT 1")
     abstract suspend fun findForDraft(draftId: Long): ClassificationSnapshotEntity?
 
+    /**
+     * A bounded page of the stored predictions.
+     *
+     * [staleOnly] narrows the read to the predictions that no longer apply. The order is
+     * the stored prediction time, newest first, with the stored id as the tie-breaker, so
+     * a page boundary is always between two whole predictions.
+     */
+    @Query(
+        "SELECT * FROM classification_snapshots WHERE " +
+            "(:staleOnly = 0 OR staleReason IS NOT NULL) " +
+            "ORDER BY predictionTime DESC, id DESC LIMIT :limit OFFSET :offset",
+    )
+    abstract suspend fun findPage(
+        staleOnly: Int,
+        limit: Int,
+        offset: Int,
+    ): List<ClassificationSnapshotEntity>
+
     /** Replaces the stored snapshot of one draft with the one just computed. */
     @Query(
         "UPDATE classification_snapshots SET " +

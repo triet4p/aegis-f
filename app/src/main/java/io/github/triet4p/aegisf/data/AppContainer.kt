@@ -76,6 +76,17 @@ class AppContainer(context: Context) {
         IntakeRepository(database = database)
     }
 
+    /**
+     * The app's one read surface: the typed, bounded queries the screens and the later
+     * tools read through.
+     *
+     * The service reads the same database file as the repositories and never writes, so
+     * giving it to a screen adds a read path and no other.
+     */
+    val workflowQueryService: WorkflowQueryService by lazy {
+        WorkflowQueryService(database = database)
+    }
+
     /** The user's bank-notification preferences: access choices, not ledger data. */
     val notificationAccessStore: NotificationAccessStore by lazy {
         NotificationAccessStore(appContext)

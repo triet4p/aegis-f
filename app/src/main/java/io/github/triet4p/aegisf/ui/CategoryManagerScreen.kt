@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -36,17 +37,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.github.triet4p.aegisf.data.CategoryCatalogCounts
 import io.github.triet4p.aegisf.data.CategoryDeletionImpact
 import io.github.triet4p.aegisf.data.CategoryEntity
+import io.github.triet4p.aegisf.data.CategoryQuery
+import io.github.triet4p.aegisf.data.CategoryState
+import io.github.triet4p.aegisf.data.LIST_PAGE_SIZE
 import io.github.triet4p.aegisf.data.LedgerRepository
 import io.github.triet4p.aegisf.data.LedgerValidationException
+import io.github.triet4p.aegisf.data.QueryPage
+import io.github.triet4p.aegisf.data.QueryPageRequest
+import io.github.triet4p.aegisf.data.WorkflowQueryService
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /**
  * Category management: add, rename, archive, and permanently delete.
  *
- * The list is backed by [LedgerRepository.observeCategories], a live Room stream, so
+ * The list is backed by the shared category read, a live Room stream, so
  * every write the user makes appears without a manual refresh. Every rule that protects
  * stored data — a category needs a name, an active name is unique without regard to
  * case, archiving keeps historical records attached — is enforced by the repository and
@@ -62,22 +70,48 @@ import kotlinx.coroutines.launch
  *
  * Archived categories stay listed with a marker: the user must still be able to see and
  * rename them, because their past records remain filed under them, and they can be deleted
- * like any other. There is no cap on how many categories can exist; the list scrolls
- * through all of them.
+ * like any other. There is no cap on how many categories can exist: the list reads the
+ * catalog page by page and says which page it shows, so every stored category can be
+ * renamed, archived, and deleted, not only the ones on the first page.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategoryManagerScreen(
     repository: LedgerRepository,
+    queryService: WorkflowQueryService,
     onNavigateUp: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // The page of the catalog the list is showing. A page is an offset into the same
+    // bounded read, so every stored category is reachable, however many there are.
+    var pageIndex by rememberSaveable { mutableIntStateOf(0) }
     // Hoisted so the collected flow has a stable identity: building it on every
     // recomposition would restart the collection (and blank the list) each time.
-    val categoryFlow = remember(repository) { repository.observeCategories() }
+    val categoryQuery = remember(pageIndex) {
+        CategoryQuery(
+            state = CategoryState.ALL,
+            bounds = QueryPageRequest(LIST_PAGE_SIZE, offset = pageIndex * LIST_PAGE_SIZE),
+        )
+    }
+    val categoryFlow = remember(queryService, categoryQuery) {
+        queryService.observeCategories(categoryQuery)
+    }
     // Null until the first emission: it distinguishes "loading" from "nothing stored".
-    val categories: List<CategoryEntity>? by
+    val categoryPage: QueryPage<CategoryEntity>? by
         categoryFlow.collectAsState(initial = null)
+    val categories: List<CategoryEntity>? = categoryPage?.items
+    // How many categories exist, and how many of them are archived: the counts describe
+    // the whole catalog, so they stay right whichever page the list is showing.
+    val catalogCounts: CategoryCatalogCounts? by remember(queryService) {
+        queryService.observeCategoryCatalogCounts()
+    }.collectAsState(initial = null)
+    // A page that lost its categories steps back to the nearest page that still holds
+    // some, so the list never shows an empty page in the middle of the catalog.
+    ClampPageToRows(
+        pageIndex = pageIndex,
+        hasRows = categoryPage?.items?.isNotEmpty(),
+        onClamp = { pageIndex = it },
+    )
 
     var dialog: CategoryDialogState? by rememberSaveable { mutableStateOf(null) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
@@ -112,31 +146,61 @@ fun CategoryManagerScreen(
     ) { innerPadding ->
         when (val loaded = categories) {
             null -> LoadingCategories(Modifier.padding(innerPadding))
-            else -> CategoryList(
-                categories = loaded,
-                contentPadding = innerPadding,
-                onRename = { category ->
-                    dialog = CategoryDialogState(
-                        mode = CategoryDialogMode.RENAME,
-                        categoryId = category.id,
-                        categoryName = category.name,
-                    )
-                },
-                onArchive = { category ->
-                    dialog = CategoryDialogState(
-                        mode = CategoryDialogMode.ARCHIVE,
-                        categoryId = category.id,
-                        categoryName = category.name,
-                    )
-                },
-                onDelete = { category ->
-                    dialog = CategoryDialogState(
-                        mode = CategoryDialogMode.DELETE,
-                        categoryId = category.id,
-                        categoryName = category.name,
-                    )
-                },
-            )
+            else -> Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+            ) {
+                // The rows after this page are one page further on in the same read: the
+                // list says which page it shows and how to walk the rest, so every stored
+                // category can be managed, not only the ones on the first page. The
+                // controls sit above the rows, so they are reachable without walking
+                // past a whole page of them first.
+                PageControls(
+                    pageIndex = pageIndex,
+                    hasMore = categoryPage?.hasMore == true,
+                    onPrevious = { pageIndex -= 1 },
+                    onNext = { pageIndex += 1 },
+                )
+                CategoryList(
+                    categories = loaded,
+                    contentPadding = PaddingValues(0.dp),
+                    totalCount = catalogCounts?.total ?: loaded.size,
+                    archivedCount = catalogCounts?.archived ?: loaded.count { it.archived },
+                    catalogIsEmpty = catalogCounts?.total == 0,
+                    onRename = { category ->
+                        dialog = CategoryDialogState(
+                            mode = CategoryDialogMode.RENAME,
+                            categoryId = category.id,
+                            categoryName = category.name,
+                        )
+                    },
+                    onArchive = { category ->
+                        dialog = CategoryDialogState(
+                            mode = CategoryDialogMode.ARCHIVE,
+                            categoryId = category.id,
+                            categoryName = category.name,
+                        )
+                    },
+                    onDelete = { category ->
+                        dialog = CategoryDialogState(
+                            mode = CategoryDialogMode.DELETE,
+                            categoryId = category.id,
+                            categoryName = category.name,
+                        )
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+                // The rows after this page are one page further on in the same read: the
+                // list says which page it shows and how to walk the rest, so every stored
+                // category can be managed, not only the first ones.
+                PageControls(
+                    pageIndex = pageIndex,
+                    hasMore = categoryPage?.hasMore == true,
+                    onPrevious = { pageIndex -= 1 },
+                    onNext = { pageIndex += 1 },
+                )
+            }
         }
     }
 
@@ -219,24 +283,26 @@ private data class CategoryDialogState(
 private fun CategoryList(
     categories: List<CategoryEntity>,
     contentPadding: PaddingValues,
+    totalCount: Int,
+    archivedCount: Int,
+    catalogIsEmpty: Boolean,
     onRename: (CategoryEntity) -> Unit,
     onArchive: (CategoryEntity) -> Unit,
     onDelete: (CategoryEntity) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    if (categories.isEmpty()) {
+    if (catalogIsEmpty) {
         EmptyCategories(Modifier.padding(contentPadding))
         return
     }
 
-    val archivedCount = categories.count { it.archived }
-
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         contentPadding = contentPadding,
     ) {
         item(key = "summary") {
             Text(
-                text = summaryLabel(categories.size, archivedCount),
+                text = summaryLabel(totalCount, archivedCount),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 8.dp),

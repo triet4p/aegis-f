@@ -28,8 +28,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -39,10 +41,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.triet4p.aegisf.data.CategoryEntity
-import io.github.triet4p.aegisf.data.LedgerRepository
+import io.github.triet4p.aegisf.data.CategoryQuery
+import io.github.triet4p.aegisf.data.CategoryState
+import io.github.triet4p.aegisf.data.LedgerCategoryFilter
+import io.github.triet4p.aegisf.data.LIST_PAGE_SIZE
+import io.github.triet4p.aegisf.data.LedgerRecordQuery
+import io.github.triet4p.aegisf.data.QueryPage
+import io.github.triet4p.aegisf.data.QueryPageRequest
 import io.github.triet4p.aegisf.data.TransactionEntity
 import io.github.triet4p.aegisf.data.TransactionType
 import io.github.triet4p.aegisf.data.VndMoney
+import io.github.triet4p.aegisf.data.WorkflowQueryService
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 
 /**
  * The stored records, newest first, narrowed by the browsing filters — and the way into one
@@ -52,8 +65,11 @@ import io.github.triet4p.aegisf.data.VndMoney
  * from the same database file every launch opens, so records saved in any earlier session,
  * corrections, deletions, renames, and archives appear on their own, and a tap still opens
  * that record's detail view, where it can be corrected or deleted. The list order is the
- * repository's newest-occurred-at-first order with the stored id as the tie-breaker; the
- * filters narrow what is shown but never re-sort, cap, or fabricate rows.
+ * shared read's newest-occurred-at-first order with the stored id as the tie-breaker; the
+ * filters narrow what is shown but never re-sort or fabricate rows. The read is bounded:
+ * it asks for one page of rows and says which page it shows, and the page controls walk
+ * the rest of the rows of the same read, so a record after the first page is reached like
+ * every other one instead of being dropped without a word.
  *
  * The [filters] state is hoisted by the caller (the launcher holds it), so opening a
  * record's detail view or its editor and coming back keeps the filters as they were; they
@@ -69,10 +85,10 @@ import io.github.triet4p.aegisf.data.VndMoney
  * texts (including a refused one and its message) live in [filters], so reopening the panel
  * shows exactly what was left, over the same result rows.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalCoroutinesApi::class)
 @Composable
 fun TransactionListScreen(
-    repository: LedgerRepository,
+    queryService: WorkflowQueryService,
     filters: TransactionFilterState,
     onFiltersChange: (TransactionFilterState) -> Unit,
     filtersExpanded: Boolean,
@@ -81,28 +97,77 @@ fun TransactionListScreen(
     onNavigateUp: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Hoisted so each collected flow has a stable identity: building one on every
-    // recomposition would restart the collection (and blank the list) each time.
-    val transactionFlow = remember(repository) { repository.observeTransactions() }
-    val categoryFlow = remember(repository) { repository.observeCategories() }
-    // Null until the first emission: it distinguishes "loading" from "nothing stored".
-    val records: List<TransactionEntity>? by transactionFlow.collectAsState(initial = null)
-    val categories: List<CategoryEntity>? by categoryFlow.collectAsState(initial = null)
-
     // Pure derivation, never a composition write: a refused date dimension reports its
     // refusal and is treated as open, so the other dimensions still narrow honestly.
     val resolvedDates = remember(filters.fromText, filters.throughText) {
         resolveDateFilter(filters.fromText, filters.throughText)
     }
-    val visible = remember(records, filters, resolvedDates.range) {
-        val stored = records ?: emptyList()
-        applyTransactionFilters(
-            records = stored,
+    // The page the list is showing. A page is an offset into the same bounded read, so
+    // the rows after the first page are reached the same way the first ones are.
+    var pageIndex by rememberSaveable { mutableIntStateOf(0) }
+    // A new filter is a new read: its pages are not the pages of the old one, so the list
+    // starts again at its first page instead of showing an empty later one.
+    LaunchedEffect(filters, resolvedDates.range) {
+        pageIndex = 0
+    }
+    // The filters are the query itself: the shared read applies the same dimensions the
+    // screen shows, so what is listed is what the read returned and not a second
+    // interpretation of the same filters.
+    val recordQuery = remember(filters, resolvedDates.range, pageIndex) {
+        LedgerRecordQuery(
             type = filters.type,
             category = filters.category,
-            range = resolvedDates.range ?: EpochRange(null, null),
+            occurredIn = resolvedDates.range,
+            bounds = QueryPageRequest(LIST_PAGE_SIZE, offset = pageIndex * LIST_PAGE_SIZE),
         )
     }
+    // Hoisted so each collected flow has a stable identity: building one on every
+    // recomposition would restart the collection (and blank the list) each time.
+    val transactionFlow = remember(queryService, recordQuery) {
+        queryService.observeLedgerRecords(recordQuery)
+    }
+    // The rows of the page and the categories they are filed under arrive together: a
+    // row is named by the category it is filed under — even when that category is not on
+    // the page of the catalog the filter panel browses — and the two are never on screen
+    // disagreeing about it.
+    val recordPage: Pair<QueryPage<TransactionEntity>, List<CategoryEntity>>? by
+        remember(queryService, recordQuery) {
+            transactionFlow.flatMapLatest { page ->
+                flow {
+                    emit(
+                        page to queryService.categoriesByIds(
+                            page.items.mapNotNull { it.categoryId }.distinct(),
+                        ),
+                    )
+                }
+            }
+        }.collectAsState(initial = null)
+    // Null until the first emission: it distinguishes "loading" from "nothing stored".
+    val records: List<TransactionEntity>? = recordPage?.first?.items
+    val visible: List<TransactionEntity> = records.orEmpty()
+    val categoriesById: Map<Long, CategoryEntity> =
+        remember(recordPage?.second) { recordPage?.second.orEmpty().associateBy { it.id } }
+    // The category the filter names, read by its own id: a renamed category keeps its
+    // name and an archived one keeps its marker, whichever page of the catalog the
+    // filter panel is browsing.
+    val selectedCategoryId = (filters.category as? LedgerCategoryFilter.Specific)?.categoryId
+    val selectedCategory by remember(queryService, selectedCategoryId) {
+        if (selectedCategoryId == null) {
+            flowOf(null)
+        } else {
+            queryService.observeCategory(selectedCategoryId)
+        }
+    }.collectAsState(initial = null)
+    // Whether the ledger itself is empty, which the screen tells apart from "the filters
+    // match nothing": one bounded row is enough to know, and the empty state and the
+    // no-match state say different things to the user.
+    val anyRecordFlow = remember(queryService) {
+        queryService.observeLedgerRecords(
+            LedgerRecordQuery(bounds = QueryPageRequest(1)),
+        )
+    }
+    val anyRecordPage: QueryPage<TransactionEntity>? by anyRecordFlow.collectAsState(initial = null)
+    val ledgerIsEmpty = anyRecordPage?.items?.isEmpty() == true
 
     BackHandler(onBack = onNavigateUp)
 
@@ -118,8 +183,7 @@ fun TransactionListScreen(
         },
     ) { innerPadding ->
         val loaded = records
-        val listed = categories
-        if (loaded == null || listed == null) {
+        if (loaded == null) {
             LoadingLedger(Modifier.padding(innerPadding))
         } else {
             Column(
@@ -136,7 +200,8 @@ fun TransactionListScreen(
                     FilterPanel(
                         filters = filters,
                         onFiltersChange = onFiltersChange,
-                        categories = listed,
+                        queryService = queryService,
+                        selectedCategory = selectedCategory,
                         resolvedDates = resolvedDates,
                         // The open panel takes only the height it needs, and at most half
                         // of what is left, so the results stay on screen and both halves
@@ -146,23 +211,43 @@ fun TransactionListScreen(
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 when {
-                    loaded.isEmpty() -> EmptyLedger(Modifier.weight(1f))
+                    ledgerIsEmpty -> EmptyLedger(Modifier.weight(1f))
 
                     visible.isEmpty() -> NoMatchingTransactions(
                         onClearFilters = { onFiltersChange(TransactionFilterState()) },
                         modifier = Modifier.weight(1f),
                     )
 
-                    else -> TransactionList(
-                        records = visible,
-                        categoriesById = listed.associateBy { it.id },
-                        onSelect = onSelect,
-                        modifier = Modifier.weight(1f),
-                    )
+                    else -> {
+                        // The rows after this page are one page further on in the same
+                        // read: the list says which page it shows and how to walk the
+                        // rest, instead of dropping the rows it did not hold. The
+                        // controls sit above the rows, so they are reachable without
+                        // walking past a whole page of them first.
+                        PageControls(
+                            pageIndex = pageIndex,
+                            hasMore = recordPage?.first?.hasMore == true,
+                            onPrevious = { pageIndex -= 1 },
+                            onNext = { pageIndex += 1 },
+                        )
+                        TransactionList(
+                            records = visible,
+                            categoriesById = categoriesById,
+                            onSelect = onSelect,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
             }
         }
     }
+    // A page that lost its rows — a record was deleted, a filter narrowed — steps back to
+    // the nearest page that still holds rows instead of showing an empty one.
+    ClampPageToRows(
+        pageIndex = pageIndex,
+        hasRows = recordPage?.first?.items?.isNotEmpty(),
+        onClamp = { pageIndex = it },
+    )
 }
 
 /**
@@ -217,7 +302,8 @@ private fun activeFilterCountLabel(count: Int): String =
 private fun FilterPanel(
     filters: TransactionFilterState,
     onFiltersChange: (TransactionFilterState) -> Unit,
-    categories: List<CategoryEntity>,
+    queryService: WorkflowQueryService,
+    selectedCategory: CategoryEntity?,
     resolvedDates: ResolvedDateFilter,
     modifier: Modifier = Modifier,
 ) {
@@ -262,7 +348,7 @@ private fun FilterPanel(
             onClick = { categoryDialogVisible = true },
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(categorySelectionLabel(filters.category, categories))
+            Text(categorySelectionLabel(filters.category, selectedCategory))
         }
 
         Text(
@@ -302,7 +388,7 @@ private fun FilterPanel(
 
     if (categoryDialogVisible) {
         CategoryFilterDialog(
-            categories = categories,
+            queryService = queryService,
             selected = filters.category,
             onSelect = {
                 onFiltersChange(filters.copy(category = it))
@@ -349,14 +435,17 @@ private fun TypeFilterChips(
  * The current category selection, named by stable id: a renamed category keeps its
  * selection, and an archived one is marked archived rather than hidden, because its
  * records remain discoverable through it.
+ *
+ * The category is named by its own row, so the name is right whichever page of the
+ * catalog the selector happens to be showing.
  */
 private fun categorySelectionLabel(
-    selection: CategoryFilter,
-    categories: List<CategoryEntity>,
+    selection: LedgerCategoryFilter,
+    selectedCategory: CategoryEntity?,
 ): String = when (selection) {
-    is CategoryFilter.All -> "All categories"
-    is CategoryFilter.Uncategorized -> "No category"
-    is CategoryFilter.Specific -> categories.firstOrNull { it.id == selection.categoryId }
+    is LedgerCategoryFilter.All -> "All categories"
+    is LedgerCategoryFilter.Uncategorized -> "No category"
+    is LedgerCategoryFilter.Specific -> selectedCategory
         ?.let { categoryLabel(it) }
         ?: "Unknown category"
 }
@@ -366,35 +455,83 @@ private fun categorySelectionLabel(
  * record, "No category" shows only unfiled ones, and each stored category — including
  * archived ones — selects its own records by stable id. Choosing here only narrows the
  * list; it never assigns a category to a record.
+ *
+ * The catalog is read page by page, so every stored category is reachable: the selector
+ * walks the pages of the one bounded read instead of showing the first page and stopping
+ * there. The chosen category is named by its own row, so a choice made on one page is
+ * still shown, and still marked, on another.
  */
 @Composable
 private fun CategoryFilterDialog(
-    categories: List<CategoryEntity>,
-    selected: CategoryFilter,
-    onSelect: (CategoryFilter) -> Unit,
+    queryService: WorkflowQueryService,
+    selected: LedgerCategoryFilter,
+    onSelect: (LedgerCategoryFilter) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    var pageIndex by rememberSaveable { mutableIntStateOf(0) }
+    val categoryQuery = remember(pageIndex) {
+        CategoryQuery(
+            state = CategoryState.ALL,
+            bounds = QueryPageRequest(LIST_PAGE_SIZE, offset = pageIndex * LIST_PAGE_SIZE),
+        )
+    }
+    val categoryPage: QueryPage<CategoryEntity>? by remember(queryService, categoryQuery) {
+        queryService.observeCategories(categoryQuery)
+    }.collectAsState(initial = null)
+    val categories = categoryPage?.items.orEmpty()
+    // The chosen category is read by its own id, so it is named and marked whether or not
+    // it is on the page the selector is showing.
+    val selectedId = (selected as? LedgerCategoryFilter.Specific)?.categoryId
+    val selectedRow: CategoryEntity? by remember(queryService, selectedId) {
+        if (selectedId == null) {
+            flowOf(null)
+        } else {
+            queryService.observeCategory(selectedId)
+        }
+    }.collectAsState(initial = null)
+    // A page that lost its categories steps back to the nearest page that still holds
+    // some, so the selector never shows an empty page in the middle of the catalog.
+    ClampPageToRows(
+        pageIndex = pageIndex,
+        hasRows = categoryPage?.items?.isNotEmpty(),
+        onClamp = { pageIndex = it },
+    )
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Category") },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                PageControls(
+                    pageIndex = pageIndex,
+                    hasMore = categoryPage?.hasMore == true,
+                    onPrevious = { pageIndex -= 1 },
+                    onNext = { pageIndex += 1 },
+                )
                 CategoryFilterOption(
                     text = "All categories",
-                    selected = selected is CategoryFilter.All,
-                    onSelect = { onSelect(CategoryFilter.All) },
+                    selected = selected is LedgerCategoryFilter.All,
+                    onSelect = { onSelect(LedgerCategoryFilter.All) },
                 )
                 CategoryFilterOption(
                     text = "No category",
-                    selected = selected is CategoryFilter.Uncategorized,
-                    onSelect = { onSelect(CategoryFilter.Uncategorized) },
+                    selected = selected is LedgerCategoryFilter.Uncategorized,
+                    onSelect = { onSelect(LedgerCategoryFilter.Uncategorized) },
                 )
+                val retainedRow = selectedRow
+                if (retainedRow != null && categories.none { it.id == retainedRow.id }) {
+                    CategoryFilterOption(
+                        text = categoryLabel(retainedRow),
+                        selected = true,
+                        onSelect = { onSelect(LedgerCategoryFilter.Specific(retainedRow.id)) },
+                    )
+                }
                 categories.forEach { category ->
                     CategoryFilterOption(
                         text = categoryLabel(category),
-                        selected = selected is CategoryFilter.Specific &&
+                        selected = selected is LedgerCategoryFilter.Specific &&
                             selected.categoryId == category.id,
-                        onSelect = { onSelect(CategoryFilter.Specific(category.id)) },
+                        onSelect = { onSelect(LedgerCategoryFilter.Specific(category.id)) },
                     )
                 }
             }

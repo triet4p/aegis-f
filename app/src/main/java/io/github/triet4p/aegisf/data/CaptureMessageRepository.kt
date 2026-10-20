@@ -1,7 +1,6 @@
 package io.github.triet4p.aegisf.data
 
 import androidx.room.withTransaction
-import kotlinx.coroutines.flow.Flow
 import java.util.TimeZone
 import java.util.UUID
 
@@ -83,10 +82,6 @@ class CaptureMessageRepository(
         }
 
     suspend fun findById(id: Long): CaptureMessageEntity? = dao.findById(id)
-
-    suspend fun activeCaptures(): List<CaptureMessageEntity> = dao.findActive()
-
-    fun observeActiveCaptures(): Flow<List<CaptureMessageEntity>> = dao.observeActive()
 
     private suspend fun insertUserText(
         captureKind: CaptureKind,

@@ -31,6 +31,28 @@ abstract class ContextLinkDao {
     @Query("SELECT * FROM context_links WHERE eventId = :eventId ORDER BY id")
     abstract suspend fun findForEvent(eventId: Long): List<ContextLinkEntity>
 
+    /**
+     * A bounded page of the stored links.
+     *
+     * [state], [eventId], and [draftId] are open dimensions: each is null when it is not
+     * narrowing the read. The order is the stored id, which is the order the links were
+     * decided in, so a page boundary is always between two whole links.
+     */
+    @Query(
+        "SELECT * FROM context_links WHERE " +
+            "(:state IS NULL OR state = :state) AND " +
+            "(:eventId IS NULL OR eventId = :eventId) AND " +
+            "(:draftId IS NULL OR draftId = :draftId) " +
+            "ORDER BY id ASC LIMIT :limit OFFSET :offset",
+    )
+    abstract suspend fun findPage(
+        state: String?,
+        eventId: Long?,
+        draftId: Long?,
+        limit: Int,
+        offset: Int,
+    ): List<ContextLinkEntity>
+
     @Query("SELECT * FROM context_links WHERE draftId = :draftId ORDER BY id")
     abstract suspend fun findForDraft(draftId: Long): List<ContextLinkEntity>
 
@@ -40,12 +62,6 @@ abstract class ContextLinkDao {
             "AND state IN ('PROPOSED', 'ACCEPTED') ORDER BY id",
     )
     abstract suspend fun findActiveForEvent(eventId: Long): List<ContextLinkEntity>
-
-    /** The refusals recorded for this event; these are never removed by a link decision. */
-    @Query(
-        "SELECT * FROM context_links WHERE eventId = :eventId AND state = 'REJECTED' ORDER BY id",
-    )
-    abstract suspend fun findRejectedForEvent(eventId: Long): List<ContextLinkEntity>
 
     /** The refusals recorded for every event of one capture. */
     @Query(

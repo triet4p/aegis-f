@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import io.github.triet4p.aegisf.notification.PermittedNotificationContent
 import io.github.triet4p.aegisf.ui.ManualDateTime
-import io.github.triet4p.aegisf.ui.summarizeMonthExpenses
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -62,7 +61,7 @@ class PendingBankDraftPersistenceTest {
             postedAtEpochMillis = POSTED_AT,
             content = PermittedNotificationContent(title = SAMPLE_TITLE, text = sampleBody(), bigText = null),
         )
-        val stored = repository(first).drafts().single()
+        val stored = WorkflowQueryService(first).draftCandidates(ALL_DRAFTS).items.single()
         assertEquals(id, stored.id)
         assertEquals(BANK_PACKAGE, stored.sourcePackage)
         assertEquals("VIETINBANK", stored.bank)
@@ -86,13 +85,14 @@ class PendingBankDraftPersistenceTest {
         first.close()
 
         val second = open()
-        assertEquals(listOf(stored), repository(second).drafts())
+        assertEquals(listOf(stored), WorkflowQueryService(second).draftCandidates(ALL_DRAFTS).items)
         second.close()
     }
 
     @Test
     fun `an unsupported payload persists as reviewable intake without finance`() = runTest {
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             repository(database).storePermitted(
                 sourcePackage = BANK_PACKAGE,
@@ -104,7 +104,7 @@ class PendingBankDraftPersistenceTest {
                     bigText = null,
                 ),
             )
-            val stored = repository(database).drafts().single()
+            val stored = WorkflowQueryService(database).draftCandidates(ALL_DRAFTS).items.single()
             assertEquals(IntakeParseStatus.UNSUPPORTED_FORMAT, stored.parseStatus)
             assertEquals("UNSUPPORTED", stored.bank)
             assertEquals(IntakeFieldState.MISSING, stored.amountState)
@@ -130,6 +130,7 @@ class PendingBankDraftPersistenceTest {
         )
         val monthEnd = ManualDateTime.nextMonthStartEpochMillis(monthStart, zone)
         val database = open()
+        val query = WorkflowQueryService(database)
         try {
             val ledger = LedgerRepository(
                 categoryDao = database.categoryDao(),
@@ -152,8 +153,8 @@ class PendingBankDraftPersistenceTest {
                 postedAtEpochMillis = POSTED_AT,
                 content = PermittedNotificationContent(title = SAMPLE_TITLE, text = sampleBody(), bigText = null),
             )
-            val summary = summarizeMonthExpenses(ledger.transactions(), monthStart, monthEnd)
-            assertEquals(1, summary.expenseCount)
+            val summary = summarizeConfirmedSpending(query.ledgerRecords(ALL_LEDGER_RECORDS).items, monthStart, monthEnd)
+            assertEquals(1, summary.recordCount)
             assertEquals(45_000L, summary.totalVnd)
         } finally {
             database.close()
