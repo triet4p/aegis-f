@@ -1,6 +1,7 @@
 package io.github.triet4p.aegisf.ui
 
 import io.github.triet4p.aegisf.data.PendingBankDraftEntity
+import io.github.triet4p.aegisf.data.isBlockedForSuggestionSafety
 
 /**
  * Review-only suggestion input for bank drafts (S4.10-A3).
@@ -12,7 +13,9 @@ import io.github.triet4p.aegisf.data.PendingBankDraftEntity
  * stays manual, runtime token-budget refusal stays separate, and low-confidence or
  * unknown/no-fit results stay visible for deliberate choice.
  *
- * Genuine safety blocks, kept narrow (never a language allowlist):
+ * Genuine safety blocks, kept narrow (never a language allowlist) and shared with every
+ * other source of model input through
+ * [io.github.triet4p.aegisf.data.isBlockedForSuggestionSafety]:
  *
  * - One-time-password / security-like text (`OTP_GUARD`, `VIETNAMESE_SECURITY_GUARD`).
  * - Bank reference codes that mix letters and digits in one long run
@@ -34,40 +37,6 @@ import io.github.triet4p.aegisf.data.PendingBankDraftEntity
  * explicit user action; confirmation remains mandatory, and the model may still return
  * unknown/no-fit for admitted input that fits no category.
  */
-
-private val ALNUM_TOKEN = Regex("[A-Za-z0-9]+")
-
-private val OTP_GUARD = Regex("\\botp\\b", RegexOption.IGNORE_CASE)
-
-private val VIETNAMESE_SECURITY_GUARD = Regex(
-    "m\\u00E3\\s*(?:otp|x\\u00E1c\\s*th\\u1EF1c|x\\u00E1c\\s*nh\\u1EADn|b\\u1EA3o\\s*m\\u1EADt|pin)",
-    RegexOption.IGNORE_CASE,
-)
-
-/**
- * Whether [text] is blocked for safety and must never become inference input.
- *
- * Narrow by design: only OTP/security-like text and bank reference codes. Language,
- * script, length, or vocabulary never block here; quality of an unsupported language
- * is a review decision (the model may return unknown), not an input filter.
- */
-internal fun isBlockedForSuggestionSafety(text: String): Boolean {
-    if (OTP_GUARD.containsMatchIn(text)) return true
-    if (VIETNAMESE_SECURITY_GUARD.containsMatchIn(text)) return true
-    if (hasMixedLetterDigitCode(text)) return true
-    return false
-}
-
-/**
- * Bank reference codes mix letters and digits in one long run (`382K26A0`,
- * `T5RYKH8N`); plain amounts (`45000`) are digits only and stay neutral, so they never
- * trigger this guard.
- */
-private fun hasMixedLetterDigitCode(text: String): Boolean =
-    ALNUM_TOKEN.findAll(text).any { match ->
-        val token = match.value
-        token.length >= 5 && token.any { it.isLetter() } && token.any { it.isDigit() }
-    }
 
 /**
  * The effective suggestion input for one draft review, or null when no suggestion applies.

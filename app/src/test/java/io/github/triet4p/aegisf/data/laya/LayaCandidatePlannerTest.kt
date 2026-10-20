@@ -23,6 +23,31 @@ class LayaCandidatePlannerTest {
         updatedAtEpochMillis = 0L,
     )
 
+    /**
+     * A text whose size in the pinned tokenizer is exactly [target] tokens.
+     *
+     * The size is measured, never estimated, so the budget boundary below is the model's own
+     * boundary.
+     */
+    private fun textOfTokenCount(tokenizer: LayaTokenizer, target: Int): String {
+        val fillers = listOf(" word", " food", " rent", " x", " abc")
+        var text = ""
+        var count = 0
+        var index = 0
+        while (count < target) {
+            val candidate = text + fillers[index % fillers.size]
+            val next = tokenizer.encode(LayaSequence.scrub(candidate)).size
+            if (next == count + 1) {
+                text = candidate
+                count = next
+            } else {
+                index++
+                require(index < 10000) { "could not reach $target tokens" }
+            }
+        }
+        return text
+    }
+
     @Test
     fun `keeps every active choice when exact sequence budget fits`() {
         val tokenizer = tokenizer()
@@ -199,6 +224,58 @@ class LayaCandidatePlannerTest {
         ) as LayaCandidatePlanner.Plan.ManualReview
         assertEquals(LayaCandidatePlanner.ManualReason.NO_METADATA_EVIDENCE, noEvidence.reason)
         assertEquals(180, noEvidence.uncertainty?.omittedCategoryCount)
+    }
+
+    @Test
+    fun `a description larger than the input budget is refused before a sequence is built`() {
+        val tokenizer = tokenizer()
+        val categories = listOf(category(75L, "Food"), category(76L, "Housing"))
+        val room = LayaEffectiveContextComposer.guaranteedRoomTokens(
+            LayaRuntimeContract.MAX_LEN,
+            LayaRuntimeContract.HEAD_MAX_LEN,
+        )
+        val oversized = textOfTokenCount(tokenizer, room + 1)
+        val plan = LayaCandidatePlanner.plan(tokenizer, oversized, categories)
+            as LayaCandidatePlanner.Plan.ManualReview
+        assertEquals(LayaCandidatePlanner.ManualReason.EFFECTIVE_INPUT_OVER_BUDGET, plan.reason)
+
+        // The refusal never reaches the model, and it never reaches a sequence either.
+        val decision = LayaCandidatePlanner.decide(plan) {
+            error("an over-budget description must not call inference")
+        } as LayaCandidatePlanner.Decision.Unknown
+        assertEquals(LayaCandidatePlanner.ManualReason.EFFECTIVE_INPUT_OVER_BUDGET, decision.reason)
+
+        // The same description measured by the caller is refused the same way.
+        val measured = LayaCandidatePlanner.plan(
+            tokenizer,
+            oversized,
+            categories,
+            descriptionTokenCount = tokenizer.encode(LayaSequence.scrub(oversized)).size,
+        ) as LayaCandidatePlanner.Plan.ManualReview
+        assertEquals(LayaCandidatePlanner.ManualReason.EFFECTIVE_INPUT_OVER_BUDGET, measured.reason)
+    }
+
+    @Test
+    fun `a description that exactly fills the input budget is carried in full`() {
+        val tokenizer = tokenizer()
+        val categories = listOf(category(77L, "Food"), category(78L, "Housing"))
+        val room = LayaEffectiveContextComposer.guaranteedRoomTokens(
+            LayaRuntimeContract.MAX_LEN,
+            LayaRuntimeContract.HEAD_MAX_LEN,
+        )
+        val exact = textOfTokenCount(tokenizer, room)
+        val plan = LayaCandidatePlanner.plan(tokenizer, exact, categories)
+            as LayaCandidatePlanner.Plan.Model
+
+        // The whole description is carried: the state is the tail of the sequence, and every
+        // one of its tokens is still there.
+        val stateTokens = tokenizer.encode(LayaSequence.scrub(exact))
+        assertEquals(room, stateTokens.size)
+        assertEquals(
+            stateTokens,
+            plan.built.inputIds.dropLast(1).takeLast(stateTokens.size),
+        )
+        assertTrue(plan.built.inputIds.size <= LayaRuntimeContract.MAX_LEN)
     }
 
     @Test

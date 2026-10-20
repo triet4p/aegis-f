@@ -56,6 +56,7 @@ import io.github.triet4p.aegisf.data.TransactionInput
 import io.github.triet4p.aegisf.data.TransactionType
 import io.github.triet4p.aegisf.data.VndMoney
 import io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner
+import io.github.triet4p.aegisf.data.laya.LayaEffectiveContext
 import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
 import io.github.triet4p.aegisf.data.laya.LayaInferenceOutcome
 import io.github.triet4p.aegisf.data.laya.LayaRuntimeContract
@@ -272,10 +273,11 @@ private fun TransactionFormScreen(
         val decision = try {
             decideRememberedBeforeInference(
                 description = descriptionText,
+                context = LayaEffectiveContext.of(descriptionText),
                 activeCategories = requestActiveCategories,
                 findRememberedCategory = repository::findRememberedCategoryForDescription,
-                infer = { description, categories ->
-                    layaInferenceLifecycle.suggest(description, categories)
+                infer = { context, categories ->
+                    layaInferenceLifecycle.suggest(context, categories)
                 },
             )
         } catch (cancelled: CancellationException) {
@@ -313,7 +315,7 @@ private fun TransactionFormScreen(
                 currentCategories = currentCategories,
                 observedCategories = observedCategories,
                 resolution = LayaCandidatePlanner.resolveCurrent(
-                    outcome.value,
+                    outcome.value.decision,
                     currentCategories,
                 ),
             )
@@ -1003,6 +1005,8 @@ private fun ManualSuggestionPanel(
                     "or save without one."
             LayaCandidatePlanner.ManualReason.NO_ACTIVE_CATEGORIES ->
                 "No active categories are available. You can save without a category."
+            LayaCandidatePlanner.ManualReason.EFFECTIVE_INPUT_OVER_BUDGET ->
+                effectiveInputOverBudgetMessage()
             else ->
                 "No category suggestion is available for this description and category list. " +
                     "Choose one manually or save without one."

@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.triet4p.aegisf.data.BankDraftReviewRepository
+import io.github.triet4p.aegisf.data.ClassificationSnapshotRepository
 import io.github.triet4p.aegisf.data.IntakeRepository
 import io.github.triet4p.aegisf.data.LedgerRepository
 import io.github.triet4p.aegisf.data.NotificationAccessStore
@@ -97,6 +98,10 @@ class MainActivity : ComponentActivity() {
         (application as AegisApplication).container.bankDraftReviewRepository
     }
 
+    private val classificationSnapshotRepository: ClassificationSnapshotRepository by lazy {
+        (application as AegisApplication).container.classificationSnapshotRepository
+    }
+
     override fun onResume() {
         super.onResume()
         if (isNotificationAccessGranted(this)) {
@@ -149,6 +154,7 @@ class MainActivity : ComponentActivity() {
                         reviewRepository = bankDraftReviewRepository,
                         ledgerRepository = ledgerRepository,
                         layaInferenceLifecycle = layaInferenceLifecycle,
+                        classificationSnapshotRepository = classificationSnapshotRepository,
                         draftId = null,
                         onSelectDraft = { id -> destination = LaunchDestination.BankDraftDetail(id) },
                         onNavigateUp = { destination = LaunchDestination.Home },
@@ -159,6 +165,7 @@ class MainActivity : ComponentActivity() {
                         reviewRepository = bankDraftReviewRepository,
                         ledgerRepository = ledgerRepository,
                         layaInferenceLifecycle = layaInferenceLifecycle,
+                        classificationSnapshotRepository = classificationSnapshotRepository,
                         draftId = current.draftId,
                         onSelectDraft = { id -> destination = LaunchDestination.BankDraftDetail(id) },
                         onNavigateUp = { destination = LaunchDestination.BankDraftInbox },

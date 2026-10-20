@@ -10,6 +10,9 @@ import io.github.triet4p.aegisf.data.LedgerDatabase
 import io.github.triet4p.aegisf.data.NotificationAccessStore
 import io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner
 import io.github.triet4p.aegisf.data.laya.LayaCategoryCorrectionRule
+import io.github.triet4p.aegisf.data.laya.LayaContextDecision
+import io.github.triet4p.aegisf.data.laya.LayaEffectiveContext
+import io.github.triet4p.aegisf.data.laya.LayaEffectiveInput
 import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
 import io.github.triet4p.aegisf.data.laya.LayaInferenceOutcome
 import io.github.triet4p.aegisf.data.laya.LayaInferenceRuntimeFactory
@@ -69,17 +72,28 @@ class InferenceIntakeIndependenceTest {
         val closeFinished = CountDownLatch(1)
 
         override fun suggest(
-            description: String,
+            context: LayaEffectiveContext,
             categories: List<CategoryEntity>,
             correctionRules: List<LayaCategoryCorrectionRule>,
-        ): LayaCandidatePlanner.Decision {
+        ): LayaContextDecision {
             check(!closed.get()) { "session used after close" }
             activeCalls.incrementAndGet()
             try {
                 inferenceStarted.countDown()
                 check(allowInferenceToFinish.await(5, TimeUnit.SECONDS))
-                return LayaCandidatePlanner.Decision.Unknown(
-                    LayaCandidatePlanner.ManualReason.NO_ACTIVE_CATEGORIES,
+                return LayaContextDecision(
+                    decision = LayaCandidatePlanner.Decision.Unknown(
+                        LayaCandidatePlanner.ManualReason.NO_ACTIVE_CATEGORIES,
+                    ),
+                    effectiveInput = LayaEffectiveInput(
+                        text = context.primaryText,
+                        digest = "digest",
+                        includedReadings = emptyList(),
+                        droppedReadings = emptyList(),
+                        tokenCount = 0,
+                        roomTokens = 0,
+                    ),
+                    evaluation = null,
                 )
             } finally {
                 activeCalls.decrementAndGet()
@@ -135,7 +149,10 @@ class InferenceIntakeIndependenceTest {
             }
 
             val inference = async(start = CoroutineStart.UNDISPATCHED) {
-                lifecycle.suggest("non-financial lifecycle fixture", emptyList())
+                lifecycle.suggest(
+                    LayaEffectiveContext.of("non-financial lifecycle fixture"),
+                    emptyList(),
+                )
             }
             assertTrue(inferenceStarted.await(5, TimeUnit.SECONDS))
 
@@ -161,13 +178,12 @@ class InferenceIntakeIndependenceTest {
             )
 
             allowInferenceToFinish.countDown()
+            val completed = inference.await() as LayaInferenceOutcome.Completed
             assertEquals(
-                LayaInferenceOutcome.Completed(
-                    LayaCandidatePlanner.Decision.Unknown(
-                        LayaCandidatePlanner.ManualReason.NO_ACTIVE_CATEGORIES,
-                    ),
+                LayaCandidatePlanner.Decision.Unknown(
+                    LayaCandidatePlanner.ManualReason.NO_ACTIVE_CATEGORIES,
                 ),
-                inference.await(),
+                completed.value.decision,
             )
         } finally {
             allowInferenceToFinish.countDown()

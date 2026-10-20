@@ -1,11 +1,13 @@
 package io.github.triet4p.aegisf.ui
 
+import io.github.triet4p.aegisf.data.laya.LayaEffectiveContext
 import io.github.triet4p.aegisf.data.CategoryEntity
 import io.github.triet4p.aegisf.data.IntakeDirection
 import io.github.triet4p.aegisf.data.IntakeFieldState
 import io.github.triet4p.aegisf.data.IntakeParseStatus
 import io.github.triet4p.aegisf.data.IntakeReviewStatus
 import io.github.triet4p.aegisf.data.PendingBankDraftEntity
+import io.github.triet4p.aegisf.data.isBlockedForSuggestionSafety
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -171,6 +173,7 @@ class BankDraftSuggestionGateTest {
         var inferenceCalls = 0
         val matched = decideRememberedBeforeInference(
             description = "Lunch at a cafe",
+            context = LayaEffectiveContext.of("Lunch at a cafe"),
             activeCategories = listOf(food),
             findRememberedCategory = { if (it == "Lunch at a cafe") food else null },
             infer = { _, _ ->
@@ -191,6 +194,7 @@ class BankDraftSuggestionGateTest {
         )
         val matched = decideRememberedBeforeInference(
             description = note,
+            context = LayaEffectiveContext.of(note),
             activeCategories = listOf(housing),
             findRememberedCategory = { if (it == "Monthly rent") housing else null },
             infer = { _, _ ->
@@ -209,6 +213,7 @@ class BankDraftSuggestionGateTest {
         var inferenceCalls = 0
         val decision = decideRememberedBeforeInference(
             description = "Lunch at a cafe",
+            context = LayaEffectiveContext.of("Lunch at a cafe"),
             activeCategories = listOf(current),
             findRememberedCategory = { archived },
             infer = { _, categories ->

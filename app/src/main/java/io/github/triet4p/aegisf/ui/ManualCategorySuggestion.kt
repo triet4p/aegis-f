@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import io.github.triet4p.aegisf.data.CategoryEntity
 import io.github.triet4p.aegisf.data.TransactionType
 import io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner
+import io.github.triet4p.aegisf.data.laya.LayaEffectiveContext
 
 /** One form's decision context; changing any part invalidates its pending result. */
 internal data class ManualSuggestionIntent(
@@ -25,12 +26,34 @@ internal sealed interface ManualCategoryDecision<out T> {
     data class Inferred<T>(val outcome: T) : ManualCategoryDecision<T>
 }
 
-/** A valid saved rule short-circuits inference; a stale/inactive rule cannot become a choice. */
+/**
+ * The message shown when a request could not be asked of the model because its effective
+ * input does not fit the model's actual input budget.
+ *
+ * The model was never asked, so nothing was scored and nothing was suggested. The user's own
+ * text is not shortened, and the category the user chose and the other fields of the record
+ * stay exactly as they are.
+ */
+internal fun effectiveInputOverBudgetMessage(): String =
+    "This description is longer than the model's input budget allows, so no suggestion was " +
+        "made and the model was not asked. Shorten the description to ask again; your " +
+        "category choice and the other fields stay unchanged."
+
+/**
+ * A valid saved rule short-circuits inference; a stale/inactive rule cannot become a choice.
+ *
+ * The saved rule is looked up by the request's own description — the text the user is looking
+ * at — and never by the composed effective context: a rule is remembered for one exact
+ * description, so appending stored readings to it would make the rule unreachable and would
+ * count the same rule twice. The rule therefore answers before the model runs, and the model
+ * never sees the rule as a correction.
+ */
 internal suspend fun <T> decideRememberedBeforeInference(
     description: String,
+    context: LayaEffectiveContext,
     activeCategories: List<CategoryEntity>,
     findRememberedCategory: suspend (String) -> CategoryEntity?,
-    infer: suspend (String, List<CategoryEntity>) -> T,
+    infer: suspend (LayaEffectiveContext, List<CategoryEntity>) -> T,
 ): ManualCategoryDecision<T> {
     val remembered = findRememberedCategory(description)
     val current = remembered?.let { rule ->
@@ -39,7 +62,7 @@ internal suspend fun <T> decideRememberedBeforeInference(
     return if (current != null) {
         ManualCategoryDecision.Remembered(current)
     } else {
-        ManualCategoryDecision.Inferred(infer(description, activeCategories))
+        ManualCategoryDecision.Inferred(infer(context, activeCategories))
     }
 }
 
@@ -176,6 +199,9 @@ internal class ManualCategorySuggestionMachine {
 
     fun acceptSuggestion(): CategoryEntity? {
         val suggested = state as? ManualCategorySuggestionState.Suggested ?: return null
+        // The user's choice ends the pending request: a result that arrives afterwards
+        // describes an older state and must not replace what the user just chose.
+        active = null
         state = ManualCategorySuggestionState.Accepted(
             suggested.category,
             suggested.uncertainty,
@@ -200,6 +226,9 @@ internal class ManualCategorySuggestionMachine {
         val distribution = suggested?.distribution ?: noFit?.distribution ?: return null
         val target = distribution.options.firstOrNull { it.categoryId == categoryId }
             ?.currentCategory ?: return null
+        // The user's choice ends the pending request: a result that arrives afterwards
+        // describes an older state and must not replace what the user just chose.
+        active = null
         state = ManualCategorySuggestionState.Accepted(
             category = target,
             uncertainty = uncertainty,
@@ -213,6 +242,9 @@ internal class ManualCategorySuggestionMachine {
         val suggested = state as? ManualCategorySuggestionState.Suggested
         val noFit = state as? ManualCategorySuggestionState.NoFit
         if (suggested?.distribution == null && noFit?.distribution == null) return false
+        // The user's choice ends the pending request: a result that arrives afterwards
+        // describes an older state and must not replace what the user just chose.
+        active = null
         state = ManualCategorySuggestionState.NoCategory
         return true
     }

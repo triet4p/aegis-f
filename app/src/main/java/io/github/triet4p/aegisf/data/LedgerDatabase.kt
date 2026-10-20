@@ -10,7 +10,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
  * The app's only local database: user-defined categories, ledger records, explicit remembered
- * category rules, bank-notification drafts, and versioned source captures.
+ * category rules, bank-notification drafts, versioned source captures with their event
+ * readings and context links, and the stored prediction snapshots about those drafts.
  *
  * Schema versioning rules for this database:
  *
@@ -36,6 +37,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         CaptureMessageEntity::class,
         NoteEventEntity::class,
         ContextLinkEntity::class,
+        ClassificationSnapshotEntity::class,
     ],
     version = LedgerDatabase.VERSION,
     exportSchema = true,
@@ -64,8 +66,11 @@ abstract class LedgerDatabase : RoomDatabase() {
     /** Proposed, accepted, and refused links between an event and a pending draft. */
     abstract fun contextLinkDao(): ContextLinkDao
 
+    /** The stored predictions about pending drafts, with the dependencies they were made against. */
+    abstract fun classificationSnapshotDao(): ClassificationSnapshotDao
+
     companion object {
-        const val VERSION = 8
+        const val VERSION = 9
 
         /** File name of the on-device database. */
         const val NAME = "aegis-ledger.db"
@@ -446,6 +451,48 @@ abstract class LedgerDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Version 8 to 9: add the stored prediction snapshots.
+         *
+         * The new table starts empty, because version 8 stored no prediction: a prediction is
+         * made from the current context, and there was no place to keep one. Nothing that
+         * version 8 already held is rewritten: the captures, the event readings, the links,
+         * the bank drafts, the categories, the rules, and the ledger records keep their rows,
+         * ids, and values, and the confirmed totals computed from them are unchanged by the
+         * upgrade.
+         */
+        val MIGRATION_8_9: Migration = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `classification_snapshots` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`draftId` INTEGER NOT NULL, " +
+                        "`contextRevision` TEXT NOT NULL, " +
+                        "`categoryRevision` TEXT NOT NULL, " +
+                        "`ruleRevision` TEXT NOT NULL, " +
+                        "`modelRevision` TEXT NOT NULL, " +
+                        "`candidateSetVersion` TEXT NOT NULL, " +
+                        "`decisionSource` TEXT NOT NULL, " +
+                        "`suggestedCategoryId` INTEGER, " +
+                        "`candidateIds` TEXT NOT NULL, " +
+                        "`probabilities` TEXT NOT NULL, " +
+                        "`unknownShare` REAL, " +
+                        "`confidence` REAL, " +
+                        "`effectiveInputDigest` TEXT NOT NULL, " +
+                        "`eventIds` TEXT NOT NULL, " +
+                        "`predictionTime` INTEGER NOT NULL, " +
+                        "`staleReason` TEXT, " +
+                        "FOREIGN KEY(`draftId`) REFERENCES `pending_bank_drafts`(`id`) " +
+                        "ON UPDATE CASCADE ON DELETE CASCADE)",
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                        "`index_classification_snapshots_draftId` " +
+                        "ON `classification_snapshots` (`draftId`)",
+                )
+            }
+        }
+
         /** Builds the production database on the app's real file directory. */
         fun build(context: Context): LedgerDatabase =
             Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, NAME)
@@ -457,6 +504,7 @@ abstract class LedgerDatabase : RoomDatabase() {
                     MIGRATION_5_6,
                     MIGRATION_6_7,
                     MIGRATION_7_8,
+                    MIGRATION_8_9,
                 )
                 .build()
 

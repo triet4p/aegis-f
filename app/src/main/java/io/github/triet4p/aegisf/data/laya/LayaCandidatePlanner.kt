@@ -32,6 +32,13 @@ object LayaCandidatePlanner {
         NO_FIT_CANDIDATES,
         SEQUENCE_UNFIT,
         MODEL_NO_FIT,
+
+        /**
+         * The description itself is larger than the room the model leaves for its state,
+         * so the request cannot be asked within the model's actual input budget. No
+         * inference runs and the text is not shortened to fit.
+         */
+        EFFECTIVE_INPUT_OVER_BUDGET,
     }
 
     enum class SuggestionSource { EXPLICIT_CORRECTION, CATEGORY_METADATA, MODEL }
@@ -172,6 +179,11 @@ object LayaCandidatePlanner {
         correctionRules: List<LayaCategoryCorrectionRule> = emptyList(),
         maxLen: Int = LayaRuntimeContract.MAX_LEN,
         headMaxLen: Int = LayaRuntimeContract.HEAD_MAX_LEN,
+        /**
+         * The size of [description] in the pinned tokenizer's tokens, when the caller has
+         * already measured it. It is measured here when it is not supplied.
+         */
+        descriptionTokenCount: Int? = null,
     ): Plan {
         val active = categories.filterNot { it.archived }
         val ids = HashSet<Long>(active.size)
@@ -214,6 +226,16 @@ object LayaCandidatePlanner {
         }
         if (metadataMatchCount == 1) return Plan.MetadataMatch(checkNotNull(metadataMatch))
 
+        // The description is the sequence's state, so it may not be larger than the room
+        // the model leaves for that state. An over-budget description is refused here,
+        // before a sequence is built and before the model is asked, instead of being cut
+        // short inside the sequence where the loss would be invisible.
+        val room = LayaEffectiveContextComposer.guaranteedRoomTokens(maxLen, headMaxLen)
+        val descriptionSize = descriptionTokenCount
+            ?: tokenizer.encode(LayaSequence.scrub(description)).size
+        if (descriptionSize > room) {
+            return Plan.ManualReview(ManualReason.EFFECTIVE_INPUT_OVER_BUDGET)
+        }
 
         val optionTokenCounts = IntArray(active.size + 1)
         for (index in active.indices) {

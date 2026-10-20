@@ -28,6 +28,17 @@ package io.github.triet4p.aegisf.data.laya
  * rewritten. Blank text stays manual, and only OTP/security-like text and bank
  * reference codes stay manual; confirmation remains mandatory.
  *
+ * S5.4 adds the effective context of a request: the text the request is about plus the
+ * stored event readings that belong to it, composed by [LayaEffectiveContextComposer] under
+ * the model's actual input budget and measured with the pinned tokenizer. The composition
+ * never rewrites the primary text, adds only the readings that fit, and reports the ones it
+ * left out; a request with no readings composes to exactly the text it was given, so the
+ * manual entry path is unchanged. A request whose primary text alone is larger than the
+ * room the model leaves for its state is refused before the model is asked: the text is not
+ * shortened to fit, no inference runs, and the caller reports the refusal to the user. The
+ * saved exact-description rule still answers before the model runs and is never passed to the
+ * model as a correction, so it is counted once.
+ *
  * States, in the order the app meets them:
  * - [Missing]: no verified bundle is installed. Manual entry works unchanged; the app
  *   must not invent a suggestion.

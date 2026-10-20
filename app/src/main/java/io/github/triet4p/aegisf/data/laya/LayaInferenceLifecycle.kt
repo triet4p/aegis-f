@@ -45,13 +45,17 @@ class LayaInferenceLifecycle internal constructor(
     /**
      * Returns one review-only decision, or an explicit lifecycle outcome. This suspends the
      * caller while the single background worker performs all blocking runtime work.
+     *
+     * The request carries its effective context: the description the request is about plus the
+     * stored event readings that belong to it, composed under the model's actual input budget
+     * by the runtime itself.
      */
     suspend fun suggest(
-        description: String,
+        context: LayaEffectiveContext,
         categories: List<CategoryEntity>,
         correctionRules: List<LayaCategoryCorrectionRule> = emptyList(),
-    ): LayaInferenceOutcome<LayaCandidatePlanner.Decision> = submit { session ->
-        session.suggest(description, categories, correctionRules)
+    ): LayaInferenceOutcome<LayaContextDecision> = submit { session ->
+        session.suggest(context, categories, correctionRules)
     }
 
 
@@ -306,19 +310,19 @@ internal sealed interface LayaInferenceRuntimeOpen {
 
 internal interface LayaInferenceSession : Closeable {
     fun suggest(
-        description: String,
+        context: LayaEffectiveContext,
         categories: List<CategoryEntity>,
         correctionRules: List<LayaCategoryCorrectionRule>,
-    ): LayaCandidatePlanner.Decision
+    ): LayaContextDecision
 }
 
 
 private class RuntimeSession(private val runtime: LayaRuntime) : LayaInferenceSession {
     override fun suggest(
-        description: String,
+        context: LayaEffectiveContext,
         categories: List<CategoryEntity>,
         correctionRules: List<LayaCategoryCorrectionRule>,
-    ): LayaCandidatePlanner.Decision = runtime.suggest(description, categories, correctionRules)
+    ): LayaContextDecision = runtime.suggest(context, categories, correctionRules)
 
     override fun close() {
         runtime.close()

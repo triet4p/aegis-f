@@ -58,16 +58,28 @@ class LayaInferenceLifecycleTest {
         }
 
         override fun suggest(
-            description: String,
+            context: LayaEffectiveContext,
             categories: List<CategoryEntity>,
             correctionRules: List<LayaCategoryCorrectionRule>,
-        ): LayaCandidatePlanner.Decision {
+        ): LayaContextDecision {
+            val description = context.primaryText
             run(description)
-            return LayaCandidatePlanner.Decision.Category(
-                categoryId = description.length.toLong(),
-                snapshotName = "Category ${description.length}",
-                source = LayaCandidatePlanner.SuggestionSource.MODEL,
-                confidence = 0.5,
+            return LayaContextDecision(
+                decision = LayaCandidatePlanner.Decision.Category(
+                    categoryId = description.length.toLong(),
+                    snapshotName = "Category ${description.length}",
+                    source = LayaCandidatePlanner.SuggestionSource.MODEL,
+                    confidence = 0.5,
+                ),
+                effectiveInput = LayaEffectiveInput(
+                    text = description,
+                    digest = "digest",
+                    includedReadings = emptyList(),
+                    droppedReadings = emptyList(),
+                    tokenCount = 0,
+                    roomTokens = 0,
+                ),
+                evaluation = null,
             )
         }
 
@@ -117,7 +129,7 @@ class LayaInferenceLifecycleTest {
             val lifecycle = LayaInferenceLifecycle(File("unused"), 60_000L, sessions.factory)
             try {
                 val active = async(start = CoroutineStart.UNDISPATCHED) {
-                    lifecycle.suggest("active", listOf(category()))
+                    lifecycle.suggest(LayaEffectiveContext.of("active"), listOf(category()))
                 }
                 val session = sessions.opened.firstOrNull() ?: run {
                     // The factory opens on the worker after the request has suspended.
@@ -131,21 +143,21 @@ class LayaInferenceLifecycleTest {
                 assertFalse("the suspending caller must not block on inference", active.isCompleted)
 
                 val replaced = async(start = CoroutineStart.UNDISPATCHED) {
-                    lifecycle.suggest("replaced", listOf(category()))
+                    lifecycle.suggest(LayaEffectiveContext.of("replaced"), listOf(category()))
                 }
                 val newest = async(start = CoroutineStart.UNDISPATCHED) {
-                    lifecycle.suggest("newest", listOf(category()))
+                    lifecycle.suggest(LayaEffectiveContext.of("newest"), listOf(category()))
                 }
                 assertEquals(LayaInferenceOutcome.Superseded, replaced.await())
 
                 session.release("active")
                 assertEquals(
-                    LayaInferenceOutcome.Completed(decision("active".length.toLong())),
-                    active.await(),
+                    decision("active".length.toLong()),
+                    (active.await() as LayaInferenceOutcome.Completed).value.decision,
                 )
                 assertEquals(
-                    LayaInferenceOutcome.Completed(decision("newest".length.toLong())),
-                    newest.await(),
+                    decision("newest".length.toLong()),
+                    (newest.await() as LayaInferenceOutcome.Completed).value.decision,
                 )
                 assertEquals(listOf("active", "newest"), session.calls())
                 assertEquals(1, session.maxConcurrentCalls())
@@ -163,26 +175,26 @@ class LayaInferenceLifecycleTest {
             val lifecycle = LayaInferenceLifecycle(File("unused"), 60_000L, sessions.factory)
             try {
                 val active = async(start = CoroutineStart.UNDISPATCHED) {
-                    lifecycle.suggest("active", listOf(category()))
+                    lifecycle.suggest(LayaEffectiveContext.of("active"), listOf(category()))
                 }
                 val firstSession = awaitSession(sessions)
                 firstSession.awaitEntered("active")
                 lifecycle.releaseSession()
 
                 val cancelledPending = async(start = CoroutineStart.UNDISPATCHED) {
-                    lifecycle.suggest("cancelled", listOf(category()))
+                    lifecycle.suggest(LayaEffectiveContext.of("cancelled"), listOf(category()))
                 }
                 cancelledPending.cancelAndJoin()
                 val later = async(start = CoroutineStart.UNDISPATCHED) {
-                    lifecycle.suggest("later", listOf(category()))
+                    lifecycle.suggest(LayaEffectiveContext.of("later"), listOf(category()))
                 }
 
                 active.cancelAndJoin()
                 assertFalse("cancellation must not close an in-use native session", firstSession.isClosed())
                 firstSession.release("active")
                 assertEquals(
-                    LayaInferenceOutcome.Completed(decision("later".length.toLong())),
-                    later.await(),
+                    decision("later".length.toLong()),
+                    (later.await() as LayaInferenceOutcome.Completed).value.decision,
                 )
                 firstSession.awaitClosed()
 
@@ -224,13 +236,13 @@ class LayaInferenceLifecycleTest {
             val sessions = Sessions(setOf("active"))
             val lifecycle = LayaInferenceLifecycle(File("unused"), 60_000L, sessions.factory)
             val active = async(start = CoroutineStart.UNDISPATCHED) {
-                lifecycle.suggest("active", listOf(category()))
+                lifecycle.suggest(LayaEffectiveContext.of("active"), listOf(category()))
             }
             val session = awaitSession(sessions)
             try {
                 session.awaitEntered("active")
                 val pending = async(start = CoroutineStart.UNDISPATCHED) {
-                    lifecycle.suggest("pending", listOf(category()))
+                    lifecycle.suggest(LayaEffectiveContext.of("pending"), listOf(category()))
                 }
 
                 lifecycle.close()

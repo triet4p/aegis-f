@@ -38,21 +38,84 @@ class LayaRuntime private constructor(
      * corrections outrank exact metadata matches, which outrank model inference. Oversized sets
      * use a deterministic metadata-ranked shortlist; callers must resolve the result against fresh
      * category rows before displaying or applying it.
+     *
+     * The request's effective context is composed first, under the model's actual input budget,
+     * and the result says what was composed: the text the model saw, the stored readings that
+     * were part of it, and the ones that did not fit.
+     *
+     * A composed input that does not fit the room the model leaves for its state is refused
+     * before any model work: the decision is
+     * [LayaCandidatePlanner.ManualReason.EFFECTIVE_INPUT_OVER_BUDGET], no evaluation is
+     * produced, and the text is not shortened to make it fit.
      */
     fun suggest(
-        description: String,
+        context: LayaEffectiveContext,
         categories: List<CategoryEntity>,
         correctionRules: List<LayaCategoryCorrectionRule> = emptyList(),
-    ): LayaCandidatePlanner.Decision = synchronized(ORT_ACCESS_LOCK) {
+    ): LayaContextDecision = synchronized(ORT_ACCESS_LOCK) {
+        val effectiveInput = LayaEffectiveContextComposer.compose(
+            tokenizer = tokenizer,
+            context = context,
+            maxLen = maxLen,
+            headMaxLen = headMaxLen,
+        )
+        if (!effectiveInput.fitsRoom) {
+            // The composed input does not fit the room the model leaves for its state: the
+            // request is refused here, before any candidate set is planned and before the
+            // model is asked. The text stays exactly as it was composed.
+            return@synchronized LayaContextDecision(
+                decision = LayaCandidatePlanner.Decision.Unknown(
+                    LayaCandidatePlanner.ManualReason.EFFECTIVE_INPUT_OVER_BUDGET,
+                ),
+                effectiveInput = effectiveInput,
+                evaluation = null,
+            )
+        }
         val plan = LayaCandidatePlanner.plan(
             tokenizer = tokenizer,
-            description = description,
+            description = effectiveInput.text,
             categories = categories,
             correctionRules = correctionRules,
             maxLen = maxLen,
             headMaxLen = headMaxLen,
+            descriptionTokenCount = effectiveInput.tokenCount,
         )
-        LayaCandidatePlanner.decide(plan) { built -> runLogits(built) }
+        val decision = LayaCandidatePlanner.decide(plan) { built -> runLogits(built) }
+        LayaContextDecision(
+            decision = decision,
+            effectiveInput = effectiveInput,
+            evaluation = evaluationOf(plan, decision),
+        )
+    }
+
+    /**
+     * The model evaluation of one decision: the categories the model evaluated, in the order it
+     * evaluated them, with their calibrated shares, the calibrated no-fit share, and the one
+     * Jev sharpness value of the same distribution.
+     *
+     * A direct decision never ran the model, so it has no evaluation and therefore no share
+     * and no sharpness.
+     */
+    private fun evaluationOf(
+        plan: LayaCandidatePlanner.Plan,
+        decision: LayaCandidatePlanner.Decision,
+    ): LayaEvaluation? {
+        val model = plan as? LayaCandidatePlanner.Plan.Model ?: return null
+        val scores = when (decision) {
+            is LayaCandidatePlanner.Decision.Category -> decision.scores
+            is LayaCandidatePlanner.Decision.Unknown -> decision.scores
+        } ?: return null
+        val shareById = scores.ranked.associate { it.categoryId to it.probability }
+        val categoryIds = model.categories.map { it.id }
+        val probabilities = categoryIds.map { id ->
+            shareById[id] ?: error("an evaluated category is missing its calibrated share")
+        }
+        return LayaEvaluation(
+            categoryIds = categoryIds,
+            probabilities = probabilities,
+            unknownShare = scores.unknownProbability,
+            confidence = scores.confidence,
+        )
     }
 
     /** Low-level positional scoring used by the runtime's open-time contract probe. */

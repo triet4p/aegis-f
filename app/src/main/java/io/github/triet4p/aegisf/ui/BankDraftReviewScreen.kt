@@ -53,6 +53,9 @@ import io.github.triet4p.aegisf.data.BankDraftReviewField
 import io.github.triet4p.aegisf.data.BankDraftReviewRepository
 import io.github.triet4p.aegisf.data.BankDraftReviewResult
 import io.github.triet4p.aegisf.data.CategoryEntity
+import io.github.triet4p.aegisf.data.ClassificationSnapshotRepository
+import io.github.triet4p.aegisf.data.ClassificationPrediction
+import io.github.triet4p.aegisf.data.EffectiveDraftContext
 import io.github.triet4p.aegisf.data.IntakeDirection
 import io.github.triet4p.aegisf.data.IntakeFieldState
 import io.github.triet4p.aegisf.data.IntakeParseStatus
@@ -61,8 +64,13 @@ import io.github.triet4p.aegisf.data.IntakeRepository
 import io.github.triet4p.aegisf.data.LedgerRepository
 import io.github.triet4p.aegisf.data.LedgerValidationException
 import io.github.triet4p.aegisf.data.PendingBankDraftEntity
+import io.github.triet4p.aegisf.data.PredictionSource
 import io.github.triet4p.aegisf.data.TransactionType
 import io.github.triet4p.aegisf.data.VndMoney
+import io.github.triet4p.aegisf.data.classificationPrediction
+import io.github.triet4p.aegisf.data.effectiveInputDigest
+import io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner
+import io.github.triet4p.aegisf.data.laya.LayaEffectiveContext
 import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
 import io.github.triet4p.aegisf.data.laya.LayaInferenceOutcome
 import io.github.triet4p.aegisf.data.laya.LayaRuntimeContract
@@ -82,6 +90,7 @@ fun BankDraftReviewScreen(
     reviewRepository: BankDraftReviewRepository,
     ledgerRepository: LedgerRepository,
     layaInferenceLifecycle: LayaInferenceLifecycle,
+    classificationSnapshotRepository: ClassificationSnapshotRepository,
     draftId: Long?,
     onSelectDraft: (Long) -> Unit,
     onNavigateUp: () -> Unit,
@@ -137,6 +146,7 @@ fun BankDraftReviewScreen(
                 reviewRepository = reviewRepository,
                 ledgerRepository = ledgerRepository,
                 layaInferenceLifecycle = layaInferenceLifecycle,
+                classificationSnapshotRepository = classificationSnapshotRepository,
                 contentModifier = Modifier.padding(innerPadding),
                 onSelectDraft = onSelectDraft,
                 onNavigateUp = onNavigateUp,
@@ -259,6 +269,7 @@ private fun DraftDetailContent(
     reviewRepository: BankDraftReviewRepository,
     ledgerRepository: LedgerRepository,
     layaInferenceLifecycle: LayaInferenceLifecycle,
+    classificationSnapshotRepository: ClassificationSnapshotRepository,
     contentModifier: Modifier,
     onSelectDraft: (Long) -> Unit,
     onNavigateUp: () -> Unit,
@@ -349,16 +360,23 @@ private fun DraftDetailContent(
             return@LaunchedEffect
         }
         val description = checkNotNull(effectiveInput)
+        // The draft's effective context: the permitted description the review works with plus
+        // the stored readings of the events linked to THIS draft. A note with several events
+        // contributes only the readings of the events linked here, so the whole note is never
+        // copied into every draft.
+        val effective = classificationSnapshotRepository.effectiveContextFor(draft.id, description)
+        val requestContext = effective?.context ?: LayaEffectiveContext.of(description)
         val token = suggestionMachine.begin(
             ManualSuggestionRequest(suggestionIntent, requestCategories),
         ) ?: return@LaunchedEffect
         val decision = try {
             decideRememberedBeforeInference(
                 description = description,
+                context = requestContext,
                 activeCategories = requestCategories.filterNot { it.archived },
                 findRememberedCategory = ledgerRepository::findRememberedCategoryForDescription,
-                infer = { input, assignable ->
-                    layaInferenceLifecycle.suggest(input, assignable)
+                infer = { context, assignable ->
+                    layaInferenceLifecycle.suggest(context, assignable)
                 },
             )
         } catch (cancelled: CancellationException) {
@@ -385,21 +403,41 @@ private fun DraftDetailContent(
                     observedCategories = observedCategories,
                     category = decision.category,
                 )
+                recordPrediction(
+                    classificationSnapshotRepository = classificationSnapshotRepository,
+                    effective = effective,
+                    prediction = ClassificationPrediction(
+                        source = PredictionSource.REMEMBERED_RULE,
+                        suggestedCategoryId = decision.category.id,
+                        candidateIds = emptyList(),
+                        probabilities = emptyList(),
+                        unknownShare = null,
+                        confidence = null,
+                        effectiveInputDigest = effectiveInputDigest(description),
+                    ),
+                )
                 return@LaunchedEffect
             }
             is ManualCategoryDecision.Inferred -> decision.outcome
         }
         when (outcome) {
-            is LayaInferenceOutcome.Completed -> suggestionMachine.complete(
-                token = token,
-                currentIntent = latestSuggestionIntent,
-                currentCategories = currentCategories,
-                observedCategories = observedCategories,
-                resolution = io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner.resolveCurrent(
-                    outcome.value,
-                    currentCategories,
-                ),
-            )
+            is LayaInferenceOutcome.Completed -> {
+                recordPrediction(
+                    classificationSnapshotRepository = classificationSnapshotRepository,
+                    effective = effective,
+                    prediction = outcome.value.classificationPrediction(),
+                )
+                suggestionMachine.complete(
+                    token = token,
+                    currentIntent = latestSuggestionIntent,
+                    currentCategories = currentCategories,
+                    observedCategories = observedCategories,
+                    resolution = io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner.resolveCurrent(
+                        outcome.value.decision,
+                        currentCategories,
+                    ),
+                )
+            }
             is LayaInferenceOutcome.Unavailable -> suggestionMachine.unavailable(
                 token = token,
                 currentIntent = latestSuggestionIntent,
@@ -865,6 +903,27 @@ private fun DraftDetailContent(
 internal fun isBankDraftSuggestionPanelVisible(state: ManualCategorySuggestionState): Boolean =
     state != ManualCategorySuggestionState.Idle
 
+/**
+ * Stores the prediction one suggestion produced, against the state it was made in.
+ *
+ * The storage layer refuses a prediction that arrives after the context moved on, and one
+ * whose draft already carries the user's own category choice. Nothing here writes the draft:
+ * a prediction is review-only evidence, and the bank fields and the user's choice stay as
+ * they are.
+ */
+private suspend fun recordPrediction(
+    classificationSnapshotRepository: ClassificationSnapshotRepository,
+    effective: EffectiveDraftContext?,
+    prediction: ClassificationPrediction,
+) {
+    val context = effective ?: return
+    classificationSnapshotRepository.recordPrediction(
+        draftId = context.draftId,
+        prediction = prediction,
+        expected = context.dependencies,
+    )
+}
+
 @Composable
 private fun DraftSuggestionPanel(
     draft: PendingBankDraftEntity,
@@ -946,7 +1005,9 @@ private fun DraftSuggestionPanel(
             "The suggestion is selected at your request. Review it before confirming; " +
                 "nothing has been saved."
         is ManualCategorySuggestionState.NoFit ->
-            if (state.distribution != null) {
+            if (state.reason == LayaCandidatePlanner.ManualReason.EFFECTIVE_INPUT_OVER_BUDGET) {
+                effectiveInputOverBudgetMessage()
+            } else if (state.distribution != null) {
                 "Unknown scored highest, so nothing was preselected. The ranked " +
                     "categories below stay selectable. Nothing is confirmed or saved."
             } else {

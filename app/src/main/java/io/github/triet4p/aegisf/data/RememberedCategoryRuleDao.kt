@@ -18,6 +18,16 @@ abstract class RememberedCategoryRuleDao {
     )
     abstract suspend fun findActiveCategory(patternKey: String): CategoryEntity?
 
+    /**
+     * Every stored rule, ordered by its canonical description.
+     *
+     * The rules are read as a whole so a prediction can record which rule state it was made
+     * against: a rule that was added or removed changes what the pre-inference lookup
+     * answers, and therefore changes whether a stored prediction still applies.
+     */
+    @Query("SELECT * FROM remembered_category_rules ORDER BY patternKey")
+    abstract suspend fun findAll(): List<RememberedCategoryRuleEntity>
+
     @Query("SELECT COUNT(*) FROM categories WHERE id = :categoryId AND archived = 0")
     protected abstract suspend fun countActiveCategory(categoryId: Long): Int
 

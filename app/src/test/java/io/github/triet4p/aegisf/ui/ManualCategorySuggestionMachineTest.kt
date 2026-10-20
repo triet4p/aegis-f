@@ -1,5 +1,6 @@
 package io.github.triet4p.aegisf.ui
 
+import io.github.triet4p.aegisf.data.laya.LayaEffectiveContext
 import io.github.triet4p.aegisf.data.CategoryEntity
 import io.github.triet4p.aegisf.data.TransactionType
 import io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner
@@ -235,6 +236,7 @@ class ManualCategorySuggestionMachineTest {
         var inferenceCalls = 0
         val matched = decideRememberedBeforeInference(
             description = "Synthetic cafe pattern",
+            context = LayaEffectiveContext.of("Synthetic cafe pattern"),
             activeCategories = listOf(food),
             findRememberedCategory = { description ->
                 if (description == "Synthetic cafe pattern") food else null
@@ -250,6 +252,7 @@ class ManualCategorySuggestionMachineTest {
 
         val missed = decideRememberedBeforeInference(
             description = "Synthetic cafe pattern!",
+            context = LayaEffectiveContext.of("Synthetic cafe pattern!"),
             activeCategories = listOf(food),
             findRememberedCategory = { description ->
                 if (description == "Synthetic cafe pattern") food else null
@@ -271,6 +274,7 @@ class ManualCategorySuggestionMachineTest {
         var inferenceCalls = 0
         val decision = decideRememberedBeforeInference(
             description = "Synthetic cafe pattern",
+            context = LayaEffectiveContext.of("Synthetic cafe pattern"),
             activeCategories = listOf(current),
             findRememberedCategory = { archived },
             infer = { _, categories ->
@@ -490,5 +494,38 @@ class ManualCategorySuggestionMachineTest {
         val staged = machine.chooseDistributionOption(1L)
         assertEquals(first.id, staged?.id)
         assertTrue(machine.state is ManualCategorySuggestionState.Accepted)
+    }
+
+    @Test
+    fun `an over-budget request is reported as a refusal without changing the selection`() {
+        val machine = ManualCategorySuggestionMachine()
+        val categories = listOf(category(1L, "Food"))
+        val request = request(intent(), categories)
+        val token = checkNotNull(machine.begin(request))
+        assertTrue(
+            machine.complete(
+                token,
+                request.intent,
+                request.categories,
+                request.categories,
+                LayaCandidatePlanner.CurrentResolution.ManualReview(
+                    LayaCandidatePlanner.ManualReason.EFFECTIVE_INPUT_OVER_BUDGET,
+                    uncertainty = null,
+                ),
+            ),
+        )
+        assertEquals(
+            ManualCategorySuggestionState.NoFit(
+                LayaCandidatePlanner.ManualReason.EFFECTIVE_INPUT_OVER_BUDGET,
+                null,
+            ),
+            machine.state,
+        )
+        // The refusal names what happened and leaves the user's own choice alone.
+        val message = effectiveInputOverBudgetMessage()
+        assertTrue(message.contains("longer than the model's input budget"))
+        assertTrue(message.contains("no suggestion was made"))
+        assertTrue(message.contains("the model was not asked"))
+        assertEquals(null, machine.acceptSuggestion())
     }
 }

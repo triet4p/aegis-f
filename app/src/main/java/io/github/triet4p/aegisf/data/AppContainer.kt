@@ -60,6 +60,17 @@ class AppContainer(context: Context) {
         EventContextRepository(database = database)
     }
 
+    /**
+     * The effective context of a bank draft and the prediction snapshot stored about it.
+     *
+     * The snapshot keeps the dependencies a prediction was made against, so a later read can
+     * tell that the context, the categories, the rules, or the model have moved on and report
+     * the prediction as stale instead of applying it.
+     */
+    val classificationSnapshotRepository: ClassificationSnapshotRepository by lazy {
+        ClassificationSnapshotRepository(database = database)
+    }
+
     /** Pending bank-notification drafts: reviewable intake, never ledger records. */
     val intakeRepository: IntakeRepository by lazy {
         IntakeRepository(database = database)
