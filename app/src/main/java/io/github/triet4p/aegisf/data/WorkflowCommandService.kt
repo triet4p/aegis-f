@@ -1861,6 +1861,215 @@ class WorkflowCommandService(
         }
     }
 
+    // --- Category and rule commands -------------------------------------------
+
+    /**
+     * Adds a category to the catalog.
+     *
+     * The category is the user's own decision, so only the user may make this request: a
+     * category names the pool every later record is filed under, and no other caller may
+     * widen it. A name that another active category already carries is a conflict rather
+     * than a second category, and a name that is empty asks the caller to state one.
+     */
+    suspend fun addCategory(
+        scope: WorkflowCallerScope,
+        request: AddCategoryRequest,
+    ): WorkflowCommandOutcome = runCommand(
+        scope = scope,
+        command = COMMAND_ADD_CATEGORY,
+        idempotencyKey = request.idempotencyKey,
+        payload = listOf(COMMAND_ADD_CATEGORY, request.name),
+        authorize = { authorizeUserDecision(scope) },
+    ) {
+        val name = request.name.trim()
+        if (name.isEmpty()) {
+            return@runCommand WorkflowCommandOutcome.NeedsClarification(
+                field = "name",
+                reason = "A category needs a name.",
+            )
+        }
+        val existing = categoryDao.findActiveIdByName(name)
+        if (existing != null) {
+            return@runCommand WorkflowCommandOutcome.Conflict(
+                "Another active category is already called \"$name\".",
+            )
+        }
+        val categoryId = ledger.addCategory(name)
+        WorkflowCommandOutcome.Applied(WorkflowChange.CategoryAdded(categoryId, name))
+    }
+
+    /**
+     * Renames a category.
+     *
+     * The id and every record filed under the category are untouched, so the history stays
+     * attributed to the same category under its new name. A name that another active
+     * category already carries is a conflict, and an empty name asks the caller to state
+     * one.
+     */
+    suspend fun renameCategory(
+        scope: WorkflowCallerScope,
+        request: RenameCategoryRequest,
+    ): WorkflowCommandOutcome = runCommand(
+        scope = scope,
+        command = COMMAND_RENAME_CATEGORY,
+        idempotencyKey = request.idempotencyKey,
+        payload = listOf(COMMAND_RENAME_CATEGORY, request.categoryId.toString(), request.name),
+        authorize = { authorizeUserDecision(scope) },
+    ) {
+        val category = categoryDao.findById(request.categoryId)
+            ?: return@runCommand WorkflowCommandOutcome.NotFound
+        val name = request.name.trim()
+        if (name.isEmpty()) {
+            return@runCommand WorkflowCommandOutcome.NeedsClarification(
+                field = "name",
+                reason = "A category needs a name.",
+            )
+        }
+        val duplicate = categoryDao.findActiveIdByName(name)
+        if (duplicate != null && duplicate != category.id) {
+            return@runCommand WorkflowCommandOutcome.Conflict(
+                "Another active category is already called \"$name\".",
+            )
+        }
+        ledger.renameCategory(category.id, name)
+        WorkflowCommandOutcome.Applied(WorkflowChange.CategoryRenamed(category.id, name))
+    }
+
+    /**
+     * Archives a category.
+     *
+     * Archiving takes the category out of the pool of assignable categories while the
+     * records already filed under it keep pointing at it: the history is kept, and only
+     * the choice of it is closed. A category that is already archived is answered with
+     * the state it is really in.
+     */
+    suspend fun archiveCategory(
+        scope: WorkflowCallerScope,
+        request: ArchiveCategoryRequest,
+    ): WorkflowCommandOutcome = runCommand(
+        scope = scope,
+        command = COMMAND_ARCHIVE_CATEGORY,
+        idempotencyKey = request.idempotencyKey,
+        payload = listOf(COMMAND_ARCHIVE_CATEGORY, request.categoryId.toString()),
+        authorize = { authorizeUserDecision(scope) },
+    ) {
+        val category = categoryDao.findById(request.categoryId)
+            ?: return@runCommand WorkflowCommandOutcome.NotFound
+        if (category.archived) {
+            return@runCommand WorkflowCommandOutcome.NoChange(
+                change = WorkflowChange.CategoryArchived(category.id),
+                detail = "The category was already archived; nothing was written.",
+            )
+        }
+        ledger.archiveCategory(category.id)
+        WorkflowCommandOutcome.Applied(WorkflowChange.CategoryArchived(category.id))
+    }
+
+    /**
+     * Removes a category for good.
+     *
+     * The removal keeps every stored record — amount, type, moment, description, and the
+     * totals computed from them — and only clears the links to the category: the records
+     * that were filed under it become uncategorized, the saved rules that named it go
+     * with it, and a still-pending draft's pre-set category is cleared so the reviewer
+     * chooses again. The counts the change reports are the counts the removal applied.
+     */
+    suspend fun deleteCategory(
+        scope: WorkflowCallerScope,
+        request: DeleteCategoryRequest,
+    ): WorkflowCommandOutcome = runCommand(
+        scope = scope,
+        command = COMMAND_DELETE_CATEGORY,
+        idempotencyKey = request.idempotencyKey,
+        payload = listOf(COMMAND_DELETE_CATEGORY, request.categoryId.toString()),
+        authorize = { authorizeUserDecision(scope) },
+    ) {
+        val category = categoryDao.findById(request.categoryId)
+            ?: return@runCommand WorkflowCommandOutcome.NotFound
+        val impact = ledger.deleteCategory(category.id)
+        WorkflowCommandOutcome.Applied(
+            WorkflowChange.CategoryDeleted(category.id, impact),
+        )
+    }
+
+    /**
+     * Saves the user's own rule for one exact description.
+     *
+     * The rule is a deliberate standing decision of the user, so only the user may make
+     * it, and it names an active category: a rule never points at a category that cannot
+     * be chosen. A rule that already stands for that exact description is answered with
+     * the state that is really stored, and it is never silently replaced by a later
+     * choice.
+     */
+    suspend fun rememberCategoryRule(
+        scope: WorkflowCallerScope,
+        request: RememberCategoryRuleRequest,
+    ): WorkflowCommandOutcome = runCommand(
+        scope = scope,
+        command = COMMAND_REMEMBER_CATEGORY_RULE,
+        idempotencyKey = request.idempotencyKey,
+        payload = listOf(
+            COMMAND_REMEMBER_CATEGORY_RULE,
+            request.description,
+            request.categoryId.toString(),
+        ),
+        authorize = { authorizeUserDecision(scope) },
+    ) {
+        val patternKey = rememberedCategoryRuleKey(request.description)
+            ?: return@runCommand WorkflowCommandOutcome.NeedsClarification(
+                field = "description",
+                reason = "Enter a description before remembering a rule.",
+            )
+        val category = categoryDao.findById(request.categoryId)
+            ?: return@runCommand WorkflowCommandOutcome.NotFound
+        if (category.archived) {
+            return@runCommand WorkflowCommandOutcome.Denied(
+                WorkflowDenialReason.CATEGORY_UNAVAILABLE,
+            )
+        }
+        val remembered = ledger.rememberCategoryForDescription(request.description, category.id)
+        val change = WorkflowChange.CategoryRuleRemembered(patternKey, category.id)
+        if (remembered) {
+            WorkflowCommandOutcome.Applied(change)
+        } else {
+            WorkflowCommandOutcome.NoChange(
+                change = change,
+                detail = "A saved rule already applies to this exact description.",
+            )
+        }
+    }
+
+    /**
+     * Removes the saved rule of one exact description.
+     *
+     * Only that one rule is removed; nothing else about the description is touched, and a
+     * description that has no rule is answered with the state that is really stored.
+     */
+    suspend fun removeCategoryRule(
+        scope: WorkflowCallerScope,
+        request: RemoveCategoryRuleRequest,
+    ): WorkflowCommandOutcome = runCommand(
+        scope = scope,
+        command = COMMAND_REMOVE_CATEGORY_RULE,
+        idempotencyKey = request.idempotencyKey,
+        payload = listOf(COMMAND_REMOVE_CATEGORY_RULE, request.description),
+        authorize = { authorizeUserDecision(scope) },
+    ) {
+        val patternKey = rememberedCategoryRuleKey(request.description)
+            ?: return@runCommand WorkflowCommandOutcome.NeedsClarification(
+                field = "description",
+                reason = "Enter a description before remembering a rule.",
+            )
+        val removed = ledger.removeRememberedCategoryRule(request.description)
+        if (removed) {
+            WorkflowCommandOutcome.Applied(WorkflowChange.CategoryRuleRemoved(patternKey))
+        } else {
+            WorkflowCommandOutcome.NoChange(
+                detail = "There is no saved rule for this exact description.",
+            )
+        }
+    }
+
     /** The zone the wall-clock text of a review is read in. */
     private fun zone(): TimeZone = TimeZone.getTimeZone(timezoneId())
 
@@ -2214,6 +2423,12 @@ class WorkflowCommandService(
         const val COMMAND_SAVE_DRAFT_REVIEW = "SAVE_DRAFT_REVIEW"
         const val COMMAND_CONFIRM_DRAFT = "CONFIRM_DRAFT"
         const val COMMAND_DISMISS_DRAFT = "DISMISS_DRAFT"
+        const val COMMAND_ADD_CATEGORY = "ADD_CATEGORY"
+        const val COMMAND_RENAME_CATEGORY = "RENAME_CATEGORY"
+        const val COMMAND_ARCHIVE_CATEGORY = "ARCHIVE_CATEGORY"
+        const val COMMAND_DELETE_CATEGORY = "DELETE_CATEGORY"
+        const val COMMAND_REMEMBER_CATEGORY_RULE = "REMEMBER_CATEGORY_RULE"
+        const val COMMAND_REMOVE_CATEGORY_RULE = "REMOVE_CATEGORY_RULE"
 
         /**
          * How many stored records one duplication check looks at.

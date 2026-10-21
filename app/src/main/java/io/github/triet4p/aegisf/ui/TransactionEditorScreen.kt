@@ -55,10 +55,11 @@ import io.github.triet4p.aegisf.data.CorrectTransactionRequest
 import io.github.triet4p.aegisf.data.LIST_PAGE_SIZE
 import io.github.triet4p.aegisf.data.QueryPage
 import io.github.triet4p.aegisf.data.QueryPageRequest
-import io.github.triet4p.aegisf.data.LedgerRepository
 import io.github.triet4p.aegisf.data.LedgerValidationException
 import io.github.triet4p.aegisf.data.ManualCategoryDecision
 import io.github.triet4p.aegisf.data.ManualTransactionSource
+import io.github.triet4p.aegisf.data.RemoveCategoryRuleRequest
+import io.github.triet4p.aegisf.data.RememberCategoryRuleRequest
 import io.github.triet4p.aegisf.data.SaveManualTransactionRequest
 import io.github.triet4p.aegisf.data.TransactionEntity
 import io.github.triet4p.aegisf.data.TransactionType
@@ -71,6 +72,7 @@ import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowDenialReason
 import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.data.decideRememberedBeforeInference
+import io.github.triet4p.aegisf.data.refusalMessage
 import io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner
 import io.github.triet4p.aegisf.data.laya.LayaEffectiveContext
 import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
@@ -122,7 +124,6 @@ internal fun formatProbability(probability: Double): String {
  */
 @Composable
 fun TransactionEditorScreen(
-    repository: LedgerRepository,
     commandService: WorkflowCommandService,
     queryService: WorkflowQueryService,
     layaInferenceLifecycle: LayaInferenceLifecycle,
@@ -132,7 +133,6 @@ fun TransactionEditorScreen(
 ) {
     if (transactionId == null) {
         TransactionFormScreen(
-            repository = repository,
             commandService = commandService,
             queryService = queryService,
             layaInferenceLifecycle = layaInferenceLifecycle,
@@ -167,7 +167,6 @@ fun TransactionEditorScreen(
         StoredTransactionState.Missing -> MissingTransaction(onNavigateUp, modifier)
 
         is StoredTransactionState.Found -> TransactionFormScreen(
-            repository = repository,
             commandService = commandService,
             queryService = queryService,
             layaInferenceLifecycle = layaInferenceLifecycle,
@@ -196,7 +195,6 @@ private sealed interface StoredTransactionState {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TransactionFormScreen(
-    repository: LedgerRepository,
     commandService: WorkflowCommandService,
     queryService: WorkflowQueryService,
     layaInferenceLifecycle: LayaInferenceLifecycle,
@@ -275,7 +273,7 @@ private fun TransactionFormScreen(
     val scope = rememberCoroutineScope()
     val writeInFlight = remember { AtomicBoolean(false) }
     LaunchedEffect(
-        repository,
+        queryService,
         layaInferenceLifecycle,
         formIdentity,
         editing,
@@ -320,7 +318,9 @@ private fun TransactionFormScreen(
                 description = descriptionText,
                 context = LayaEffectiveContext.of(descriptionText),
                 activeCategories = requestActiveCategories,
-                findRememberedCategory = repository::findRememberedCategoryForDescription,
+                findRememberedCategory = { description ->
+                    queryService.findRememberedCategory(description)
+                },
                 infer = { context, categories ->
                     layaInferenceLifecycle.suggest(context, categories)
                 },
@@ -577,23 +577,34 @@ private fun TransactionFormScreen(
         ruleActionError = null
         scope.launch {
             try {
-                val created = repository.rememberCategoryForDescription(
-                    description = intent.description,
-                    categoryId = categoryId,
+                val outcome = commandService.rememberCategoryRule(
+                    scope = WorkflowCallerScope.User,
+                    request = RememberCategoryRuleRequest(
+                        idempotencyKey = newRuleRequestKey("remember"),
+                        description = intent.description,
+                        categoryId = categoryId,
+                    ),
                 )
                 if (latestSuggestionIntent == intent) {
-                    if (created) {
-                        suggestionMachine.clearSuppression()
-                        suggestionRevision += 1
-                    } else {
-                        ruleActionError =
-                            "A saved rule already applies to this exact description. Remove it " +
-                                "before saving a different category."
+                    when (outcome) {
+                        is WorkflowCommandOutcome.Applied -> {
+                            suggestionMachine.clearSuppression()
+                            suggestionRevision += 1
+                        }
+                        is WorkflowCommandOutcome.NoChange -> {
+                            ruleActionError =
+                                "A saved rule already applies to this exact description. Remove " +
+                                    "it before saving a different category."
+                        }
+                        else -> ruleActionError = outcome.refusalMessage()
+                            ?: "The rule could not be saved; nothing was changed."
                     }
                 }
-            } catch (rejection: LedgerValidationException) {
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
                 if (latestSuggestionIntent == intent) {
-                    ruleActionError = rejection.message
+                    ruleActionError = "The rule could not be saved; nothing was changed."
                 }
             } finally {
                 ruleActionInFlight = false
@@ -607,14 +618,29 @@ private fun TransactionFormScreen(
         ruleActionError = null
         scope.launch {
             try {
-                val removed = repository.removeRememberedCategoryRule(intent.description)
+                val outcome = commandService.removeCategoryRule(
+                    scope = WorkflowCallerScope.User,
+                    request = RemoveCategoryRuleRequest(
+                        idempotencyKey = newRuleRequestKey("remove"),
+                        description = intent.description,
+                    ),
+                )
                 if (latestSuggestionIntent == intent) {
-                    if (removed) {
-                        suggestionMachine.ruleRemoved(intent)
-                    } else {
-                        ruleActionError = "This saved rule is no longer available."
+                    when (outcome) {
+                        is WorkflowCommandOutcome.Applied -> suggestionMachine.ruleRemoved(intent)
+                        is WorkflowCommandOutcome.NoChange -> {
+                            ruleActionError = "This saved rule is no longer available."
+                        }
+                        else -> ruleActionError = outcome.refusalMessage()
+                            ?: "The rule could not be removed; it is still stored."
                     }
                     suggestionRevision += 1
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                if (latestSuggestionIntent == intent) {
+                    ruleActionError = "The rule could not be removed; it is still stored."
                 }
             } finally {
                 ruleActionInFlight = false
@@ -855,6 +881,14 @@ private fun noteLabel(note: UnrecordedNoteEvent): String {
 
 /** A key that names one save request; the same key stores one record. */
 private fun newSaveRequestKey(): String = "manual-save:" + UUID.randomUUID()
+
+/**
+ * A key that names one rule action; the same key stores one rule.
+ *
+ * Each action the user takes is its own request: saving the same description for another
+ * category later is a different request, and it gets its own key.
+ */
+private fun newRuleRequestKey(action: String): String = "rule-$action:" + UUID.randomUUID()
 
 /** The top bar of every editor state: one title and one Back control. */
 @OptIn(ExperimentalMaterial3Api::class)

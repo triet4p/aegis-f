@@ -53,6 +53,7 @@ class WorkflowQueryService(
     private val database: LedgerDatabase,
 ) {
     private val categoryDao = database.categoryDao()
+    private val rememberedCategoryRuleDao = database.rememberedCategoryRuleDao()
     private val transactionDao = database.transactionDao()
     private val captureMessageDao = database.captureMessageDao()
     private val pendingBankDraftDao = database.pendingBankDraftDao()
@@ -159,6 +160,35 @@ class WorkflowQueryService(
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observeCategoryCatalog(): Flow<List<CategoryEntity>> =
         categoryDao.observeCatalogRevision().mapLatest { categoryCatalog() }
+
+    /**
+     * What removing one category would change right now.
+     *
+     * The counts describe the whole catalog, not a page of it: the stored records that
+     * would become uncategorized, the saved rules that would go with the category, and
+     * the still-pending bank drafts whose pre-set category would be cleared. Reading never
+     * writes, so the confirmation that shows these counts changes nothing.
+     */
+    suspend fun categoryDeletionImpact(categoryId: Long): CategoryDeletionImpact? {
+        val category = categoryDao.findById(categoryId) ?: return null
+        return CategoryDeletionImpact(
+            uncategorizedTransactionCount = categoryDao.countReferencingTransactions(category.id),
+            removedRuleCount = categoryDao.countReferencingRules(category.id),
+            clearedPendingReviewCount = categoryDao.countReferencingPendingReviews(category.id),
+        )
+    }
+
+    /**
+     * The saved exact-description rule for a description, when its category is still active.
+     *
+     * A rule whose category was archived or deleted no longer answers: the rule is
+     * ineligible, not replaced. The lookup is the app's own read, so a screen never has to
+     * reach into the rule table itself.
+     */
+    suspend fun findRememberedCategory(description: String): CategoryEntity? {
+        val patternKey = rememberedCategoryRuleKey(description) ?: return null
+        return rememberedCategoryRuleDao.findActiveCategory(patternKey)
+    }
 
     // --- Ledger records -----------------------------------------------------
 

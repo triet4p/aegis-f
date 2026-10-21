@@ -37,28 +37,39 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.github.triet4p.aegisf.data.AddCategoryRequest
+import io.github.triet4p.aegisf.data.ArchiveCategoryRequest
 import io.github.triet4p.aegisf.data.CategoryCatalogCounts
 import io.github.triet4p.aegisf.data.CategoryDeletionImpact
 import io.github.triet4p.aegisf.data.CategoryEntity
 import io.github.triet4p.aegisf.data.CategoryQuery
 import io.github.triet4p.aegisf.data.CategoryState
+import io.github.triet4p.aegisf.data.DeleteCategoryRequest
 import io.github.triet4p.aegisf.data.LIST_PAGE_SIZE
-import io.github.triet4p.aegisf.data.LedgerRepository
 import io.github.triet4p.aegisf.data.LedgerValidationException
 import io.github.triet4p.aegisf.data.QueryPage
 import io.github.triet4p.aegisf.data.QueryPageRequest
+import io.github.triet4p.aegisf.data.RenameCategoryRequest
+import io.github.triet4p.aegisf.data.WorkflowCallerScope
+import io.github.triet4p.aegisf.data.WorkflowChange
+import io.github.triet4p.aegisf.data.WorkflowCommandOutcome
+import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
+import io.github.triet4p.aegisf.data.refusalMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 /**
  * Category management: add, rename, archive, and permanently delete.
  *
  * The list is backed by the shared category read, a live Room stream, so
- * every write the user makes appears without a manual refresh. Every rule that protects
- * stored data — a category needs a name, an active name is unique without regard to
- * case, archiving keeps historical records attached — is enforced by the repository and
- * surfaced here as an explicit refusal, never as a silent no-op or a lost write.
+ * every write the user makes appears without a manual refresh. Every write goes through
+ * the app's one command boundary, which owns the user's authority over the catalog, the
+ * idempotency of a repeated request, and the rules that protect stored data — a category
+ * needs a name, an active name is unique without regard to case, archiving keeps
+ * historical records attached. Every refusal is surfaced here as an explicit message,
+ * never as a silent no-op or a lost write.
  *
  * Delete and archive are deliberately separate actions with separate wording, and neither
  * pretends to be the other. Archive keeps the category for the records already filed under
@@ -77,7 +88,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategoryManagerScreen(
-    repository: LedgerRepository,
+    commandService: WorkflowCommandService,
     queryService: WorkflowQueryService,
     onNavigateUp: () -> Unit,
     modifier: Modifier = Modifier,
@@ -216,13 +227,27 @@ fun CategoryManagerScreen(
                 initialName = state.categoryName,
                 onDismiss = { dialog = null },
                 save = { name ->
-                    when (state.mode) {
-                        CategoryDialogMode.ADD -> repository.addCategory(name)
-                        CategoryDialogMode.RENAME ->
-                            repository.renameCategory(state.categoryId, name)
-                        CategoryDialogMode.ARCHIVE -> Unit
-                        CategoryDialogMode.DELETE -> Unit
+                    val outcome = when (state.mode) {
+                        CategoryDialogMode.ADD -> commandService.addCategory(
+                            scope = WorkflowCallerScope.User,
+                            request = AddCategoryRequest(
+                                idempotencyKey = state.requestKey,
+                                name = name,
+                            ),
+                        )
+                        CategoryDialogMode.RENAME -> commandService.renameCategory(
+                            scope = WorkflowCallerScope.User,
+                            request = RenameCategoryRequest(
+                                idempotencyKey = state.requestKey,
+                                categoryId = state.categoryId,
+                                name = name,
+                            ),
+                        )
+                        CategoryDialogMode.ARCHIVE,
+                        CategoryDialogMode.DELETE,
+                        -> return@CategoryNameDialog null
                     }
+                    outcome.refusalMessage()
                 },
                 onSaved = { trimmedName ->
                     dialog = null
@@ -238,11 +263,19 @@ fun CategoryManagerScreen(
                 categoryName = state.categoryName,
                 onDismiss = { dialog = null },
                 onArchive = {
-                    try {
-                        repository.archiveCategory(state.categoryId)
-                        "Archived \"${state.categoryName}\"."
-                    } catch (rejection: LedgerValidationException) {
-                        rejection.message ?: "The category could not be archived."
+                    val outcome = commandService.archiveCategory(
+                        scope = WorkflowCallerScope.User,
+                        request = ArchiveCategoryRequest(
+                            idempotencyKey = state.requestKey,
+                            categoryId = state.categoryId,
+                        ),
+                    )
+                    when (outcome) {
+                        is WorkflowCommandOutcome.Applied -> "Archived \"${state.categoryName}\"."
+                        is WorkflowCommandOutcome.NoChange ->
+                            outcome.detail ?: "The category was already archived."
+                        else -> outcome.refusalMessage()
+                            ?: "The category could not be archived."
                     }
                 },
                 onArchived = { message ->
@@ -255,8 +288,35 @@ fun CategoryManagerScreen(
                 categoryId = state.categoryId,
                 categoryName = state.categoryName,
                 onDismiss = { dialog = null },
-                loadImpact = repository::categoryDeletionImpact,
-                delete = repository::deleteCategory,
+                loadImpact = { id ->
+                    queryService.categoryDeletionImpact(id)
+                        ?: throw LedgerValidationException("The category is no longer stored.")
+                },
+                delete = { id ->
+                    val outcome = commandService.deleteCategory(
+                        scope = WorkflowCallerScope.User,
+                        request = DeleteCategoryRequest(
+                            idempotencyKey = state.requestKey,
+                            categoryId = id,
+                        ),
+                    )
+                    when (outcome) {
+                        is WorkflowCommandOutcome.Applied ->
+                            (outcome.change as? WorkflowChange.CategoryDeleted)
+                                ?.impact
+                                ?: throw LedgerValidationException(
+                                    "The category could not be deleted; it is still stored.",
+                                )
+                        is WorkflowCommandOutcome.NoChange ->
+                            throw LedgerValidationException(
+                                outcome.detail ?: "The category could not be deleted.",
+                            )
+                        else -> throw LedgerValidationException(
+                            outcome.refusalMessage()
+                                ?: "The category could not be deleted; it is still stored.",
+                        )
+                    }
+                },
                 onDeleted = { message ->
                     dialog = null
                     statusMessage = message
@@ -272,11 +332,15 @@ private enum class CategoryDialogMode { ADD, RENAME, ARCHIVE, DELETE }
 /**
  * The open dialog plus the row it acts on. Held in primitives so the selection survives
  * a configuration change.
+ *
+ * [requestKey] names the one action the dialog is: the same key under the same caller and
+ * the same request writes one change, so a retried save cannot add a second category.
  */
 private data class CategoryDialogState(
     val mode: CategoryDialogMode,
     val categoryId: Long = 0L,
     val categoryName: String = "",
+    val requestKey: String = UUID.randomUUID().toString(),
 ) : java.io.Serializable
 
 @Composable
@@ -389,8 +453,11 @@ private fun EmptyCategories(modifier: Modifier = Modifier) {
 
 /**
  * Add / rename dialog. A refused write keeps the dialog open with the typed name intact
- * and the repository's reason shown under the field, so nothing is stored and the user
- * can correct the entry.
+ * and the reason shown under the field, so nothing is stored and the user can correct the
+ * entry.
+ *
+ * [save] performs the write through the command boundary and answers with the reason the
+ * write was refused, or null when it was applied.
  */
 @Composable
 private fun CategoryNameDialog(
@@ -398,7 +465,7 @@ private fun CategoryNameDialog(
     title: String,
     initialName: String,
     onDismiss: () -> Unit,
-    save: suspend (String) -> Unit,
+    save: suspend (String) -> String?,
     onSaved: (String) -> Unit,
 ) {
     var name by rememberSaveable(key) { mutableStateOf(initialName) }
@@ -428,11 +495,17 @@ private fun CategoryNameDialog(
                 onClick = {
                     saving = true
                     scope.launch {
-                        try {
+                        val refusal = try {
                             save(name)
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            "The category could not be saved; nothing was changed."
+                        }
+                        if (refusal == null) {
                             onSaved(name.trim())
-                        } catch (rejection: LedgerValidationException) {
-                            error = rejection.message
+                        } else {
+                            error = refusal
                             saving = false
                         }
                     }

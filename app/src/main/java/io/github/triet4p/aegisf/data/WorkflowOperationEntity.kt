@@ -138,6 +138,34 @@ internal fun encodeWorkflowChange(change: WorkflowChange): String = when (change
     is WorkflowChange.DraftDismissed -> encodeFields(
         listOf("DRAFT_DISMISSED", change.draftId.toString()),
     )
+    is WorkflowChange.CategoryAdded -> encodeFields(
+        listOf("CATEGORY_ADDED", change.categoryId.toString(), change.name),
+    )
+    is WorkflowChange.CategoryRenamed -> encodeFields(
+        listOf("CATEGORY_RENAMED", change.categoryId.toString(), change.name),
+    )
+    is WorkflowChange.CategoryArchived -> encodeFields(
+        listOf("CATEGORY_ARCHIVED", change.categoryId.toString()),
+    )
+    is WorkflowChange.CategoryDeleted -> encodeFields(
+        listOf(
+            "CATEGORY_DELETED",
+            change.categoryId.toString(),
+            change.impact.uncategorizedTransactionCount.toString(),
+            change.impact.removedRuleCount.toString(),
+            change.impact.clearedPendingReviewCount.toString(),
+        ),
+    )
+    is WorkflowChange.CategoryRuleRemembered -> encodeFields(
+        listOf(
+            "CATEGORY_RULE_REMEMBERED",
+            change.patternKey,
+            change.categoryId.toString(),
+        ),
+    )
+    is WorkflowChange.CategoryRuleRemoved -> encodeFields(
+        listOf("CATEGORY_RULE_REMOVED", change.patternKey),
+    )
 }
 
 /** The change an encoded summary describes, or null when the summary is not one of ours. */
@@ -201,6 +229,32 @@ internal fun decodeWorkflowChange(summary: String?): WorkflowChange? {
         )
         "DRAFT_DISMISSED" -> WorkflowChange.DraftDismissed(
             draftId = fields.longAt(1),
+        )
+        "CATEGORY_ADDED" -> WorkflowChange.CategoryAdded(
+            categoryId = fields.longAt(1),
+            name = fields.textAt(2) ?: return null,
+        )
+        "CATEGORY_RENAMED" -> WorkflowChange.CategoryRenamed(
+            categoryId = fields.longAt(1),
+            name = fields.textAt(2) ?: return null,
+        )
+        "CATEGORY_ARCHIVED" -> WorkflowChange.CategoryArchived(
+            categoryId = fields.longAt(1),
+        )
+        "CATEGORY_DELETED" -> WorkflowChange.CategoryDeleted(
+            categoryId = fields.longAt(1),
+            impact = CategoryDeletionImpact(
+                uncategorizedTransactionCount = fields.intAt(2),
+                removedRuleCount = fields.intAt(3),
+                clearedPendingReviewCount = fields.intAt(4),
+            ),
+        )
+        "CATEGORY_RULE_REMEMBERED" -> WorkflowChange.CategoryRuleRemembered(
+            patternKey = fields.textAt(1) ?: return null,
+            categoryId = fields.longAt(2),
+        )
+        "CATEGORY_RULE_REMOVED" -> WorkflowChange.CategoryRuleRemoved(
+            patternKey = fields.textAt(1) ?: return null,
         )
         else -> null
     }

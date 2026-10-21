@@ -9,10 +9,10 @@ import java.io.File
  * The application's dependency graph: one Room database for ledger data and explicit
  * remembered category rules, plus the bank-notification preferences.
  *
- * This is the production entry point to the ledger, reached from application code with
- * `(application as AegisApplication).container.ledgerRepository`. Building the container
- * does not touch disk; Room opens the database file the first time a repository is used,
- * which keeps app start-up cheap.
+ * This is the production entry point to the ledger. The public surfaces it hands out are
+ * the app's one write surface — the command boundary — and its one read surface — the
+ * bounded queries. Building the container does not touch disk; Room opens the database
+ * file the first time one of them is used, which keeps app start-up cheap.
  */
 class AppContainer(context: Context) {
 
@@ -35,7 +35,15 @@ class AppContainer(context: Context) {
     private val databaseDelegate = lazy { LedgerDatabase.build(appContext) }
     private val database: LedgerDatabase by databaseDelegate
 
-    val ledgerRepository: LedgerRepository by lazy {
+    /**
+     * The ledger's own storage layer.
+     *
+     * It is private to this container on purpose: the only public way to change a
+     * category, a saved rule, or a ledger record is the command boundary below, which
+     * owns the caller's authority, the idempotency of a repeated request, and the
+     * revisions the caller read.
+     */
+    private val ledgerRepository: LedgerRepository by lazy {
         LedgerRepository(
             categoryDao = database.categoryDao(),
             transactionDao = database.transactionDao(),

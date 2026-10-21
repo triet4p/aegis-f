@@ -35,7 +35,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.triet4p.aegisf.data.LedgerRepository
 import io.github.triet4p.aegisf.data.NotificationAccessStore
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
@@ -78,9 +77,6 @@ private sealed interface LaunchDestination : java.io.Serializable {
 
 class MainActivity : ComponentActivity() {
 
-    private val ledgerRepository: LedgerRepository by lazy {
-        (application as AegisApplication).container.ledgerRepository
-    }
     private val layaInferenceLifecycle by lazy {
         (application as AegisApplication).container.layaInferenceLifecycle
     }
@@ -162,7 +158,7 @@ class MainActivity : ComponentActivity() {
                     )
 
                     LaunchDestination.Categories -> CategoryManagerScreen(
-                        repository = ledgerRepository,
+                        commandService = workflowCommandService,
                         queryService = workflowQueryService,
                         onNavigateUp = { destination = LaunchDestination.Home },
                     )
@@ -178,7 +174,6 @@ class MainActivity : ComponentActivity() {
                     )
 
                     LaunchDestination.NewTransaction -> TransactionEditorScreen(
-                        repository = ledgerRepository,
                         commandService = workflowCommandService,
                         queryService = workflowQueryService,
                         layaInferenceLifecycle = layaInferenceLifecycle,
@@ -195,7 +190,6 @@ class MainActivity : ComponentActivity() {
                     )
 
                     is LaunchDestination.Edit -> TransactionEditorScreen(
-                        repository = ledgerRepository,
                         commandService = workflowCommandService,
                         queryService = workflowQueryService,
                         layaInferenceLifecycle = layaInferenceLifecycle,

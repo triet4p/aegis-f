@@ -235,6 +235,36 @@ sealed interface WorkflowChange {
 
     /** A pending draft was dismissed and stays out of the ledger. */
     data class DraftDismissed(val draftId: Long) : WorkflowChange
+
+    /** A category was added to the catalog. */
+    data class CategoryAdded(val categoryId: Long, val name: String) : WorkflowChange
+
+    /** A category was renamed; its id and the records filed under it are untouched. */
+    data class CategoryRenamed(val categoryId: Long, val name: String) : WorkflowChange
+
+    /** A category was archived and left the pool of assignable categories. */
+    data class CategoryArchived(val categoryId: Long) : WorkflowChange
+
+    /**
+     * A category was removed for good.
+     *
+     * The counts say what the removal changed: the records that became uncategorized, the
+     * saved rules that went with the category, and the still-pending drafts whose pre-set
+     * category was cleared. No ledger record is ever removed by it.
+     */
+    data class CategoryDeleted(
+        val categoryId: Long,
+        val impact: CategoryDeletionImpact,
+    ) : WorkflowChange
+
+    /** A saved exact-description rule was stored for an active category. */
+    data class CategoryRuleRemembered(
+        val patternKey: String,
+        val categoryId: Long,
+    ) : WorkflowChange
+
+    /** A saved exact-description rule was removed. */
+    data class CategoryRuleRemoved(val patternKey: String) : WorkflowChange
 }
 
 /** The kind of user-authored text a save command stores. */
@@ -344,6 +374,106 @@ data class ClassificationRequest(
     val description: String,
     val expectedReviewRevision: Int? = null,
 )
+
+/**
+ * One request to add a category to the catalog.
+ *
+ * The category is the user's own decision, so only the user may make this request. The
+ * idempotency key names the one action: the same key under the same caller and the same
+ * name adds one category, whatever the number of attempts or processes.
+ */
+data class AddCategoryRequest(
+    val idempotencyKey: String,
+    val name: String,
+)
+
+/**
+ * One request to rename a category.
+ *
+ * The id and the records filed under the category are untouched by a rename, so the
+ * history stays attributed to the same category under its new name.
+ */
+data class RenameCategoryRequest(
+    val idempotencyKey: String,
+    val categoryId: Long,
+    val name: String,
+)
+
+/**
+ * One request to archive a category.
+ *
+ * Archiving takes the category out of the pool of assignable categories while the records
+ * already filed under it keep pointing at it.
+ */
+data class ArchiveCategoryRequest(
+    val idempotencyKey: String,
+    val categoryId: Long,
+)
+
+/**
+ * One request to remove a category for good.
+ *
+ * The removal keeps every stored record — amount, type, moment, description, and totals
+ * intact — and only clears the links to the category. The counts the change reports are
+ * the counts the removal actually applied.
+ */
+data class DeleteCategoryRequest(
+    val idempotencyKey: String,
+    val categoryId: Long,
+)
+
+/**
+ * One request to save an explicit rule for one exact description.
+ *
+ * The rule is the user's own standing decision, so only the user may make this request,
+ * and it names an active category: a rule never points at a category that cannot be
+ * chosen.
+ */
+data class RememberCategoryRuleRequest(
+    val idempotencyKey: String,
+    val description: String,
+    val categoryId: Long,
+)
+
+/**
+ * One request to remove the rule of one exact description.
+ *
+ * Only that one rule is removed, and nothing else about the description is touched.
+ */
+data class RemoveCategoryRuleRequest(
+    val idempotencyKey: String,
+    val description: String,
+)
+
+/**
+ * The reason a command was refused, as one sentence for the user.
+ *
+ * It is null when the command applied a change or when the state it was asked about was
+ * already in place: neither of those is a refusal, and a screen that shows a refusal
+ * where there was none would misreport what happened.
+ */
+internal fun WorkflowCommandOutcome.refusalMessage(): String? = when (this) {
+    is WorkflowCommandOutcome.Applied -> null
+    is WorkflowCommandOutcome.NoChange -> null
+    is WorkflowCommandOutcome.NeedsClarification -> reason
+    is WorkflowCommandOutcome.Conflict -> reason
+    is WorkflowCommandOutcome.Denied -> when (reason) {
+        WorkflowDenialReason.CATEGORY_UNAVAILABLE ->
+            "That category is no longer available. Choose an active category and try again."
+        WorkflowDenialReason.USER_DECISION_REQUIRED ->
+            "Only your own decision can make this change."
+        WorkflowDenialReason.EVENT_ALREADY_RECORDED ->
+            "That note was already recorded as a ledger record."
+        WorkflowDenialReason.EVENT_UNAVAILABLE ->
+            "That note no longer holds the occurrence it described."
+        WorkflowDenialReason.CALLER_SCOPE ->
+            "That item is outside what this caller may change."
+        else -> "This change was refused."
+    }
+    WorkflowCommandOutcome.NotFound -> "That item is no longer stored."
+    WorkflowCommandOutcome.Cancelled -> null
+    is WorkflowCommandOutcome.Failed -> reason
+}
 
 /**
  * The digest of the category catalog's current state.

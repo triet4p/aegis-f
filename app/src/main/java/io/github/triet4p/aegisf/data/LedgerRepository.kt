@@ -74,6 +74,12 @@ internal sealed interface LedgerCorrectionResult {
 /**
  * Reads and writes the ledger and explicit, description-scoped category rules.
  *
+ * This is the storage layer of the ledger, and it is internal to the app module on
+ * purpose: the only public way to change a category, a rule, or a ledger record is the
+ * command boundary that owns the caller's authority, the idempotency of a repeated
+ * request, and the revisions the caller read. A caller that could reach this repository
+ * directly would be able to write around those rules.
+ *
  * Data rules live here rather than in a screen:
  *
  * - an amount is a positive whole-dong magnitude of at least [VndMoney.MIN_AMOUNT_VND]; no sign is
@@ -99,7 +105,7 @@ internal sealed interface LedgerCorrectionResult {
  * Reads and writes return the entity rows directly: the stored record is already the
  * ledger's unit of truth, and a separate model would duplicate it without adding a rule.
  */
-class LedgerRepository(
+internal class LedgerRepository(
     private val categoryDao: CategoryDao,
     private val transactionDao: TransactionDao,
     private val rememberedCategoryRuleDao: RememberedCategoryRuleDao,
