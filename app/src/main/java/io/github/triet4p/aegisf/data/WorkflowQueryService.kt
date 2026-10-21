@@ -320,8 +320,48 @@ class WorkflowQueryService(
         bounds = query.bounds,
     )
 
-    // --- Draft candidates ---------------------------------------------------
+    // --- Unrecorded note events ----------------------------------------------
 
+    /**
+     * A bounded page of the note events that are still waiting to be recorded by hand.
+     *
+     * A reading is waiting when it is complete, was not resolved into a ledger record,
+     * and holds no active link to a bank draft: an active link means the bank
+     * notification is the record of that occurrence, and a resolved reading is spent.
+     *
+     * The rows carry the text of the capture the reading was taken from, so the user can
+     * see the note they are recording and not only the fields that were read out of it.
+     */
+    suspend fun unrecordedNoteEvents(
+        bounds: QueryPageRequest,
+    ): QueryPage<UnrecordedNoteEvent> {
+        val events = noteEventDao.findUnrecordedPage(
+            limit = bounds.limit + 1,
+            offset = bounds.offset,
+        )
+        val captures = if (events.isEmpty()) {
+            emptyMap()
+        } else {
+            captureMessageDao.findByIds(events.map { it.captureId }.distinct())
+                .associateBy { it.id }
+        }
+        val rows = events.map { event ->
+            UnrecordedNoteEvent(
+                eventId = event.id,
+                captureId = event.captureId,
+                revision = event.revision,
+                amountVnd = event.amountVnd,
+                anchorDate = event.anchorDate,
+                anchorTime = event.anchorTime,
+                merchant = event.merchant,
+                normalizedText = event.normalizedText,
+                captureText = captures[event.captureId]?.bodyText,
+            )
+        }
+        return pageOf(rows = rows, bounds = bounds)
+    }
+
+    // --- Draft candidates ---------------------------------------------------
     /**
      * A bounded page of the stored bank drafts.
      *

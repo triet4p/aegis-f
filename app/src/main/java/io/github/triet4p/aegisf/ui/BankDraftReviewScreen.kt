@@ -50,10 +50,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.triet4p.aegisf.data.BankDraftReviewEdits
 import io.github.triet4p.aegisf.data.BankDraftReviewField
-import io.github.triet4p.aegisf.data.BankDraftReviewRepository
-import io.github.triet4p.aegisf.data.BankDraftReviewResult
 import io.github.triet4p.aegisf.data.CategoryEntity
 import io.github.triet4p.aegisf.data.ClassificationRequest
+import io.github.triet4p.aegisf.data.ConfirmDraftRequest
+import io.github.triet4p.aegisf.data.DismissDraftRequest
+import io.github.triet4p.aegisf.data.DraftConfirmationPreview
 import io.github.triet4p.aegisf.data.IntakeDirection
 import io.github.triet4p.aegisf.data.IntakeFieldState
 import io.github.triet4p.aegisf.data.IntakeParseStatus
@@ -62,14 +63,16 @@ import io.github.triet4p.aegisf.data.CategoryQuery
 import io.github.triet4p.aegisf.data.CategoryState
 import io.github.triet4p.aegisf.data.DraftCandidateQuery
 import io.github.triet4p.aegisf.data.LIST_PAGE_SIZE
-import io.github.triet4p.aegisf.data.LedgerRepository
+import io.github.triet4p.aegisf.data.PreviewDraftConfirmationRequest
 import io.github.triet4p.aegisf.data.QueryPage
 import io.github.triet4p.aegisf.data.QueryPageRequest
 import io.github.triet4p.aegisf.data.WorkflowCallerScope
 import io.github.triet4p.aegisf.data.WorkflowChange
 import io.github.triet4p.aegisf.data.WorkflowCommandOutcome
 import io.github.triet4p.aegisf.data.WorkflowCommandService
+import io.github.triet4p.aegisf.data.WorkflowDenialReason
 import io.github.triet4p.aegisf.data.WorkflowQueryService
+import io.github.triet4p.aegisf.data.SaveDraftReviewRequest
 import io.github.triet4p.aegisf.data.LedgerValidationException
 import io.github.triet4p.aegisf.data.PendingBankDraftEntity
 import io.github.triet4p.aegisf.data.PredictionSource
@@ -91,7 +94,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 @Composable
 fun BankDraftReviewScreen(
     queryService: WorkflowQueryService,
-    reviewRepository: BankDraftReviewRepository,
     commandService: WorkflowCommandService,
     draftId: Long?,
     onSelectDraft: (Long) -> Unit,
@@ -191,7 +193,6 @@ fun BankDraftReviewScreen(
             DraftDetailContent(
                 draft = openedDraft,
                 allDrafts = selectedRelatedDrafts,
-                reviewRepository = reviewRepository,
                 queryService = queryService,
                 commandService = commandService,
                 contentModifier = Modifier.padding(innerPadding),
@@ -334,7 +335,6 @@ private fun DraftInboxCard(
 private fun DraftDetailContent(
     draft: PendingBankDraftEntity,
     allDrafts: List<PendingBankDraftEntity>,
-    reviewRepository: BankDraftReviewRepository,
     queryService: WorkflowQueryService,
     commandService: WorkflowCommandService,
     contentModifier: Modifier,
@@ -369,6 +369,9 @@ private fun DraftDetailContent(
         mutableIntStateOf(draft.reviewRevision)
     }
     var validationRequested by rememberSaveable(draft.id) { mutableStateOf(false) }
+    // The confirmation the user is about to approve: the exact fields it would write and
+    // the binding that ties them to the state they were read from.
+    var pendingConfirmation by remember { mutableStateOf<DraftConfirmationPreview.Ready?>(null) }
     var busy by remember { mutableStateOf(false) }
     var confirmingDismiss by rememberSaveable(draft.id) { mutableStateOf(false) }
     var feedback by rememberSaveable(draft.id) { mutableStateOf<String?>(null) }
@@ -570,25 +573,53 @@ private fun DraftDetailContent(
     val categoryError = validationRequested &&
         selectedType != TransactionType.TRANSFER && !categoryResolved
 
-    fun handleResult(result: BankDraftReviewResult, action: String) {
-        when (result) {
-            is BankDraftReviewResult.Saved -> {
-                expectedRevision = result.revision
-                feedback = "Corrections saved."
+    /**
+     * Shows why a write was refused.
+     *
+     * The words are the boundary's own: a moved draft, a category that is gone, and a
+     * draft that was already decided each say what happened, and none of them leaves the
+     * user guessing about the money.
+     */
+    fun handleOutcome(outcome: WorkflowCommandOutcome, action: String) {
+        when (outcome) {
+            is WorkflowCommandOutcome.Applied -> {
+                val change = outcome.change
+                if (change is WorkflowChange.DraftReviewSaved) {
+                    expectedRevision = change.revision
+                    feedback = "Corrections saved."
+                } else {
+                    onNavigateUp()
+                }
             }
-            is BankDraftReviewResult.Confirmed -> onNavigateUp()
-            BankDraftReviewResult.Dismissed -> onNavigateUp()
-            is BankDraftReviewResult.NeedsCorrection -> {
+            is WorkflowCommandOutcome.NoChange -> {
+                val change = outcome.change
+                if (change is WorkflowChange.DraftReviewSaved) {
+                    expectedRevision = change.revision
+                    feedback = "Corrections saved."
+                } else {
+                    feedback = outcome.detail
+                        ?: "This draft was already confirmed or dismissed. No additional " +
+                        "transaction was added."
+                }
+            }
+            is WorkflowCommandOutcome.NeedsClarification -> {
                 validationRequested = true
-                feedback = correctionMessage(result.fields)
+                feedback = correctionMessage(
+                    BankDraftReviewField.entries.filter { it.name == outcome.field }.toSet(),
+                )
             }
-            BankDraftReviewResult.CategoryUnavailable -> feedback =
-                "That category is no longer available. Choose an active category and try again."
-            BankDraftReviewResult.AlreadyReviewed -> feedback =
-                "This draft was already confirmed or dismissed. No additional transaction was added."
-            BankDraftReviewResult.Changed -> feedback =
-                "This draft changed elsewhere. Leave and reopen it before saving or confirming."
-            BankDraftReviewResult.NotFound -> feedback = "This draft is no longer available."
+            is WorkflowCommandOutcome.Denied -> {
+                feedback = when (outcome.reason) {
+                    WorkflowDenialReason.CATEGORY_UNAVAILABLE ->
+                        "That category is no longer available. Choose an active category " +
+                            "and try again."
+                    else -> "This draft could not be changed."
+                }
+            }
+            is WorkflowCommandOutcome.Conflict -> feedback = outcome.reason
+            WorkflowCommandOutcome.NotFound -> feedback = "This draft is no longer available."
+            is WorkflowCommandOutcome.Failed -> feedback = outcome.reason
+            WorkflowCommandOutcome.Cancelled -> feedback = "The request was cancelled."
         }
         if (action == "dismiss") confirmingDismiss = false
     }
@@ -599,8 +630,16 @@ private fun DraftDetailContent(
         feedback = null
         scope.launch {
             try {
-                handleResult(
-                    reviewRepository.saveReview(draft.id, expectedRevision, edits),
+                handleOutcome(
+                    commandService.saveDraftReview(
+                        scope = WorkflowCallerScope.User,
+                        request = SaveDraftReviewRequest(
+                            idempotencyKey = "draft-review:${draft.id}:$expectedRevision",
+                            draftId = draft.id,
+                            expectedRevision = expectedRevision,
+                            edits = edits,
+                        ),
+                    ),
                     "save",
                 )
             } finally {
@@ -610,18 +649,73 @@ private fun DraftDetailContent(
         }
     }
 
-    fun confirm() {
+    /**
+     * Looks at what a confirmation would write before it writes it.
+     *
+     * The preview resolves the wall-clock text under the device's own zone policy and
+     * names the exact fields, so the confirmation the user approves is the confirmation
+     * that happens. The binding it returns is carried into the confirmation itself: if
+     * anything moved on in between, the confirmation is refused instead of overwriting it.
+     */
+    fun preview() {
         if (!writeInFlight.compareAndSet(false, true)) return
         validationRequested = true
         busy = true
         feedback = null
         scope.launch {
             try {
-                handleResult(
-                    reviewRepository.confirmDraft(draft.id, expectedRevision, edits),
+                when (
+                    val preview = commandService.previewDraftConfirmation(
+                        scope = WorkflowCallerScope.User,
+                        request = PreviewDraftConfirmationRequest(
+                            draftId = draft.id,
+                            edits = edits,
+                        ),
+                    )
+                ) {
+                    is DraftConfirmationPreview.Ready -> {
+                        pendingConfirmation = preview
+                    }
+                    is DraftConfirmationPreview.NeedsCorrection -> {
+                        validationRequested = true
+                        feedback = correctionMessage(preview.fields)
+                    }
+                    is DraftConfirmationPreview.Conflict -> feedback = preview.reason
+                    is DraftConfirmationPreview.Denied -> feedback =
+                        "That category is no longer available. Choose an active category " +
+                            "and try again."
+                    DraftConfirmationPreview.NotFound ->
+                        feedback = "This draft is no longer available."
+                }
+            } finally {
+                busy = false
+                writeInFlight.set(false)
+            }
+        }
+    }
+
+    fun confirm() {
+        val pending = pendingConfirmation ?: return
+        if (!writeInFlight.compareAndSet(false, true)) return
+        busy = true
+        feedback = null
+        scope.launch {
+            try {
+                handleOutcome(
+                    commandService.confirmDraft(
+                        scope = WorkflowCallerScope.User,
+                        request = ConfirmDraftRequest(
+                            idempotencyKey = "draft-confirm:${draft.id}:$expectedRevision",
+                            draftId = draft.id,
+                            expectedRevision = expectedRevision,
+                            expectedBinding = pending.binding,
+                            edits = edits,
+                        ),
+                    ),
                     "confirm",
                 )
             } finally {
+                pendingConfirmation = null
                 busy = false
                 writeInFlight.set(false)
             }
@@ -634,7 +728,17 @@ private fun DraftDetailContent(
         feedback = null
         scope.launch {
             try {
-                handleResult(reviewRepository.dismissDraft(draft.id), "dismiss")
+                handleOutcome(
+                    commandService.dismissDraft(
+                        scope = WorkflowCallerScope.User,
+                        request = DismissDraftRequest(
+                            idempotencyKey = "draft-dismiss:${draft.id}:$expectedRevision",
+                            draftId = draft.id,
+                            expectedRevision = expectedRevision,
+                        ),
+                    ),
+                    "dismiss",
+                )
             } finally {
                 busy = false
                 writeInFlight.set(false)
@@ -962,7 +1066,7 @@ private fun DraftDetailContent(
                 )
             }
             Button(
-                onClick = ::confirm,
+                onClick = ::preview,
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -1000,6 +1104,66 @@ private fun DraftDetailContent(
             dismissButton = {
                 TextButton(onClick = { confirmingDismiss = false }, enabled = !busy) {
                     Text("Keep reviewing")
+                }
+            },
+        )
+    }
+
+    val pending = pendingConfirmation
+    if (pending != null && active) {
+        AlertDialog(
+            onDismissRequest = { if (!busy) pendingConfirmation = null },
+            title = { Text("Confirm this record?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "These are the exact values that will be stored:",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text("Amount: ${VndMoney.formatAmount(pending.fields.amountVnd)}")
+                    Text("Type: ${typeLabel(pending.fields.type)}")
+                    Text(
+                        "When: ${ManualDateTime.formatMoment(pending.fields.occurredAtEpochMillis)} " +
+                            "device time",
+                    )
+                    Text(
+                        "Description: " +
+                            (pending.fields.description.ifEmpty { "(none)" }),
+                    )
+                    Text(
+                        "Category: " + (
+                            pending.fields.categoryId?.let { categoryId ->
+                                catalog?.firstOrNull { it.id == categoryId }?.name ?: "unknown"
+                            } ?: "no category"
+                            ),
+                    )
+                    val risk = pending.duplicateRisk
+                    if (risk != null) {
+                        Text(
+                            text = "A stored record may already be this money: " +
+                                "${VndMoney.formatAmount(risk.amountVnd)} on " +
+                                "${ManualDateTime.formatMoment(risk.occurredAtEpochMillis)}" +
+                                (if (risk.description.isEmpty()) "" else " (${risk.description})") +
+                                ". Confirming adds a second record; the first one stays.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    Text(
+                        "The bank notification stays stored as evidence either way.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = ::confirm, enabled = !busy) {
+                    Text(if (busy) "Confirming…" else "Confirm")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingConfirmation = null }, enabled = !busy) {
+                    Text("Back to review")
                 }
             },
         )

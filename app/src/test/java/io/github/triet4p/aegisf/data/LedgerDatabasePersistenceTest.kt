@@ -313,6 +313,7 @@ class LedgerDatabasePersistenceTest {
         clock.now = EDITED_AT
         first.repository.editTransaction(
             lunch,
+            0,
             TransactionCorrection(
                 type = TransactionType.EXPENSE,
                 amountVnd = 125_000L,
@@ -357,6 +358,7 @@ class LedgerDatabasePersistenceTest {
         clock.now = EDITED_AT
         first.repository.editTransaction(
             capturedBill,
+            0,
             TransactionCorrection(
                 type = TransactionType.EXPENSE,
                 amountVnd = 125_000L,
@@ -574,6 +576,7 @@ class LedgerDatabasePersistenceTest {
         awaitSecondLatest { rows -> rows.map { it.id } == listOf(tie, newer, older) }
         first.repository.editTransaction(
             newer,
+            0,
             TransactionCorrection(
                 type = TransactionType.INCOME,
                 amountVnd = 1_100_000L,

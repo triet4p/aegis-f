@@ -836,11 +836,7 @@ class WorkflowCommandServiceTest {
             // The draft moves on: the evidence the proposal was made on is not the
             // evidence the app can read now.
             val draft = database.pendingBankDraftDao().findById(draftId)!!
-            val saved = BankDraftReviewRepository(
-                draftDao = database.pendingBankDraftDao(),
-                reviewDao = database.bankDraftReviewDao(),
-                clock = clock,
-            ).saveReview(
+            val saved = reviewCommands(database, clock).saveReview(
                 draftId = draftId,
                 expectedRevision = draft.reviewRevision,
                 edits = BankDraftReviewEdits(
@@ -2252,11 +2248,7 @@ class WorkflowCommandServiceTest {
             ).addCategory("Food")
             val draftId = storeDraft(database, "fuel-key", 50_000L)
             val draft = database.pendingBankDraftDao().findById(draftId)!!
-            val saved = BankDraftReviewRepository(
-                draftDao = database.pendingBankDraftDao(),
-                reviewDao = database.bankDraftReviewDao(),
-                clock = clock,
-            ).saveReview(
+            val saved = reviewCommands(database, clock).saveReview(
                 draftId = draftId,
                 expectedRevision = draft.reviewRevision,
                 edits = BankDraftReviewEdits(

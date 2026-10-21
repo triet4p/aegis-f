@@ -33,7 +33,10 @@ prediction write are gone — and the read surface gained a bounded read of the 
 operations.
 
 No financial confirmation, dismissal, correction, or deletion was added. Those are the
-user's own decisions and belong to the user-only boundary of a later task.
+user's own decisions and belong to the user-only boundary of a later task — which is
+[S5.7](../sprint-5-financial-commands.md): the financial commands live on this same
+service, under the same caller's scope, the same idempotency rules, and the same
+structured outcomes, and they are available to the user's scope alone.
 
 ## The command boundary
 
@@ -58,14 +61,18 @@ for its own caller. It is never read from a model's arguments, from a request bo
 the stored data — a note, a bank memo, and a stored category name are data, not authority.
 
 - `WorkflowCallerScope.User` — the user's own screens. Every preparation command is
-  available to it.
+  available to it, and so is every financial command: the financial commands are the
+  user's own decisions, and the user's scope is the only scope they answer to.
 - `WorkflowCallerScope.AgentSession(scopeId, captureIds, draftIds)` — a bounded session of
   a later agent adapter. It may act only on the captures and the drafts its own session was
-  granted. A target outside that scope is refused before anything is read or written.
+  granted. A target outside that scope is refused before anything is read or written. It
+  may not make a financial decision at all: a confirmation, a dismissal, a correction, a
+  removal, or a manual record is refused with `USER_DECISION_REQUIRED`, before anything
+  is read — see [S5.7](../sprint-5-financial-commands.md).
 
 The refusals are named, not generic: `CALLER_SCOPE`, `IMMUTABLE_SOURCE`, `ALREADY_DELETED`,
 `EVENT_UNAVAILABLE`, `LINK_ALREADY_REJECTED`, `USER_DECISION_REQUIRED`, `ATTACH_POLICY`,
-and `MULTIPLE_ACTIVE_DRAFTS`.
+`MULTIPLE_ACTIVE_DRAFTS`, `CATEGORY_UNAVAILABLE`, and `EVENT_ALREADY_RECORDED`.
 
 ### The link policy
 

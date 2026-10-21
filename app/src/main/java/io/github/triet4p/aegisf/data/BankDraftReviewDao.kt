@@ -6,6 +6,38 @@ import androidx.room.Query
 import androidx.room.Transaction
 
 /**
+ * Observable outcomes of the storage-level draft-review transitions.
+ *
+ * The vocabulary is the storage layer's own: the command boundary is what turns these
+ * into the outcomes a caller reads, and it is the only public way to make the change.
+ */
+sealed interface BankDraftReviewResult {
+    /** The review fields were stored; the draft moved on to this revision. */
+    data class Saved(val revision: Int) : BankDraftReviewResult
+
+    /** The draft became a confirmed ledger record with this id. */
+    data class Confirmed(val transactionId: Long) : BankDraftReviewResult
+
+    /** The draft was dismissed and stays out of the ledger. */
+    data object Dismissed : BankDraftReviewResult
+
+    /** These fields still have to be stated before the draft can become a record. */
+    data class NeedsCorrection(val fields: Set<BankDraftReviewField>) : BankDraftReviewResult
+
+    /** The chosen category is gone or archived. */
+    data object CategoryUnavailable : BankDraftReviewResult
+
+    /** The draft does not exist. */
+    data object NotFound : BankDraftReviewResult
+
+    /** The draft is already confirmed or dismissed; it is never reopened. */
+    data object AlreadyReviewed : BankDraftReviewResult
+
+    /** The draft moved on under the caller. */
+    data object Changed : BankDraftReviewResult
+}
+
+/**
  * The cross-table write boundary for bank-draft review. Confirmation claims a still-pending,
  * expected revision, inserts its ledger row, and links that row before the Room transaction
  * commits; any failed insert rolls the claim back with it.

@@ -775,6 +775,7 @@ class WorkflowQueryServiceTest {
         // A correction changes the amount of one record and no count at all.
         repository.editTransaction(
             transactionId = seeded.lunch,
+            expectedRevision = 0,
             correction = TransactionCorrection(
                 type = TransactionType.EXPENSE,
                 amountVnd = 50_000L,

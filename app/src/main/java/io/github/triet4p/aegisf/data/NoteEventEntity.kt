@@ -85,6 +85,7 @@ data class NoteEventTimeAnchor(
         Index(value = ["captureId", "eventIdentity"], unique = true),
         Index(value = ["captureId"]),
         Index(value = ["status"]),
+        Index(value = ["resolvedTransactionId"]),
     ],
 )
 data class NoteEventEntity(
@@ -124,6 +125,21 @@ data class NoteEventEntity(
     /** The capture revision this reading was derived from. */
     val sourceRevision: Int,
     val createdAtEpochMillis: Long,
+    /**
+     * The ledger record this event was recorded as, or null when it was not recorded yet.
+     *
+     * The user records an unmatched note by hand: the note event is then *resolved*, and
+     * this column names the record that resolved it. A resolved event is spent — it is
+     * never linked to a bank draft again, so a bank notification that arrives later cannot
+     * consume the same occurrence a second time. The link decision is refused for a
+     * resolved event, and the resolution survives a restart because it is stored.
+     *
+     * Removing the record removes the resolution with it, in the same transaction: the
+     * occurrence is no longer recorded, so the note may be recorded again.
+     */
+    val resolvedTransactionId: Long? = null,
+    /** When the event was recorded as a ledger record; null while it is unresolved. */
+    val resolvedAtEpochMillis: Long? = null,
 )
 
 /**

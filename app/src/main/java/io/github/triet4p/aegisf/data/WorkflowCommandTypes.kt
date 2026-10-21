@@ -70,7 +70,13 @@ enum class WorkflowDenialReason {
     /** The capture's text was deleted; there is nothing left to change. */
     ALREADY_DELETED,
 
-    /** The event holds no current reading, so it cannot carry a link. */
+    /**
+     * The event holds no current reading, so it can carry neither a link nor a record.
+     *
+     * The source text was edited or deleted, so the reading the caller named is gone: the
+     * occurrence it described cannot be linked to a bank notification, and it cannot be
+     * recorded by hand against that reading either.
+     */
     EVENT_UNAVAILABLE,
 
     /** The pair was refused before and stays refused; a refusal is never recreated. */
@@ -84,6 +90,23 @@ enum class WorkflowDenialReason {
 
     /** The event already holds an active draft, so a second one was refused. */
     MULTIPLE_ACTIVE_DRAFTS,
+
+    /**
+     * The chosen category is gone or archived, so the field cannot be written.
+     *
+     * A category that was archived while a form was open is not assignable any more, and
+     * a category that was deleted does not exist at all; neither is written silently.
+     */
+    CATEGORY_UNAVAILABLE,
+
+    /**
+     * The note event was already recorded as a ledger record, so it is spent.
+     *
+     * The user recorded the occurrence by hand, and the record that resolved it stands.
+     * A bank notification that arrives later cannot consume the same occurrence again,
+     * so the link is refused and the event stays recorded.
+     */
+    EVENT_ALREADY_RECORDED,
 }
 
 /**
@@ -176,6 +199,42 @@ sealed interface WorkflowChange {
         val confidence: Double?,
         val decision: LayaContextDecision? = null,
     ) : WorkflowChange
+
+    /**
+     * A ledger record was stored by the user's own hand.
+     *
+     * [sourceEventId] names the note event the record was written from, when the user
+     * recorded an unmatched note by hand: that event is resolved against this record.
+     */
+    data class TransactionSaved(
+        val transactionId: Long,
+        val revision: Int,
+        val sourceEventId: Long? = null,
+    ) : WorkflowChange
+
+    /** The user-editable fields of a stored record were replaced. */
+    data class TransactionCorrected(
+        val transactionId: Long,
+        val revision: Int,
+    ) : WorkflowChange
+
+    /** A stored record was removed. */
+    data class TransactionDeleted(val transactionId: Long) : WorkflowChange
+
+    /** The user's explicit edits were stored on a still-pending draft. */
+    data class DraftReviewSaved(
+        val draftId: Long,
+        val revision: Int,
+    ) : WorkflowChange
+
+    /** A pending draft became a confirmed ledger record. */
+    data class DraftConfirmed(
+        val draftId: Long,
+        val transactionId: Long,
+    ) : WorkflowChange
+
+    /** A pending draft was dismissed and stays out of the ledger. */
+    data class DraftDismissed(val draftId: Long) : WorkflowChange
 }
 
 /** The kind of user-authored text a save command stores. */

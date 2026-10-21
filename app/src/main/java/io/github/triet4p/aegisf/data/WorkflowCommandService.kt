@@ -5,6 +5,7 @@ import androidx.room.withTransaction
 import io.github.triet4p.aegisf.data.laya.LayaContextDecision
 import io.github.triet4p.aegisf.data.laya.LayaEffectiveContext
 import io.github.triet4p.aegisf.data.laya.LayaRuntimeContract
+import io.github.triet4p.aegisf.ui.ManualDateTime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -70,9 +71,11 @@ import java.util.concurrent.atomic.AtomicBoolean
  *   the model works, and it is given back only when the model work has really ended, so
  *   neither a slow answer nor a model that cannot be interrupted lets a second attempt
  *   ask the model again.
- * - **Preparation only.** No command here confirms a draft, dismisses one, writes a
- *   ledger record, or edits a confirmed one. Those are the user's own financial
- *   decisions and belong to the user-only boundary of a later task.
+ * - **Preparation and the user's own financial decisions.** The preparation commands are
+ *   open to the preparation callers; the financial commands — the manual record, the
+ *   correction, the removal, the review edits, the confirmation of a bank draft, and its
+ *   dismissal — are the user's alone, and another caller is refused before anything is
+ *   read or written.
  */
 class WorkflowCommandService(
     private val database: LedgerDatabase,
@@ -111,12 +114,25 @@ class WorkflowCommandService(
     private val linkDao = database.contextLinkDao()
     private val draftDao = database.pendingBankDraftDao()
     private val operations = database.workflowOperationDao()
+    private val transactionDao = database.transactionDao()
+    private val categoryDao = database.categoryDao()
+    private val reviewDao = database.bankDraftReviewDao()
     private val query = WorkflowQueryService(database)
     private val captures = CaptureMessageRepository(database = database, clock = clock, timezoneId = timezoneId)
     private val events = EventContextRepository(database = database, clock = clock)
     /** The app's own evidence about a proposed association; never read from a request. */
     private val linkEvidence = LinkEvidencePolicy(database)
     private val snapshots = ClassificationSnapshotRepository(database = database, clock = clock)
+    /** The app's rules for the fields a financial write stores; one rule, one place. */
+    private val rules = FinancialFieldRules(categoryDao)
+    /** The ledger's own writes; they are reachable only through this boundary. */
+    private val ledger = LedgerRepository(
+        categoryDao = categoryDao,
+        transactionDao = transactionDao,
+        rememberedCategoryRuleDao = database.rememberedCategoryRuleDao(),
+        captureMessageDao = captureDao,
+        clock = clock,
+    )
 
     // --- Captures -----------------------------------------------------------
 
@@ -345,6 +361,9 @@ class WorkflowCommandService(
             ContextLinkResult.MultipleDrafts -> WorkflowCommandOutcome.Denied(
                 WorkflowDenialReason.MULTIPLE_ACTIVE_DRAFTS,
             )
+            ContextLinkResult.EventAlreadyRecorded -> WorkflowCommandOutcome.Denied(
+                WorkflowDenialReason.EVENT_ALREADY_RECORDED,
+            )
         }
     }
 
@@ -421,6 +440,9 @@ class WorkflowCommandService(
             ContextLinkResult.MultipleDrafts -> WorkflowCommandOutcome.Denied(
                 WorkflowDenialReason.MULTIPLE_ACTIVE_DRAFTS,
             )
+            ContextLinkResult.EventAlreadyRecorded -> WorkflowCommandOutcome.Denied(
+                WorkflowDenialReason.EVENT_ALREADY_RECORDED,
+            )
             is ContextLinkResult.Unlinked -> WorkflowCommandOutcome.Conflict(
                 "The link was removed under the caller.",
             )
@@ -490,6 +512,9 @@ class WorkflowCommandService(
             ContextLinkResult.MultipleDrafts -> WorkflowCommandOutcome.Denied(
                 WorkflowDenialReason.MULTIPLE_ACTIVE_DRAFTS,
             )
+            ContextLinkResult.EventAlreadyRecorded -> WorkflowCommandOutcome.Denied(
+                WorkflowDenialReason.EVENT_ALREADY_RECORDED,
+            )
             is ContextLinkResult.Unlinked -> WorkflowCommandOutcome.Conflict(
                 "The link was removed under the caller.",
             )
@@ -554,6 +579,9 @@ class WorkflowCommandService(
             ContextLinkResult.DraftUnavailable -> WorkflowCommandOutcome.NotFound
             ContextLinkResult.MultipleDrafts -> WorkflowCommandOutcome.Denied(
                 WorkflowDenialReason.MULTIPLE_ACTIVE_DRAFTS,
+            )
+            ContextLinkResult.EventAlreadyRecorded -> WorkflowCommandOutcome.Denied(
+                WorkflowDenialReason.EVENT_ALREADY_RECORDED,
             )
             is ContextLinkResult.Linked -> WorkflowCommandOutcome.Conflict(
                 "The link changed under the caller.",
@@ -1338,6 +1366,612 @@ class WorkflowCommandService(
         )
     }
 
+    // --- Financial commands ---------------------------------------------------
+
+    /**
+     * Stores one manual ledger record.
+     *
+     * The record is the user's own decision to write a row down, so only the user may
+     * make this request: another caller is refused before anything is read or written,
+     * and the refusal is the same whether or not the request names a row that exists.
+     *
+     * [SaveManualTransactionRequest.source] names the note the record was written from,
+     * when the user records an unmatched note by hand, and it carries the revision of the
+     * reading the caller read: a record may only be associated with the exact reading the
+     * caller saw, so a note that moved on under the caller is a conflict and a note whose
+     * reading no longer holds the occurrence cannot be associated at all. The event is
+     * then resolved against the stored record, in the same transaction as the record
+     * itself: a note that has been recorded is spent, so a bank notification that arrives
+     * later cannot consume the same occurrence again. A note that is already resolved, or
+     * that is already linked to a bank notification, is refused instead of being recorded
+     * twice.
+     */
+    suspend fun saveManualTransaction(
+        scope: WorkflowCallerScope,
+        request: SaveManualTransactionRequest,
+    ): WorkflowCommandOutcome = runCommand(
+        scope = scope,
+        command = COMMAND_SAVE_MANUAL_TRANSACTION,
+        idempotencyKey = request.idempotencyKey,
+        payload = listOf(
+            COMMAND_SAVE_MANUAL_TRANSACTION,
+            request.type.name,
+            request.amountVnd.toString(),
+            request.occurredAtEpochMillis.toString(),
+            request.description,
+            request.categoryId?.toString(),
+            (request.source as? ManualTransactionSource.NoteEvent)?.eventId?.toString(),
+            (request.source as? ManualTransactionSource.NoteEvent)?.expectedRevision?.toString(),
+        ),
+        authorize = { authorizeUserDecision(scope) },
+    ) {
+        rules.rejection(
+            type = request.type,
+            amountVnd = request.amountVnd,
+            categoryId = request.categoryId,
+            retainedCategoryId = null,
+        )?.let { rejection -> return@runCommand rejection.toOutcome() }
+        val sourceEvent = when (val source = request.source) {
+            ManualTransactionSource.None -> null
+            is ManualTransactionSource.NoteEvent -> {
+                val event = eventDao.findById(source.eventId)
+                    ?: return@runCommand WorkflowCommandOutcome.NotFound
+                if (event.resolvedTransactionId != null) {
+                    return@runCommand WorkflowCommandOutcome.Conflict(
+                        "That note was already recorded as a ledger record.",
+                    )
+                }
+                // The reading the caller read is named by its revision: a note that moved
+                // on under the caller is a conflict, never an association against a
+                // reading the caller never saw.
+                if (event.revision != source.expectedRevision) {
+                    return@runCommand WorkflowCommandOutcome.Conflict(
+                        "The note changed under the caller.",
+                    )
+                }
+                // The reading must still describe an occurrence. A note whose text was
+                // edited or deleted no longer holds the reading it was read from, so the
+                // occurrence it described cannot be recorded against it.
+                if (event.normalizedText == null || event.unresolvedReason != null) {
+                    return@runCommand WorkflowCommandOutcome.Denied(
+                        WorkflowDenialReason.EVENT_UNAVAILABLE,
+                    )
+                }
+                // A note whose bank notification was already accepted is that notification's
+                // business: the occurrence is recorded, and recording it again would count it
+                // twice. A proposal is only a candidate, so the user may still record the
+                // occurrence by hand — and the proposal then cannot be attached any more,
+                // because the note is spent.
+                if (linkDao.findForEvent(event.id).any { it.state == ContextLinkState.ACCEPTED }) {
+                    return@runCommand WorkflowCommandOutcome.Conflict(
+                        "That note is already linked to a bank notification.",
+                    )
+                }
+                event
+            }
+        }
+        val transactionId = ledger.addTransaction(
+            TransactionInput(
+                type = request.type,
+                amountVnd = request.amountVnd,
+                occurredAtEpochMillis = request.occurredAtEpochMillis,
+                description = request.description,
+                categoryId = request.categoryId,
+            ),
+        )
+        sourceEvent?.let { event ->
+            eventDao.markResolved(event.id, transactionId, clock.nowEpochMillis())
+        }
+        WorkflowCommandOutcome.Applied(
+            WorkflowChange.TransactionSaved(transactionId, 0, sourceEvent?.id),
+        )
+    }
+
+    /**
+     * Corrects the user-editable fields of a stored ledger record.
+     *
+     * The correction is the user's own decision, so only the user may make it. The
+     * revision the caller read is part of the request: a record that has moved on is a
+     * conflict instead of an overwrite of what the caller never saw. The record keeps its
+     * id, its creation time, its confirmation, and its provenance — a correction can
+     * never promote a record into another one or claim it came from somewhere else.
+     */
+    suspend fun correctTransaction(
+        scope: WorkflowCallerScope,
+        request: CorrectTransactionRequest,
+    ): WorkflowCommandOutcome = runCommand(
+        scope = scope,
+        command = COMMAND_CORRECT_TRANSACTION,
+        idempotencyKey = request.idempotencyKey,
+        payload = listOf(
+            COMMAND_CORRECT_TRANSACTION,
+            request.transactionId.toString(),
+            request.expectedRevision.toString(),
+            request.type.name,
+            request.amountVnd.toString(),
+            request.occurredAtEpochMillis.toString(),
+            request.description,
+            request.categoryId?.toString(),
+        ),
+        authorize = { authorizeUserDecision(scope) },
+    ) {
+        val stored = transactionDao.findById(request.transactionId)
+            ?: return@runCommand WorkflowCommandOutcome.NotFound
+        if (stored.revision != request.expectedRevision) {
+            return@runCommand WorkflowCommandOutcome.Conflict(
+                "The record changed under the caller.",
+            )
+        }
+        rules.rejection(
+            type = request.type,
+            amountVnd = request.amountVnd,
+            categoryId = request.categoryId,
+            retainedCategoryId = stored.categoryId,
+        )?.let { rejection -> return@runCommand rejection.toOutcome() }
+        when (
+            val result = ledger.editTransaction(
+                transactionId = request.transactionId,
+                expectedRevision = request.expectedRevision,
+                correction = TransactionCorrection(
+                    type = request.type,
+                    amountVnd = request.amountVnd,
+                    occurredAtEpochMillis = request.occurredAtEpochMillis,
+                    description = request.description,
+                    categoryId = request.categoryId,
+                ),
+            )
+        ) {
+            is LedgerCorrectionResult.Corrected -> WorkflowCommandOutcome.Applied(
+                WorkflowChange.TransactionCorrected(request.transactionId, result.revision),
+            )
+            LedgerCorrectionResult.NotFound -> WorkflowCommandOutcome.NotFound
+            LedgerCorrectionResult.Changed -> WorkflowCommandOutcome.Conflict(
+                "The record changed under the caller.",
+            )
+        }
+    }
+
+    /**
+     * Removes a stored ledger record.
+     *
+     * The removal is the user's own decision, so only the user may make it, and the
+     * revision the caller read is part of the request: a record that has moved on is a
+     * conflict instead of a removal of something the caller never saw.
+     *
+     * The note that resolved the record is released with it, in the same transaction: the
+     * occurrence is no longer recorded, so the note may be recorded again.
+     */
+    suspend fun deleteTransaction(
+        scope: WorkflowCallerScope,
+        request: DeleteTransactionRequest,
+    ): WorkflowCommandOutcome = runCommand(
+        scope = scope,
+        command = COMMAND_DELETE_TRANSACTION,
+        idempotencyKey = request.idempotencyKey,
+        payload = listOf(
+            COMMAND_DELETE_TRANSACTION,
+            request.transactionId.toString(),
+            request.expectedRevision.toString(),
+        ),
+        authorize = { authorizeUserDecision(scope) },
+    ) {
+        val stored = transactionDao.findById(request.transactionId)
+            ?: return@runCommand WorkflowCommandOutcome.NotFound
+        if (stored.revision != request.expectedRevision) {
+            return@runCommand WorkflowCommandOutcome.Conflict(
+                "The record changed under the caller.",
+            )
+        }
+        ledger.deleteTransaction(request.transactionId)
+        eventDao.clearResolutionOf(request.transactionId)
+        WorkflowCommandOutcome.Applied(WorkflowChange.TransactionDeleted(request.transactionId))
+    }
+
+    /**
+     * Stores the user's explicit edits on a still-pending bank draft.
+     *
+     * The edits are the review's own fields — the amount, the moment, the memo, the type,
+     * and the category — and they stay on the draft: a draft is a draft until it is
+     * confirmed, so storing them never writes a ledger record. The revision the caller
+     * read is part of the request, so a stale editor is refused instead of overwriting
+     * newer corrections.
+     *
+     * A draft that is already decided answers with the state it is really in — confirmed
+     * or dismissed — and never with the state the request asked for.
+     */
+    suspend fun saveDraftReview(
+        scope: WorkflowCallerScope,
+        request: SaveDraftReviewRequest,
+    ): WorkflowCommandOutcome = runCommand(
+        scope = scope,
+        command = COMMAND_SAVE_DRAFT_REVIEW,
+        idempotencyKey = request.idempotencyKey,
+        payload = listOf(
+            COMMAND_SAVE_DRAFT_REVIEW,
+            request.draftId.toString(),
+            request.expectedRevision.toString(),
+            request.edits.amountText,
+            request.edits.dateText,
+            request.edits.timeText,
+            request.edits.memoText,
+            request.edits.type?.name,
+            request.edits.categoryId?.toString(),
+            request.edits.categoryResolved.toString(),
+        ),
+        authorize = { authorizeUserDecision(scope) },
+    ) {
+        val draft = draftDao.findById(request.draftId)
+            ?: return@runCommand WorkflowCommandOutcome.NotFound
+        if (draft.reviewStatus != IntakeReviewStatus.PENDING || draft.confirmedTransactionId != null) {
+            return@runCommand WorkflowCommandOutcome.NoChange(
+                change = terminalDraftChange(draft),
+                detail = terminalDraftDetail(draft, "the corrections were not stored"),
+            )
+        }
+        if (draft.reviewRevision != request.expectedRevision) {
+            return@runCommand WorkflowCommandOutcome.Conflict(
+                "The draft changed under the caller.",
+            )
+        }
+        val categoryId = request.edits.categoryId
+        if (categoryId != null && !rules.categoryAssignable(categoryId)) {
+            return@runCommand WorkflowCommandOutcome.Denied(
+                WorkflowDenialReason.CATEGORY_UNAVAILABLE,
+            )
+        }
+        when (val result = reviewDao.saveReview(request.draftId, request.expectedRevision, request.edits)) {
+            is BankDraftReviewResult.Saved -> WorkflowCommandOutcome.Applied(
+                WorkflowChange.DraftReviewSaved(request.draftId, result.revision),
+            )
+            BankDraftReviewResult.AlreadyReviewed -> {
+                // The draft became terminal under this request: the answer names the state
+                // it is really in, not the state the request asked for.
+                val terminal = draftDao.findById(request.draftId) ?: draft
+                WorkflowCommandOutcome.NoChange(
+                    change = terminalDraftChange(terminal),
+                    detail = terminalDraftDetail(terminal, "the corrections were not stored"),
+                )
+            }
+            BankDraftReviewResult.CategoryUnavailable -> WorkflowCommandOutcome.Denied(
+                WorkflowDenialReason.CATEGORY_UNAVAILABLE,
+            )
+            BankDraftReviewResult.Changed -> WorkflowCommandOutcome.Conflict(
+                "The draft changed under the caller.",
+            )
+            BankDraftReviewResult.NotFound -> WorkflowCommandOutcome.NotFound
+            is BankDraftReviewResult.Confirmed,
+            BankDraftReviewResult.Dismissed,
+            is BankDraftReviewResult.NeedsCorrection,
+            -> WorkflowCommandOutcome.Failed("The draft review could not be stored.")
+        }
+    }
+
+    /**
+     * Looks at what a confirmation of a bank draft would write.
+     *
+     * The preview is a read: it changes nothing, it is not recorded, and it is never
+     * answered from a stored record, so the fields it shows are always the fields the app
+     * would write now. It resolves the wall-clock text under the device's own zone
+     * policy, so the amount, the moment, the description, the type, and the category it
+     * shows are the ones a ledger record would carry.
+     *
+     * The binding it returns names those fields together with the revision of the draft,
+     * the state of the chosen category, and the source the draft was read against: a
+     * confirmation that carries a binding the app would not write now is a conflict, so a
+     * stale preview can never overwrite newer data.
+     */
+    suspend fun previewDraftConfirmation(
+        scope: WorkflowCallerScope,
+        request: PreviewDraftConfirmationRequest,
+    ): DraftConfirmationPreview {
+        if (scope !is WorkflowCallerScope.User) {
+            return DraftConfirmationPreview.Denied(WorkflowDenialReason.USER_DECISION_REQUIRED)
+        }
+        val draft = draftDao.findById(request.draftId)
+            ?: return DraftConfirmationPreview.NotFound
+        if (draft.reviewStatus != IntakeReviewStatus.PENDING || draft.confirmedTransactionId != null) {
+            val state = terminalDraftState(draft) ?: "decided"
+            return DraftConfirmationPreview.Conflict(
+                "The draft was already $state.",
+            )
+        }
+        val resolution = rules.resolveReviewFields(request.edits, zone())
+        if (resolution is ReviewFieldResolution.Invalid) {
+            return DraftConfirmationPreview.NeedsCorrection(resolution.fields)
+        }
+        val fields = (resolution as ReviewFieldResolution.Resolved).fields
+        val categoryId = fields.categoryId
+        if (categoryId != null && !rules.categoryAssignable(categoryId)) {
+            return DraftConfirmationPreview.Denied(WorkflowDenialReason.CATEGORY_UNAVAILABLE)
+        }
+        return DraftConfirmationPreview.Ready(
+            draftId = draft.id,
+            expectedRevision = draft.reviewRevision,
+            binding = confirmationBinding(draft, fields),
+            fields = fields,
+            duplicateRisk = duplicateRiskOf(fields),
+        )
+    }
+
+    /**
+     * Confirms a bank draft as a ledger record.
+     *
+     * The confirmation is the user's own decision, so only the user may make it. The
+     * record and the draft's link to it are written in one transaction with the record of
+     * the request, so a confirmation is either fully applied and recorded or not applied
+     * at all.
+     *
+     * A repeated request is a no-change and names the record that was made the first
+     * time; a request under a different key against a draft that is already confirmed is
+     * also a no-change, because the draft is terminal: two confirmations of one draft
+     * produce one ledger record, whatever the keys are and whatever the order is.
+     *
+     * The binding the request carries is checked against the state the app would write
+     * now, so a preview that has gone stale — a moved draft, an archived category, a
+     * changed source — is a conflict and writes nothing.
+     */
+    suspend fun confirmDraft(
+        scope: WorkflowCallerScope,
+        request: ConfirmDraftRequest,
+    ): WorkflowCommandOutcome = runCommand(
+        scope = scope,
+        command = COMMAND_CONFIRM_DRAFT,
+        idempotencyKey = request.idempotencyKey,
+        payload = listOf(
+            COMMAND_CONFIRM_DRAFT,
+            request.draftId.toString(),
+            request.expectedRevision.toString(),
+            request.expectedBinding,
+            request.edits.amountText,
+            request.edits.dateText,
+            request.edits.timeText,
+            request.edits.memoText,
+            request.edits.type?.name,
+            request.edits.categoryId?.toString(),
+            request.edits.categoryResolved.toString(),
+        ),
+        authorize = { authorizeUserDecision(scope) },
+    ) {
+        val draft = draftDao.findById(request.draftId)
+            ?: return@runCommand WorkflowCommandOutcome.NotFound
+        if (draft.reviewStatus != IntakeReviewStatus.PENDING || draft.confirmedTransactionId != null) {
+            return@runCommand WorkflowCommandOutcome.NoChange(
+                change = terminalDraftChange(draft),
+                detail = terminalDraftDetail(draft, "no additional transaction was added"),
+            )
+        }
+        if (draft.reviewRevision != request.expectedRevision) {
+            return@runCommand WorkflowCommandOutcome.Conflict(
+                "The draft changed under the caller.",
+            )
+        }
+        val resolution = rules.resolveReviewFields(request.edits, zone())
+        if (resolution is ReviewFieldResolution.Invalid) {
+            return@runCommand WorkflowCommandOutcome.NeedsClarification(
+                resolution.fields.firstOrNull()?.name ?: "edits",
+                "The review is not complete yet.",
+            )
+        }
+        val fields = (resolution as ReviewFieldResolution.Resolved).fields
+        if (confirmationBinding(draft, fields) != request.expectedBinding) {
+            return@runCommand WorkflowCommandOutcome.Conflict(
+                "The preview is no longer current; the review changed since it was made.",
+            )
+        }
+        val now = clock.nowEpochMillis()
+        val transaction = TransactionEntity(
+            type = fields.type,
+            amountVnd = fields.amountVnd,
+            occurredAtEpochMillis = fields.occurredAtEpochMillis,
+            description = fields.description,
+            categoryId = fields.categoryId,
+            confirmation = ConfirmationStatus.CONFIRMED,
+            source = RecordSource.BANK_NOTIFICATION,
+            createdAtEpochMillis = now,
+            updatedAtEpochMillis = now,
+        )
+        when (
+            val result = reviewDao.confirm(
+                id = request.draftId,
+                expectedRevision = request.expectedRevision,
+                edits = request.edits,
+                transaction = transaction,
+            )
+        ) {
+            is BankDraftReviewResult.Confirmed -> WorkflowCommandOutcome.Applied(
+                WorkflowChange.DraftConfirmed(request.draftId, result.transactionId),
+            )
+            BankDraftReviewResult.AlreadyReviewed -> {
+                // The draft became terminal under this request: the answer names the state
+                // it is really in, not the state the request asked for.
+                val terminal = draftDao.findById(request.draftId) ?: draft
+                WorkflowCommandOutcome.NoChange(
+                    change = terminalDraftChange(terminal),
+                    detail = terminalDraftDetail(terminal, "no additional transaction was added"),
+                )
+            }
+            BankDraftReviewResult.CategoryUnavailable -> WorkflowCommandOutcome.Denied(
+                WorkflowDenialReason.CATEGORY_UNAVAILABLE,
+            )
+            BankDraftReviewResult.Changed -> WorkflowCommandOutcome.Conflict(
+                "The draft changed under the caller.",
+            )
+            BankDraftReviewResult.NotFound -> WorkflowCommandOutcome.NotFound
+            is BankDraftReviewResult.Saved,
+            BankDraftReviewResult.Dismissed,
+            is BankDraftReviewResult.NeedsCorrection,
+            -> WorkflowCommandOutcome.Failed("The draft could not be confirmed.")
+        }
+    }
+
+    /**
+     * Dismisses a still-pending bank draft.
+     *
+     * The dismissal is the user's own decision — the notification stays out of the
+     * ledger — so only the user may make it. A dismissed draft is terminal: it is never
+     * reopened, and a repeated request is a no-change.
+     */
+    suspend fun dismissDraft(
+        scope: WorkflowCallerScope,
+        request: DismissDraftRequest,
+    ): WorkflowCommandOutcome = runCommand(
+        scope = scope,
+        command = COMMAND_DISMISS_DRAFT,
+        idempotencyKey = request.idempotencyKey,
+        payload = listOf(
+            COMMAND_DISMISS_DRAFT,
+            request.draftId.toString(),
+            request.expectedRevision.toString(),
+        ),
+        authorize = { authorizeUserDecision(scope) },
+    ) {
+        val draft = draftDao.findById(request.draftId)
+            ?: return@runCommand WorkflowCommandOutcome.NotFound
+        if (draft.reviewStatus != IntakeReviewStatus.PENDING || draft.confirmedTransactionId != null) {
+            return@runCommand WorkflowCommandOutcome.NoChange(
+                change = terminalDraftChange(draft),
+                detail = terminalDraftDetail(draft, "nothing was written"),
+            )
+        }
+        if (draft.reviewRevision != request.expectedRevision) {
+            return@runCommand WorkflowCommandOutcome.Conflict(
+                "The draft changed under the caller.",
+            )
+        }
+        when (val result = reviewDao.dismiss(request.draftId)) {
+            BankDraftReviewResult.Dismissed -> WorkflowCommandOutcome.Applied(
+                WorkflowChange.DraftDismissed(request.draftId),
+            )
+            BankDraftReviewResult.AlreadyReviewed -> {
+                // The draft became terminal under this request: the answer names the state
+                // it is really in, not the state the request asked for.
+                val terminal = draftDao.findById(request.draftId) ?: draft
+                WorkflowCommandOutcome.NoChange(
+                    change = terminalDraftChange(terminal),
+                    detail = terminalDraftDetail(terminal, "nothing was written"),
+                )
+            }
+            BankDraftReviewResult.NotFound -> WorkflowCommandOutcome.NotFound
+            is BankDraftReviewResult.Saved,
+            is BankDraftReviewResult.Confirmed,
+            is BankDraftReviewResult.NeedsCorrection,
+            BankDraftReviewResult.CategoryUnavailable,
+            BankDraftReviewResult.Changed,
+            -> WorkflowCommandOutcome.Failed("The draft could not be dismissed.")
+        }
+    }
+
+    /** The zone the wall-clock text of a review is read in. */
+    private fun zone(): TimeZone = TimeZone.getTimeZone(timezoneId())
+
+    /**
+     * The change that names the state a terminal draft is really in.
+     *
+     * A draft is terminal once it was confirmed or dismissed, and an answer that arrives
+     * after that must describe the state that is stored — not the state the request asked
+     * for. A confirmed draft names the record it made; a dismissed draft names the
+     * dismissal. A draft that names neither is not described as one of them: the answer
+     * then carries no change at all rather than a state that was never stored.
+     */
+    private fun terminalDraftChange(draft: PendingBankDraftEntity): WorkflowChange? {
+        val transactionId = draft.confirmedTransactionId
+        return when {
+            transactionId != null -> WorkflowChange.DraftConfirmed(draft.id, transactionId)
+            draft.reviewStatus == IntakeReviewStatus.DISMISSED -> WorkflowChange.DraftDismissed(draft.id)
+            else -> null
+        }
+    }
+
+    /** The state a terminal draft is really in, in the words the user reads. */
+    private fun terminalDraftState(draft: PendingBankDraftEntity): String? = when {
+        draft.confirmedTransactionId != null -> "confirmed"
+        draft.reviewStatus == IntakeReviewStatus.DISMISSED -> "dismissed"
+        else -> null
+    }
+
+    /**
+     * The words one terminal answer carries.
+     *
+     * The answer names the state the draft is really in and what that state means for the
+     * request that arrived, so the reader is never told that a draft was "confirmed or
+     * dismissed" when only one of the two is true.
+     */
+    private fun terminalDraftDetail(draft: PendingBankDraftEntity, what: String): String {
+        val state = terminalDraftState(draft) ?: return "The draft is already decided; $what."
+        return "The draft was already $state; $what."
+    }
+
+    /**
+     * The binding of one confirmation.
+     *
+     * It names the exact fields a confirmation would write, the revision of the draft, the
+     * state of the chosen category, and the source the draft was read against. A
+     * confirmation whose binding does not match what the app would write now is refused
+     * as a conflict, so a preview that has gone stale cannot overwrite newer data.
+     */
+    private suspend fun confirmationBinding(
+        draft: PendingBankDraftEntity,
+        fields: ConfirmedTransactionFields,
+    ): String {
+        val categoryState = fields.categoryId?.let { categoryId ->
+            val category = categoryDao.findById(categoryId)
+            if (category == null) {
+                "gone"
+            } else {
+                "${category.id}:${category.archived}:${category.updatedAtEpochMillis}"
+            }
+        } ?: "none"
+        val accepted = linkDao.findForDraft(draft.id)
+            .filter { it.state == ContextLinkState.ACCEPTED }
+        val sourceState = accepted.map { link ->
+            val event = eventDao.findById(link.eventId)
+            "${link.eventId}:${link.revision}:${event?.resolvedTransactionId ?: "-"}"
+        }.joinToString(",").ifEmpty { "none" }
+        return canonicalDependencyDigest(
+            listOf(
+                "DRAFT_CONFIRMATION/1",
+                draft.id.toString(),
+                draft.reviewRevision.toString(),
+                draft.reviewStatus.name,
+                fields.type.name,
+                fields.amountVnd.toString(),
+                fields.occurredAtEpochMillis.toString(),
+                fields.description,
+                fields.categoryId?.toString(),
+                categoryState,
+                sourceState,
+            ),
+        )
+    }
+
+    /**
+     * The stored record that may be the same money as the fields a confirmation would
+     * write.
+     *
+     * The risk is reported and never acted on: the record stays where it is, the draft
+     * stays pending, and the user decides. The app never merges the two and never adds a
+     * record of its own — a bank notification that arrives after the user recorded the
+     * same money by hand is *evidence*, and it is the user's to weigh.
+     */
+    private suspend fun duplicateRiskOf(fields: ConfirmedTransactionFields): DuplicateRisk? {
+        val zone = zone()
+        val day = ManualDateTime.dateFieldText(fields.occurredAtEpochMillis, zone)
+        val candidates = transactionDao.findConfirmedWithAmountInRange(
+            amountVnd = fields.amountVnd,
+            fromEpochMillis = ManualDateTime.dayStartEpochMillis(day, zone),
+            throughExclusiveEpochMillis = ManualDateTime.dayAfterStartEpochMillis(day, zone),
+            limit = DUPLICATE_RISK_LIMIT,
+        )
+        val candidate = candidates.firstOrNull() ?: return null
+        return DuplicateRisk(
+            transactionId = candidate.id,
+            amountVnd = candidate.amountVnd,
+            occurredAtEpochMillis = candidate.occurredAtEpochMillis,
+            description = candidate.description,
+            recordedFromNote = eventDao.findByResolvedTransaction(candidate.id) != null,
+        )
+    }
+
     // --- The authorization of a request ---------------------------------------
 
     /**
@@ -1574,6 +2208,20 @@ class WorkflowCommandService(
         const val COMMAND_REJECT_LINK = "REJECT_LINK"
         const val COMMAND_UNLINK_LINK = "UNLINK_LINK"
         const val COMMAND_REQUEST_CLASSIFICATION = "REQUEST_CLASSIFICATION"
+        const val COMMAND_SAVE_MANUAL_TRANSACTION = "SAVE_MANUAL_TRANSACTION"
+        const val COMMAND_CORRECT_TRANSACTION = "CORRECT_TRANSACTION"
+        const val COMMAND_DELETE_TRANSACTION = "DELETE_TRANSACTION"
+        const val COMMAND_SAVE_DRAFT_REVIEW = "SAVE_DRAFT_REVIEW"
+        const val COMMAND_CONFIRM_DRAFT = "CONFIRM_DRAFT"
+        const val COMMAND_DISMISS_DRAFT = "DISMISS_DRAFT"
+
+        /**
+         * How many stored records one duplication check looks at.
+         *
+         * The check reports that a record may be the same money; it never merges anything,
+         * so one record is enough to say it, and the read stays bounded.
+         */
+        const val DUPLICATE_RISK_LIMIT = 5
 
         /** How long a claim on an idempotency key is held before it may be taken over. */
         const val DEFAULT_CLAIM_LEASE_MILLIS = 5 * 60 * 1_000L
@@ -1639,5 +2287,26 @@ private fun CaptureMessageWriteResult.toOutcome(): WorkflowCommandOutcome = when
         WorkflowCommandOutcome.Conflict("The capture changed under the caller.")
     CaptureMessageWriteResult.Changed -> WorkflowCommandOutcome.Conflict(
         "The capture changed under the caller.",
+    )
+}
+
+/**
+ * How a refusal of a financial field is reported by the command boundary.
+ *
+ * The rule is the app's own and it is the one the ledger repository applies; only the
+ * shape of the answer differs. An unusable amount and a category that may not be
+ * attached are told apart, so a screen can put the reason under the field it belongs to.
+ */
+private fun FinancialFieldRejection.toOutcome(): WorkflowCommandOutcome = when (this) {
+    is FinancialFieldRejection.Amount -> WorkflowCommandOutcome.NeedsClarification(
+        "amountVnd",
+        reason,
+    )
+    is FinancialFieldRejection.Category -> WorkflowCommandOutcome.Denied(
+        WorkflowDenialReason.CATEGORY_UNAVAILABLE,
+    )
+    is FinancialFieldRejection.TransferCategory -> WorkflowCommandOutcome.NeedsClarification(
+        "categoryId",
+        reason,
     )
 }

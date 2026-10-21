@@ -74,7 +74,7 @@ abstract class LedgerDatabase : RoomDatabase() {
     abstract fun workflowOperationDao(): WorkflowOperationDao
 
     companion object {
-        const val VERSION = 10
+        const val VERSION = 11
 
         /** File name of the on-device database. */
         const val NAME = "aegis-ledger.db"
@@ -547,6 +547,39 @@ abstract class LedgerDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Version 10 to 11: the compare-and-set revision of a ledger record, and the
+         * resolution of a note event into a ledger record.
+         *
+         * The revision column starts at zero for every stored record, because a record
+         * that was never corrected has been corrected zero times. The two resolution
+         * columns start empty, because version 10 could not record an occurrence that the
+         * user wrote down by hand: an idempotency key, a caller scope, a structured
+         * outcome, and a resolution are what the newer tables hold, and version 10 had
+         * nowhere to keep them. Nothing that version 10 already held is rewritten: the
+         * captures, the event readings, the links, the bank drafts, the categories, the
+         * rules, the ledger records, and the stored predictions keep their rows, ids, and
+         * values, and the confirmed totals computed from them are unchanged by the
+         * upgrade.
+         *
+         * The columns are added in place, so no stored row is copied, no identity is
+         * re-derived, and no reference is left dangling: the ledger records keep their ids,
+         * and every stored reading keeps its own identity, its span, and its revision.
+         */
+        val MIGRATION_10_11: Migration = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `transactions` ADD COLUMN `revision` INTEGER NOT NULL DEFAULT 0",
+                )
+                db.execSQL("ALTER TABLE `note_events` ADD COLUMN `resolvedTransactionId` INTEGER")
+                db.execSQL("ALTER TABLE `note_events` ADD COLUMN `resolvedAtEpochMillis` INTEGER")
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_note_events_resolvedTransactionId` " +
+                        "ON `note_events` (`resolvedTransactionId`)",
+                )
+            }
+        }
+
         /** Builds the production database on the app's real file directory. */
         fun build(context: Context): LedgerDatabase =
             Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, NAME)
@@ -560,6 +593,7 @@ abstract class LedgerDatabase : RoomDatabase() {
                     MIGRATION_7_8,
                     MIGRATION_8_9,
                     MIGRATION_9_10,
+                    MIGRATION_10_11,
                 )
                 .build()
 

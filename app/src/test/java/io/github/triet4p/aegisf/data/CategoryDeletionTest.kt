@@ -249,11 +249,7 @@ class CategoryDeletionTest {
         assertEquals(food, query.findLedgerRecord(lunch)!!.categoryId)
     }
 
-    private fun reviewRepository() = BankDraftReviewRepository(
-        draftDao = database.pendingBankDraftDao(),
-        reviewDao = database.bankDraftReviewDao(),
-        clock = FixedLedgerClock(),
-    )
+    private fun reviewRepository() = reviewCommands(database, FixedLedgerClock())
 
     /** One pending draft whose only category reference is the pre-set review choice. */
     private fun draftEntity(categoryId: Long?, resolved: Boolean) = PendingBankDraftEntity(

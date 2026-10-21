@@ -30,9 +30,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.triet4p.aegisf.data.CategoryEntity
-import io.github.triet4p.aegisf.data.LedgerRepository
+import io.github.triet4p.aegisf.data.DeleteTransactionRequest
 import io.github.triet4p.aegisf.data.TransactionEntity
 import io.github.triet4p.aegisf.data.VndMoney
+import io.github.triet4p.aegisf.data.WorkflowCallerScope
+import io.github.triet4p.aegisf.data.WorkflowCommandOutcome
+import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
 import kotlinx.coroutines.launch
 
@@ -53,7 +56,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionDetailScreen(
-    repository: LedgerRepository,
+    commandService: WorkflowCommandService,
     queryService: WorkflowQueryService,
     transactionId: Long,
     onEdit: () -> Unit,
@@ -76,6 +79,10 @@ fun TransactionDetailScreen(
 
     var confirmingDelete by rememberSaveable(transactionId) { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
+    var deleteError by remember { mutableStateOf<String?>(null) }
+    // The key names this removal request: the same request under the same key removes one
+    // record, so a retry cannot remove a second one.
+    val deleteKey = rememberSaveable(transactionId) { "delete:$transactionId" }
     val scope = rememberCoroutineScope()
 
     BackHandler { if (!deleting) onNavigateUp() }
@@ -100,6 +107,7 @@ fun TransactionDetailScreen(
                 record = current.record,
                 category = current.category,
                 deleting = deleting,
+                deleteError = deleteError,
                 contentPadding = innerPadding,
                 onEdit = onEdit,
                 onDelete = { confirmingDelete = true },
@@ -119,8 +127,30 @@ fun TransactionDetailScreen(
                 // was shown; nothing else in the ledger is touched.
                 deleting = true
                 scope.launch {
-                    repository.deleteTransaction(transactionId)
-                    onDeleted()
+                    val outcome = commandService.deleteTransaction(
+                        scope = WorkflowCallerScope.User,
+                        request = DeleteTransactionRequest(
+                            idempotencyKey = deleteKey,
+                            transactionId = transactionId,
+                            expectedRevision = found.record.revision,
+                        ),
+                    )
+                    when (outcome) {
+                        is WorkflowCommandOutcome.Applied,
+                        is WorkflowCommandOutcome.NoChange,
+                        -> onDeleted()
+                        else -> {
+                            deleting = false
+                            deleteError = when (outcome) {
+                                is WorkflowCommandOutcome.Conflict ->
+                                    "This record changed elsewhere. Leave and reopen it " +
+                                        "before removing it."
+                                is WorkflowCommandOutcome.NotFound ->
+                                    "This record is no longer available."
+                                else -> "This record could not be removed."
+                            }
+                        }
+                    }
                 }
             },
         )
@@ -141,6 +171,7 @@ private fun TransactionDetail(
     record: TransactionEntity,
     category: CategoryEntity?,
     deleting: Boolean,
+    deleteError: String?,
     contentPadding: PaddingValues,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
@@ -173,6 +204,14 @@ private fun TransactionDetail(
         DetailRow("Recorded at", ManualDateTime.formatMoment(record.createdAtEpochMillis))
         if (record.updatedAtEpochMillis != record.createdAtEpochMillis) {
             DetailRow("Last corrected", ManualDateTime.formatMoment(record.updatedAtEpochMillis))
+        }
+
+        if (deleteError != null) {
+            Text(
+                text = deleteError,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
         }
 
         Button(

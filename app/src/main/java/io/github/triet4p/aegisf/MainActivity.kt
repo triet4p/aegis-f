@@ -35,7 +35,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.triet4p.aegisf.data.BankDraftReviewRepository
 import io.github.triet4p.aegisf.data.LedgerRepository
 import io.github.triet4p.aegisf.data.NotificationAccessStore
 import io.github.triet4p.aegisf.data.WorkflowCommandService
@@ -95,10 +94,6 @@ class MainActivity : ComponentActivity() {
         (application as AegisApplication).container.workflowQueryService
     }
 
-    private val bankDraftReviewRepository: BankDraftReviewRepository by lazy {
-        (application as AegisApplication).container.bankDraftReviewRepository
-    }
-
     private val workflowCommandService: WorkflowCommandService by lazy {
         (application as AegisApplication).container.workflowCommandService
     }
@@ -152,7 +147,6 @@ class MainActivity : ComponentActivity() {
 
                     LaunchDestination.BankDraftInbox -> BankDraftReviewScreen(
                         queryService = workflowQueryService,
-                        reviewRepository = bankDraftReviewRepository,
                         commandService = workflowCommandService,
                         draftId = null,
                         onSelectDraft = { id -> destination = LaunchDestination.BankDraftDetail(id) },
@@ -161,7 +155,6 @@ class MainActivity : ComponentActivity() {
 
                     is LaunchDestination.BankDraftDetail -> BankDraftReviewScreen(
                         queryService = workflowQueryService,
-                        reviewRepository = bankDraftReviewRepository,
                         commandService = workflowCommandService,
                         draftId = current.draftId,
                         onSelectDraft = { id -> destination = LaunchDestination.BankDraftDetail(id) },
@@ -186,13 +179,14 @@ class MainActivity : ComponentActivity() {
 
                     LaunchDestination.NewTransaction -> TransactionEditorScreen(
                         repository = ledgerRepository,
+                        commandService = workflowCommandService,
                         queryService = workflowQueryService,
                         layaInferenceLifecycle = layaInferenceLifecycle,
                         transactionId = null,
                         onNavigateUp = { destination = LaunchDestination.Home },
                     )
                     is LaunchDestination.Detail -> TransactionDetailScreen(
-                        repository = ledgerRepository,
+                        commandService = workflowCommandService,
                         queryService = workflowQueryService,
                         transactionId = current.transactionId,
                         onEdit = { destination = LaunchDestination.Edit(current.transactionId) },
@@ -202,6 +196,7 @@ class MainActivity : ComponentActivity() {
 
                     is LaunchDestination.Edit -> TransactionEditorScreen(
                         repository = ledgerRepository,
+                        commandService = workflowCommandService,
                         queryService = workflowQueryService,
                         layaInferenceLifecycle = layaInferenceLifecycle,
                         transactionId = current.transactionId,

@@ -68,6 +68,27 @@ data class QueryPage<T>(
 }
 
 /**
+ * One note event that is still waiting to be recorded by hand.
+ *
+ * The row is a reading of a span of a saved note: the amount and the day it states, the
+ * merchant it names, the reading itself, and the text of the note it was read from. A
+ * note that has no reading, or that already holds an active link to a bank notification,
+ * or that was already recorded as a ledger record, is not among them.
+ */
+data class UnrecordedNoteEvent(
+    val eventId: Long,
+    val captureId: Long,
+    /** The revision of the reading; a record written from it names the revision it read. */
+    val revision: Int,
+    val amountVnd: Long?,
+    val anchorDate: String?,
+    val anchorTime: String?,
+    val merchant: String?,
+    val normalizedText: String?,
+    val captureText: String?,
+)
+
+/**
  * An explicit range of instants, and the zone its calendar days are counted in.
  *
  * The range is half-open: [fromEpochMillis] is included and [throughExclusiveEpochMillis]

@@ -190,6 +190,7 @@ class LedgerAggregatePersistenceTest {
             clock.now = EDITED_AT
             first.repository.editTransaction(
                 coffee,
+                0,
                 TransactionCorrection(
                     type = TransactionType.EXPENSE,
                     amountVnd = 125_000L,
@@ -309,6 +310,7 @@ class LedgerAggregatePersistenceTest {
             clock.now = EDITED_AT
             first.repository.editTransaction(
                 octoberStart,
+                0,
                 TransactionCorrection(
                     type = TransactionType.EXPENSE,
                     amountVnd = 11_000L,

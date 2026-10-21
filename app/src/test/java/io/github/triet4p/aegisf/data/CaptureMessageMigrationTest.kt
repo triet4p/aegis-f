@@ -121,6 +121,7 @@ class CaptureMessageMigrationTest {
             )
             ledger.editTransaction(
                 MANUAL_EXPENSE_ID,
+                0,
                 TransactionCorrection(
                     type = TransactionType.EXPENSE,
                     amountVnd = 50_000L,

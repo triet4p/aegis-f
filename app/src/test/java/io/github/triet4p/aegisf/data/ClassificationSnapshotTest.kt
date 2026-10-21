@@ -252,11 +252,7 @@ class ClassificationSnapshotTest {
 
             // The user resolves the draft's category.
             val draft = database.pendingBankDraftDao().findById(draftId)!!
-            val saved = BankDraftReviewRepository(
-                draftDao = database.pendingBankDraftDao(),
-                reviewDao = database.bankDraftReviewDao(),
-                clock = clock,
-            ).saveReview(
+            val saved = reviewCommands(database, clock).saveReview(
                 draftId = draftId,
                 expectedRevision = draft.reviewRevision,
                 edits = BankDraftReviewEdits(

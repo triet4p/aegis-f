@@ -311,11 +311,7 @@ class PendingBankDraftDeduplicationTest {
 
                 // Each is independently confirmable, and each becomes its own ledger record
                 // stating its own description: two transactions of equal value, not one.
-                val review = BankDraftReviewRepository(
-                    draftDao = database.pendingBankDraftDao(),
-                    reviewDao = database.bankDraftReviewDao(),
-                    clock = clock,
-                )
+                val review = reviewCommands(database, clock)
                 val ledger = LedgerRepository(
                     categoryDao = database.categoryDao(),
                     transactionDao = database.transactionDao(),

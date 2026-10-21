@@ -43,26 +43,23 @@ class AppContainer(context: Context) {
             captureMessageDao = database.captureMessageDao(),
         )
     }
-    /** Draft corrections, dismissal, and their atomic ledger confirmation transition. */
-    val bankDraftReviewRepository: BankDraftReviewRepository by lazy {
-        BankDraftReviewRepository(
-            draftDao = database.pendingBankDraftDao(),
-            reviewDao = database.bankDraftReviewDao(),
-        )
-    }
 
     /**
-     * The app's one write surface for the reversible preparation commands.
+     * The app's one write surface: the preparation commands and the financial commands.
      *
-     * Every saved capture, every reading, every link decision, and every classification
-     * request goes through this service: it owns the caller's scope, the idempotency of a
-     * repeated request, the expected revisions, and the structured outcome. The local model
-     * is reached through the same process-owned lifecycle the screens use, and it is asked
-     * only for a request the boundary accepted.
+     * Every saved capture, every reading, every link decision, every classification
+     * request, every manual record, every correction, every removal, and every bank-draft
+     * confirmation or dismissal goes through this service: it owns the caller's scope, the
+     * idempotency of a repeated request, the expected revisions, and the structured
+     * outcome. The local model is reached through the same process-owned lifecycle the
+     * screens use, and it is asked only for a request the boundary accepted.
      *
-     * The repositories that store the captures, the readings, the links, and the
-     * predictions are internal to the app module: the command boundary is their only
-     * public way in, so no caller can write around its rules.
+     * The financial commands are the user's own decisions, so they are available to the
+     * user's scope alone: another caller is refused before anything is read or written.
+     *
+     * The repositories that store the captures, the readings, the links, the predictions,
+     * and the ledger records are internal to the app module: the command boundary is
+     * their only public way in, so no caller can write around its rules.
      */
     val workflowCommandService: WorkflowCommandService by lazy {
         WorkflowCommandService(

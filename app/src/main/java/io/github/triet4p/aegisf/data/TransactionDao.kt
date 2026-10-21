@@ -5,7 +5,6 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
-import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -54,9 +53,6 @@ abstract class TransactionDao {
 
     @Insert
     abstract suspend fun insert(transaction: TransactionEntity): Long
-
-    @Update
-    abstract suspend fun update(transaction: TransactionEntity)
 
     @Delete
     abstract suspend fun delete(transaction: TransactionEntity)
@@ -199,19 +195,87 @@ abstract class TransactionDao {
     ): Flow<String>
 
     /**
-     * Updates the ledger row and its migrated legacy description together. Newer user
-     * annotations have their own identity and are not rewritten by this source-copy path.
+     * Replaces the user-editable fields of one record while its revision still matches.
+     *
+     * The row keeps its id, its creation time, its confirmation, and its provenance; only
+     * the fields the user may edit are replaced, and the revision moves on so a second
+     * correction made against the row the caller read is refused instead of overwriting it.
+     * The migrated legacy description of the record is revised in the same transaction, so
+     * an explicit correction never leaves an obsolete text copy behind.
      */
+    @Query(
+        "UPDATE transactions SET " +
+            "type = :type, " +
+            "amountVnd = :amountVnd, " +
+            "occurredAtEpochMillis = :occurredAtEpochMillis, " +
+            "description = :description, " +
+            "categoryId = :categoryId, " +
+            "updatedAtEpochMillis = :updatedAtEpochMillis, " +
+            "revision = revision + 1 " +
+            "WHERE id = :id AND revision = :expectedRevision",
+    )
+    abstract suspend fun updateCorrected(
+        id: Long,
+        expectedRevision: Int,
+        type: String,
+        amountVnd: Long,
+        occurredAtEpochMillis: Long,
+        description: String,
+        categoryId: Long?,
+        updatedAtEpochMillis: Long,
+    ): Int
+
+    /**
+     * The confirmed records of one amount on one day, newest first.
+     *
+     * The read is the duplication check of a bank draft: a record that states the same
+     * whole dong on the same calendar day is a possible duplicate of the draft, and the
+     * reader decides — the app never merges the two and never adds a record of its own.
+     */
+    @Query(
+        "SELECT * FROM transactions WHERE " +
+            "amountVnd = :amountVnd AND confirmation = 'CONFIRMED' AND " +
+            "occurredAtEpochMillis >= :fromEpochMillis AND " +
+            "occurredAtEpochMillis < :throughExclusiveEpochMillis " +
+            "ORDER BY occurredAtEpochMillis DESC, id DESC LIMIT :limit",
+    )
+    abstract suspend fun findConfirmedWithAmountInRange(
+        amountVnd: Long,
+        fromEpochMillis: Long,
+        throughExclusiveEpochMillis: Long,
+        limit: Int,
+    ): List<TransactionEntity>
+
+    /** The corrected row and its migrated legacy description, in one transaction. */
     @Transaction
-    open suspend fun updateWithLegacyDescription(
-        transaction: TransactionEntity,
+    open suspend fun correctWithLegacyDescription(
+        id: Long,
+        expectedRevision: Int,
+        type: String,
+        amountVnd: Long,
+        occurredAtEpochMillis: Long,
+        description: String,
+        categoryId: Long?,
+        updatedAtEpochMillis: Long,
         captureMessageDao: CaptureMessageDao,
-    ) {
-        update(transaction)
-        captureMessageDao.reviseLegacyLedgerDescription(
-            ledgerRecordOriginRef(transaction.id),
-            transaction.description,
+    ): Int {
+        val updated = updateCorrected(
+            id = id,
+            expectedRevision = expectedRevision,
+            type = type,
+            amountVnd = amountVnd,
+            occurredAtEpochMillis = occurredAtEpochMillis,
+            description = description,
+            categoryId = categoryId,
+            updatedAtEpochMillis = updatedAtEpochMillis,
         )
+        if (updated == 1) {
+            captureMessageDao.reviseLegacyLedgerDescription(
+                ledgerRecordOriginRef(id),
+                description,
+            )
+        }
+        return updated
     }
 
     /** Clears the migrated source copy atomically with the user's explicit ledger deletion. */

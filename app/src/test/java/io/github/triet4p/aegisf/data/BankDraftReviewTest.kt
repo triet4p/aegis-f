@@ -43,11 +43,7 @@ class BankDraftReviewTest {
         clock = clock,
     )
 
-    private fun review(database: LedgerDatabase) = BankDraftReviewRepository(
-        draftDao = database.pendingBankDraftDao(),
-        reviewDao = database.bankDraftReviewDao(),
-        clock = clock,
-    )
+    private fun review(database: LedgerDatabase) = reviewCommands(database, clock)
 
     private suspend fun storeSample(database: LedgerDatabase, postedAt: Long = POSTED_AT): Long =
         intake(database).storePermitted(

@@ -254,6 +254,7 @@ class LedgerRepositoryRejectionTest {
         expectRejection {
             repository.editTransaction(
                 lunch,
+                0,
                 TransactionCorrection(
                     type = TransactionType.EXPENSE,
                     amountVnd = 0L,
@@ -265,6 +266,7 @@ class LedgerRepositoryRejectionTest {
         expectRejection {
             repository.editTransaction(
                 lunch,
+                0,
                 TransactionCorrection(
                     type = TransactionType.TRANSFER,
                     amountVnd = 10_000L,
@@ -277,6 +279,7 @@ class LedgerRepositoryRejectionTest {
         expectRejection {
             repository.editTransaction(
                 lunch,
+                0,
                 TransactionCorrection(
                     type = TransactionType.EXPENSE,
                     amountVnd = 10_000L,
@@ -295,6 +298,7 @@ class LedgerRepositoryRejectionTest {
         expectRejection {
             repository.editTransaction(
                 9_999L,
+                0,
                 TransactionCorrection(
                     type = TransactionType.EXPENSE,
                     amountVnd = 45_000L,

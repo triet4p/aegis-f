@@ -127,4 +127,59 @@ abstract class NoteEventDao {
     /** Records the interpretation status a link decision produced. */
     @Query("UPDATE note_events SET status = :status, revision = revision + 1 WHERE id = :id")
     abstract suspend fun updateStatus(id: Long, status: String): Int
+
+    /**
+     * Marks one reading as recorded: the ledger record that resolved it is named, and the
+     * moment it happened is stored with it.
+     *
+     * The write is refused once the reading is resolved, so one occurrence can never be
+     * recorded twice, and it moves the reading's own revision on, so a request made
+     * against the unresolved reading is stale afterwards.
+     */
+    @Query(
+        "UPDATE note_events SET " +
+            "resolvedTransactionId = :transactionId, " +
+            "resolvedAtEpochMillis = :atEpochMillis, " +
+            "revision = revision + 1 " +
+            "WHERE id = :id AND resolvedTransactionId IS NULL",
+    )
+    abstract suspend fun markResolved(id: Long, transactionId: Long, atEpochMillis: Long): Int
+
+    /**
+     * Clears the resolution of the reading a removed record had resolved.
+     *
+     * The occurrence is no longer recorded, so the note may be recorded again; the reading
+     * keeps everything else it holds.
+     */
+    @Query(
+        "UPDATE note_events SET " +
+            "resolvedTransactionId = NULL, " +
+            "resolvedAtEpochMillis = NULL, " +
+            "revision = revision + 1 " +
+            "WHERE resolvedTransactionId = :transactionId",
+    )
+    abstract suspend fun clearResolutionOf(transactionId: Long): Int
+
+    /** The reading one ledger record resolved, when there is one. */
+    @Query("SELECT * FROM note_events WHERE resolvedTransactionId = :transactionId LIMIT 1")
+    abstract suspend fun findByResolvedTransaction(transactionId: Long): NoteEventEntity?
+
+    /**
+     * A bounded page of the readings that are still waiting to be recorded.
+     *
+     * A reading is waiting when it is complete, was not resolved into a ledger record, and
+     * holds no active link to a bank draft: an active link means the bank notification is
+     * the record of that occurrence, and a resolved reading is spent.
+     */
+    @Query(
+        "SELECT * FROM note_events WHERE " +
+            "resolvedTransactionId IS NULL AND " +
+            "normalizedText IS NOT NULL AND " +
+            "unresolvedReason IS NULL AND " +
+            "NOT EXISTS (" +
+            "SELECT 1 FROM context_links WHERE context_links.eventId = note_events.id " +
+            "AND context_links.state IN ('PROPOSED', 'ACCEPTED')) " +
+            "ORDER BY captureId ASC, spanStart ASC, id ASC LIMIT :limit OFFSET :offset",
+    )
+    abstract suspend fun findUnrecordedPage(limit: Int, offset: Int): List<NoteEventEntity>
 }

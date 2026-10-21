@@ -104,6 +104,15 @@ sealed interface ContextLinkResult {
 
     /** The event already holds an active draft, so a second one was refused. */
     data object MultipleDrafts : ContextLinkResult
+
+    /**
+     * The event was already recorded as a ledger record, so it is spent.
+     *
+     * The user wrote the occurrence down by hand, and the record that resolved it stands.
+     * A bank notification that arrives later may not consume the same occurrence again,
+     * so no link is created for a resolved event.
+     */
+    data object EventAlreadyRecorded : ContextLinkResult
 }
 
 /**
@@ -291,6 +300,11 @@ internal class EventContextRepository(
         if (event.normalizedText == null) {
             return@withTransaction ContextLinkResult.EventUnavailable
         }
+        // A note the user already recorded by hand is spent: the ledger record that
+        // resolved it stands, so a bank notification may not consume the same occurrence.
+        if (event.resolvedTransactionId != null) {
+            return@withTransaction ContextLinkResult.EventAlreadyRecorded
+        }
         val draft = draftDao.findById(draftId)
             ?: return@withTransaction ContextLinkResult.DraftUnavailable
         val existing = linkDao.findByPair(eventId, draftId)
@@ -343,6 +357,11 @@ internal class EventContextRepository(
             ?: return@withTransaction ContextLinkResult.NotFound
         if (event.normalizedText == null) {
             return@withTransaction ContextLinkResult.EventUnavailable
+        }
+        // A note the user recorded by hand in the meantime is spent: the attachment is
+        // refused, so the bank notification may not consume the same occurrence again.
+        if (event.resolvedTransactionId != null) {
+            return@withTransaction ContextLinkResult.EventAlreadyRecorded
         }
         if (linkDao.accept(link.id, expectedRevision, userOverride) != 1) {
             return@withTransaction ContextLinkResult.Changed

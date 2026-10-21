@@ -27,6 +27,10 @@ interface CaptureMessageDao {
     @Query("SELECT * FROM capture_messages ORDER BY id")
     suspend fun findAllIncludingTombstones(): List<CaptureMessageEntity>
 
+    /** The named sources, read by their ids; an empty list reads nothing. */
+    @Query("SELECT * FROM capture_messages WHERE id IN (:ids)")
+    suspend fun findByIds(ids: List<Long>): List<CaptureMessageEntity>
+
     /**
      * A bounded page of the stored sources.
      *

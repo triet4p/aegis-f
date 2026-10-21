@@ -54,6 +54,24 @@ data class CategoryDeletionImpact(
 )
 
 /**
+ * What one correction of a stored record did.
+ *
+ * The record keeps its id, its creation time, its confirmation, and its provenance; only
+ * the fields the user may edit are replaced, and the revision moves on so a second
+ * correction made against the row the caller read is refused.
+ */
+internal sealed interface LedgerCorrectionResult {
+    /** The record was corrected and now carries this revision. */
+    data class Corrected(val revision: Int) : LedgerCorrectionResult
+
+    /** The record does not exist. */
+    data object NotFound : LedgerCorrectionResult
+
+    /** The record moved on under the caller. */
+    data object Changed : LedgerCorrectionResult
+}
+
+/**
  * Reads and writes the ledger and explicit, description-scoped category rules.
  *
  * Data rules live here rather than in a screen:
@@ -88,6 +106,14 @@ class LedgerRepository(
     private val captureMessageDao: CaptureMessageDao,
     private val clock: LedgerClock = SystemLedgerClock,
 ) {
+
+    /**
+     * The app's rules for the fields a financial write stores.
+     *
+     * The rules live in one place, so the repository and the command boundary that owns
+     * the user's financial decisions apply the same rule and say the same thing about it.
+     */
+    private val rules = FinancialFieldRules(categoryDao)
 
     // --- Categories ---------------------------------------------------------
 
@@ -218,24 +244,34 @@ class LedgerRepository(
 
     // --- Transactions -------------------------------------------------------
 
-    /** Adds a transaction and returns its stable id. */
-    suspend fun addTransaction(input: TransactionInput): Long {
-        validateFields(
+    /**
+     * Adds a transaction and returns its stable id.
+     *
+     * The write belongs to the command boundary: this method is internal, so the only way
+     * to store a ledger record is through the boundary that owns the caller's authority,
+     * the idempotency of a repeated request, and the revisions the caller read.
+     */
+    internal suspend fun addTransaction(input: TransactionInput): Long {
+        rules.rejection(
             type = input.type,
             amountVnd = input.amountVnd,
             categoryId = input.categoryId,
             retainedCategoryId = null,
-        )
+        )?.let { rejection -> throw LedgerValidationException(rejection.reason) }
         val now = clock.nowEpochMillis()
         return transactionDao.insert(input.toEntity(createdAt = now, updatedAt = now))
     }
 
     /**
-     * Corrects a stored transaction in place. Only the fields the user can edit are replaced,
-     * and [TransactionEntity.updatedAtEpochMillis] records when the correction happened; the
+     * Corrects a stored transaction in place, while its revision still matches.
+     *
+     * Only the fields the user can edit are replaced, and
+     * [TransactionEntity.updatedAtEpochMillis] records when the correction happened; the
      * row keeps its id, its creation time, its confirmation, and its provenance, so a
-     * correction never looks like a new record and never changes how the record came to exist.
-
+     * correction never looks like a new record and never changes how the record came to
+     * exist. The record's own revision moves on, so a second correction made against the
+     * row the caller read is refused instead of overwriting it.
+     *
      * A migrated legacy-description capture is revised in the same transaction, so explicit
      * correction does not leave an obsolete text copy behind; immutable bank evidence is separate.
      *
@@ -243,33 +279,43 @@ class LedgerRepository(
      * link is existing historical attribution — while a different archived category is still
      * refused, exactly as it is for a new record.
      */
-    suspend fun editTransaction(transactionId: Long, correction: TransactionCorrection) {
+    internal suspend fun editTransaction(
+        transactionId: Long,
+        expectedRevision: Int,
+        correction: TransactionCorrection,
+    ): LedgerCorrectionResult {
         val stored = transactionDao.findById(transactionId)
             ?: throw LedgerValidationException("Transaction $transactionId does not exist.")
-        validateFields(
+        if (stored.revision != expectedRevision) return LedgerCorrectionResult.Changed
+        rules.rejection(
             type = correction.type,
             amountVnd = correction.amountVnd,
             categoryId = correction.categoryId,
             retainedCategoryId = stored.categoryId,
+        )?.let { rejection -> throw LedgerValidationException(rejection.reason) }
+        val updated = transactionDao.correctWithLegacyDescription(
+            id = transactionId,
+            expectedRevision = expectedRevision,
+            type = correction.type.name,
+            amountVnd = correction.amountVnd,
+            occurredAtEpochMillis = correction.occurredAtEpochMillis,
+            description = correction.description,
+            categoryId = correction.categoryId,
+            updatedAtEpochMillis = clock.nowEpochMillis(),
+            captureMessageDao = captureMessageDao,
         )
-        transactionDao.updateWithLegacyDescription(
-            stored.copy(
-                type = correction.type,
-                amountVnd = correction.amountVnd,
-                occurredAtEpochMillis = correction.occurredAtEpochMillis,
-                description = correction.description,
-                categoryId = correction.categoryId,
-                updatedAtEpochMillis = clock.nowEpochMillis(),
-            ),
-            captureMessageDao,
-        )
+        return if (updated == 1) {
+            LedgerCorrectionResult.Corrected(stored.revision + 1)
+        } else {
+            LedgerCorrectionResult.Changed
+        }
     }
 
     /**
      * Deletes a transaction and text-clears its migrated legacy description capture in the
      * same transaction. Deleting an unknown id is a no-op.
      */
-    suspend fun deleteTransaction(transactionId: Long) {
+    internal suspend fun deleteTransaction(transactionId: Long) {
         val stored = transactionDao.findById(transactionId) ?: return
         transactionDao.deleteWithLegacyDescription(stored, captureMessageDao)
     }
@@ -281,37 +327,6 @@ class LedgerRepository(
      */
 
     // --- Validation ---------------------------------------------------------
-
-    /**
-     * Checks the user-editable fields of a write before anything reaches the database.
-     *
-     * [retainedCategoryId] is the category the stored record already carries. A correction
-     * that keeps it is allowed to keep an archived category, because the record's link to it
-     * already exists; anything else must be unarchived and must exist.
-     */
-    private suspend fun validateFields(
-        type: TransactionType,
-        amountVnd: Long,
-        categoryId: Long?,
-        retainedCategoryId: Long?,
-    ) {
-        VndMoney.requirePositiveAmount(amountVnd)
-        if (categoryId == null) return
-        if (type == TransactionType.TRANSFER) {
-            throw LedgerValidationException(
-                "An internal transfer moves money between the user's own holdings and " +
-                    "carries no category.",
-            )
-        }
-        val category = categoryDao.findById(categoryId)
-            ?: throw LedgerValidationException("Category $categoryId does not exist.")
-        if (category.archived && categoryId != retainedCategoryId) {
-            throw LedgerValidationException(
-                "Category \"${category.name}\" is archived and cannot be attached to a " +
-                    "new record.",
-            )
-        }
-    }
 
     private fun requireCategoryName(name: String): String {
         val trimmedName = name.trim()

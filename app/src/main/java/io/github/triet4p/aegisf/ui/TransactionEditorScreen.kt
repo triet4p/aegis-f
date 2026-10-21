@@ -51,17 +51,24 @@ import androidx.compose.ui.unit.dp
 import io.github.triet4p.aegisf.data.CategoryEntity
 import io.github.triet4p.aegisf.data.CategoryQuery
 import io.github.triet4p.aegisf.data.CategoryState
+import io.github.triet4p.aegisf.data.CorrectTransactionRequest
 import io.github.triet4p.aegisf.data.LIST_PAGE_SIZE
 import io.github.triet4p.aegisf.data.QueryPage
 import io.github.triet4p.aegisf.data.QueryPageRequest
 import io.github.triet4p.aegisf.data.LedgerRepository
 import io.github.triet4p.aegisf.data.LedgerValidationException
 import io.github.triet4p.aegisf.data.ManualCategoryDecision
-import io.github.triet4p.aegisf.data.TransactionCorrection
+import io.github.triet4p.aegisf.data.ManualTransactionSource
+import io.github.triet4p.aegisf.data.SaveManualTransactionRequest
 import io.github.triet4p.aegisf.data.TransactionEntity
-import io.github.triet4p.aegisf.data.TransactionInput
 import io.github.triet4p.aegisf.data.TransactionType
+import io.github.triet4p.aegisf.data.UnrecordedNoteEvent
 import io.github.triet4p.aegisf.data.VndMoney
+import io.github.triet4p.aegisf.data.WorkflowCallerScope
+import io.github.triet4p.aegisf.data.WorkflowChange
+import io.github.triet4p.aegisf.data.WorkflowCommandOutcome
+import io.github.triet4p.aegisf.data.WorkflowCommandService
+import io.github.triet4p.aegisf.data.WorkflowDenialReason
 import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.data.decideRememberedBeforeInference
 import io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner
@@ -70,6 +77,7 @@ import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
 import io.github.triet4p.aegisf.data.laya.LayaInferenceOutcome
 import io.github.triet4p.aegisf.data.laya.LayaRuntimeContract
 import java.util.Locale
+import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -85,24 +93,28 @@ internal fun formatProbability(probability: Double): String {
  * Manual transaction editor: one stored record per Save.
  *
  * With [transactionId] null this is the creation form: the fields start empty, a Save writes
- * one confirmed manual record through [LedgerRepository.addTransaction], and the form is
+ * one confirmed manual record through the application's one command boundary, and the form is
  * replaced by a confirmation panel that reads the persisted row back. With a stored id it is
  * the correction form: the amount, type, moment, description, and category are read from the
  * database and prefilled, and a Save replaces exactly those fields on the same row through
- * [LedgerRepository.editTransaction] before the screen returns to the detail view, which shows
- * the saved values. The record keeps its id, its creation time, its confirmation, and its
+ * the same boundary before the screen returns to the detail view, which shows the saved
+ * values. The record keeps its id, its creation time, its confirmation, and its
  * provenance, because a correction cannot write those.
  *
  * The form collects the user-supplied fields — amount, type, date, time, description, and
- * category where applicable — and writes them through the production [LedgerRepository],
- * which owns every data rule. A refused write stores nothing and shows the repository's (or
- * the field grammar's) reason under the field it belongs to, with the typed values intact.
+ * category where applicable — and writes them through the command boundary, which owns every
+ * data rule and the caller's authority. A refused write stores nothing and shows the reason
+ * under the field it belongs to, with the typed values intact.
  * New expense creation first checks for an explicit remembered exact-description rule, then
  * may show a process-owned Laya suggestion; either changes the category field only after
  * explicit acceptance and never writes a transaction. Income, transfers, and correction forms
  * remain manual. The live category list backs the picker and rule/suggestion resolution, so a
  * category renamed or archived during a request cannot remain eligible; an existing record
  * keeps its archived category link unless the user chooses another category.
+ *
+ * A record may be written from a saved note the user recorded by hand: the note event is
+ * named, the note's own amount and moment fill the form, and the saved record resolves that
+ * note — so a bank notification that arrives later cannot consume the same occurrence again.
  *
  * While a write is in flight the guard ignores further taps and the form cannot be left, so an
  * impatient double tap cannot turn one record into two or into none. Leaving without pressing
@@ -111,6 +123,7 @@ internal fun formatProbability(probability: Double): String {
 @Composable
 fun TransactionEditorScreen(
     repository: LedgerRepository,
+    commandService: WorkflowCommandService,
     queryService: WorkflowQueryService,
     layaInferenceLifecycle: LayaInferenceLifecycle,
     transactionId: Long?,
@@ -120,6 +133,7 @@ fun TransactionEditorScreen(
     if (transactionId == null) {
         TransactionFormScreen(
             repository = repository,
+            commandService = commandService,
             queryService = queryService,
             layaInferenceLifecycle = layaInferenceLifecycle,
             storedRecord = null,
@@ -154,6 +168,7 @@ fun TransactionEditorScreen(
 
         is StoredTransactionState.Found -> TransactionFormScreen(
             repository = repository,
+            commandService = commandService,
             queryService = queryService,
             layaInferenceLifecycle = layaInferenceLifecycle,
             storedRecord = stored.record,
@@ -182,6 +197,7 @@ private sealed interface StoredTransactionState {
 @Composable
 private fun TransactionFormScreen(
     repository: LedgerRepository,
+    commandService: WorkflowCommandService,
     queryService: WorkflowQueryService,
     layaInferenceLifecycle: LayaInferenceLifecycle,
     storedRecord: TransactionEntity?,
@@ -213,11 +229,22 @@ private fun TransactionFormScreen(
     var dateError by remember { mutableStateOf<String?>(null) }
     var timeError by remember { mutableStateOf<String?>(null) }
     var categoryError by remember { mutableStateOf<String?>(null) }
+    var saveError by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
     var ruleActionInFlight by remember { mutableStateOf(false) }
     var ruleActionError by remember { mutableStateOf<String?>(null) }
     var savedRecordId by rememberSaveable { mutableStateOf<Long?>(null) }
     var savedRecord by remember { mutableStateOf<TransactionEntity?>(null) }
+
+    // The key names this save request: the same request under the same key stores one
+    // record, so a retry after a rotation or a restart cannot write the record twice.
+    var saveKey by rememberSaveable { mutableStateOf(newSaveRequestKey()) }
+
+    // The note this record is written from, when the user records an unmatched note by
+    // hand. The saved record resolves that note, so a bank notification that arrives later
+    // cannot consume the same occurrence again.
+    var sourceEvent by remember { mutableStateOf<UnrecordedNoteEvent?>(null) }
+    var notePickerVisible by rememberSaveable { mutableStateOf(false) }
 
     // The whole catalog, live and read in bounded chunks: the model's candidate ranking
     // needs every active category, and an archive or a rename of any of them has to
@@ -403,11 +430,45 @@ private fun TransactionFormScreen(
         else -> null
     }
 
+    /**
+     * Shows why a write was refused.
+     *
+     * The reason belongs under the field it is about, so the typed values stay where the
+     * user put them and the form can be corrected in place.
+     */
+    fun showRefusal(outcome: WorkflowCommandOutcome) {
+        when (outcome) {
+            is WorkflowCommandOutcome.NeedsClarification -> {
+                if (outcome.field == "categoryId") {
+                    categoryError = outcome.reason
+                } else {
+                    amountError = outcome.reason
+                }
+            }
+            is WorkflowCommandOutcome.Denied -> {
+                if (outcome.reason == WorkflowDenialReason.CATEGORY_UNAVAILABLE) {
+                    categoryError = "That category is no longer available. Choose an active " +
+                        "category and try again."
+                } else {
+                    saveError = "This record could not be saved."
+                }
+            }
+            is WorkflowCommandOutcome.Conflict -> saveError = outcome.reason
+            is WorkflowCommandOutcome.Failed -> saveError = outcome.reason
+            WorkflowCommandOutcome.NotFound -> saveError = "That record is no longer available."
+            WorkflowCommandOutcome.Cancelled -> Unit
+            is WorkflowCommandOutcome.Applied,
+            is WorkflowCommandOutcome.NoChange,
+            -> Unit
+        }
+    }
+
     fun save() {
         amountError = null
         dateError = null
         timeError = null
         categoryError = null
+        saveError = null
 
         val amountVnd = try {
             VndMoney.parseManualAmount(amountText)
@@ -420,7 +481,7 @@ private fun TransactionFormScreen(
         val timeProblem = ManualDateTime.timeError(timeText)
         if (dateProblem != null || timeProblem != null) {
             dateError = dateProblem
-            timeError = timeProblem
+            timeProblem?.let { timeError = it }
             writeInFlight.set(false)
             return
         }
@@ -434,10 +495,49 @@ private fun TransactionFormScreen(
                 // A transfer carries no category, so the type decides whether the chosen one
                 // is written at all; the stored category is otherwise kept as it is.
                 val categoryId = selectedCategoryId.takeIf { type != TransactionType.TRANSFER }
-                val storedId = storedRecord?.id
-                if (storedId == null) {
-                    savedRecordId = repository.addTransaction(
-                        TransactionInput(
+                val stored = storedRecord
+                val storedId = stored?.id
+                if (storedId == null || stored == null) {
+                    val outcome = commandService.saveManualTransaction(
+                        scope = WorkflowCallerScope.User,
+                        request = SaveManualTransactionRequest(
+                            idempotencyKey = saveKey,
+                            type = type,
+                            amountVnd = amountVnd,
+                            occurredAtEpochMillis = occurredAtEpochMillis,
+                            description = description,
+                            categoryId = categoryId,
+                            // The note and the reading it was read from travel together:
+                            // the record may only be written against the exact reading
+                            // the user picked.
+                            source = sourceEvent?.let { note ->
+                                ManualTransactionSource.NoteEvent(
+                                    eventId = note.eventId,
+                                    expectedRevision = note.revision,
+                                )
+                            } ?: ManualTransactionSource.None,
+                        ),
+                    )
+                    when (outcome) {
+                        is WorkflowCommandOutcome.Applied -> {
+                            savedRecordId = (outcome.change as? WorkflowChange.TransactionSaved)
+                                ?.transactionId
+                        }
+                        is WorkflowCommandOutcome.NoChange -> {
+                            // The same request was already made under this key: the record
+                            // that was made then is the record this form is about.
+                            savedRecordId = (outcome.change as? WorkflowChange.TransactionSaved)
+                                ?.transactionId
+                        }
+                        else -> showRefusal(outcome)
+                    }
+                } else {
+                    val outcome = commandService.correctTransaction(
+                        scope = WorkflowCallerScope.User,
+                        request = CorrectTransactionRequest(
+                            idempotencyKey = saveKey,
+                            transactionId = storedId,
+                            expectedRevision = stored.revision,
                             type = type,
                             amountVnd = amountVnd,
                             occurredAtEpochMillis = occurredAtEpochMillis,
@@ -445,30 +545,17 @@ private fun TransactionFormScreen(
                             categoryId = categoryId,
                         ),
                     )
-                } else {
-                    repository.editTransaction(
-                        storedId,
-                        TransactionCorrection(
-                            type = type,
-                            amountVnd = amountVnd,
-                            occurredAtEpochMillis = occurredAtEpochMillis,
-                            description = description,
-                            categoryId = categoryId,
-                        ),
-                    )
-                    // The corrected values are now the detail view's to show: it reads the row
-                    // back out of storage instead of this form reporting its own inputs.
-                    onNavigateUp()
-                }
-            } catch (rejection: LedgerValidationException) {
-                // The amount grammar was already checked, so a refusal at write time can only
-                // come from the chosen category: it was archived or removed meanwhile.
-                val categoryChosen = selectedCategoryId != null &&
-                    selectedType != TransactionType.TRANSFER
-                if (categoryChosen) {
-                    categoryError = rejection.message
-                } else {
-                    amountError = rejection.message
+                    when (outcome) {
+                        is WorkflowCommandOutcome.Applied,
+                        is WorkflowCommandOutcome.NoChange,
+                        -> {
+                            // The corrected values are now the detail view's to show: it reads
+                            // the row back out of storage instead of this form reporting its
+                            // own inputs.
+                            onNavigateUp()
+                        }
+                        else -> showRefusal(outcome)
+                    }
                 }
             } finally {
                 saving = false
@@ -476,6 +563,7 @@ private fun TransactionFormScreen(
             }
         }
     }
+
     fun rememberSelectedCategoryRule() {
         val categoryId = selectedCategoryId ?: return
         val intent = suggestionIntent
@@ -562,6 +650,10 @@ private fun TransactionFormScreen(
                     selectedCategoryName = null
                     savedRecordId = null
                     savedRecord = null
+                    // A further record is a further request: it gets its own key, and it
+                    // records no note until the user names one again.
+                    saveKey = newSaveRequestKey()
+                    sourceEvent = null
                 },
                 onDone = onNavigateUp,
                 modifier = Modifier.padding(innerPadding),
@@ -641,6 +733,10 @@ private fun TransactionFormScreen(
                         categoryError = null
                     }
                 },
+                sourceEvent = sourceEvent,
+                onPickNote = { notePickerVisible = true },
+                onClearNote = { sourceEvent = null },
+                saveError = saveError,
                 saving = saving,
                 editing = editing,
                 // The guard is checked before the coroutine starts, so two taps inside one
@@ -680,7 +776,85 @@ private fun TransactionFormScreen(
             onDismiss = { categoryPickerVisible = false },
         )
     }
+
+    if (notePickerVisible) {
+        NoteEventPickerDialog(
+            queryService = queryService,
+            onSelect = { note ->
+                // The note states the money and the day; the moment and the rest stay the
+                // user's own to fill in.
+                sourceEvent = note
+                note.amountVnd?.let { amount -> amountText = amount.toString() }
+                note.anchorDate?.let { day -> dateText = day }
+                notePickerVisible = false
+            },
+            onDismiss = { notePickerVisible = false },
+        )
+    }
 }
+
+/**
+ * The saved notes that are still waiting to be recorded by hand.
+ *
+ * Only the notes that hold a complete reading and are not already recorded or linked to
+ * a bank notification are offered: a note that is spent is not a candidate, and a note
+ * whose bank notification is waiting is that notification's business.
+ */
+@Composable
+private fun NoteEventPickerDialog(
+    queryService: WorkflowQueryService,
+    onSelect: (UnrecordedNoteEvent) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var notes by remember { mutableStateOf<List<UnrecordedNoteEvent>?>(null) }
+    LaunchedEffect(queryService) {
+        notes = queryService.unrecordedNoteEvents(QueryPageRequest(LIST_PAGE_SIZE)).items
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Record from a saved note") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                when (val loaded = notes) {
+                    null -> Text("Loading your saved notes…")
+                    else -> if (loaded.isEmpty()) {
+                        Text("No saved note is waiting to be recorded.")
+                    } else {
+                        loaded.forEach { note ->
+                            OutlinedButton(
+                                onClick = { onSelect(note) },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(noteLabel(note))
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        },
+    )
+}
+
+/** How one saved note is named in the picker. */
+private fun noteLabel(note: UnrecordedNoteEvent): String {
+    val reading = note.normalizedText ?: note.captureText ?: ""
+    val amount = note.amountVnd?.let { VndMoney.formatAmount(it) }
+    return listOfNotNull(
+        reading.takeIf { it.isNotBlank() },
+        amount,
+        note.anchorDate,
+        note.anchorTime,
+    ).joinToString(" · ")
+}
+
+/** A key that names one save request; the same key stores one record. */
+private fun newSaveRequestKey(): String = "manual-save:" + UUID.randomUUID()
 
 /** The top bar of every editor state: one title and one Back control. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -786,6 +960,10 @@ private fun TransactionForm(
     onIgnoreSuggestion: () -> Unit,
     onChooseDistributionOption: (Long) -> Unit,
     onChooseNoCategory: () -> Unit,
+    sourceEvent: UnrecordedNoteEvent?,
+    onPickNote: () -> Unit,
+    onClearNote: () -> Unit,
+    saveError: String?,
     saving: Boolean,
     editing: Boolean,
     onSave: () -> Unit,
@@ -915,6 +1093,36 @@ private fun TransactionForm(
                 onRemoveRememberedRule = onRemoveRememberedRule,
                 onChooseDistributionOption = onChooseDistributionOption,
                 onChooseNoCategory = onChooseNoCategory,
+            )
+        }
+
+        if (!editing) {
+            OutlinedButton(
+                onClick = onPickNote,
+                enabled = !saving,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Record from a saved note")
+            }
+            if (sourceEvent != null) {
+                Text(
+                    text = "This record resolves the saved note “${noteLabel(sourceEvent)}”. " +
+                        "A bank notification that arrives later will not be matched to that " +
+                        "note again.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = onClearNote, enabled = !saving) {
+                    Text("Use no note")
+                }
+            }
+        }
+
+        if (saveError != null) {
+            Text(
+                text = saveError,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
             )
         }
 

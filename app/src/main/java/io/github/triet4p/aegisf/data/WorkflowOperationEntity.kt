@@ -111,6 +111,33 @@ internal fun encodeWorkflowChange(change: WorkflowChange): String = when (change
             change.confidence?.toString(),
         ),
     )
+    is WorkflowChange.TransactionSaved -> encodeFields(
+        listOf(
+            "TRANSACTION_SAVED",
+            change.transactionId.toString(),
+            change.revision.toString(),
+            change.sourceEventId?.toString(),
+        ),
+    )
+    is WorkflowChange.TransactionCorrected -> encodeFields(
+        listOf(
+            "TRANSACTION_CORRECTED",
+            change.transactionId.toString(),
+            change.revision.toString(),
+        ),
+    )
+    is WorkflowChange.TransactionDeleted -> encodeFields(
+        listOf("TRANSACTION_DELETED", change.transactionId.toString()),
+    )
+    is WorkflowChange.DraftReviewSaved -> encodeFields(
+        listOf("DRAFT_REVIEW_SAVED", change.draftId.toString(), change.revision.toString()),
+    )
+    is WorkflowChange.DraftConfirmed -> encodeFields(
+        listOf("DRAFT_CONFIRMED", change.draftId.toString(), change.transactionId.toString()),
+    )
+    is WorkflowChange.DraftDismissed -> encodeFields(
+        listOf("DRAFT_DISMISSED", change.draftId.toString()),
+    )
 }
 
 /** The change an encoded summary describes, or null when the summary is not one of ours. */
@@ -151,6 +178,29 @@ internal fun decodeWorkflowChange(summary: String?): WorkflowChange? {
             suggestedCategoryId = fields.textAt(4)?.toLongOrNull(),
             confidence = fields.textAt(5)?.toDoubleOrNull(),
             decision = null,
+        )
+        "TRANSACTION_SAVED" -> WorkflowChange.TransactionSaved(
+            transactionId = fields.longAt(1),
+            revision = fields.intAt(2),
+            sourceEventId = fields.textAt(3)?.toLongOrNull(),
+        )
+        "TRANSACTION_CORRECTED" -> WorkflowChange.TransactionCorrected(
+            transactionId = fields.longAt(1),
+            revision = fields.intAt(2),
+        )
+        "TRANSACTION_DELETED" -> WorkflowChange.TransactionDeleted(
+            transactionId = fields.longAt(1),
+        )
+        "DRAFT_REVIEW_SAVED" -> WorkflowChange.DraftReviewSaved(
+            draftId = fields.longAt(1),
+            revision = fields.intAt(2),
+        )
+        "DRAFT_CONFIRMED" -> WorkflowChange.DraftConfirmed(
+            draftId = fields.longAt(1),
+            transactionId = fields.longAt(2),
+        )
+        "DRAFT_DISMISSED" -> WorkflowChange.DraftDismissed(
+            draftId = fields.longAt(1),
         )
         else -> null
     }
