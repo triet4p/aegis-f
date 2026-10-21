@@ -2,7 +2,9 @@ package io.github.triet4p.aegisf.ui
 
 import io.github.triet4p.aegisf.data.laya.LayaEffectiveContext
 import io.github.triet4p.aegisf.data.CategoryEntity
+import io.github.triet4p.aegisf.data.ManualCategoryDecision
 import io.github.triet4p.aegisf.data.TransactionType
+import io.github.triet4p.aegisf.data.decideRememberedBeforeInference
 import io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals

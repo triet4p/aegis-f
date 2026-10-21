@@ -1,6 +1,7 @@
 package io.github.triet4p.aegisf.data
 
 import android.content.Context
+import io.github.triet4p.aegisf.data.laya.LayaClassificationEngine
 import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
 import java.io.File
 
@@ -50,25 +51,25 @@ class AppContainer(context: Context) {
         )
     }
 
-    /** Explicit persistence API for independently saved user captures and manual annotations. */
-    val captureMessageRepository: CaptureMessageRepository by lazy {
-        CaptureMessageRepository(database = database)
-    }
-
-    /** Stored event interpretations of a capture and their proposed, accepted, and refused links. */
-    val eventContextRepository: EventContextRepository by lazy {
-        EventContextRepository(database = database)
-    }
-
     /**
-     * The effective context of a bank draft and the prediction snapshot stored about it.
+     * The app's one write surface for the reversible preparation commands.
      *
-     * The snapshot keeps the dependencies a prediction was made against, so a later read can
-     * tell that the context, the categories, the rules, or the model have moved on and report
-     * the prediction as stale instead of applying it.
+     * Every saved capture, every reading, every link decision, and every classification
+     * request goes through this service: it owns the caller's scope, the idempotency of a
+     * repeated request, the expected revisions, and the structured outcome. The local model
+     * is reached through the same process-owned lifecycle the screens use, and it is asked
+     * only for a request the boundary accepted.
+     *
+     * The repositories that store the captures, the readings, the links, and the
+     * predictions are internal to the app module: the command boundary is their only
+     * public way in, so no caller can write around its rules.
      */
-    val classificationSnapshotRepository: ClassificationSnapshotRepository by lazy {
-        ClassificationSnapshotRepository(database = database)
+    val workflowCommandService: WorkflowCommandService by lazy {
+        WorkflowCommandService(
+            database = database,
+            engine = LayaClassificationEngine(layaInferenceLifecycle),
+            findRememberedCategory = ledgerRepository::findRememberedCategoryForDescription,
+        )
     }
 
     /** Pending bank-notification drafts: reviewable intake, never ledger records. */

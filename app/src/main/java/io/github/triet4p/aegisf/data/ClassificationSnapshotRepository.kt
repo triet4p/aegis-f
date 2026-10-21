@@ -130,8 +130,12 @@ data class StoredPrediction(
  *   one changes no amount, date, time, memo, type, or category of the draft.
  * - The composed model input is never stored; only its digest is, so a prompt stays
  *   ephemeral.
+ *
+ * The class is internal: the stored prediction is written through the application's one
+ * command boundary, so a caller cannot store a prediction around the boundary's scope,
+ * idempotency, and freshness rules.
  */
-class ClassificationSnapshotRepository(
+internal class ClassificationSnapshotRepository(
     private val database: LedgerDatabase,
     private val clock: LedgerClock = SystemLedgerClock,
     private val modelRevision: String = CURRENT_MODEL_REVISION,
@@ -349,23 +353,12 @@ class ClassificationSnapshotRepository(
             .sorted()
         return PredictionDependencies(
             contextRevision = canonicalDependencyDigest(contextParts),
-            categoryRevision = canonicalDependencyDigest(categoryRevisionParts()),
+            categoryRevision = categoryCatalogRevision(categoryDao.findAll()),
             ruleRevision = canonicalDependencyDigest(ruleRevisionParts()),
             modelRevision = modelRevision,
             candidateSetVersion = candidateSetVersion,
             eventIds = eventIds,
         )
-    }
-
-    /** The digest parts of the category catalog: every category's id, name, and state. */
-    private suspend fun categoryRevisionParts(): List<String?> {
-        val parts = ArrayList<String?>()
-        for (category in categoryDao.findAll().sortedBy { it.id }) {
-            parts.add(category.id.toString())
-            parts.add(category.name)
-            parts.add(category.archived.toString())
-        }
-        return parts
     }
 
     /** The digest parts of the remembered rules: every rule's key and target. */

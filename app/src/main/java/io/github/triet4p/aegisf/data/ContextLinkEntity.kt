@@ -71,7 +71,14 @@ data class ContextLinkEntity(
     /** The pending draft this link points at. */
     val draftId: Long,
     val state: ContextLinkState,
-    /** The recorded match evidence, or null when the proposal carried none. */
+    /**
+     * The app's own evidence about this association, or null when there is none.
+     *
+     * It is computed by the app from the stored reading and the stored draft and is bound to
+     * the exact source, event, draft, and revisions it was read from; see
+     * [TrustedLinkEvidence]. A caller cannot write it, and an association the app cannot
+     * prove is refused rather than attached.
+     */
     val evidence: String?,
     /** Compare-and-set revision for explicit link decisions. */
     val revision: Int,

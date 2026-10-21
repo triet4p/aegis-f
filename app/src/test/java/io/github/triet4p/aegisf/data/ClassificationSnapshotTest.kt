@@ -79,11 +79,11 @@ class ClassificationSnapshotTest {
                 val fuelDraft = storeDraft(database, "fuel-key", 50_000L)
                 val snackDraft = storeDraft(database, "snack-key", 20_000L)
                 assertTrue(
-                    events(database).proposeLink(fuelEvent.id, fuelDraft, "same day fuel") is
+                    events(database).proposeLink(fuelEvent.id, fuelDraft) is
                         ContextLinkResult.Linked,
                 )
                 assertTrue(
-                    events(database).proposeLink(snackEvent.id, snackDraft, "snack") is
+                    events(database).proposeLink(snackEvent.id, snackDraft) is
                         ContextLinkResult.Linked,
                 )
 
@@ -154,8 +154,8 @@ class ClassificationSnapshotTest {
             )
             val fuelDraft = storeDraft(database, "fuel-key", 50_000L)
             val snackDraft = storeDraft(database, "snack-key", 20_000L)
-            events(database).proposeLink(fuelEvent.id, fuelDraft, "fuel")
-            events(database).proposeLink(snackEvent.id, snackDraft, "snack")
+            events(database).proposeLink(fuelEvent.id, fuelDraft)
+            events(database).proposeLink(snackEvent.id, snackDraft)
 
             val repository = snapshots(database)
             repository.recordPrediction(
@@ -205,7 +205,7 @@ class ClassificationSnapshotTest {
             val captureId = captures(database).saveQuickCapture(NOTE_TEXT)
             val fuelEvent = storeEvent(database, captureId, "Fuel 50,000 at 15:00", "Fuel")
             val fuelDraft = storeDraft(database, "fuel-key", 50_000L)
-            events(database).proposeLink(fuelEvent.id, fuelDraft, "fuel")
+            events(database).proposeLink(fuelEvent.id, fuelDraft)
 
             val repository = snapshots(database)
             val expected = repository.effectiveContextFor(fuelDraft, BANK_MEMO)!!.dependencies
@@ -372,7 +372,7 @@ class ClassificationSnapshotTest {
             val captureId = captures(database).saveQuickCapture(NOTE_TEXT)
             val fuelEvent = storeEvent(database, captureId, "Fuel 50,000 at 15:00", "Fuel")
             val fuelDraft = storeDraft(database, "fuel-key", 50_000L)
-            events(database).proposeLink(fuelEvent.id, fuelDraft, "fuel")
+            events(database).proposeLink(fuelEvent.id, fuelDraft)
 
             val before = database.pendingBankDraftDao().findById(fuelDraft)!!
             val repository = snapshots(database)
@@ -414,7 +414,7 @@ class ClassificationSnapshotTest {
         val draftId = storeDraft(database, "fuel-key", 50_000L)
         val captureId = captures(database).saveQuickCapture(NOTE_TEXT)
         val fuelEvent = storeEvent(database, captureId, "Fuel 50,000 at 15:00", "Fuel")
-        events(database).proposeLink(fuelEvent.id, draftId, "fuel")
+        events(database).proposeLink(fuelEvent.id, draftId)
         val repository = snapshots(database)
         val effective = repository.effectiveContextFor(draftId, BANK_MEMO)!!
         repository.recordPrediction(

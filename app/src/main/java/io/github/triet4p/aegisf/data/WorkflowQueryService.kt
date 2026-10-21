@@ -59,6 +59,7 @@ class WorkflowQueryService(
     private val noteEventDao = database.noteEventDao()
     private val contextLinkDao = database.contextLinkDao()
     private val classificationSnapshotDao = database.classificationSnapshotDao()
+    private val workflowOperationDao = database.workflowOperationDao()
 
     // --- Categories ---------------------------------------------------------
 
@@ -509,6 +510,32 @@ class WorkflowQueryService(
                 confidence = snapshot.confidence,
                 predictionTimeEpochMillis = snapshot.predictionTime,
                 staleReason = snapshot.staleReason?.let { PredictionStaleReason.valueOf(it) },
+            )
+        },
+        bounds = query.bounds,
+    )
+
+    /**
+     * A bounded page of the recorded preparation commands.
+     *
+     * The rows are the durable record of the requests that were made: the key that names
+     * a request, the scope that made it, the command that was run, the outcome it
+     * reached, and the change it made. The request's own text is not stored, only its
+     * digest, so the record never holds what the request was about.
+     */
+    suspend fun workflowOperations(query: WorkflowOperationQuery): QueryPage<WorkflowOperation> = pageOf(
+        rows = workflowOperationDao.findPage(
+            command = query.command,
+            limit = query.bounds.limit + 1,
+            offset = query.bounds.offset,
+        ).map { operation ->
+            WorkflowOperation(
+                idempotencyKey = operation.idempotencyKey,
+                scopeId = operation.scopeId,
+                command = operation.command,
+                outcome = operation.outcome,
+                change = decodeWorkflowChange(operation.changeSummary),
+                createdAtEpochMillis = operation.createdAtEpochMillis,
             )
         },
         bounds = query.bounds,

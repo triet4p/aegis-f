@@ -28,8 +28,12 @@ sealed interface CaptureMessageWriteResult {
  * that described those interpretations go with them, in the same Room transaction as the change
  * itself. No copy of a changed or deleted text is left behind, and a refused link survives,
  * because the user's decision about a draft is not part of the text.
+ *
+ * The class is internal: the saved text is written through the application's one command
+ * boundary, so a caller cannot save or rewrite a capture around the boundary's scope,
+ * idempotency, and revision rules.
  */
-class CaptureMessageRepository(
+internal class CaptureMessageRepository(
     private val database: LedgerDatabase,
     private val clock: LedgerClock = SystemLedgerClock,
     private val timezoneId: () -> String = { TimeZone.getDefault().id },
@@ -57,10 +61,10 @@ class CaptureMessageRepository(
         bodyText: String,
     ): CaptureMessageWriteResult = database.withTransaction {
         val current = dao.findById(id) ?: return@withTransaction CaptureMessageWriteResult.NotFound
-        current.writeEligibility()?.let { return@withTransaction it }
+        captureWriteEligibility(current)?.let { return@withTransaction it }
         val updated = dao.reviseUserText(id, expectedRevision, bodyText)
         if (updated != 1) {
-            return@withTransaction dao.findById(id).writeEligibility()
+            return@withTransaction captureWriteEligibility(dao.findById(id))
                 ?: CaptureMessageWriteResult.Changed
         }
         eventContext.invalidateDerivedReadings(id, SOURCE_EDITED)
@@ -71,10 +75,10 @@ class CaptureMessageRepository(
     suspend fun delete(id: Long, expectedRevision: Int): CaptureMessageWriteResult =
         database.withTransaction {
             val current = dao.findById(id) ?: return@withTransaction CaptureMessageWriteResult.NotFound
-            current.writeEligibility()?.let { return@withTransaction it }
+            captureWriteEligibility(current)?.let { return@withTransaction it }
             val updated = dao.tombstoneUserText(id, expectedRevision)
             if (updated != 1) {
-                return@withTransaction dao.findById(id).writeEligibility()
+                return@withTransaction captureWriteEligibility(dao.findById(id))
                     ?: CaptureMessageWriteResult.Changed
             }
             eventContext.invalidateDerivedReadings(id, SOURCE_DELETED)
@@ -99,17 +103,23 @@ class CaptureMessageRepository(
             originRef = null,
         ),
     ).also { id -> check(id != -1L) { "A new capture source identity was unexpectedly reused." } }
+}
 
-    private fun CaptureMessageEntity?.writeEligibility(): CaptureMessageWriteResult? {
-        val current = this ?: return CaptureMessageWriteResult.NotFound
-        if (!current.isUserEditable()) return CaptureMessageWriteResult.ImmutableSource
-        if (current.tombstone) return CaptureMessageWriteResult.AlreadyDeleted
-        return null
-    }
+/**
+ * Why this capture's text may not be written, or null when it may.
+ *
+ * Bank evidence is immutable, and a deleted capture holds no text to write: both are
+ * refused before any revision is touched.
+ */
+internal fun captureWriteEligibility(capture: CaptureMessageEntity?): CaptureMessageWriteResult? {
+    val current = capture ?: return CaptureMessageWriteResult.NotFound
+    if (!current.isUserEditable()) return CaptureMessageWriteResult.ImmutableSource
+    if (current.tombstone) return CaptureMessageWriteResult.AlreadyDeleted
+    return null
+}
 
-    private fun CaptureMessageEntity.isUserEditable(): Boolean = when (captureKind) {
-        CaptureKind.BANK_EVIDENCE_REF -> false
-        CaptureKind.USER_NOTE -> sourceKind == CaptureSourceKind.USER_QUICK_CAPTURE
-        CaptureKind.MANUAL_ANNOTATION -> sourceKind == CaptureSourceKind.USER_ANNOTATION
-    }
+private fun CaptureMessageEntity.isUserEditable(): Boolean = when (captureKind) {
+    CaptureKind.BANK_EVIDENCE_REF -> false
+    CaptureKind.USER_NOTE -> sourceKind == CaptureSourceKind.USER_QUICK_CAPTURE
+    CaptureKind.MANUAL_ANNOTATION -> sourceKind == CaptureSourceKind.USER_ANNOTATION
 }

@@ -299,6 +299,18 @@ data class ClassificationOperationQuery(
 )
 
 /**
+ * A bounded read of the recorded preparation commands.
+ *
+ * [command] narrows the read to one command family and is open when it is null. The rows
+ * are the durable record of the requests that were made, so a reader can see which
+ * requests were already answered under which key.
+ */
+data class WorkflowOperationQuery(
+    val command: String? = null,
+    val bounds: QueryPageRequest,
+)
+
+/**
  * The stored result of one context-link decision.
  *
  * Every field is read from the stored link: the pair it joins, the state it is in, the
@@ -378,4 +390,21 @@ data class ClassificationOperation(
     val confidence: Double?,
     val predictionTimeEpochMillis: Long,
     val staleReason: PredictionStaleReason?,
+)
+
+/**
+ * The stored record of one preparation command.
+ *
+ * The record names the request's own identity — the idempotency key and the scope that
+ * made it — the command that was run, the outcome it reached, and the change it made.
+ * The payload of the request is not stored: only its digest is, so the record never holds
+ * the text the request was about.
+ */
+data class WorkflowOperation(
+    val idempotencyKey: String,
+    val scopeId: String,
+    val command: String,
+    val outcome: String,
+    val change: WorkflowChange?,
+    val createdAtEpochMillis: Long,
 )

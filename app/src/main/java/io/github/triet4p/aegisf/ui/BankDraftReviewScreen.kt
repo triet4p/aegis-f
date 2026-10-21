@@ -53,9 +53,7 @@ import io.github.triet4p.aegisf.data.BankDraftReviewField
 import io.github.triet4p.aegisf.data.BankDraftReviewRepository
 import io.github.triet4p.aegisf.data.BankDraftReviewResult
 import io.github.triet4p.aegisf.data.CategoryEntity
-import io.github.triet4p.aegisf.data.ClassificationSnapshotRepository
-import io.github.triet4p.aegisf.data.ClassificationPrediction
-import io.github.triet4p.aegisf.data.EffectiveDraftContext
+import io.github.triet4p.aegisf.data.ClassificationRequest
 import io.github.triet4p.aegisf.data.IntakeDirection
 import io.github.triet4p.aegisf.data.IntakeFieldState
 import io.github.triet4p.aegisf.data.IntakeParseStatus
@@ -67,19 +65,18 @@ import io.github.triet4p.aegisf.data.LIST_PAGE_SIZE
 import io.github.triet4p.aegisf.data.LedgerRepository
 import io.github.triet4p.aegisf.data.QueryPage
 import io.github.triet4p.aegisf.data.QueryPageRequest
+import io.github.triet4p.aegisf.data.WorkflowCallerScope
+import io.github.triet4p.aegisf.data.WorkflowChange
+import io.github.triet4p.aegisf.data.WorkflowCommandOutcome
+import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.data.LedgerValidationException
 import io.github.triet4p.aegisf.data.PendingBankDraftEntity
 import io.github.triet4p.aegisf.data.PredictionSource
 import io.github.triet4p.aegisf.data.TransactionType
 import io.github.triet4p.aegisf.data.VndMoney
-import io.github.triet4p.aegisf.data.classificationPrediction
-import io.github.triet4p.aegisf.data.effectiveInputDigest
 import io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner
-import io.github.triet4p.aegisf.data.laya.LayaEffectiveContext
-import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
-import io.github.triet4p.aegisf.data.laya.LayaInferenceOutcome
-import io.github.triet4p.aegisf.data.laya.LayaRuntimeContract
+import io.github.triet4p.aegisf.data.reviewClassificationRequestKey
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -95,9 +92,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 fun BankDraftReviewScreen(
     queryService: WorkflowQueryService,
     reviewRepository: BankDraftReviewRepository,
-    ledgerRepository: LedgerRepository,
-    layaInferenceLifecycle: LayaInferenceLifecycle,
-    classificationSnapshotRepository: ClassificationSnapshotRepository,
+    commandService: WorkflowCommandService,
     draftId: Long?,
     onSelectDraft: (Long) -> Unit,
     onNavigateUp: () -> Unit,
@@ -197,10 +192,8 @@ fun BankDraftReviewScreen(
                 draft = openedDraft,
                 allDrafts = selectedRelatedDrafts,
                 reviewRepository = reviewRepository,
-                ledgerRepository = ledgerRepository,
                 queryService = queryService,
-                layaInferenceLifecycle = layaInferenceLifecycle,
-                classificationSnapshotRepository = classificationSnapshotRepository,
+                commandService = commandService,
                 contentModifier = Modifier.padding(innerPadding),
                 onSelectDraft = onSelectDraft,
                 onNavigateUp = onNavigateUp,
@@ -342,10 +335,8 @@ private fun DraftDetailContent(
     draft: PendingBankDraftEntity,
     allDrafts: List<PendingBankDraftEntity>,
     reviewRepository: BankDraftReviewRepository,
-    ledgerRepository: LedgerRepository,
     queryService: WorkflowQueryService,
-    layaInferenceLifecycle: LayaInferenceLifecycle,
-    classificationSnapshotRepository: ClassificationSnapshotRepository,
+    commandService: WorkflowCommandService,
     contentModifier: Modifier,
     onSelectDraft: (Long) -> Unit,
     onNavigateUp: () -> Unit,
@@ -436,8 +427,7 @@ private fun DraftDetailContent(
         onClamp = { categoryPageIndex = it },
     )
     LaunchedEffect(
-        ledgerRepository,
-        layaInferenceLifecycle,
+        commandService,
         draftFormIdentity,
         memoText,
         suggestionNote,
@@ -472,33 +462,36 @@ private fun DraftDetailContent(
             return@LaunchedEffect
         }
         val description = checkNotNull(effectiveInput)
-        // The draft's effective context: the permitted description the review works with plus
-        // the stored readings of the events linked to THIS draft. A note with several events
-        // contributes only the readings of the events linked here, so the whole note is never
-        // copied into every draft.
-        val effective = classificationSnapshotRepository.effectiveContextFor(draft.id, description)
-        val requestContext = effective?.context ?: LayaEffectiveContext.of(description)
         val token = suggestionMachine.begin(
             ManualSuggestionRequest(suggestionIntent, requestCategories),
         ) ?: return@LaunchedEffect
-        val decision = try {
-            decideRememberedBeforeInference(
-                description = description,
-                context = requestContext,
-                activeCategories = requestCategories.filterNot { it.archived },
-                findRememberedCategory = ledgerRepository::findRememberedCategoryForDescription,
-                infer = { context, assignable ->
-                    layaInferenceLifecycle.suggest(context, assignable)
-                },
+        // The classification is asked for through the application's one command boundary.
+        // The boundary decides whether the model is asked at all, composes the effective
+        // context of THIS draft, and stores the prediction against the state it was made
+        // in. The screen only shows what came back.
+        val outcome = try {
+            commandService.requestClassification(
+                scope = WorkflowCallerScope.User,
+                request = ClassificationRequest(
+                    idempotencyKey = reviewClassificationRequestKey(
+                        draftId = draft.id,
+                        formIdentity = System.identityHashCode(draftFormIdentity),
+                        revision = suggestionRevision,
+                        description = description,
+                        categories = requestCategories,
+                    ),
+                    draftId = draft.id,
+                    description = description,
+                    expectedReviewRevision = draft.reviewRevision,
+                ),
             )
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            val currentCategories = queryService.categoryCatalog()
             suggestionMachine.unavailable(
                 token = token,
                 currentIntent = latestSuggestionIntent,
-                currentCategories = currentCategories,
+                currentCategories = queryService.categoryCatalog(),
                 observedCategories = latestObservedCategories,
                 reason = UnavailableReason.FAILED,
             )
@@ -506,77 +499,60 @@ private fun DraftDetailContent(
         }
         val currentCategories = queryService.categoryCatalog()
         val observedCategories = latestObservedCategories
-        val outcome = when (decision) {
-            is ManualCategoryDecision.Remembered -> {
-                suggestionMachine.completeRemembered(
+        val change = when (outcome) {
+            is WorkflowCommandOutcome.Applied -> outcome.change
+            is WorkflowCommandOutcome.NoChange -> outcome.change
+            else -> null
+        }
+        if (change !is WorkflowChange.Classified) {
+            suggestionMachine.unavailable(
+                token = token,
+                currentIntent = latestSuggestionIntent,
+                currentCategories = currentCategories,
+                observedCategories = observedCategories,
+                reason = when (outcome) {
+                    is WorkflowCommandOutcome.Cancelled -> UnavailableReason.SUPERSEDED
+                    else -> UnavailableReason.FAILED
+                },
+            )
+            return@LaunchedEffect
+        }
+        if (change.source == PredictionSource.REMEMBERED_RULE) {
+            // A saved exact-description rule answered; the model was never asked.
+            val remembered = currentCategories.firstOrNull { it.id == change.suggestedCategoryId }
+            if (remembered == null) {
+                suggestionMachine.unavailable(
                     token = token,
                     currentIntent = latestSuggestionIntent,
                     currentCategories = currentCategories,
                     observedCategories = observedCategories,
-                    category = decision.category,
-                )
-                recordPrediction(
-                    classificationSnapshotRepository = classificationSnapshotRepository,
-                    effective = effective,
-                    prediction = ClassificationPrediction(
-                        source = PredictionSource.REMEMBERED_RULE,
-                        suggestedCategoryId = decision.category.id,
-                        candidateIds = emptyList(),
-                        probabilities = emptyList(),
-                        unknownShare = null,
-                        confidence = null,
-                        effectiveInputDigest = effectiveInputDigest(description),
-                    ),
+                    reason = UnavailableReason.FAILED,
                 )
                 return@LaunchedEffect
             }
-            is ManualCategoryDecision.Inferred -> decision.outcome
+            suggestionMachine.completeRemembered(
+                token = token,
+                currentIntent = latestSuggestionIntent,
+                currentCategories = currentCategories,
+                observedCategories = observedCategories,
+                category = remembered,
+            )
+            return@LaunchedEffect
         }
-        when (outcome) {
-            is LayaInferenceOutcome.Completed -> {
-                recordPrediction(
-                    classificationSnapshotRepository = classificationSnapshotRepository,
-                    effective = effective,
-                    prediction = outcome.value.classificationPrediction(),
-                )
-                suggestionMachine.complete(
-                    token = token,
-                    currentIntent = latestSuggestionIntent,
-                    currentCategories = currentCategories,
-                    observedCategories = observedCategories,
-                    resolution = io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner.resolveCurrent(
-                        outcome.value.decision,
-                        currentCategories,
-                    ),
-                )
-            }
-            is LayaInferenceOutcome.Unavailable -> suggestionMachine.unavailable(
-                token = token,
-                currentIntent = latestSuggestionIntent,
-                currentCategories = currentCategories,
-                observedCategories = observedCategories,
-                reason = when (outcome.state) {
-                    LayaRuntimeContract.State.Missing -> UnavailableReason.MISSING
-                    is LayaRuntimeContract.State.CorruptOrIncompatible ->
-                        UnavailableReason.INCOMPATIBLE
-                    LayaRuntimeContract.State.Ready -> UnavailableReason.FAILED
-                },
-            )
-            LayaInferenceOutcome.Superseded -> suggestionMachine.unavailable(
-                token = token,
-                currentIntent = latestSuggestionIntent,
-                currentCategories = currentCategories,
-                observedCategories = observedCategories,
-                reason = UnavailableReason.SUPERSEDED,
-            )
-            LayaInferenceOutcome.Closed -> suggestionMachine.unavailable(
-                token = token,
-                currentIntent = latestSuggestionIntent,
-                currentCategories = currentCategories,
-                observedCategories = observedCategories,
-                reason = UnavailableReason.CLOSED,
-            )
+        val decision = change.decision
+        if (decision == null) {
+            // The request was already made under this key, so its stored prediction is the
+            // answer and no new decision was produced to show.
+            suggestionMachine.reset()
+            return@LaunchedEffect
         }
+        suggestionMachine.complete(
+            token = token,
+            currentIntent = latestSuggestionIntent,
+            currentCategories = currentCategories,
+            observedCategories = observedCategories,
+            resolution = LayaCandidatePlanner.resolveCurrent(decision.decision, currentCategories),
+        )
     }
     val edits = BankDraftReviewEdits(
         amountText = amountText,
@@ -1038,27 +1014,6 @@ private fun DraftDetailContent(
  */
 internal fun isBankDraftSuggestionPanelVisible(state: ManualCategorySuggestionState): Boolean =
     state != ManualCategorySuggestionState.Idle
-
-/**
- * Stores the prediction one suggestion produced, against the state it was made in.
- *
- * The storage layer refuses a prediction that arrives after the context moved on, and one
- * whose draft already carries the user's own category choice. Nothing here writes the draft:
- * a prediction is review-only evidence, and the bank fields and the user's choice stay as
- * they are.
- */
-private suspend fun recordPrediction(
-    classificationSnapshotRepository: ClassificationSnapshotRepository,
-    effective: EffectiveDraftContext?,
-    prediction: ClassificationPrediction,
-) {
-    val context = effective ?: return
-    classificationSnapshotRepository.recordPrediction(
-        draftId = context.draftId,
-        prediction = prediction,
-        expected = context.dependencies,
-    )
-}
 
 @Composable
 private fun DraftSuggestionPanel(

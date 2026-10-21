@@ -73,9 +73,9 @@ class NoteEventContextTest {
             val fuelDraft = storeDraft(database, "fuel-key", 50_000L)
             val snackDraft = storeDraft(database, "snack-key", 20_000L)
 
-            assertTrue(events(database).proposeLink(fuelEvent.id, fuelDraft, "same day fuel") is ContextLinkResult.Linked)
+            assertTrue(events(database).proposeLink(fuelEvent.id, fuelDraft) is ContextLinkResult.Linked)
             assertTrue(events(database).acceptLink(fuelEvent.id, fuelDraft, 0, "USER_ACCEPTED") is ContextLinkResult.Linked)
-            assertTrue(events(database).proposeLink(snackEvent.id, snackDraft, "snack minutes later") is ContextLinkResult.Linked)
+            assertTrue(events(database).proposeLink(snackEvent.id, snackDraft) is ContextLinkResult.Linked)
             assertTrue(events(database).acceptLink(snackEvent.id, snackDraft, 0, "USER_ACCEPTED") is ContextLinkResult.Linked)
 
             val fuelLinks = events(database).linksForEvent(fuelEvent.id)
@@ -106,7 +106,7 @@ class NoteEventContextTest {
         val captureId = captures(database).saveQuickCapture(NOTE_TEXT)
         val fuelEvent = storeFuelEvent(database, captureId)
         val draftId = storeDraft(database, "fuel-key", 50_000L)
-        assertTrue(events(database).proposeLink(fuelEvent.id, draftId, "candidate") is ContextLinkResult.Linked)
+        assertTrue(events(database).proposeLink(fuelEvent.id, draftId) is ContextLinkResult.Linked)
         assertTrue(events(database).rejectLink(fuelEvent.id, draftId, 0, "USER_REJECTED") is ContextLinkResult.Linked)
 
         val refused = events(database).linksForEvent(fuelEvent.id).single()

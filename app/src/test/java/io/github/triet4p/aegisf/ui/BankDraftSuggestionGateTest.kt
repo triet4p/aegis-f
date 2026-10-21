@@ -6,7 +6,9 @@ import io.github.triet4p.aegisf.data.IntakeDirection
 import io.github.triet4p.aegisf.data.IntakeFieldState
 import io.github.triet4p.aegisf.data.IntakeParseStatus
 import io.github.triet4p.aegisf.data.IntakeReviewStatus
+import io.github.triet4p.aegisf.data.ManualCategoryDecision
 import io.github.triet4p.aegisf.data.PendingBankDraftEntity
+import io.github.triet4p.aegisf.data.decideRememberedBeforeInference
 import io.github.triet4p.aegisf.data.isBlockedForSuggestionSafety
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals

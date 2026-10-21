@@ -129,8 +129,12 @@ sealed interface ContextLinkResult {
  *   the database's own unique index.
  * - A user-accepted link is a user choice: a later extraction may not silently replace the
  *   reading behind it.
+ *
+ * The class is internal: the readings and the links are written through the application's
+ * one command boundary, so a caller cannot store a reading or a link around the
+ * boundary's scope, idempotency, and revision rules.
  */
-class EventContextRepository(
+internal class EventContextRepository(
     private val database: LedgerDatabase,
     private val clock: LedgerClock = SystemLedgerClock,
 ) {
@@ -269,22 +273,26 @@ class EventContextRepository(
     /**
      * Proposes that one event describes one draft.
      *
+     * The proposal records the app's *own* evidence about the association: the facts the app
+     * can read from the stored reading and the stored draft, bound to the exact source,
+     * event, draft, and revisions they were read from. A caller cannot supply that evidence,
+     * so a proposal can never carry a reason that the app did not compute — and an
+     * association the app cannot prove stays ambiguous, which is the user's to resolve.
+     *
      * A refused pair stays refused and is reported as [ContextLinkResult.Rejected] without any
      * write, so a repeated proposal after a refusal changes nothing.
      */
     suspend fun proposeLink(
         eventId: Long,
         draftId: Long,
-        evidence: String? = null,
     ): ContextLinkResult = database.withTransaction {
         val event = eventDao.findById(eventId)
             ?: return@withTransaction ContextLinkResult.NotFound
         if (event.normalizedText == null) {
             return@withTransaction ContextLinkResult.EventUnavailable
         }
-        if (draftDao.findById(draftId) == null) {
-            return@withTransaction ContextLinkResult.DraftUnavailable
-        }
+        val draft = draftDao.findById(draftId)
+            ?: return@withTransaction ContextLinkResult.DraftUnavailable
         val existing = linkDao.findByPair(eventId, draftId)
         if (existing != null) {
             return@withTransaction when (existing.state) {
@@ -295,12 +303,13 @@ class EventContextRepository(
         if (linkDao.findActiveForEvent(eventId).isNotEmpty()) {
             return@withTransaction ContextLinkResult.MultipleDrafts
         }
+        val evidence = LinkEvidencePolicy(database).evidenceFor(event, draft)
         val linkId = linkDao.insert(
             ContextLinkEntity(
                 eventId = eventId,
                 draftId = draftId,
                 state = ContextLinkState.PROPOSED,
-                evidence = evidence?.trim()?.takeIf { it.isNotEmpty() },
+                evidence = evidence.canonical,
                 revision = 0,
                 userOverride = null,
                 activeEventId = eventId,

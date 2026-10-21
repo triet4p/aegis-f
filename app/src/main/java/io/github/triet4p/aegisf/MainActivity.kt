@@ -36,9 +36,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.triet4p.aegisf.data.BankDraftReviewRepository
-import io.github.triet4p.aegisf.data.ClassificationSnapshotRepository
 import io.github.triet4p.aegisf.data.LedgerRepository
 import io.github.triet4p.aegisf.data.NotificationAccessStore
+import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.notification.BankNotificationListener
 import io.github.triet4p.aegisf.notification.isNotificationAccessGranted
@@ -99,8 +99,8 @@ class MainActivity : ComponentActivity() {
         (application as AegisApplication).container.bankDraftReviewRepository
     }
 
-    private val classificationSnapshotRepository: ClassificationSnapshotRepository by lazy {
-        (application as AegisApplication).container.classificationSnapshotRepository
+    private val workflowCommandService: WorkflowCommandService by lazy {
+        (application as AegisApplication).container.workflowCommandService
     }
 
     override fun onResume() {
@@ -153,9 +153,7 @@ class MainActivity : ComponentActivity() {
                     LaunchDestination.BankDraftInbox -> BankDraftReviewScreen(
                         queryService = workflowQueryService,
                         reviewRepository = bankDraftReviewRepository,
-                        ledgerRepository = ledgerRepository,
-                        layaInferenceLifecycle = layaInferenceLifecycle,
-                        classificationSnapshotRepository = classificationSnapshotRepository,
+                        commandService = workflowCommandService,
                         draftId = null,
                         onSelectDraft = { id -> destination = LaunchDestination.BankDraftDetail(id) },
                         onNavigateUp = { destination = LaunchDestination.Home },
@@ -164,9 +162,7 @@ class MainActivity : ComponentActivity() {
                     is LaunchDestination.BankDraftDetail -> BankDraftReviewScreen(
                         queryService = workflowQueryService,
                         reviewRepository = bankDraftReviewRepository,
-                        ledgerRepository = ledgerRepository,
-                        layaInferenceLifecycle = layaInferenceLifecycle,
-                        classificationSnapshotRepository = classificationSnapshotRepository,
+                        commandService = workflowCommandService,
                         draftId = current.draftId,
                         onSelectDraft = { id -> destination = LaunchDestination.BankDraftDetail(id) },
                         onNavigateUp = { destination = LaunchDestination.BankDraftInbox },

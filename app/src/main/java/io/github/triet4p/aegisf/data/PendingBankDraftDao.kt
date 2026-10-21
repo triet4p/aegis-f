@@ -155,6 +155,31 @@ abstract class PendingBankDraftDao {
     abstract fun observeCountByStatus(reviewStatus: String?): Flow<Int>
 
     /**
+     * How many stored drafts state this amount on this calendar day.
+     *
+     * The count is the app's own answer to "is there exactly one draft these facts allow",
+     * and it is what keeps an association that two drafts could equally describe from being
+     * treated as proven. The count includes the named draft itself.
+     */
+    @Query(
+        "SELECT COUNT(*) FROM `pending_bank_drafts` " +
+            "WHERE `amountVnd` = :amountVnd AND `statedDate` = :statedDate",
+    )
+    abstract suspend fun countWithAmountAndDate(amountVnd: Long, statedDate: String): Int
+
+    /**
+     * How many stored drafts are an uncertain duplicate of this one.
+     *
+     * A possible duplicate is an uncertain identity: both rows are kept and the user
+     * decides which one the reading describes, so a draft with such a partner is never a
+     * candidate the app may attach by itself.
+     */
+    @Query(
+        "SELECT COUNT(*) FROM `pending_bank_drafts` WHERE `possibleDuplicateOfDraftId` = :draftId",
+    )
+    abstract suspend fun countPossibleDuplicatesOf(draftId: Long): Int
+
+    /**
      * The drafts that share their evidence with the given ones: the earlier drafts they
      * point at, and the later drafts that point at them.
      *

@@ -38,6 +38,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         NoteEventEntity::class,
         ContextLinkEntity::class,
         ClassificationSnapshotEntity::class,
+        WorkflowOperationEntity::class,
     ],
     version = LedgerDatabase.VERSION,
     exportSchema = true,
@@ -69,8 +70,11 @@ abstract class LedgerDatabase : RoomDatabase() {
     /** The stored predictions about pending drafts, with the dependencies they were made against. */
     abstract fun classificationSnapshotDao(): ClassificationSnapshotDao
 
+    /** The durable record of the preparation commands and their idempotency keys. */
+    abstract fun workflowOperationDao(): WorkflowOperationDao
+
     companion object {
-        const val VERSION = 9
+        const val VERSION = 10
 
         /** File name of the on-device database. */
         const val NAME = "aegis-ledger.db"
@@ -493,6 +497,56 @@ abstract class LedgerDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Version 9 to 10: add the durable record of the preparation commands.
+         *
+         * The new table starts empty, because version 9 recorded no command: an
+         * idempotency key, a caller scope, and a structured outcome are what this table
+         * holds, and version 9 had nowhere to keep them. Nothing that version 9 already
+         * held is rewritten: the captures, the event readings, the links, the bank drafts,
+         * the categories, the rules, the ledger records, and the stored predictions keep
+         * their rows, ids, and values, and the confirmed totals computed from them are
+         * unchanged by the upgrade.
+         *
+         * The unique index on the idempotency key is what makes a repeated request a
+         * no-change rather than a second effect, and it is created with the table so the
+         * upgrade cannot leave a table that accepts a duplicate key.
+         *
+         * The row is also the durable claim of a request that is still running: the owner
+         * token names the attempt that holds the key, and the lease says when a claim whose
+         * attempt is gone may be taken over. Both are null for a request that finished.
+         */
+        val MIGRATION_9_10: Migration = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `workflow_operations` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`idempotencyKey` TEXT NOT NULL, " +
+                        "`scopeId` TEXT NOT NULL, " +
+                        "`command` TEXT NOT NULL, " +
+                        "`payloadDigest` TEXT NOT NULL, " +
+                        "`outcome` TEXT NOT NULL, " +
+                        "`changeSummary` TEXT, " +
+                        "`ownerToken` TEXT, " +
+                        "`leaseExpiresAtEpochMillis` INTEGER, " +
+                        "`createdAtEpochMillis` INTEGER NOT NULL)",
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                        "`index_workflow_operations_idempotencyKey` " +
+                        "ON `workflow_operations` (`idempotencyKey`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_workflow_operations_createdAtEpochMillis` " +
+                        "ON `workflow_operations` (`createdAtEpochMillis`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_workflow_operations_command` " +
+                        "ON `workflow_operations` (`command`)",
+                )
+            }
+        }
+
         /** Builds the production database on the app's real file directory. */
         fun build(context: Context): LedgerDatabase =
             Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, NAME)
@@ -505,6 +559,7 @@ abstract class LedgerDatabase : RoomDatabase() {
                     MIGRATION_6_7,
                     MIGRATION_7_8,
                     MIGRATION_8_9,
+                    MIGRATION_9_10,
                 )
                 .build()
 

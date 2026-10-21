@@ -6,7 +6,6 @@ import androidx.compose.runtime.setValue
 import io.github.triet4p.aegisf.data.CategoryEntity
 import io.github.triet4p.aegisf.data.TransactionType
 import io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner
-import io.github.triet4p.aegisf.data.laya.LayaEffectiveContext
 
 /** One form's decision context; changing any part invalidates its pending result. */
 internal data class ManualSuggestionIntent(
@@ -21,11 +20,6 @@ internal data class ManualSuggestionRequest(
     val categories: List<CategoryEntity>,
 )
 
-internal sealed interface ManualCategoryDecision<out T> {
-    data class Remembered(val category: CategoryEntity) : ManualCategoryDecision<Nothing>
-    data class Inferred<T>(val outcome: T) : ManualCategoryDecision<T>
-}
-
 /**
  * The message shown when a request could not be asked of the model because its effective
  * input does not fit the model's actual input budget.
@@ -38,34 +32,6 @@ internal fun effectiveInputOverBudgetMessage(): String =
     "This description is longer than the model's input budget allows, so no suggestion was " +
         "made and the model was not asked. Shorten the description to ask again; your " +
         "category choice and the other fields stay unchanged."
-
-/**
- * A valid saved rule short-circuits inference; a stale/inactive rule cannot become a choice.
- *
- * The saved rule is looked up by the request's own description — the text the user is looking
- * at — and never by the composed effective context: a rule is remembered for one exact
- * description, so appending stored readings to it would make the rule unreachable and would
- * count the same rule twice. The rule therefore answers before the model runs, and the model
- * never sees the rule as a correction.
- */
-internal suspend fun <T> decideRememberedBeforeInference(
-    description: String,
-    context: LayaEffectiveContext,
-    activeCategories: List<CategoryEntity>,
-    findRememberedCategory: suspend (String) -> CategoryEntity?,
-    infer: suspend (LayaEffectiveContext, List<CategoryEntity>) -> T,
-): ManualCategoryDecision<T> {
-    val remembered = findRememberedCategory(description)
-    val current = remembered?.let { rule ->
-        activeCategories.firstOrNull { it.id == rule.id && !it.archived }
-    }
-    return if (current != null) {
-        ManualCategoryDecision.Remembered(current)
-    } else {
-        ManualCategoryDecision.Inferred(infer(context, activeCategories))
-    }
-}
-
 
 internal sealed interface ManualCategorySuggestionState {
     data object Idle : ManualCategorySuggestionState
