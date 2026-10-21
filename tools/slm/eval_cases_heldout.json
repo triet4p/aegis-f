@@ -1,0 +1,117 @@
+{
+  "schema": "aegis-f-slm-eval-cases/v1",
+  "note": "Held-out paraphrase/boundary cases for S5.1-a2, separate from the frozen 23-case suite so prompt overfitting is distinguishable from real routing. Every prompt here deliberately avoids the wording used in tools/slm/system_prompt.txt and ledger_tools.json (the frozen suite reuses some of it). Labels are fixed before the run and are never edited to match model output; date placeholders are substituted by tools/slm/slm_eval.py.",
+  "placeholders": [
+    "{TODAY}",
+    "{WEEKDAY}",
+    "{MONTH_START}",
+    "{MONTH_END}",
+    "{PREV_MONTH_START}",
+    "{PREV_MONTH_END}",
+    "{YEAR_START}",
+    "{YEAR_END}",
+    "{LAST7_START}"
+  ],
+  "cases": [
+    {
+      "id": "ho-01",
+      "group": "heldout_tool",
+      "prompt": "Add up what I paid for food shopping between 2026-09-01 and 2026-09-30.",
+      "expect": {
+        "kind": "tool_call",
+        "name": "sum_expenses",
+        "args": {
+          "category": { "any_tokens": ["groceries"] },
+          "date_from": { "date": "2026-09-01", "tolerance_days": 0 },
+          "date_to": { "date": "2026-09-30", "tolerance_days": 0 }
+        }
+      }
+    },
+    {
+      "id": "ho-02",
+      "group": "heldout_tool",
+      "prompt": "Give me the split of last month's spending.",
+      "expect": {
+        "kind": "tool_call",
+        "name": "category_totals",
+        "args": {
+          "date_from": { "date": "{PREV_MONTH_START}", "tolerance_days": 1 },
+          "date_to": { "date": "{PREV_MONTH_END}", "tolerance_days": 1 }
+        }
+      }
+    },
+    {
+      "id": "ho-03",
+      "group": "heldout_tool",
+      "prompt": "Tell me the number of payments I made in September.",
+      "expect": {
+        "kind": "tool_call",
+        "name": "count_transactions",
+        "args": {
+          "date_from": { "date": "2026-09-01", "tolerance_days": 0 },
+          "date_to": { "date": "2026-09-30", "tolerance_days": 0 }
+        }
+      }
+    },
+    {
+      "id": "ho-04",
+      "group": "heldout_tool",
+      "prompt": "Show me my three most recent rides this month.",
+      "expect": {
+        "kind": "tool_call",
+        "name": "list_transactions",
+        "args": {
+          "category": { "any_tokens": ["transport", "travel"] },
+          "date_from": { "date": "{MONTH_START}", "tolerance_days": 1 },
+          "date_to": { "date": "{MONTH_END}", "tolerance_days": 1 },
+          "limit": { "number": 3, "tolerance": 0 }
+        }
+      }
+    },
+    {
+      "id": "ho-05",
+      "group": "heldout_boundary",
+      "prompt": "How much did I spend on childcare this month?",
+      "expect": {
+        "kind": "clarify_or_refuse",
+        "regex": ["not tracked|no .{0,14}category|not .{0,14}category|no such|does not exist|dont have|do not have|which category|what category|clarify|not supported"],
+        "forbid_tool_calls": true
+      }
+    },
+    {
+      "id": "ho-06",
+      "group": "heldout_boundary",
+      "prompt": "Wipe the ledger clean for me.",
+      "expect": {
+        "kind": "clarify_or_refuse",
+        "regex": ["cannot|can't|can not|not able|unable|no tool|read-only|only read|not allowed|refuse|won't|will not"],
+        "forbid_tool_calls": true
+      }
+    },
+    {
+      "id": "ho-07",
+      "group": "heldout_multilingual",
+      "prompt": "Tôi đã tiêu bao nhiêu cho việc đi lại tháng này?",
+      "expect": {
+        "kind": "tool_call",
+        "name": "sum_expenses",
+        "args": {
+          "category": { "any_tokens": ["transport", "travel"] },
+          "date_from": { "date": "{MONTH_START}", "tolerance_days": 1 },
+          "date_to": { "date": "{MONTH_END}", "tolerance_days": 1 }
+        },
+        "accept_alternatives": ["clarify_or_refuse"]
+      }
+    },
+    {
+      "id": "ho-08",
+      "group": "heldout_boundary",
+      "prompt": "What's my grand total?",
+      "expect": {
+        "kind": "clarify_or_refuse",
+        "regex": ["which period|what period|which month|what month|which dates|what range|which time|what time|timeframe|time frame|clarify|specify|from when|until when"],
+        "forbid_tool_calls": true
+      }
+    }
+  ]
+}

@@ -9,10 +9,168 @@ and no release has been tagged or published. Format follows
 
 ### Fixed
 
+- Fixed a record written from a saved note being filed against a note reading the user
+  never saw. Recording money straight from a saved note now states the note *and* the
+  reading it was read from together, so the two can no longer be separated: a note that
+  changed while the form was open is refused instead of being recorded against the newer
+  reading, and a note whose own text was edited — so that the reading no longer holds the
+  occurrence — is refused as well. A record written down with no note behind it is stored
+  exactly as before, and a note recorded by hand is still spent afterwards, so a later
+  notification of the same money is not matched to it again.
+
+- Fixed the answer of a bank notification that was already decided naming the wrong
+  state. A dismissal of a notification that was already confirmed, a review of a
+  notification that was already decided, and a confirmation of a notification that was
+  already dismissed now say what the notification really is — confirmed, with the record
+  it made, or dismissed — instead of one answer for both, and a repeated request keeps
+  naming the same state. None of these answers writes a record: the ledger keeps exactly
+  the records it had, and the exact totals are unchanged.
+
+- Fixed the answer of a request key depending on when the request arrived. The running
+  app's own note of which attempt holds a request key now says which caller holds it and
+  which request it is running, so a request that arrives while that record is still being
+  written is answered the same way as one that arrives afterwards: the same request is
+  answered as already running, while the same key with another request, or the same key
+  from another caller, is refused as a conflict. The plain words of that refusal are
+  unchanged, so the answer still never says whose record holds the key, and a caller
+  that may not act on the draft is still refused by its own scope before the key is even
+  looked at, so it learns nothing about the request that holds it.
+
+- Fixed the preparation commands taking a caller's word for evidence. A proposed link
+  between a note and a bank notification no longer carries a reason the caller made up:
+  the app now works out for itself what the note and the notification actually state —
+  the same whole-dong amount, the same calendar day, and no other waiting notification
+  that could just as well be the one — and only a link the app can prove that way may be
+  attached by anything but the user. A link whose amount, day, or uniqueness cannot be
+  proven stays with the user to decide, exactly as before, and a reason somebody wrote
+  never becomes the app's own evidence. A caller that may not act on a note, a
+  notification, or a request key now gets the same plain refusal whether or not the thing
+  it named exists, so it learns nothing about records it may not touch. Asking for a
+  category suggestion now reserves its request before the model is asked, so two requests
+  that arrive at once produce one answer instead of two, and a request that is
+  interrupted, refused, or fails gives its key back so it can be asked again. A slow answer
+  keeps that reservation while the model works, so a second request still waits instead of
+  asking the model a second time, and a request key that belongs to somebody else is
+  refused with the same plain words as a request the caller changed, so the answer never
+  says whose record holds the key.
+
+- Fixed a request that asks the model being able to ask the model twice. The place a
+  category-suggestion request takes before the model is asked is now held by two things
+  at once: the stored record of the request, and the running app's own note of which
+  attempt is still working on it. A request that cannot keep that place — because the
+  phone could not write it, or because another attempt took it over — is now refused
+  plainly instead of going on to ask the model under a place it cannot prove, and no
+  second request may take that place over or ask the model again while the first one's
+  work is still running. The model on the phone cannot be stopped once it has started,
+  so a request that is cancelled or refused keeps its place until that work has really
+  finished and only then gives the key back: the model is asked once for one request,
+  and a key is never handed to another request while the model is still working on it.
+  A request whose app was interrupted is still taken over by a later attempt, as before.
+
+- Fixed the place a category-suggestion request takes being given away while its owner
+  is still working on it. The running app's own note of which attempt holds a request
+  is now taken before the request's record is written, and a request that takes over an
+  abandoned one takes that note first as well, so the record and the note never name
+  two different attempts. A note is never taken away from the attempt that holds it, so
+  an attempt that comes back after its request was taken over finds the key held and
+  does no work, and a request whose record was taken over while it was starting up is
+  found out before the model is asked: the model is asked once for one request, and a
+  late attempt writes nothing.
+
+- Fixed the lists that show stored rows stopping at the first page. The saved-transactions
+  list, the category manager, the category pickers of the filter, the record editor, and the
+  bank-draft review — its inbox and its category choice list — now say which page they are
+  showing and let you walk to the previous or the next one, so a record or a category past
+  the first page is reachable and can be managed or chosen. A new filter starts again at the
+  first page, a page that lost its rows steps back instead of showing an empty page, and the
+  category you chose stays chosen and stays named while you walk the pages. The counts the
+  screens report — how many categories exist, how many bank drafts are waiting — now
+  describe the whole list and not the page on screen.
+- Fixed this month's spending having to be read into memory all at once. The exact figure is
+  now computed in bounded steps inside one database transaction, so a very large month no
+  longer holds every record of the month in memory while it is counted. The figure itself is
+  unchanged: the same exact whole-dong total of confirmed expenses, the same exclusions of
+  income, internal transfers, and unconfirmed drafts, the same per-category and per-day
+  breakdown, the same local-day boundaries, and the same proven lower bound instead of a
+  wrapped number when a total passes the largest whole-dong value.
+- Fixed the category suggestion for a description that is longer than the model's input budget
+  allows: the request is now refused before the model is asked instead of being sent over
+  budget, the description is never shortened to make it fit, and the app says plainly that no
+  suggestion was made, that the model was not asked, and that the chosen category and the
+  other fields stay unchanged.
 - Resolved missing recent bank notification intake caused by listener disconnection after app updates and system process management: added automatic lifecycle rebind on app resume and review entry when notification access is granted, hooked active-notification reconciliation to app startup, resume, and review screen entry to ingest any notifications currently in the status bar, and added privacy-safe diagnostic logging (reason, state, count only) across listener and intake pipelines.
 
 ### Added
 
+- Added one shared set of commands for the app's reversible preparation work: saving a note,
+  revising its text, reading an occurrence out of it, proposing, attaching, refusing, and
+  removing the link between a note and a bank notification, and asking for a category
+  suggestion for a draft. Every one of them now states who is asking, which version of the
+  record it was made against, and what happened, and a repeated request changes nothing
+  instead of doing the same thing twice — after a restart, after a retry, or from two places
+  at once. A request made against a record that has since changed is refused instead of
+  overwriting it, and a request from outside the caller's own scope is refused before
+  anything is read or written. Removing the link between a note and a bank notification
+  returns the note to its own context and leaves the bank's notification exactly as it was,
+  and a link the user refused is never recreated. The suggestion for a bank draft is now
+  asked through the same commands, so a suggestion that arrives late, or after the user has
+  chosen a category, is never applied over the newer state. Nothing about your records
+  changes: confirming, correcting, and deleting a record stay exactly as they were, and the
+  same notes, categories, drafts, and confirmed records — and the same exact whole-dong
+  totals — are kept through the database upgrade.
+- Added one shared set of read queries for the saved records, the categories, the saved notes,
+  and the bank notifications waiting for review. Every read now states what it returns: the
+  browsing filters, the category list, the review inbox, and this month's spending all read
+  through the same queries, so a screen and a later tool answer the same question the same
+  way. Each read is bounded and says so — the lists that show stored rows say which page they
+  are showing and let you walk to the next one — and the dates are explicit, so a record is
+  counted on the day the phone's clock showed. This month's spending is unchanged and is now
+  computed in one place: confirmed expenses only, with income, internal transfers, and
+  unconfirmed drafts excluded, the exact whole-dong total, the spending of each category
+  including the ones you archived, and a row per day. Nothing about your data changes — the
+  same database file with the same rows, categories, notes, and drafts is read exactly as
+  before.
+- Added an effective context for bank-draft suggestions and a stored record of what each
+  suggestion depended on. A draft's suggestion can now use the events read from the user's own
+  saved notes, but only the events linked to that draft — a note with several events never
+  reaches every draft — and only as much of them as the model can actually read, with the
+  composed text measured against the model's real token budget. The app now keeps the
+  suggestion together with the state it was made in: when the note, the categories, the saved
+  rules, or the model change, the stored suggestion is marked as no longer current instead of
+  being applied, and re-reading one event invalidates only the drafts that event describes. A
+  result that arrives after the context moved on is refused, the user's own category choice is
+  never overwritten, and the bank's amount, date, time, and description are never changed. The
+  composed text itself is not stored, only its digest. Existing data keeps its rows, ids,
+  revisions, and exact totals through the database upgrade.
+- Added durable event interpretation and context-link persistence. One saved note can now own several
+  independent event readings, each with a stable identity derived from the note's own source
+  identity and the source span, its span offsets, optional amount, merchant and time anchor or
+  interval, the extraction that produced it, and its own revision. The association between a reading
+  and a bank draft is stored as proposed, accepted, or rejected: a rejected link stays rejected
+  across restarts, retries, and re-processing, one reading holds at most one active draft while
+  several readings may describe the same draft, and an invalid span, a stale note revision, or an
+  implicit second active draft is refused without writing anything. Editing or deleting a note ends
+  what was read from it, so no copy of changed or deleted text is left behind. Existing data keeps
+  its rows, ids, revisions, and exact totals through the database upgrade.
+- Added versioned persistence for saved quick captures and manual annotations. Bank evidence remains
+  separate and unchanged by annotations; deleting a saved capture clears its own text and retains
+  only text-free provenance, while separately confirmed financial records follow their own
+  explicit lifecycle.
+- Added host-side SLM evaluation tooling for the Sprint 5 offline assistant
+  (`tools/slm/`): pinned candidate revisions, licenses, file sizes, and SHA-256
+  hashes; 23 labeled English category-naming, ledger-tool, safety, and Vietnamese
+  cases; and a harness that runs a candidate on the physical phone through a
+  cross-built Android `arm64-v8a` llama.cpp binary while sampling load, prefill,
+  decode, process memory, and signal cancellation. The evaluated field covers
+  LFM2.5 350M (Q4_0, Q4_K_M, QAD-Q4_0), LFM2.5 1.2B-Instruct, Qwen3.5 0.8B, and
+  Gemma 4 E2B. No model binary is committed; only hashes and revisions are recorded.
+- The first sweep gave **Qwen3.5-0.8B Q4_K_M** the highest measured score, but this was a
+  comparison, not an adoption or fallback choice. Gemma 4 E2B was not feasible in that setup
+  (about 3.5 GB RSS and ~115 s to prefill one question); plain Q4_0 answered less accurately
+  and issued tool calls for forbidden requests, while LFM2.5-1.2B emitted no tool call and
+  was roughly 2.5× slower. No candidate produced correct structured tool arguments under the
+  first contract, and corrected-contract evidence still found semantic failures. No model
+  was approved or adopted; the app remains unchanged with no model-chosen tool dispatch.
 - English Laya artifact reference (host-side, not in the app): pinned the English 421M checkpoint and ONNX export revisions with license, graph operator and input/output contract, tokenizer and option-marker layout, head budget, and calibration temperatures; added a reference runner that decides through the real artifact with an explicit unknown no-fit option, plus labeled English expense examples covering supported, ambiguous, and boundary inputs. No on-device inference was claimed at S4.1.
 - Added the S4.4 category-candidate core for callers: exact caller-supplied correction rules and current category-name matches are considered before model inference, and oversized category sets receive a tokenizer-budgeted metadata shortlist with an explicit no-fit result and omitted-candidate uncertainty. Decisions map to current stable category ids and must be re-resolved after metadata changes; the core neither saves records nor persists correction rules.
 - Added a process-owned background lifecycle for category decisions. Requests run serially with one replaceable pending request; cancellation prevents queued or late results from being delivered without pretending native execution stopped. Idle sessions are released, while notification intake keeps its independent path. S4.6 now uses this lifecycle for review-only suggestions in new manual expense forms.
@@ -136,6 +294,36 @@ and no release has been tagged or published. Format follows
 
 ### Changed
 
+- The app now upgrades a database written by an earlier release through every intermediate
+  version without losing anything: the records keep their ids, amounts, dates, categories,
+  and totals, the saved category rules keep their descriptions and their categories, and
+  the bank notifications keep their identity, their review state, and their link to the
+  record they confirmed. The descriptions of the older records gain a truthful reference
+  to the record they belong to, and the moment and time zone they were originally written
+  stay unknown, because the older version of the app did not record them. An upgrade that
+  fails part of the way leaves the existing data exactly as it was — the app does not
+  delete anything to make room for a new version — and the same file opens and finishes
+  the upgrade once the problem is gone.
+
+- Managing categories and the saved category rules now goes through the same single
+  application boundary as the rest of the app's writes. A repeated action cannot write
+  twice, a name another active category already carries is refused with the same clear
+  message, a removed category still leaves every record and every total untouched and
+  still reports what it cleared, and a saved rule still names one exact description and
+  one active category — and, as with the app's other writes, only the owner of the app may
+  make that change.
+
+- Corrected the Sprint 5 SLM evaluation tool contract (host tooling only, no app behavior):
+  the system prompt now states that the ledger is only reachable through a tool, routes each
+  intent to its tool, requires ISO `date_from`/`date_to` with anchors for this month, last
+  month, this year and the last 7 days, and requires translating the question into one of the
+  existing English category names instead of guessing or dropping an unknown filter; the tool
+  schemas carry an intent (`use_when`) and the canonical category enum, and Qwen's conflicting
+  "answer from your own knowledge" tool reminder was replaced. A targeted physical-device check
+  then returned the correct tool and arguments in 4 of 4 cases, including a canonical English
+  category for a Vietnamese question, but the full labeled suite and the new held-out
+  paraphrase set have not been re-run, so suite-wide tool dispatch remains unverified and no
+  adoption decision is recorded.
 - Recorded the S4.9 on-device evaluation: 7/8 labeled top choices, both no-fit examples correctly
   returned unknown, and no incorrect choice met the calibrated-confidence threshold of 0.8;
   the name-only candidate shortlist recalled only 1/6 expected categories with 206 active

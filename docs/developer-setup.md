@@ -690,6 +690,47 @@ through the existing Python ONNX Runtime tool. S4.9 separately proves ARM64 Andr
 and process-level main-looper response for its synthetic evaluation, not Compose typing or a
 real notification-draft UI path; the final user-experience gate remains separate.
 
+### Legacy S5.1 SLM evaluation (partial, paused, unapproved)
+
+The original Sprint 5 explored a small generative model for category naming and bounded
+ledger Q&A. That research was separate from the accepted replacement Sprint 5 and changed
+no app behavior. The benchmark remains partial, paused, and unapproved; no model was
+adopted. Do not resume the historical evaluation without explicit project authorization.
+The evaluation tooling and frozen input contract are documented in
+[`tools/slm/`](../tools/slm/README.md); its device-run procedure is for explicitly authorized future work only.
+
+```powershell
+python tools/slm/slm_eval.py --binary <llama.cpp-build>/bin/llama-completion `
+  --model <candidate>.gguf --family lfm2.5|qwen3.5|gemma4 --label <label> --attempt S5.1-a2 `
+  --out artifacts/sprint-5/workers/<report>.json --today 2026-10-19
+```
+
+after cross-building `llama-completion` for Android `arm64-v8a` with NDK r28c and
+KleidiAI (`tools/slm/README.md` has the exact configure line). The harness pushes the
+runner, the GGUF, and an on-device sampling script to `/data/local/tmp/slm/`, then runs
+one process per case while sampling the process private memory; it never touches the app,
+its data, or system settings.
+
+Measured on this phone (23 labeled English/Vietnamese cases each, one fresh process per
+case, `temp 0.1`, `top-k 50`, `repeat-penalty 1.05`, 4 threads):
+
+- **Qwen3.5-0.8B Q4_K_M remains the strongest earlier candidate, not an adoption choice.** Its first-sweep measures were 508 MB, 815 MB sampled peak RSS, ~24 tok/s prefill, ~10 tok/s decode, and ~0.35 s cancellation. The corrected-contract a3 runs expose meaningful tool/filter and clarification failures, so Qwen is not approved for S5.2.
+- **LFM2.5-350M-Q4_K_M:** a smaller/higher-speed comparison (219 MB, 307 MB peak, ~50 tok/s prefill, 9/23); not an approved fallback.
+- **Rejected:** Gemma 4 E2B (3.5 GB peak RSS and ~115 s prefill for one question — beyond
+  what this phone can hold alongside the app), plain Q4_0 and QAD-Q4_0 for the 350M
+  (worst answers, and they emit tool calls for forbidden cases), LFM2.5-1.2B (no tool call
+  at all, 2.5× slower), and "LFM2.5-700M" (no such checkpoint exists; 700M is the older
+  LFM2 generation).
+- **Corrected-contract blocker:** the complete a3 frozen suite scored 18/23 (6/7 naming, 4/6 ledger, 5/6 safety, 3/4 multilingual); held out scored 6/8. Exact tool + required-argument correctness was 5/7 and 4/5. `tl-04` chose a sum instead of a bounded list; `tl-05`/`ho-08` guessed a period; `tl-11` summed expenses for a transfer; `ml-02` omitted a category; `ho-04` omitted a ride category and set `type=transfer`; `cn-07` guessed a category instead of clarifying. `tl-07` and `ho-05` are false-positive frozen grades with the semantic defects recorded in the a3 artifact. Do not treat grammar or overall scores as semantic discrimination. No model has been demonstrated to meet the required behavior; alternatives were not re-evaluated under the corrected contract, so there is no justified adoption.
+- Fresh-process prompt cost was about 1,846–1,848 tokens; median prefill was 23.45 tok/s (frozen) and 18.91 tok/s (held out), with 8.86/7.82 tok/s decode. Keep warm-session performance distinct from these per-question fresh-process measurements.
+- The pre-fix a3 peak-HWM fields included stale CSV rows from earlier runs. After isolating current windows, fresh-case HWM was 698–724 MB. The sampling bug is fixed; the post-fix one-case physical smoke recorded a 680,744 kB load-probe peak, 724,424 kB case peak, and SIGINT exit 130 in 350 ms.
+
+Exact candidate revisions, licenses, and hashes are in
+[`tools/slm/PROVENANCE.md`](../tools/slm/PROVENANCE.md). The historical machine reports,
+raw device samples, and per-case outputs remain preserved locally under
+`artifacts/sprint-5/workers/` but are not versioned. Records with unique device identifiers
+or home-path details are likewise retained locally. These artifacts do not change the
+benchmark's partial, paused, unapproved status or authorize model adoption or further runs.
 
 ## 8. Update path and troubleshooting
 

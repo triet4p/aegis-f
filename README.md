@@ -222,11 +222,14 @@ The following capabilities are not available yet:
 - **No multi-currency, receipt OCR, voice input, or shared accounts**, and no published release: the
   APK is built and installed privately by its owner.
 
-Planned work (real-bank device verification of the notification intake; the on-device
-category-suggestion evaluation is complete, with the final real-user experience/adoption
-decision still pending; new-category suggestions and bounded ledger Q&A, then a personal
-daily-use release)
-is described in [docs/PLAN.md](docs/PLAN.md).
+Planned work (real-bank device verification; the four-screen workflow and persistent quick
+capture; proactive Laya review; evidence-backed offline model/tool research; multi-event note
+orchestration; recovery and personal daily-use delivery) is described in [docs/PLAN.md](docs/PLAN.md).
+
+The legacy Sprint 5 SLM benchmark remains partial, paused, and unapproved; no model was adopted.
+Its generated run reports and raw device outputs are preserved locally but are not versioned.
+The evaluation tooling, frozen inputs, and documented limitations are in
+[tools/slm/README.md](tools/slm/README.md).
 
 ## Your data
 

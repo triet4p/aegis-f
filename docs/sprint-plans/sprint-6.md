@@ -1,44 +1,44 @@
-# Sprint 6 — Backup, Privacy, and Personal Daily-Use Release
+# Sprint 6 — Four-Screen Daily Workflow and Quick Capture
 
 ## Sprint Goal
 
-Deliver a privately signed APK whose complete manual, notification, and AI workflows are verified on the user's phone, with safe recovery and upgrade behavior.
+Make the existing ledger and AI value easy to reach through Dashboard, Chat / Quick Capture, Review Notifications and Manual. Deliver useful persistent capture and review without requiring a generative model.
 
 ## Status and Dependencies
 
-- Status: Pending.
-- Dependencies: Sprints 1–5 completed, including real bank intake and actual on-device inference evidence.
-- Workflow: **Lightweight** with a final cross-feature review. Release acceptance requires physical-device recovery/update/daily-use scenarios and a reviewed local release commit. Signing keys stay outside Git; no automatic push or store publication.
-- Status legend: `[ ]` pending / `[~]` in progress / `[x]` done.
+- Status: Planned. This replaces the old Sprint 6 release plan; every recovery/signing/privacy obligation moves to [Sprint 10](sprint-10.md), not out of scope.
+- Dependencies: Sprint 5 migrated data and shared command/query boundaries.
+- Workflow: **Light**; mandatory independent evidence-reviewer gate per **S6.1–S6.8**, then assigned end-of-sprint differential review. No automatic checkpoint or commit/push permission. Fresh role authority required.
+- Worker/reviewer direct ADB checks authorized; one consolidated final user pass at sprint end. Evidence root: `artifacts/sprint-6/`.
 
 ## Acceptance Criteria
 
-- Versioned local backup/restore preserves categories, transactions, draft/review state, correction rules, stable IDs, timestamps, and exact VND totals; model weights and signing secrets are not backup contents.
-- Invalid/corrupt/unsupported backups cannot partially overwrite the live ledger. Restoring a replacement database requires explicit confirmation and preserves a recoverable pre-restore copy.
-- Ledger/assistant data is kept private by default, with no financial bodies in logs or cloud AI requests. Backup contents and any OS backup policy are disclosed rather than described as encrypted without evidence.
-- A stable privately signed release APK installs and updates over its prior release with the same package/key, preserving data and handling schema migration correctly.
-- The app remains manually usable without models/notification access and continues safe intake independently of foreground inference availability.
-- Full English/VND flows work on the actual phone; resource/lifecycle limitations are documented with measurements rather than inferred from model file sizes.
+- Exactly four primary destinations: Dashboard, Chat / Quick Capture, Review Notifications, Manual. Categories/models/settings and transaction details are secondary routes; back navigation preserves draft/input/filter state.
+- Dashboard shows exact confirmed-ledger cards, accessible charts and drill-downs for a chosen period. Drafts, transfers and income are not silently included in spending. Empty data and incomplete bank history are explicit.
+- Users can save a note without selecting or creating a transaction. The durable capture history supports editing, deleting under the provenance policy, manually splitting interpretations and attaching/unlinking context from review drafts.
+- Before agent delivery, Chat truthfully behaves as a quick-capture journal with manual actions, not a fake conversational model. Saving a note does not fabricate a ledger entry or claim automatic matching happened.
+- Review shows bank text and linked user excerpts distinctly, current Laya suggestions/confidence, missing fields and proposed changes. Manual entry and category selection stay fully usable with no models or notification permission.
+- Critical flows have clear progress/error/empty states, keyboard/inset support, readable money, accessible labels/touch targets and no color-only status distinctions.
 
 ## Ordered Atomic Tasks
 
-- [ ] **S6.1 — Implement versioned local backup export.** Use the Android file picker to export the complete app-owned financial state in a versioned format with exact integer money and reference integrity. Exclude raw OTP content, binaries, secrets, and transient inference/chat buffers. Warn that exported financial files are sensitive and unencrypted unless explicit encryption is implemented and verified.
-- [ ] **S6.2 — Implement validated atomic restore.** Parse/validate the entire file, schema version, record types, amount ranges, IDs, and references before replacing live data. Require replacement confirmation, preserve a pre-restore recovery copy, and reject invalid/unsupported input without partial writes or duplicate merges.
-- [ ] **S6.3 — Prove recovery and schema migration.** Restore an exported populated dataset into a separate clean app-data environment and compare exact records/totals/rules/draft states. Test an actual previous schema fixture against the release migration and verify both migration failure and corrupt restore preserve recoverability; do not merely reopen the original database.
-- [ ] **S6.4 — Complete the privacy and storage review.** Audit app permissions, allowed packages, intake filtering, logs, assistant inputs, model-download endpoints, and Android automatic-backup/data-extraction configuration. Keep financial databases private and exclude them from automatic cloud backup; manual user-selected export remains explicit. Verify no cloud inference or unrelated notification retention.
-- [ ] **S6.5 — Verify cross-feature lifecycle behavior.** Exercise screen lock, process recreation, notification-access revocation/regrant, missing/corrupt model, category changes during inference, and generation cancellation. Check persisted drafts survive and notification intake is not blocked by model loading/chat; document force-stop and OEM restrictions honestly.
-- [ ] **S6.6 — Validate device performance and storage.** Measure app cold launch, decision cold/warm latency, SLM load/first-token/decode behavior, peak PSS, and repeated-use heat/battery observations on the actual phone. Check model storage and low-space failures without ledger corruption; optimize demonstrated bottlenecks, not hypothetical benchmarks.
-- [ ] **S6.7 — Establish stable private release signing.** Generate or select a dedicated private signing key, store credentials outside the repository, document secure key backup, and produce a release APK through the CLI. Prove same-key release-to-release update preserves a populated ledger; do not uninstall the user's only data copy to bypass a signature mismatch.
-- [ ] **S6.8 — Complete the daily-use acceptance run.** On the phone, exercise English manual entry, category edits, real bank draft review, existing-category suggestions, new-category proposals, grounded Q&A, backup/recovery, and release update. Verify exact VND summaries against the known ledger and inspect actual UI/error states; resolve cross-feature regressions before release closure.
-- [ ] **S6.9 — Deliver private-use instructions and release evidence.** Document installing/updating the APK, granting/revoking access, supported bank formats, model provisioning, offline use, backup/restore, signing-key precautions, and measured limitations. Record concise acceptance evidence and release version; exclude raw financial data, temporary probes, weights, and credentials from the commit.
+- [ ] **S6.1 — Build the four-destination navigation shell.** First capture a reproducible seeded baseline of current manual/review taps/time before changing the UI. Reuse existing Compose design/navigation conventions; preserve detail routes, unsaved input, back behavior and process recreation. Provide clear primary labels and relevant review count. Acceptance: all four surfaces and existing category/settings/detail flows are reachable on the phone; switching/back does not silently discard input or duplicate saves.
+- [ ] **S6.2 — Deliver dashboard cards and scoped filters.** Use the shared exact query API for spending/income/transfer distinctions, selected date range and category drill-down. Show confirmed/pending separation and recorded-data coverage limits. Acceptance: seeded month/day-boundary, no-data and archived-category cases display exact VND values; changing a filter consistently updates scope and linked details.
+- [ ] **S6.3 — Add dashboard charts and transaction drill-down.** Choose a small useful chart set (category breakdown and spending over time), with textual totals/labels and a list alternative. Tapping a segment/time bucket opens the same query scope; no fabricated insights or division-by-zero states. Acceptance: sums reconcile to cards, selected chart scope and transaction list agree, and large labels/font scaling remain usable.
+- [ ] **S6.4 — Deliver persistent quick capture.** Prominent composer accepts unrestricted text and saves a source-backed capture independently of notifications. Show saved/unresolved/linked state and explicit manual versus model availability; no auto-created financial record or fake assistant response. Acceptance: save/retry/restart produces one capture, failed save preserves input, airplane mode works and deleting/editing linked text follows the defined policy.
+- [ ] **S6.5 — Deliver manual event/context controls.** Let the user split a capture into editable event interpretations, choose relevant text, browse bounded candidate drafts and attach/reject/unlink through shared commands. Offer an unmatched event as prefilled Manual input for explicit user confirmation with its provenance reference. Preserve the source and show conflicts. Acceptance: one note can supply two different drafts; wrong linking can be reversed, missing/multiple candidates remain unresolved unless explicitly resolved by the user, cash/no-notification entry does not wait forever for matching, and attachment never changes a bank amount.
+- [ ] **S6.6 — Make review self-contained and transparent.** Present pending draft financial fields/type, bank source, relevant note excerpts, current probability options/confidence and user selection in one review flow. Support explicit confirm/dismiss/correct without navigating to Manual to supply a description. Acceptance: user can inspect provenance, add context, select a category and confirm once; stale preview conflicts visibly and no draft disappears on a failed command.
+- [ ] **S6.7 — Simplify Manual and secondary management.** Keep expense/income/transfer entry, category selection/create/rename/archive/delete and transaction correction accessible with the new shell and shared API. Preserve validation and explicit confirmation for destructive actions. Acceptance: create/edit known VND records with and without models, switch tabs mid-entry, and verify exact history/category behavior after restart.
+- [ ] **S6.8 — Verify the actual four-screen experience.** Exercise fonts/accessibility, loading/error/empty states, keyboard, navigation and restoration on the phone. Compare the same manual/review task sequence against the pre-redesign interaction path, recording taps/time without claiming statistical significance. Update user/developer instructions and fix observed UI regressions before final acceptance.
+  Acceptance: all four rendered screens and failure/recreation paths are usable on the phone, critical actions remain accessible at larger font sizes, and the seeded before/after interaction record is reproducible.
 
 ## Required Verification
 
-Use a populated known ledger and active categories/rules/drafts. Export → validate restore in a separate clean environment → verify exact state and totals → attempt corrupt restore and observe no mutation. Install a same-key release update over a previous release and verify preserved data. Complete the full manual → notification review → decision suggestion → SLM tool query flow on the phone; then repeat manual/local inference behavior without network access after provisioning.
+Seed expenses, income, transfers, archived categories, unresolved/linked captures and drafts in an isolated device dataset. Complete quick capture → manual split/link → review → confirm → dashboard drill-down with models unavailable, then repeat current Laya selection with the actual model. Restart mid-composition and after save; exercise conflict/error states. Review screenshots/actual rendered surfaces, not only Compose previews or tests.
 
-## Decisions / Blockers
+## Decisions / Boundaries
 
-- Private distribution still needs stable signing and data recovery; no Play Store account, public publication, or remote push is required.
-- Backup scope includes user-confirmed financial state and review identity, not a promise to reconstruct missed bank notifications.
-- If a core earlier-sprint acceptance criterion remains unverified, this sprint cannot close by relabeling the app as a prototype or silently removing the feature.
-- Parent roadmap: [Project Plan](../PLAN.md). Previous: [Sprint 5](sprint-5.md).
+- No new brand system, external UI framework or decorative chart library is assumed; reuse existing patterns and choose the smallest implementation that meets accessibility and interaction needs.
+- Automatic note extraction/matching belongs to Sprint 9. This sprint's manual capture/context path is complete and useful on its own; it must remain available afterward.
+- Confidence-ranked automation arrives in Sprint 7; current suggestions may be manually requested here. No auto-confirmation.
+- Parent: [Project Plan](../PLAN.md). Previous: [Sprint 5](sprint-5.md). Next: [Sprint 7](sprint-7.md).

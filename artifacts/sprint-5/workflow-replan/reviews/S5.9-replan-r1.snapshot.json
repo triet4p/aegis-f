@@ -1,0 +1,187 @@
+{
+  "agent_id": "S59EvidenceR1",
+  "attempt_id": "S5.9-replan-r1",
+  "capture_proof": {
+    "candidate_scope_equal": true,
+    "final": {
+      "base_commit_sha": "e72272f3fe2763da741c600b1c1ed7f49e2c8d0c",
+      "git_c_root": "F:/ai-ml/aegis-f",
+      "head": "e72272f3fe2763da741c600b1c1ed7f49e2c8d0c",
+      "repository": "F:/ai-ml/aegis-f/.git",
+      "scope": [
+        {
+          "base_blob_oid": "c1bc1f2f77d74d03c9c6f2fd4cba89298471fba9",
+          "base_mode": "100644",
+          "path": "docs/sprint-5-capture-persistence.md",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "6e2a8f364f2045fdcf8b064c83f168befc99967620970d2ac553de8856a7ecae"
+        },
+        {
+          "base_blob_oid": "99cfef80c38877f5eaeb0d2068b241e9646e0ae8",
+          "base_mode": "100644",
+          "path": "docs/sprint-5-effective-context.md",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "f1176c7354917c3333e7c53aab145208a24a99ad87cab1952e7eb54aaae79334"
+        },
+        {
+          "base_blob_oid": "30adc74fdc625f8a2157434edf769ce4a3a35e6b",
+          "base_mode": "100644",
+          "path": "docs/sprint-5-event-context-persistence.md",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "c0768fe16668a909bf6d0070ba9f47e97108a8d909a92e8850032813500ef92f"
+        },
+        {
+          "base_blob_oid": "d36af83734740d95122fda92801d938763183337",
+          "base_mode": "100644",
+          "path": "docs/sprint-5-financial-commands.md",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "924e563381e2b7526e80476740fe1695d9b39e54946833fa865a5b681ebd9434"
+        },
+        {
+          "base_blob_oid": "029fbd1eaffc916de60293b2f3868064e072cf61",
+          "base_mode": "100644",
+          "path": "docs/sprint-5-migration-and-caller-cutover.md",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "b78a536746ef92aa2ea60002e75f8ca8ba940d99cb6f2a14fb49b8cc205d2e41"
+        },
+        {
+          "base_blob_oid": "c79dd22a53814da3a2d644e65c0bf197febe2d57",
+          "base_mode": "100644",
+          "path": "docs/sprint-5-preparation-commands.md",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "42890a2e81c625b401129a0d1fe9de37559906b0f38046414d62bd6ab85b1746"
+        }
+      ],
+      "target_ref": "refs/heads/main",
+      "worktree": "F:/ai-ml/aegis-f"
+    },
+    "initial": {
+      "base_commit_sha": "e72272f3fe2763da741c600b1c1ed7f49e2c8d0c",
+      "git_c_root": "F:/ai-ml/aegis-f",
+      "head": "e72272f3fe2763da741c600b1c1ed7f49e2c8d0c",
+      "repository": "F:/ai-ml/aegis-f/.git",
+      "scope": [
+        {
+          "base_blob_oid": "c1bc1f2f77d74d03c9c6f2fd4cba89298471fba9",
+          "base_mode": "100644",
+          "path": "docs/sprint-5-capture-persistence.md",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "6e2a8f364f2045fdcf8b064c83f168befc99967620970d2ac553de8856a7ecae"
+        },
+        {
+          "base_blob_oid": "99cfef80c38877f5eaeb0d2068b241e9646e0ae8",
+          "base_mode": "100644",
+          "path": "docs/sprint-5-effective-context.md",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "f1176c7354917c3333e7c53aab145208a24a99ad87cab1952e7eb54aaae79334"
+        },
+        {
+          "base_blob_oid": "30adc74fdc625f8a2157434edf769ce4a3a35e6b",
+          "base_mode": "100644",
+          "path": "docs/sprint-5-event-context-persistence.md",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "c0768fe16668a909bf6d0070ba9f47e97108a8d909a92e8850032813500ef92f"
+        },
+        {
+          "base_blob_oid": "d36af83734740d95122fda92801d938763183337",
+          "base_mode": "100644",
+          "path": "docs/sprint-5-financial-commands.md",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "924e563381e2b7526e80476740fe1695d9b39e54946833fa865a5b681ebd9434"
+        },
+        {
+          "base_blob_oid": "029fbd1eaffc916de60293b2f3868064e072cf61",
+          "base_mode": "100644",
+          "path": "docs/sprint-5-migration-and-caller-cutover.md",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "b78a536746ef92aa2ea60002e75f8ca8ba940d99cb6f2a14fb49b8cc205d2e41"
+        },
+        {
+          "base_blob_oid": "c79dd22a53814da3a2d644e65c0bf197febe2d57",
+          "base_mode": "100644",
+          "path": "docs/sprint-5-preparation-commands.md",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "42890a2e81c625b401129a0d1fe9de37559906b0f38046414d62bd6ab85b1746"
+        }
+      ],
+      "target_ref": "refs/heads/main",
+      "worktree": "F:/ai-ml/aegis-f"
+    }
+  },
+  "manifest_path": "artifacts/sprint-5/workflow-replan/reviews/S5.9-replan-r1.snapshot.json",
+  "report_path": "artifacts/sprint-5/workflow-replan/reviews/S5.9-replan-r1.md",
+  "schema": "omp-reviewed-snapshot/v1",
+  "snapshot": {
+    "base_commit_sha": "e72272f3fe2763da741c600b1c1ed7f49e2c8d0c",
+    "git_c_root": "F:/ai-ml/aegis-f",
+    "repository": "F:/ai-ml/aegis-f/.git",
+    "scope": [
+      {
+        "base_blob_oid": "c1bc1f2f77d74d03c9c6f2fd4cba89298471fba9",
+        "base_mode": "100644",
+        "path": "docs/sprint-5-capture-persistence.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "6e2a8f364f2045fdcf8b064c83f168befc99967620970d2ac553de8856a7ecae"
+      },
+      {
+        "base_blob_oid": "99cfef80c38877f5eaeb0d2068b241e9646e0ae8",
+        "base_mode": "100644",
+        "path": "docs/sprint-5-effective-context.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "f1176c7354917c3333e7c53aab145208a24a99ad87cab1952e7eb54aaae79334"
+      },
+      {
+        "base_blob_oid": "30adc74fdc625f8a2157434edf769ce4a3a35e6b",
+        "base_mode": "100644",
+        "path": "docs/sprint-5-event-context-persistence.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "c0768fe16668a909bf6d0070ba9f47e97108a8d909a92e8850032813500ef92f"
+      },
+      {
+        "base_blob_oid": "d36af83734740d95122fda92801d938763183337",
+        "base_mode": "100644",
+        "path": "docs/sprint-5-financial-commands.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "924e563381e2b7526e80476740fe1695d9b39e54946833fa865a5b681ebd9434"
+      },
+      {
+        "base_blob_oid": "029fbd1eaffc916de60293b2f3868064e072cf61",
+        "base_mode": "100644",
+        "path": "docs/sprint-5-migration-and-caller-cutover.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "b78a536746ef92aa2ea60002e75f8ca8ba940d99cb6f2a14fb49b8cc205d2e41"
+      },
+      {
+        "base_blob_oid": "c79dd22a53814da3a2d644e65c0bf197febe2d57",
+        "base_mode": "100644",
+        "path": "docs/sprint-5-preparation-commands.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "42890a2e81c625b401129a0d1fe9de37559906b0f38046414d62bd6ab85b1746"
+      }
+    ],
+    "target_ref": "refs/heads/main",
+    "worktree": "F:/ai-ml/aegis-f"
+  },
+  "snapshot_sha256": "ea0600595076a9357668e26b009e11b5d6c5efc87ddca5b549563d3b1300ffa1",
+  "task_id": "S5.9",
+  "worker_artifact_path": "artifacts/sprint-5/workflow-replan/workers/S5.9-replan-a1.md",
+  "worker_attempt_id": "S5.9-replan-a1"
+}

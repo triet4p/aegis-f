@@ -1,0 +1,28 @@
+{
+  "schema": "omp-reviewed-snapshot/v1",
+  "task_id": "S5.1",
+  "attempt_id": "S5.1-replan-r1",
+  "agent_id": "S51EvidenceR1",
+  "worker_attempt_id": "S5.1-replan-a1",
+  "worker_artifact_path": "artifacts/sprint-5/workflow-replan/workers/S5.1-replan-a1.md",
+  "report_path": "artifacts/sprint-5/workflow-replan/reviews/S5.1-replan-r1.md",
+  "manifest_path": "artifacts/sprint-5/workflow-replan/reviews/S5.1-replan-r1.snapshot.json",
+  "snapshot": {
+    "base_commit_sha": "03ff2ec45bd5f5f64c9d9c7968413e830c6f33fb",
+    "git_c_root": "F:/ai-ml/aegis-f",
+    "repository": "F:/ai-ml/aegis-f/.git",
+    "scope": [
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "docs/sprint-5-workflow-contract.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "0dbbf6bd02abd9f08dc036245ff7bcf9569f76c44f593e70ce3ca6d19f880a97"
+      }
+    ],
+    "target_ref": "main",
+    "worktree": "F:/ai-ml/aegis-f"
+  },
+  "snapshot_sha256": "4cb48298978b9ac6a8ff5407e9537c3f7701eee81c873b337c24c17677b7fa62"
+}

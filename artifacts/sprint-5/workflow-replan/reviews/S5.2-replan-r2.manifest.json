@@ -1,0 +1,220 @@
+{
+  "schema": "omp-reviewed-snapshot/v1",
+  "task_id": "S5.2",
+  "attempt_id": "S5.2-replan-r2",
+  "agent_id": "S52EvidenceR2",
+  "worker_attempt_id": "S5.2-replan-a3",
+  "worker_artifact_path": "artifacts/sprint-5/workflow-replan/workers/S5.2-replan-a3.md",
+  "report_path": "artifacts/sprint-5/workflow-replan/reviews/S5.2-replan-r2.md",
+  "manifest_path": "artifacts/sprint-5/workflow-replan/reviews/S5.2-replan-r2.snapshot.json",
+  "snapshot": {
+    "base_commit_sha": "c6893abeabb858b78856ed44b9c7c880fb68b090",
+    "git_c_root": "F:/ai-ml/aegis-f",
+    "repository": "F:/ai-ml/aegis-f/.git",
+    "scope": [
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/schemas/io.github.triet4p.aegisf.data.LedgerDatabase/7.json",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "3e18845b74d47b0f173606d71e3590ba80947558d215efba22606741c1527370"
+      },
+      {
+        "base_blob_oid": "9968f5f1ec5add30405c2fa7780919ebc5656931",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/AppContainer.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "0ce3f69794c506e72262b11cded7cf5e6e831f0e46490138336d251488270e72"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/CaptureMessageDao.kt",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "de61076349c097fc605cd2284e4f13d238a7c0ebc08f1b6e24dce6e503072509"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/CaptureMessageEntity.kt",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "241652ed23a0b95533880d8fc420d17e46bd09c27a8d1d4f83fce8c6991be9ab"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/CaptureMessageRepository.kt",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "0148bf91ced83af0c0032cfba8f7f20714bd96a54fc6fd3c8b4a5731474604fe"
+      },
+      {
+        "base_blob_oid": "881f37f4054873996b292d048b8079ae967a4c27",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/IntakeRepository.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "2cc31d2b48f5142f7a671ac794b40dc93c977b26ce3dd006f34e78260b976252"
+      },
+      {
+        "base_blob_oid": "8d414379390ccee4180590b28e77e0a39748c70d",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/LedgerDatabase.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "0221455fb3639f042f38305ccff5f645c2ed7a132488fc455cbc0383e4c764ea"
+      },
+      {
+        "base_blob_oid": "cf486813b58863c6a73d5f5d5cb954ca7f360fee",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/LedgerRepository.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "1513d478a3d4a748262ec35a2b63d49b89906dc82ddbe969dbe8ead6102667ef"
+      },
+      {
+        "base_blob_oid": "df363f594a62331891edd09eda1fc51fc7ff4c61",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/TransactionDao.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "9e4ee95d9716ef7984bbd47d010042cf22aa311128dc5b8d5cbab6fae491df23"
+      },
+      {
+        "base_blob_oid": "6fa1b0681910b5386d14ee841013625e69fe25ce",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/notification/BankNotificationListener.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "81b3b69f272aeab7df3092c60a109b209db1bcb37c2ddfa331006871f1f00105"
+      },
+      {
+        "base_blob_oid": "76e924599a61ad42cace96431e9922285622430e",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/BankDraftReviewTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "5e222d002e0e1fe6ed120ee2bca1ee314eb97070618cfed579054ce466ffd1a1"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/CaptureMessageMigrationTest.kt",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "86343b011637889deb1dac96cc8359dae2327ccc5ba9e46a48ca35da96bdb267"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/CaptureMessagePersistenceTest.kt",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "f4637572becdc6865a552709c487352c9d2bb23f07af14c1ed91594dbdbc37a7"
+      },
+      {
+        "base_blob_oid": "2c5534af123f2aac4ec30ae67b15465db20896ad",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/CategoryDeletionTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "7564e3569e34f6c9735ed45c9249dc70ffb4a6cec1e1ce4a2b312de87ceb4d71"
+      },
+      {
+        "base_blob_oid": "28f3f6acf9f49cf08a2dbfe3d58eb42ccded5a7a",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/LedgerDatabasePersistenceTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "a2ac0277e61e4d4c049a864d075a884be7d513121e0e8dd30b0fed7133b61f78"
+      },
+      {
+        "base_blob_oid": "ab06e4de21d82aba806ab942984fbc3babb53f36",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/LedgerRepositoryRejectionTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "9fd13cc56319b7c6e7cafe922e61661716b110e3f5ea8b6e456c5d6f33cfd9ac"
+      },
+      {
+        "base_blob_oid": "dfe932fa939d99e6faa8303cb26e7efde8fb928c",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/PendingBankDraftDeduplicationTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "9a0a317989ed5e7bcf8c5776cf38e48afd8e5745a942ea8a909108c927c38b40"
+      },
+      {
+        "base_blob_oid": "bcb666c6f360f99938fa21a48c5bcaff69e17f2e",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/PendingBankDraftMigrationTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "8eab7185e037b3f1129b7431ce1e6513e5add2ae40a56836eb7310168191c4b8"
+      },
+      {
+        "base_blob_oid": "b3301f873454f88cd969c942e20f58356c5414c6",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/PendingBankDraftPersistenceTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "502ea1214bb9f6c019b2d052dda8cfbecbde0b5680b925bf329982169db5b52c"
+      },
+      {
+        "base_blob_oid": "74a7b94e66f26bc956c3370a461b5dc28d6e02e4",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/RememberedCategoryRulePersistenceTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "6a7cdd0f4f607d2ab5f06074206c0e168595b975c9d15ca0fc20376e835e28b5"
+      },
+      {
+        "base_blob_oid": "d7444615d43288588de91bd42ba35a27c390cd0c",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/notification/InferenceIntakeIndependenceTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "3258ffd2135cf261e03100feca7506c47f36d3fcab60900a43ad644eebd9992d"
+      },
+      {
+        "base_blob_oid": "9b46ccf742c5384d9b72583061251ccfe80252e7",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/notification/ListenerRecoveryTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "33f265c20c009d189dab00ee5ee96f26f3c61cf7face7c842516225a1fc046e5"
+      },
+      {
+        "base_blob_oid": "887b1ec32d1e8e4d80b27bc91f6329cc22ed8001",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/notification/NotificationIntakePersistenceTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "3925bcbcc40320190ea528b839d8827bb3aa64712f03a1934fa263f0de9a27f4"
+      },
+      {
+        "base_blob_oid": "f565c76a95523859f04e870135a6142d746c8773",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/ui/ExpenseSummaryPersistenceTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "6af34a6559d8627a6226bf0080e00eb3cf2d8c158c0f7c07aee89937517afe3e"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "docs/sprint-5-capture-persistence.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "7634b4bb290b4532ece96d8a57347ef2ddbced2120c3ec73cc8c05a5bf83de6b"
+      }
+    ],
+    "target_ref": "main",
+    "worktree": "F:/ai-ml/aegis-f"
+  },
+  "snapshot_sha256": "3c88d773b4fb25a74a611930c2a7ab3902fb3da95eaa0ea3b7904ebf237cf693"
+}

@@ -1,0 +1,148 @@
+{
+  "schema": "omp-reviewed-snapshot/v1",
+  "task_id": "S5.3",
+  "attempt_id": "S5.3-replan-r1",
+  "agent_id": "S53EvidenceR1",
+  "worker_attempt_id": "S5.3-replan-a1",
+  "worker_artifact_path": "artifacts/sprint-5/workflow-replan/workers/S5.3-replan-a1.md",
+  "report_path": "artifacts/sprint-5/workflow-replan/reviews/S5.3-replan-r1.md",
+  "manifest_path": "artifacts/sprint-5/workflow-replan/reviews/S5.3-replan-r1.snapshot.json",
+  "snapshot": {
+    "base_commit_sha": "103ca5dd8fdad174f204c2480249733d7f3bee96",
+    "git_c_root": "F:/ai-ml/aegis-f",
+    "repository": "F:/ai-ml/aegis-f/.git",
+    "scope": [
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/schemas/io.github.triet4p.aegisf.data.LedgerDatabase/8.json",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "a71983d16b01cac2350d917cc30eec922814fe6121e53da5b8e9d3e613d01c58"
+      },
+      {
+        "base_blob_oid": "406b86280878a6e1c231f257fb71837d8a0e38d5",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/AppContainer.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "eee400f1a68ca2e49deae68cc1715f09cdf0de2ee3cb71d0d4c187136c49a7c5"
+      },
+      {
+        "base_blob_oid": "617f9f1aa66a0fe725976d9934c419070aca64b0",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/CaptureMessageRepository.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "0df9ccb705f41f6c4c22f8833f822304259c2367a37731b063396aa91cbd7e6a"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/ContextLinkDao.kt",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "c4c03c9517dd9f2932a5e736220b086de8956ab2e2cac2bc4d55dd1b4e000008"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/ContextLinkEntity.kt",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "f84f699c236b55e54bc1b742779b0207f9a5b33447f58e44dd01ccf6e4140e9d"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/EventContextRepository.kt",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "79cb8b4c55ed14f7d1dce75fd8e84d08d4427102cc9d4d8a0d896f2c36afde3e"
+      },
+      {
+        "base_blob_oid": "d1911e8f67479ec29812a5ca56ff67b5ca435880",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/LedgerDatabase.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "a615dfcc22b32628068f7ba83fb0d3ef48694bfb5e4b8e1cdceb237efff9ff1d"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/NoteEventDao.kt",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "f410084ccb9181a7832cb87054486eb11a6aac0279996480ac15beb850a869ed"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/NoteEventEntity.kt",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "d9c3fa5e75a5f15005054196ed523f203a2f2e653096002bb0d2eee47626ff75"
+      },
+      {
+        "base_blob_oid": "47b39881d90a2d59417d84858c37e699a208d826",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/CaptureMessageMigrationTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "37a73e3e08e18c3e06b1bed82329ea6a32e9a4b7878e568930486c3b522fda3f"
+      },
+      {
+        "base_blob_oid": "229acedd74b7f0ae7f9b2bd2f4b53900a15a20f4",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/CaptureMessagePersistenceTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "c33d9b1a6226292a32961c203f446fffc866ff64759014f0cece4e101e0671ff"
+      },
+      {
+        "base_blob_oid": "c879e86bf6dd0e8152804a73d4c9ad5f1b9b91dd",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/LedgerDatabasePersistenceTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "3cda852f67692f952cc3d05cddd4fd297c97c1277c64d91d572d47ebdbd58a3e"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/NoteEventContextTest.kt",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "131f428c6454b7c9489306628ae938f3882e0e1bd801999c1938b2866153333d"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/NoteEventMigrationTest.kt",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "3c571c567bb2998dd700b8434c90cbb0bba45f0b1398a6c49f2e5ad9cd534336"
+      },
+      {
+        "base_blob_oid": "8111385e9c9dc79d15907f8dbbd8a4ae43f48b48",
+        "base_mode": "100644",
+        "path": "app/src/test/java/io/github/triet4p/aegisf/notification/NotificationIntakePersistenceTest.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "42f485b87e59cb4da21508d586505932c7929fc633dfe67396b6fb12e720410e"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "docs/sprint-5-event-context-persistence.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "cad469dbd75a66ffe2f5fe8622d96d37a98546a29e3ed8af5dc288a2cfe500de"
+      }
+    ],
+    "target_ref": "main",
+    "worktree": "F:/ai-ml/aegis-f"
+  },
+  "snapshot_sha256": "6422028e96054872b867df6e371f58007882c6fb2f71c4dd800d50fe520dfdc7"
+}

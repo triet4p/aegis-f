@@ -1,0 +1,260 @@
+{
+  "schema": "omp-reviewed-snapshot/v1",
+  "task_id": "S5.6",
+  "attempt_id": "S5.6-replan-r5",
+  "agent_id": "S56EvidenceR5",
+  "worker_attempt_id": "S5.6-replan-a6",
+  "worker_artifact_path": "artifacts/sprint-5/workflow-replan/workers/S5.6-replan-a6.md",
+  "report_path": "artifacts/sprint-5/workflow-replan/reviews/S5.6-replan-r5.md",
+  "manifest_path": "artifacts/sprint-5/workflow-replan/reviews/S5.6-replan-r5.snapshot.json",
+  "snapshot": {
+    "repository": "F:/ai-ml/aegis-f/.git",
+    "worktree": "F:/ai-ml/aegis-f",
+    "git_c_root": "F:/ai-ml/aegis-f",
+    "target_ref": "refs/heads/main",
+    "base_commit_sha": "9dae689c634cefba7e9c2a64920ebdbc8b84902c",
+    "scope": [
+      {
+        "path": "app/schemas/io.github.triet4p.aegisf.data.LedgerDatabase/10.json",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "c3db582127ad1338374caa6142138d8f3c216fd0efa8287fc1e02d47145fc17f"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/MainActivity.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "10f14d1b6c88a5425d3fcd5264678db4dad30447",
+        "worktree_raw_sha256": "9e9357c59ec0e71856fe62631fbd31b1716482d827580fc20409df8378353b57"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/AppContainer.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "ba6ffebdcee3b691c745a67231bade16526a262e",
+        "worktree_raw_sha256": "5d1a6287514bdc8dbbc802f7375d30e136ae3d2580d0e829025398965526cf8a"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/CaptureMessageRepository.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "1bdf1024812329bfcf87e812877bd132b8c384a0",
+        "worktree_raw_sha256": "9d2cc15de7be68ae34eafa35d2d1617a3c15cc68f554996fa592cea3e65e81d2"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/ClassificationEngine.kt",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "2f21b7e5ff31ef38754354ce8ba30a1475eb1c2c2ad9664763b7ab7f583af330"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/ClassificationSnapshotRepository.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "4d85ca48f370e33ca7c3b37ceb6ebb1ad9a5b325",
+        "worktree_raw_sha256": "338b5a2e27def75d7b1fdab8550e74d49fb13f2ae54ab98274393e03ccf86c14"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/ContextLinkEntity.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "b4631f873623457ac32e0244e60c2d653ed3c076",
+        "worktree_raw_sha256": "afe2fa8811ef56d28babd8bf371f606f4fdc4b26978617be7b9d08175254aa15"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/EventContextRepository.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "37c8c1cce8eacf58a1f53dce90f3e88dc20323be",
+        "worktree_raw_sha256": "9ef4831819906ec3236a4dd79990b9c80878262c506e28d492d581bc6f1df351"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/LedgerDatabase.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "cab885c4f640879827c0aa06a5f30546d1cdc947",
+        "worktree_raw_sha256": "24f2544f61f9ec981f7edfa93c30f7314a2a5e3c730a76f4f51de36aba81b71c"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/LinkEvidencePolicy.kt",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "84bd235b3a72e2c3cab9c41873e2919387835e736b962b22a5fab5bed5cf2a12"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/ManualCategoryDecision.kt",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "9edaacf77f17bdaaab2830bb3ebc005eb414f6ca7b1093211251aca5543f18a3"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/PendingBankDraftDao.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "f48a3a8de6420fb72b6d4da8bcf12c09ef7283e5",
+        "worktree_raw_sha256": "2af01ea0a70b5853e7f1959a9f89c8dcd2c5b3d1cee5472f8920fa0e5e87d033"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/WorkflowClaimGuard.kt",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "76bb32adb84b3959c2f56e47f2d15ce94f4f9496099b16c9e4c94cf99083a889"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/WorkflowCommandService.kt",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "7fd4534b808029b73b6036fff92a6900960658b1cb203bda48e2a0f3a3d6d99f"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/WorkflowCommandTypes.kt",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "e2d97bc230d08e1d3a4648378e63bbd4bef72c2eb149804673b7f134484bc484"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/WorkflowOperationDao.kt",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "7a8b7be7e2e83d4a6f257a18c66e9f92ef33f7804a35cb3fce8823dd04c8f7b4"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/WorkflowOperationEntity.kt",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "8c883d8feeba5fcc8d842e633b49af117735a5fb73ea2fd100e10d1bc8d437e2"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/WorkflowQueryService.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "2d2769d09059d5f0ccad4284d3f391a860dfe745",
+        "worktree_raw_sha256": "dec188fae3b3e6cb020701f838433c76914af5c90d26eaf6c376a801c52d2f64"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/WorkflowQueryTypes.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "8429eff0ae544080723c08d3ddb6c7f0769e8aa2",
+        "worktree_raw_sha256": "02404a8508609cfe79c8f41ea7fe5f533646f7ad96e3b82357a5a6795043067c"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/laya/LayaClassificationEngine.kt",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "4d6af60a6874d1fc5ac656748c350848b52060929bac0d3dfb39c8e512d0153b"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/ui/BankDraftReviewScreen.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "7036a6186f30f7482af22ad972e0a17badecd332",
+        "worktree_raw_sha256": "02c7ffb9cb7ce508ee7d371173cdde62462ab3fbb1dfd99e7b86e73bca2003f1"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/ui/ManualCategorySuggestion.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "7539ce3efc7bffe6f063e83e557586da3d3e3204",
+        "worktree_raw_sha256": "5487531e9735cf239cc30de534c08036c1d75c58fd60453c6a27d1321032bf48"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/ui/TransactionEditorScreen.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "228910fa1ffaed96cd7a8dbeb6170ca7dd1b88e7",
+        "worktree_raw_sha256": "1444a0ab82b488104c73531d4e14d0432747bf800837c008b3780deb9c987771"
+      },
+      {
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/ClassificationSnapshotTest.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "cab84aa06b01479fcaa897d8376c864c333102a4",
+        "worktree_raw_sha256": "7767b0c11093e76bee48425a1ed22cddb7d0df97d04995917a352f42fbcfc243"
+      },
+      {
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/NoteEventContextTest.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "fc4b4cbb7c370ab8edecb6d8aceabf325e109271",
+        "worktree_raw_sha256": "2082163d52a35c1639d164bd9dc187f1eb8d06264958c19da71855ddb8de34cf"
+      },
+      {
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/WorkflowCommandServiceTest.kt",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "2d50b75a1ceb8f57c5b656ff533a925e36962101fcd7696e2c1cb6ea6d8e9c4e"
+      },
+      {
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/WorkflowOperationMigrationTest.kt",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "a447223667c44fc0fb144f8c75467c649b98f2c2427b0c22e596bf0ce228f483"
+      },
+      {
+        "path": "app/src/test/java/io/github/triet4p/aegisf/ui/BankDraftSuggestionGateTest.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "9ac7f95bc915d7afd30a00f8eb8726f13e829894",
+        "worktree_raw_sha256": "1abc280199b7fe3f91e33fcd5661117dadf93437f3ffea2b8e8b36063ec728b6"
+      },
+      {
+        "path": "app/src/test/java/io/github/triet4p/aegisf/ui/ManualCategorySuggestionMachineTest.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "385d514b256461c5008e13b2001e01530e2b28fa",
+        "worktree_raw_sha256": "34432168d96dff80fdb2f275e4407782e8ffe883ab409e487a62effb4d9530db"
+      },
+      {
+        "path": "docs/sprint-5-preparation-commands.md",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "987568e1d245940cc42cbd352581563aa03d0ccea7f2aa3d329f37a27b6becac"
+      }
+    ]
+  },
+  "snapshot_sha256": "7dfbfa32c9f2e5971700e6270b8427ac0bdd3f4eed16e2bdf3b7148ab91f0777"
+}

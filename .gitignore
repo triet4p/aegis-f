@@ -52,3 +52,49 @@ models/
 # it without parsing JSON on-device. The graph itself (`*.onnx`, external weights) stays
 # out of Git and arrives via S4.3 provisioning instead.
 !app/src/main/assets/laya/laya_tokenizer.bin
+
+__pycache__/
+*.py[cod]
+
+# Local machine-readable evaluation output and per-case device runs; retain locally only.
+/artifacts/sprint-5/workers/**/*.json
+/artifacts/sprint-5/workers/S5.1-a3-raw/
+/artifacts/sprint-5/workers/S5.1-a4-raw/
+
+# Legacy model research and records exposing local device/home identifiers stay user-local.
+/artifacts/sprint-5/handoffs/S5.1-a2-device-blocked.md
+/artifacts/sprint-5/handoffs/S5.1-a3-blocked.md
+/artifacts/sprint-5/handoffs/S5.1-a4-research-pause.md
+/artifacts/sprint-5/handoffs/S5.8-replan-a1-device-wait.md
+/artifacts/sprint-5/reviews/S5.1-r1.md
+/artifacts/sprint-5/reviews/S5.1-r2.md
+/artifacts/sprint-5/workers/S5.1-a1.md
+/artifacts/sprint-5/workers/S5.1-a2.md
+/artifacts/sprint-5/workers/S5.1-a3.md
+/artifacts/sprint-5/workers/S5.1-a4.md
+/artifacts/sprint-5/workflow-replan/reviews/S5.1-replan-r1.md
+/artifacts/sprint-5/workflow-replan/reviews/S5.2-replan-r1.md
+/artifacts/sprint-5/workflow-replan/reviews/S5.2-replan-r2.md
+/artifacts/sprint-5/workflow-replan/reviews/S5.3-replan-r1.md
+/artifacts/sprint-5/workflow-replan/reviews/S5.4-replan-r2.md
+/artifacts/sprint-5/workflow-replan/reviews/S5.9-replan-r1.md
+/artifacts/sprint-5/workflow-replan/handoffs/S5.4-main-pause.md
+/artifacts/sprint-5/workflow-replan/workers/S5.1-replan-a1.md
+/artifacts/sprint-5/workflow-replan/workers/S5.2-replan-a1.md
+/artifacts/sprint-5/workflow-replan/workers/S5.2-replan-a2.md
+/artifacts/sprint-5/workflow-replan/workers/S5.2-replan-a3.md
+/artifacts/sprint-5/workflow-replan/workers/S5.3-replan-a1.md
+/artifacts/sprint-5/workflow-replan/workers/S5.4-replan-a1.md
+/artifacts/sprint-5/workflow-replan/workers/S5.4-replan-a2.md
+/artifacts/sprint-5/workflow-replan/workers/S5.5-replan-a1.md
+/artifacts/sprint-5/workflow-replan/workers/S5.5-replan-a2.md
+/artifacts/sprint-5/workflow-replan/workers/S5.6-replan-a1.md
+/artifacts/sprint-5/workflow-replan/workers/S5.6-replan-a3.md
+/artifacts/sprint-5/workflow-replan/workers/S5.6-replan-a4.md
+/artifacts/sprint-5/workflow-replan/workers/S5.6-replan-a5.md
+/artifacts/sprint-5/workflow-replan/workers/S5.6-replan-a6.md
+/artifacts/sprint-5/workflow-replan/workers/S5.7-replan-a1.md
+/artifacts/sprint-5/workflow-replan/workers/S5.7-replan-a2.md
+/artifacts/sprint-5/workflow-replan/workers/S5.8-replan-a1.md
+/artifacts/sprint-5/workflow-replan/workers/S5.8-replan-a2.md
+/artifacts/sprint-5/workflow-replan/workers/S5.9-replan-a1.md

@@ -1,0 +1,45 @@
+# Sprint 8 — Tool-Calling Model Research, Phone Runtime and Agent Boundary
+
+## Sprint Goal
+
+Select evidence-backed local model options for the actual capture-and-review workflow, integrate a compatible phone runtime, and expose only the bounded application tools that an agent may safely execute.
+
+## Status and Dependencies
+
+- Status: Planned. Dependencies: Sprints 5–7 actual application contracts and useful non-agent workflow. Web research precedes new model downloads/benchmark runs.
+- Workflow: **Full**. Every **S8.1–S8.9** task requires independent evidence PASS plus separate Bronze-only exact-snapshot checkpoint before the next independent task; assigned final differential review. No shared batch assumed approved. Obtain scoped role/checkpoint/commit authority first; no push.
+- Worker/reviewer direct ADB allowed; one user acceptance pass at sprint end. Evidence root: `artifacts/sprint-8/`.
+
+## Acceptance Criteria
+
+- Official candidate identities, license/revision/artifact hashes, native tool template/argument format and current runtime support are verified. Prior defective prompt/parser scores cannot be reused as model capability facts.
+- Research covers user leads `openbmb/MiniCPM-V-4.7-1B`, Gemma 4 E2B and `prism-ml/Ternary-Bonsai-2` including mentioned 9B/4B variants; verify names, availability and actual parameter/active-compute/packed-size distinctions. Consider suitable alternatives, including prior Qwen evidence, without provider lock-in. LFM may be an instruct/naming option, not assumed agentic.
+- User-selectable profiles expose actual supported tasks, model storage/RAM, first-result latency, limitations and optional language support. At least one demonstrated agent-capable option and one genuinely evaluated alternative profile are required for the planned multi-model delivery; an instruct-only alternative is visibly restricted and never silently routed into agentic work.
+- Phone inference is in-process, offline after deliberate provisioning, with compatible ABI/page-size/template and explicit lifecycle/cancellation. No desktop/local-network server or cloud fallback.
+- Agent executes only allowlisted typed tools through the shared application boundary. Invalid/unknown/partial calls, injected text and caller-scope spoofing cannot produce unauthorized effects.
+- Multiple steps, results and revisions are bounded and inspectable. Side effects are idempotent and accurately reported after cancellation/restart; financial confirmation remains user-only.
+
+## Ordered Atomic Tasks
+
+- [ ] **S8.1 — Research models and inference paths from primary sources.** Produce a source-linked shortlist covering the user's candidates, real tool-use/extraction evidence, task/language limits, licenses and phone requirements. Compare compatible CPU/vector, Vulkan/GPU and supported vendor/NNAPI/LiteRT-style paths only where the actual device/model permits them. Distinguish proven support, upstream claims and unknowns; model file compression does not imply proportional compute reduction. Acceptance: a reproducible decision matrix identifies feasible trials and rejects incompatibilities with evidence, without adding a runtime abstraction/framework by default.
+- [ ] **S8.2 — Freeze a workflow-relevant evaluation contract.** Build source-backed cases for multi-event extraction, missing/relative time, bounded candidate search, propose/attach scope, Laya request, no-match/ambiguity, unknown tools and injection. Include held-out paraphrases, exact required arguments and valid clarification under the implemented S5 API; native prompt/render/parser parity must be checked before scoring. Preserve old raw evidence separately. Freeze per-tier advertised capabilities, correctness/latency/resource criteria and score denominators before runs; no post-result case dropping or refusal-substring graders.
+  Acceptance: the frozen suite/schema/template/score definitions are internally consistent, achievable answers and clarification are distinguished, held-out inputs are separate, and no impossible expected call or known parser defect remains before device scoring.
+- [ ] **S8.3 — Run bounded physical-device trials.** Evaluate feasible candidates serially with isolated prompts/raw/sample directories and per-case atomic persistence. Measure exact workflow/action semantics, first-result/cold/warm behavior, prefill/decode, process PSS/RSS with clear metric labels, cancellation and headroom. Establish real quality/resource tradeoffs for selectable profiles. Acceptance: raw-backed outcomes map to supported/limited/unsupported capabilities; optional multilingual claims are tested and unsupported candidates are not advertised as working options.
+- [ ] **S8.4 — Integrate the selected in-process runtime.** Pin native/library/compiler/runtime artifacts using existing Android conventions; faithfully render each offered profile's chat/tool template and parse its supported format. Add only runtime paths justified by measured benefit/compatibility. Acceptance: actual app process generates and parses a valid task-relevant request on the phone offline, with correct ABI/page-size support and no network inference.
+- [ ] **S8.5 — Provision selectable profiles and manage resources.** Reuse verified acquisition/integrity flow with explicit download consent, storage/progress/errors and persistent model choice. Load/release/switch profiles with context bounds, cancellation and resource admission that keeps Laya/intake/manual paths available. Acceptance: offline restart, missing/corrupt model, low storage, repeated profile switch and cancelled load are honest, recoverable states; no permanently hot collection of sessions.
+- [ ] **S8.6 — Expose the bounded application-tool adapter.** Map only approved queries and reversible capture/event/context/classification commands to a versioned model-facing schema. Enforce trusted capture/draft/revision scope, bounds, idempotency and deny financial confirmation/deletion/arbitrary SQL irrespective of model output. Acceptance: direct adversarial calls cannot bypass the application layer or inject caller authority; complete valid calls perform their actual permitted operation once.
+- [ ] **S8.7 — Implement bounded agent execution and result reporting.** Handle complete validated calls, tool results, allowed follow-up steps, ambiguity, step/context/time limits, structured errors and cancellation. No streaming partial mutation. Record pending/completed effects and durable operation references, not hidden reasoning/raw financial prompt logs. Acceptance: retry/cancel/restart does not duplicate effects and never claims rolled-back work that was already applied.
+- [ ] **S8.8 — Deliver profile selection and capability gating.** Show task/language/resource/latency limits and real availability in existing model settings and Chat. Do not route an instruct-only profile into autonomous tool workflows; make manual capture available immediately. Acceptance: selecting a weaker or unavailable profile yields truthful allowed actions/clarification, not a fake agent response or unadvertised model substitution.
+- [ ] **S8.9 — Prove runtime and tool authority end to end.** In the actual app on the phone, execute bounded read → reversible proposal/context update → Laya request using real generation. Exercise invalid/partial calls, prompt-like bank descriptions, cross-capture targeting, stale revisions, loops, cancellation and injected confirm/delete. Update model/runtime/tool documentation and preserve measurements for final gate review.
+  Acceptance: real generated allowed calls produce their scoped effects once; malformed/unauthorized/stale calls produce none, cancellation reports existing effects accurately, and manual/intake behavior survives model failure.
+
+## Required Verification
+
+Primary-source research and tests alone are insufficient: actual selected profiles must run on the physical phone. Use isolated artificial notes/drafts and the real application API; no mock echo tools count as proof. Inspect every effect and its revision/scope. Demonstrate manual capture and notification intake during model load and cancellation, and verify no model can confirm the ledger.
+
+## Decisions / Blockers
+
+- A slow high-quality option is permitted; reject it for infeasibility only with measured resource/compatibility evidence, not slowness alone. Advertise a quality advantage only after it is observed on the frozen workflow suite.
+- The former 31-case Q&A benchmark and Main's old 95% quality-label threshold are historical, not automatic criteria for this different workflow. S8.2 declares task-relevant profile criteria before trials; all permission/integrity boundaries remain mandatory at the application layer.
+- If no local candidate can support the actual permitted workflow, record the exact prerequisite and resolve it with the user. Do not call runtime plumbing, a parser or a mock an agent delivery.
+- Parent: [Project Plan](../PLAN.md). Previous: [Sprint 7](sprint-7.md). Next: [Sprint 9](sprint-9.md).

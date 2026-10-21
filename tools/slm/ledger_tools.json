@@ -1,0 +1,176 @@
+{
+  "schema": "aegis-f-readonly-ledger-tools/v2",
+  "note": "Read-only ledger tools offered to the candidate SLM during S5.1 evaluation. The evaluator only checks whether the model emits the right structured arguments; SQLite aggregation itself belongs to S5.5. No write tool exists. v2 (S5.1-a2) adds `use_when` intent descriptions, the canonical category enum, and explicit argument semantics; v1 supplied names and shapes but no intent-to-tool contract, which is why every candidate collapsed onto the first declared tool.",
+  "canonical_categories": [
+    "Dining",
+    "Groceries",
+    "Transport",
+    "Utilities",
+    "Health",
+    "Shopping",
+    "Rent",
+    "Entertainment",
+    "Gifts",
+    "Travel"
+  ],
+  "tools": [
+    {
+      "name": "sum_expenses",
+      "use_when": "The user asks for one money total over a period, optionally for a single category: 'how much did I spend', 'what is the total', 'what did X cost me'.",
+      "description": "One confirmed expense total in VND for one date range, optionally limited to a single category. Internal transfers and income are excluded.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "date_from": {
+            "type": "string",
+            "description": "First included date, ISO 8601 YYYY-MM-DD."
+          },
+          "date_to": {
+            "type": "string",
+            "description": "Last included date, ISO 8601 YYYY-MM-DD."
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "Dining",
+              "Groceries",
+              "Transport",
+              "Utilities",
+              "Health",
+              "Shopping",
+              "Rent",
+              "Entertainment",
+              "Gifts",
+              "Travel"
+            ],
+            "description": "One exact category name from this list, whatever language the question used. Omit the argument when the question is not limited to one category."
+          }
+        },
+        "required": [
+          "date_from",
+          "date_to"
+        ]
+      }
+    },
+    {
+      "name": "category_totals",
+      "use_when": "The user asks how spending is split across categories over a period: 'by category', 'breakdown', 'per category', 'where did my money go'.",
+      "description": "Confirmed expense totals per category in VND for one date range.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "date_from": {
+            "type": "string",
+            "description": "First included date, ISO 8601 YYYY-MM-DD."
+          },
+          "date_to": {
+            "type": "string",
+            "description": "Last included date, ISO 8601 YYYY-MM-DD."
+          }
+        },
+        "required": [
+          "date_from",
+          "date_to"
+        ]
+      }
+    },
+    {
+      "name": "count_transactions",
+      "use_when": "The user asks for a number of transactions, not an amount: 'how many transactions', 'how many times', 'how many purchases'.",
+      "description": "Number of recorded transactions in one date range, with optional category and transaction-type scope.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "date_from": {
+            "type": "string",
+            "description": "First included date, ISO 8601 YYYY-MM-DD."
+          },
+          "date_to": {
+            "type": "string",
+            "description": "Last included date, ISO 8601 YYYY-MM-DD."
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "Dining",
+              "Groceries",
+              "Transport",
+              "Utilities",
+              "Health",
+              "Shopping",
+              "Rent",
+              "Entertainment",
+              "Gifts",
+              "Travel"
+            ],
+            "description": "One exact category name from this list, whatever language the question used. Omit the argument when the question is not limited to one category."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "expense",
+              "income",
+              "transfer"
+            ],
+            "description": "Transaction type; pass it only when the question is about one of these kinds. Omit for all types."
+          }
+        },
+        "required": [
+          "date_from",
+          "date_to"
+        ]
+      }
+    },
+    {
+      "name": "list_transactions",
+      "use_when": "The user asks to see individual transactions: 'list', 'show me the transactions', 'which ones', 'the last N transactions'.",
+      "description": "Bounded list of recorded transactions in one date range, newest first, with optional category and transaction-type scope.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "date_from": {
+            "type": "string",
+            "description": "First included date, ISO 8601 YYYY-MM-DD."
+          },
+          "date_to": {
+            "type": "string",
+            "description": "Last included date, ISO 8601 YYYY-MM-DD."
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "Dining",
+              "Groceries",
+              "Transport",
+              "Utilities",
+              "Health",
+              "Shopping",
+              "Rent",
+              "Entertainment",
+              "Gifts",
+              "Travel"
+            ],
+            "description": "One exact category name from this list, whatever language the question used. Omit the argument when the question is not limited to one category."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "expense",
+              "income",
+              "transfer"
+            ],
+            "description": "Transaction type; pass it only when the question is about one of these kinds. Omit for all types."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of transactions to return; pass the count the user asked for."
+          }
+        },
+        "required": [
+          "date_from",
+          "date_to"
+        ]
+      }
+    }
+  ]
+}

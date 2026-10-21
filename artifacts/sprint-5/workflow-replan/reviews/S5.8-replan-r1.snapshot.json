@@ -1,0 +1,331 @@
+{
+  "agent_id": "S58EvidenceR1",
+  "attempt_id": "S5.8-replan-r1",
+  "capture_proof": {
+    "candidate_scope_equal": true,
+    "final": {
+      "base_commit_sha": "c51416393eaa7f03a94cfe0cbdb9c48d0dbac385",
+      "git_c_root": "F:/ai-ml/aegis-f",
+      "head": "c51416393eaa7f03a94cfe0cbdb9c48d0dbac385",
+      "repository": "F:/ai-ml/aegis-f/.git",
+      "scope": [
+        {
+          "base_blob_oid": "176a734954b5b489721be28d335d861f3266a297",
+          "base_mode": "100644",
+          "path": "app/src/main/java/io/github/triet4p/aegisf/MainActivity.kt",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "9ea7f25d803dd6818b66aafaf95dd9484cd2119a10739561b9086f15c8b93456"
+        },
+        {
+          "base_blob_oid": "974af12ef1d86dc1f3ae8ba81b323536d400be9f",
+          "base_mode": "100644",
+          "path": "app/src/main/java/io/github/triet4p/aegisf/data/AppContainer.kt",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "41cb8e266bb027176c2860b52ea8c13f8c66c3d286e6bd15611a8fad06674de2"
+        },
+        {
+          "base_blob_oid": "ebd6d387168caf26f218c31659b1ce7dd0f21184",
+          "base_mode": "100644",
+          "path": "app/src/main/java/io/github/triet4p/aegisf/data/LedgerRepository.kt",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "cec1c56a716e6962a0b4bac94abe344d796a3f1de82f7484e75601efee6bc1b6"
+        },
+        {
+          "base_blob_oid": "86f00bdd692734a6be909da2b23ff5531a8ba6ea",
+          "base_mode": "100644",
+          "path": "app/src/main/java/io/github/triet4p/aegisf/data/WorkflowCommandService.kt",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "375568ed19d5b8d5fa6c66b453bf50ef5630c4c9d7a0a408f2cad6ce05c55d5d"
+        },
+        {
+          "base_blob_oid": "7f48e5e5d929a4eb03b39d5b4e55c6c856067e03",
+          "base_mode": "100644",
+          "path": "app/src/main/java/io/github/triet4p/aegisf/data/WorkflowCommandTypes.kt",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "89b0dc1f9cb956304f322921189275bda4a8ea21f50c6dba6a7369923d3d013a"
+        },
+        {
+          "base_blob_oid": "419de2013bdf0ddc961de810e85f7edfe74c1133",
+          "base_mode": "100644",
+          "path": "app/src/main/java/io/github/triet4p/aegisf/data/WorkflowOperationEntity.kt",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "dedbf01717319c1d74bd8c0ebfe58703d6d54dcad5f8114fd7f5c3233d3ee23c"
+        },
+        {
+          "base_blob_oid": "dee6397690665485549e14def8de46bd96c9fdea",
+          "base_mode": "100644",
+          "path": "app/src/main/java/io/github/triet4p/aegisf/data/WorkflowQueryService.kt",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "14453e1b217f402bc797c18f3a91cc713ac4f898dd1f1cb7aab6e545837dcfc6"
+        },
+        {
+          "base_blob_oid": "203dc4360400242dda887544af093122cecb8a26",
+          "base_mode": "100644",
+          "path": "app/src/main/java/io/github/triet4p/aegisf/ui/CategoryManagerScreen.kt",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "6ecde1df8b61b196eea08875e9a32685ff3486d92048a322df18a5f259a15167"
+        },
+        {
+          "base_blob_oid": "286f1e7f95cbd438e8625cbf882277d379ab1ff4",
+          "base_mode": "100644",
+          "path": "app/src/main/java/io/github/triet4p/aegisf/ui/TransactionEditorScreen.kt",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "5a6b5c13462370d4c91dd4819a3964c5f14522381f34a36961bf48160511b96b"
+        },
+        {
+          "base_blob_oid": null,
+          "base_mode": null,
+          "path": "app/src/test/java/io/github/triet4p/aegisf/data/CategoryCommandServiceTest.kt",
+          "status": "added",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "76e4fd11a2faada78e6dd37789bbc84da58227d36c3d7fbdce5d092a0c399ae4"
+        },
+        {
+          "base_blob_oid": null,
+          "base_mode": null,
+          "path": "app/src/test/java/io/github/triet4p/aegisf/data/MigrationChainTest.kt",
+          "status": "added",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "d4091a0f3503fc49df4b7ee15459809e651cad5ddf81b3c581c76e5b0d9a31da"
+        },
+        {
+          "base_blob_oid": null,
+          "base_mode": null,
+          "path": "docs/sprint-5-migration-and-caller-cutover.md",
+          "status": "added",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "3dae5e8a549366f02c302f437ef1e2a68756fe0575c51086f4345e0702b2d170"
+        }
+      ],
+      "target_ref": "refs/heads/main",
+      "worktree": "F:/ai-ml/aegis-f"
+    },
+    "initial": {
+      "base_commit_sha": "c51416393eaa7f03a94cfe0cbdb9c48d0dbac385",
+      "git_c_root": "F:/ai-ml/aegis-f",
+      "head": "c51416393eaa7f03a94cfe0cbdb9c48d0dbac385",
+      "repository": "F:/ai-ml/aegis-f/.git",
+      "scope": [
+        {
+          "base_blob_oid": "176a734954b5b489721be28d335d861f3266a297",
+          "base_mode": "100644",
+          "path": "app/src/main/java/io/github/triet4p/aegisf/MainActivity.kt",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "9ea7f25d803dd6818b66aafaf95dd9484cd2119a10739561b9086f15c8b93456"
+        },
+        {
+          "base_blob_oid": "974af12ef1d86dc1f3ae8ba81b323536d400be9f",
+          "base_mode": "100644",
+          "path": "app/src/main/java/io/github/triet4p/aegisf/data/AppContainer.kt",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "41cb8e266bb027176c2860b52ea8c13f8c66c3d286e6bd15611a8fad06674de2"
+        },
+        {
+          "base_blob_oid": "ebd6d387168caf26f218c31659b1ce7dd0f21184",
+          "base_mode": "100644",
+          "path": "app/src/main/java/io/github/triet4p/aegisf/data/LedgerRepository.kt",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "cec1c56a716e6962a0b4bac94abe344d796a3f1de82f7484e75601efee6bc1b6"
+        },
+        {
+          "base_blob_oid": "86f00bdd692734a6be909da2b23ff5531a8ba6ea",
+          "base_mode": "100644",
+          "path": "app/src/main/java/io/github/triet4p/aegisf/data/WorkflowCommandService.kt",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "375568ed19d5b8d5fa6c66b453bf50ef5630c4c9d7a0a408f2cad6ce05c55d5d"
+        },
+        {
+          "base_blob_oid": "7f48e5e5d929a4eb03b39d5b4e55c6c856067e03",
+          "base_mode": "100644",
+          "path": "app/src/main/java/io/github/triet4p/aegisf/data/WorkflowCommandTypes.kt",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "89b0dc1f9cb956304f322921189275bda4a8ea21f50c6dba6a7369923d3d013a"
+        },
+        {
+          "base_blob_oid": "419de2013bdf0ddc961de810e85f7edfe74c1133",
+          "base_mode": "100644",
+          "path": "app/src/main/java/io/github/triet4p/aegisf/data/WorkflowOperationEntity.kt",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "dedbf01717319c1d74bd8c0ebfe58703d6d54dcad5f8114fd7f5c3233d3ee23c"
+        },
+        {
+          "base_blob_oid": "dee6397690665485549e14def8de46bd96c9fdea",
+          "base_mode": "100644",
+          "path": "app/src/main/java/io/github/triet4p/aegisf/data/WorkflowQueryService.kt",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "14453e1b217f402bc797c18f3a91cc713ac4f898dd1f1cb7aab6e545837dcfc6"
+        },
+        {
+          "base_blob_oid": "203dc4360400242dda887544af093122cecb8a26",
+          "base_mode": "100644",
+          "path": "app/src/main/java/io/github/triet4p/aegisf/ui/CategoryManagerScreen.kt",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "6ecde1df8b61b196eea08875e9a32685ff3486d92048a322df18a5f259a15167"
+        },
+        {
+          "base_blob_oid": "286f1e7f95cbd438e8625cbf882277d379ab1ff4",
+          "base_mode": "100644",
+          "path": "app/src/main/java/io/github/triet4p/aegisf/ui/TransactionEditorScreen.kt",
+          "status": "modified",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "5a6b5c13462370d4c91dd4819a3964c5f14522381f34a36961bf48160511b96b"
+        },
+        {
+          "base_blob_oid": null,
+          "base_mode": null,
+          "path": "app/src/test/java/io/github/triet4p/aegisf/data/CategoryCommandServiceTest.kt",
+          "status": "added",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "76e4fd11a2faada78e6dd37789bbc84da58227d36c3d7fbdce5d092a0c399ae4"
+        },
+        {
+          "base_blob_oid": null,
+          "base_mode": null,
+          "path": "app/src/test/java/io/github/triet4p/aegisf/data/MigrationChainTest.kt",
+          "status": "added",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "d4091a0f3503fc49df4b7ee15459809e651cad5ddf81b3c581c76e5b0d9a31da"
+        },
+        {
+          "base_blob_oid": null,
+          "base_mode": null,
+          "path": "docs/sprint-5-migration-and-caller-cutover.md",
+          "status": "added",
+          "worktree_mode": "100644",
+          "worktree_raw_sha256": "3dae5e8a549366f02c302f437ef1e2a68756fe0575c51086f4345e0702b2d170"
+        }
+      ],
+      "target_ref": "refs/heads/main",
+      "worktree": "F:/ai-ml/aegis-f"
+    }
+  },
+  "manifest_path": "artifacts/sprint-5/workflow-replan/reviews/S5.8-replan-r1.snapshot.json",
+  "report_path": "artifacts/sprint-5/workflow-replan/reviews/S5.8-replan-r1.md",
+  "schema": "omp-reviewed-snapshot/v1",
+  "snapshot": {
+    "base_commit_sha": "c51416393eaa7f03a94cfe0cbdb9c48d0dbac385",
+    "git_c_root": "F:/ai-ml/aegis-f",
+    "repository": "F:/ai-ml/aegis-f/.git",
+    "scope": [
+      {
+        "base_blob_oid": "176a734954b5b489721be28d335d861f3266a297",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/MainActivity.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "9ea7f25d803dd6818b66aafaf95dd9484cd2119a10739561b9086f15c8b93456"
+      },
+      {
+        "base_blob_oid": "974af12ef1d86dc1f3ae8ba81b323536d400be9f",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/AppContainer.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "41cb8e266bb027176c2860b52ea8c13f8c66c3d286e6bd15611a8fad06674de2"
+      },
+      {
+        "base_blob_oid": "ebd6d387168caf26f218c31659b1ce7dd0f21184",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/LedgerRepository.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "cec1c56a716e6962a0b4bac94abe344d796a3f1de82f7484e75601efee6bc1b6"
+      },
+      {
+        "base_blob_oid": "86f00bdd692734a6be909da2b23ff5531a8ba6ea",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/WorkflowCommandService.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "375568ed19d5b8d5fa6c66b453bf50ef5630c4c9d7a0a408f2cad6ce05c55d5d"
+      },
+      {
+        "base_blob_oid": "7f48e5e5d929a4eb03b39d5b4e55c6c856067e03",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/WorkflowCommandTypes.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "89b0dc1f9cb956304f322921189275bda4a8ea21f50c6dba6a7369923d3d013a"
+      },
+      {
+        "base_blob_oid": "419de2013bdf0ddc961de810e85f7edfe74c1133",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/WorkflowOperationEntity.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "dedbf01717319c1d74bd8c0ebfe58703d6d54dcad5f8114fd7f5c3233d3ee23c"
+      },
+      {
+        "base_blob_oid": "dee6397690665485549e14def8de46bd96c9fdea",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/WorkflowQueryService.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "14453e1b217f402bc797c18f3a91cc713ac4f898dd1f1cb7aab6e545837dcfc6"
+      },
+      {
+        "base_blob_oid": "203dc4360400242dda887544af093122cecb8a26",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/ui/CategoryManagerScreen.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "6ecde1df8b61b196eea08875e9a32685ff3486d92048a322df18a5f259a15167"
+      },
+      {
+        "base_blob_oid": "286f1e7f95cbd438e8625cbf882277d379ab1ff4",
+        "base_mode": "100644",
+        "path": "app/src/main/java/io/github/triet4p/aegisf/ui/TransactionEditorScreen.kt",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "5a6b5c13462370d4c91dd4819a3964c5f14522381f34a36961bf48160511b96b"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/CategoryCommandServiceTest.kt",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "76e4fd11a2faada78e6dd37789bbc84da58227d36c3d7fbdce5d092a0c399ae4"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/MigrationChainTest.kt",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "d4091a0f3503fc49df4b7ee15459809e651cad5ddf81b3c581c76e5b0d9a31da"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "docs/sprint-5-migration-and-caller-cutover.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "3dae5e8a549366f02c302f437ef1e2a68756fe0575c51086f4345e0702b2d170"
+      }
+    ],
+    "target_ref": "refs/heads/main",
+    "worktree": "F:/ai-ml/aegis-f"
+  },
+  "snapshot_sha256": "4fe3af14ab17014423cd32d424cfc0018b4b2fba4c0fbdd183a81349bdb16540",
+  "task_id": "S5.8",
+  "worker_artifact_path": "artifacts/sprint-5/workflow-replan/workers/S5.8-replan-a2.md",
+  "worker_attempt_id": "S5.8-replan-a2"
+}
