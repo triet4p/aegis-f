@@ -43,4 +43,20 @@ The migration adds source rows without rewriting the v6 category, rule, draft, o
 
 Attempt `S5.2-replan-a3` records physical-device evidence on an ALT-LX2/API 34 using only the isolated `io.github.triet4p.aegisf.s52device` package. A populated synthetic v6 fixture migrated to v7 and preserved five categories, five ledger rows, three original drafts, two rules, and the exact 80,000 VND confirmed-expense total; the v6 legacy rows remained time/zone-unknown and the foreign-key check was clean. A quick capture save/edit survived force-stop/reopen with identity, revision, timestamp and timezone intact; explicit delete left a text-free tombstone. An injected migration abort retained v6 `user_version`, identity hash and populated counts, with zero capture rows and no new unique capture index. The device privacy filter rejected synthetic OTP/security content without persistence and rejected an unapproved package before content read; permitted parsed intake created one pending draft and only the parsed memo source row. The app UI then showed the two pending drafts and their detail without confirmation. Manual UI saved a synthetic 45,000 VND Food record; the monthly summary moved from 80,000 to 125,000 VND. The local Laya distribution ranked Food at 92%, and the user-selected Food choice remained unsaved until the explicit manual save. The implementation was run under the isolated package; the real user database and signing material were not touched, and no notification-listener access grant was fabricated. The system-bound listener callback itself was not invoked; the physical intake evidence covers the Android notification filter, permitted repository write and review UI. Exact commands, observations, and fixture isolation/cleanup are in `artifacts/sprint-5/workflow-replan/workers/S5.2-replan-a3.md`. These device results do not replace the fresh evidence review or separate Bronze checkpoint.
 
+## S5.9 connected intake and privacy observation
+
+On the S5.9 isolated API-34 phone fixture, the synthetic allowlisted
+`StatusBarNotification` was passed through the production `decideNotificationIntake`
+filter and `IntakeRepository.storePermitted` path. One permitted delivery created draft
+205 and its `BANK_EVIDENCE_REF` containing only the parsed memo; the notification title,
+raw body, transaction code, and OTP text were not stored in capture text. The OTP/security
+case returned `SecurityContent`, and another package returned `NotPermitted`. Replaying
+the same delivery from a new process returned draft 205 with no additional draft or
+capture; confirmed expenses remained 100,000 VND.
+
+This demonstrates the app's own intake path, not system delivery to
+`BankNotificationListenerService`. The phone's notification-access consent was not
+changed; the OS callback remains unexercised. The connected phases and their process
+identities are in `artifacts/sprint-5/workflow-replan/workers/S5.9-replan-a1.md`.
+
 Implementation references: `app/src/main/java/io/github/triet4p/aegisf/data/CaptureMessageEntity.kt`, `CaptureMessageDao.kt`, `CaptureMessageRepository.kt`, `IntakeRepository.kt`, `LedgerDatabase.kt`, and `TransactionDao.kt`. The frozen source/privacy contract is `docs/sprint-5-workflow-contract.md`.

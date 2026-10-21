@@ -369,6 +369,38 @@ Where the evidence lives:
 - `artifacts/sprint-5/workflow-replan/reviews/S5.7-replan-r1.md` — the evidence review of
   the first attempt, whose two findings this attempt answers.
 
+## S5.9 connected confirmation and screen observation
+
+The S5.9 workflow started from five v6 ledger rows (100,000 VND confirmed expenses,
+1,000,000 VND income, and 25,000 VND transfer; 1,125,000 VND across all types). Note
+creation, interpretation, link decisions, unlink, source edit, and the denied agent
+requests left those rows and totals unchanged. The newly intaken bank draft 205 retained
+its original memo and memo-only evidence. The user explicitly chose Food at review
+revision 1; an agent confirmation was denied with `USER_DECISION_REQUIRED` and no
+operation or ledger write.
+
+After a process restart, the user's bound preview was still `Ready` for exactly 45,000
+VND, Expense, 2026-10-16 07:38 device time, the original bank memo, and Food. The user
+confirmed once: draft 205 produced transaction 106, changing the fixture to six records,
+145,000 VND confirmed expenses, 1,000,000 VND income, 25,000 VND transfer, and
+1,170,000 VND across all types. The durable table held exactly one applied
+`CONFIRM_DRAFT` operation. Replaying the same key in a new process returned `NoChange`;
+the row count, totals, draft state, memo, and single applied operation were unchanged.
+
+The actual Review screen was also opened on pending possible-duplicate draft 204. Its
+real pinned-Laya distribution ranked Food at 6% and Unknown/no-fit at 94% (69% overall
+sharpness); Food was selected only at the user's request. A local review preview showed
+50,000 VND, Expense, 2026-10-15 12:00 device time, the legacy memo, Food, and the stored
+duplicate warning for the existing 50,000 VND Manual description. The user returned to
+review without saving corrections or confirming this second draft.
+
+The actual Manual screen separately ran pinned Laya, showed Food at 11% and Unknown at
+89% (51% overall sharpness), allowed the user to select Food from the ranked list, and
+saved one synthetic 10,000 VND Manual expense. The exact fixture-owned row was then
+deleted through the user command boundary; the phone's final summary returned to
+145,000 VND over four confirmed expenses. The connected phase records and UI evidence
+are in `artifacts/sprint-5/workflow-replan/workers/S5.9-replan-a1.md`.
+
 Implementation references:
 `app/src/main/java/io/github/triet4p/aegisf/data/WorkflowCommandService.kt` (the
 financial commands), `FinancialCommandTypes.kt` (the requests, the preview, and the

@@ -507,6 +507,37 @@ isolated package, in a new process per phase, with synthetic fixture data only; 
 two stood a counting engine in for the classifier, because the native model path was
 unchanged by them and its own evidence is the a4 record's.
 
+## S5.9 connected-device integration observation
+
+Attempt `S5.9-replan-a1` exercised the production typed command boundary on one connected
+schema-v11 fixture, with a force-stop and a new Android process between persisted steps.
+The per-process PIDs, stored ids, totals, native-model results, and cleanup are recorded in
+`artifacts/sprint-5/workflow-replan/workers/S5.9-replan-a1.md`.
+
+- The real intake path stored one permitted synthetic bank delivery as draft 205 and one
+  memo-only bank-evidence capture; the same delivery replayed after restart with the same
+  draft id and no added capture. A synthetic security/OTP notification and a different,
+  unapproved package were refused.
+- User capture 10 held two separately interpreted spans, events 1 and 2. Event 1 was
+  attached to draft 205; event 2 stayed proposed for draft 201 after an agent's attach
+  was refused with `ATTACH_POLICY`. Real pinned Laya classified the drafts separately:
+  snapshot 1 records only event 1, snapshot 2 only event 2, and both model decisions were
+  `NO_FIT`. Replaying classification 1 after process recreation returned `NoChange`.
+- An explicit user category choice on draft 205 remained stored after another real Laya
+  request returned `NoChange`. Its prediction was already stale from unlinking, so the
+  snapshot retained its earlier `CONTEXT_CHANGED` reason; the category, review revision,
+  bank memo, and ledger did not move.
+- A user capture edit during a blocked request delegated to the real pinned Laya model
+  cleared the derived reading and proposed link, marked snapshot 2 `SOURCE_CHANGED`, and
+  made the late result a `Conflict`. The stale state survived another process restart.
+  Agent confirmation and an out-of-scope capture edit were denied before an operation
+  row or state mutation.
+
+This is evidence for the production app APIs and their durable records, not a new API or
+schema change. The real MainActivity, manual-entry and bank-review screens were also
+driven on the same fixture. The operating-system notification-listener callback was not
+exercised; no notification-access consent was changed.
+
 Implementation references: `app/src/main/java/io/github/triet4p/aegisf/data/WorkflowCommandService.kt`,
 `WorkflowCommandTypes.kt`, `WorkflowOperationEntity.kt`, `WorkflowOperationDao.kt`,
 `WorkflowClaimGuard.kt`, `LinkEvidencePolicy.kt`, `ClassificationEngine.kt`,

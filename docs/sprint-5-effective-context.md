@@ -216,6 +216,24 @@ was offered to the model and was scored. The isolated package, its staged model 
 driver were removed afterwards; the installed app, its data, and its own model files were left
 untouched.
 
+## S5.9 connected snapshot and freshness observation
+
+In the connected schema-v11 fixture, real pinned Laya produced snapshot 1 for draft 205
+with `eventIds=1` and snapshot 2 for draft 201 with `eventIds=2`; both decisions were
+`NO_FIT`. The sibling event was excluded from each draft's context, and the persisted
+snapshots retained the effective-input digest rather than the composed text. A restart
+and same-key replay of draft 205 returned `NoChange` with snapshot 1 unchanged.
+
+Unlinking event 1 made only draft 205's snapshot `CONTEXT_CHANGED`. Editing capture 10
+while draft 201's real Laya call was blocked made the late result a `Conflict` and left
+snapshot 2's id and source intact while persisting `SOURCE_CHANGED` across process
+recreation. After the user explicitly chose Food for draft 205 at review revision 1, a
+new pinned-Laya request returned `NoChange`; the category, revision, and bank memo stayed
+unchanged. Because snapshot 1 was already stale from the unlink, its existing
+`CONTEXT_CHANGED` reason remained; classification did not make stale state look fresh or
+replace its stored prediction. The per-process evidence is recorded in
+`artifacts/sprint-5/workflow-replan/workers/S5.9-replan-a1.md`.
+
 Implementation references: `app/src/main/java/io/github/triet4p/aegisf/data/laya/LayaEffectiveContext.kt`,
 `app/src/main/java/io/github/triet4p/aegisf/data/ClassificationSnapshotEntity.kt`,
 `ClassificationSnapshotDao.kt`, `ClassificationSnapshotRepository.kt`,

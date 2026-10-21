@@ -156,6 +156,25 @@ and review screens still worked on the upgraded schema. The device test used an 
 application package with synthetic data only; the installed app, its data, and its models were
 left untouched, and the isolated package and its driver were removed afterwards.
 
+## S5.9 connected event and link observation
+
+The S5.9 device workflow created capture 10 with two separately interpreted spans
+(events 1 and 2). Event 1 was attached to newly intaken draft 205; event 2 was proposed
+for legacy pending draft 201, where an agent attach was refused with `ATTACH_POLICY`.
+The two pinned-Laya snapshots recorded event ids `1` and `2` respectively, never the
+sibling reading.
+
+Unlinking event 1 removed only its link, restored that event's own interpretation, left
+draft 205's review revision and bank-evidence memo unchanged, and marked its existing
+prediction `CONTEXT_CHANGED`. In a later process, a source edit advanced capture 10 from
+revision 0 to 1 while classification of draft 201 was blocked before a call to the real
+Laya engine. The edit cleared event 2's derived reading and proposed link, marked the
+existing snapshot `SOURCE_CHANGED`, and the late result returned `Conflict` without
+replacing it. The unresolved reading and stale snapshot survived another process restart.
+The confirmed ledger stayed at five records and 100,000 VND expenses through these note
+and link operations. Full phase identities and results are recorded in
+`artifacts/sprint-5/workflow-replan/workers/S5.9-replan-a1.md`.
+
 Implementation references: `app/src/main/java/io/github/triet4p/aegisf/data/NoteEventEntity.kt`,
 `ContextLinkEntity.kt`, `NoteEventDao.kt`, `ContextLinkDao.kt`, `EventContextRepository.kt`,
 `CaptureMessageRepository.kt`, `LedgerDatabase.kt`, and `AppContainer.kt`. The frozen source,

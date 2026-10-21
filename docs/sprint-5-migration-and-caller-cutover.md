@@ -280,6 +280,39 @@ manifest. The user's own package was never uninstalled, cleared, or reset, and i
 files still read with the same sizes, the same SHA-256 values, and the same dates after
 the round as before it.
 
+## S5.9 connected migration and workflow proof
+
+Attempt `S5.9-replan-a1` repeated the failure/recovery exercise on the same isolated
+ALT-LX2/API-34 fixture that carried the connected workflow; it did not rely only on the
+prior S5.8 record. The seed used the exported v6 schema and identity hash
+`ff97e68ec56591d684c3e5fd371fe854`, with two categories, five ledger rows, four drafts,
+two rules, 100,000 VND confirmed expenses, and 1,125,000 VND across all record types.
+A deliberately conflicting `note_events.resolvedTransactionId` column caused the real
+Room migration chain to fail. After a new process reopened the same file, the version-6
+user version/hash, all five ledger rows, all four drafts, 100,000 VND expense total, and
+absence of new migration tables/transaction revisions were verified unchanged. Removing
+only that injected fault table let the production builder upgrade the same file to v11:
+five records, four drafts, eight migrated source captures, two categories, two rules,
+100,000 VND confirmed expenses, 1,125,000 VND across all types, and zero foreign-key
+violations.
+
+The one-file v11 fixture then carried the S5.9 intake, two-reading/link/classification
+workflow, unlink and source-edit race, user category choice, authorization denials, and
+one explicit bank confirmation end to end. The final ledger had six rows, 145,000 VND
+confirmed expenses, 1,000,000 VND income, 25,000 VND transfer, and 1,170,000 VND across
+all types. Same-key confirmation replay after process recreation did not add a row.
+Actual MainActivity manual-entry/Laya selection and bank-review preview/cancel screens
+also ran on this fixture; the temporary manual row was deleted through the user command
+boundary, restoring the final totals.
+
+**S5.9 release note:** The existing schema-v11 commands were exercised as one durable
+workflow across real process recreation: retries and denied callers made no ledger
+changes, a stale native prediction could not replace edited context, and one explicit
+user confirmation produced one bank record. No S5.9 schema change was required. The
+system-bound notification listener callback remained unexercised; no notification
+access consent changed. Exact phase PIDs, model hashes, UI observations, and cleanup are
+in `artifacts/sprint-5/workflow-replan/workers/S5.9-replan-a1.md`.
+
 Implementation references: `app/src/main/java/io/github/triet4p/aegisf/data/LedgerDatabase.kt`,
 `WorkflowCommandService.kt`, `WorkflowCommandTypes.kt`, `WorkflowOperationEntity.kt`,
 `WorkflowQueryService.kt`, `LedgerRepository.kt`, `AppContainer.kt`,
