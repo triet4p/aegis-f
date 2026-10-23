@@ -194,6 +194,50 @@ class WorkflowQueryServiceTest {
     }
 
     @Test
+    fun `daily spending follows its category selector while the range total stays whole`() =
+        runTest {
+            val seeded = seedKnownLedger()
+
+            val food = query.confirmedLedgerAggregate(
+                monthRange(),
+                dailySpendingCategory = LedgerCategoryFilter.Specific(seeded.food),
+            )
+
+            assertEquals(195_000L, food.spending.totalVnd)
+            assertEquals(
+                LedgerCategoryFilter.Specific(seeded.food),
+                food.dailySpendingCategory,
+            )
+            assertEquals(listOf("2026-10-15"), food.dailySpending.map { it.dayText })
+            assertEquals(165_000L, food.dailySpending.single().totalVnd)
+            assertEquals(2, food.dailySpending.single().recordCount)
+
+            val travel = query.confirmedLedgerAggregate(
+                monthRange(),
+                dailySpendingCategory = LedgerCategoryFilter.Specific(seeded.travel),
+            )
+            assertEquals(195_000L, travel.spending.totalVnd)
+            assertEquals(listOf("2026-10-16"), travel.dailySpending.map { it.dayText })
+            assertEquals(30_000L, travel.dailySpending.single().totalVnd)
+
+            repository.addTransaction(
+                TransactionInput(
+                    type = TransactionType.EXPENSE,
+                    amountVnd = 7_000L,
+                    occurredAtEpochMillis = at("2026-10-20", "14:00"),
+                    description = "Uncategorized expense",
+                ),
+            )
+            val uncategorized = query.confirmedLedgerAggregate(
+                monthRange(),
+                dailySpendingCategory = LedgerCategoryFilter.Uncategorized,
+            )
+            assertEquals(202_000L, uncategorized.spending.totalVnd)
+            assertEquals(listOf("2026-10-20"), uncategorized.dailySpending.map { it.dayText })
+            assertEquals(7_000L, uncategorized.dailySpending.single().totalVnd)
+        }
+
+    @Test
     fun `an archived category keeps its spending and its name`() = runTest {
         val seeded = seedKnownLedger()
 
@@ -392,6 +436,73 @@ class WorkflowQueryServiceTest {
         assertEquals(1, deleted.items.size)
         assertNull(deleted.items.single().bodyText)
         assertTrue(deleted.items.single().tombstone)
+    }
+
+
+    @Test
+    fun `capture event reads are bounded and exact manual lookup excludes active links`() = runTest {
+        val source = "S65: Cafe 50000; Book 20000"
+        val captureId = CaptureMessageRepository(database).saveQuickCapture(source)
+        val events = EventContextRepository(database)
+        val cafeStart = source.indexOf("Cafe")
+        val cafe = events.recordEvent(
+            captureId = captureId,
+            expectedCaptureRevision = 0,
+            interpretation = NoteEventInterpretation(
+                spanStart = cafeStart,
+                spanEnd = cafeStart + "Cafe 50000".length,
+                normalizedText = "Cafe purchase",
+                amountVnd = 50_000L,
+            ),
+            extractionVersion = "user-manual-v1",
+        ) as NoteEventWriteResult.Stored
+        val bookStart = source.indexOf("Book")
+        val book = events.recordEvent(
+            captureId = captureId,
+            expectedCaptureRevision = 0,
+            interpretation = NoteEventInterpretation(
+                spanStart = bookStart,
+                spanEnd = bookStart + "Book 20000".length,
+                normalizedText = "Book purchase",
+                amountVnd = 20_000L,
+            ),
+            extractionVersion = "user-manual-v1",
+        ) as NoteEventWriteResult.Stored
+
+        val firstPage = query.captureEvents(
+            CaptureEventQuery(captureId, QueryPageRequest(limit = 1)),
+        )
+        assertEquals(listOf(cafe.eventId), firstPage.items.map { it.id })
+        assertTrue(firstPage.hasMore)
+        val secondPage = query.captureEvents(
+            CaptureEventQuery(captureId, QueryPageRequest(limit = 1, offset = 1)),
+        )
+        assertEquals(listOf(book.eventId), secondPage.items.map { it.id })
+        assertFalse(secondPage.hasMore)
+
+        val manualInput = query.unrecordedNoteEvent(cafe.eventId)
+        assertNotNull(manualInput)
+        assertEquals(captureId, manualInput?.captureId)
+        assertEquals(source, manualInput?.captureText)
+        assertEquals(50_000L, manualInput?.amountVnd)
+
+        val draftId = IntakeRepository(database).storePermitted(
+            sourcePackage = "com.vietinbank.ipay",
+            notificationKey = "0|com.vietinbank.ipay|1|s65|100",
+            postedAtEpochMillis = 1_792_745_400_000L,
+            content = PermittedNotificationContent(
+                title = "VietinBank",
+                text = listOf(
+                    "VietinBank: 23/10/2026 10:30",
+                    "GD: -50,000 VND",
+                    "ND: Cafe",
+                ).joinToString("\n"),
+                bigText = null,
+            ),
+        )
+        assertTrue(events.proposeLink(cafe.eventId, draftId) is ContextLinkResult.Linked)
+        assertNull(query.unrecordedNoteEvent(cafe.eventId))
+        assertNotNull(query.unrecordedNoteEvent(book.eventId))
     }
 
     @Test
@@ -792,4 +903,104 @@ class WorkflowQueryServiceTest {
         assertEquals(3, figures.last().spending.recordCount)
         job.cancel()
     }
+
+    /**
+     * The draft-context read is the user's own words beside the bank evidence: exact
+     * excerpts, a bounded page, and a truthful stale state instead of an old offset
+     * presented as the current source.
+     */
+    @Test
+    fun `draft context reads carry exact excerpts, stay bounded, and report a stale source`() =
+        runTest {
+            val source = "S66: Cafe 50000; Book 20000"
+            val captureId = CaptureMessageRepository(database).saveQuickCapture(source)
+            val events = EventContextRepository(database)
+            val cafeStart = source.indexOf("Cafe")
+            val cafe = events.recordEvent(
+                captureId = captureId,
+                expectedCaptureRevision = 0,
+                interpretation = NoteEventInterpretation(
+                    spanStart = cafeStart,
+                    spanEnd = cafeStart + "Cafe 50000".length,
+                    normalizedText = "Cafe purchase",
+                    amountVnd = 50_000L,
+                ),
+                extractionVersion = "user-manual-v1",
+            ) as NoteEventWriteResult.Stored
+            val bookStart = source.indexOf("Book")
+            val book = events.recordEvent(
+                captureId = captureId,
+                expectedCaptureRevision = 0,
+                interpretation = NoteEventInterpretation(
+                    spanStart = bookStart,
+                    spanEnd = bookStart + "Book 20000".length,
+                    normalizedText = "Book purchase",
+                    amountVnd = 20_000L,
+                ),
+                extractionVersion = "user-manual-v1",
+            ) as NoteEventWriteResult.Stored
+
+            // Before any link, the manual path carries the same exact excerpt.
+            val unrecorded = query.unrecordedNoteEvents(QueryPageRequest(limit = LIST_PAGE_SIZE))
+            assertEquals(
+                setOf("Cafe 50000", "Book 20000"),
+                unrecorded.items.mapNotNull { it.excerpt }.toSet(),
+            )
+
+            val draftId = IntakeRepository(database).storePermitted(
+                sourcePackage = "com.vietinbank.ipay",
+                notificationKey = "0|com.vietinbank.ipay|1|s66|100",
+                postedAtEpochMillis = 1_792_745_400_000L,
+                content = PermittedNotificationContent(
+                    title = "VietinBank",
+                    text = listOf(
+                        "VietinBank: 23/10/2026 10:30",
+                        "GD: -50,000 VND",
+                        "ND: Cafe",
+                    ).joinToString("\n"),
+                    bigText = null,
+                ),
+            )
+            assertTrue(events.proposeLink(cafe.eventId, draftId) is ContextLinkResult.Linked)
+            assertTrue(events.proposeLink(book.eventId, draftId) is ContextLinkResult.Linked)
+
+            val firstPage = query.draftContextLinks(draftId, QueryPageRequest(limit = 1))
+            assertEquals(1, firstPage.items.size)
+            assertTrue(firstPage.hasMore)
+            val cafeLink = firstPage.items.single()
+            assertEquals(cafe.eventId, cafeLink.eventId)
+            assertEquals(ContextLinkState.PROPOSED, cafeLink.state)
+            assertEquals(captureId, cafeLink.captureId)
+            assertEquals("Cafe 50000", cafeLink.excerpt)
+            assertEquals("Cafe purchase", cafeLink.readingText)
+            assertEquals(50_000L, cafeLink.amountVnd)
+            assertTrue(cafeLink.sourceCurrent)
+
+            val secondPage = query.draftContextLinks(
+                draftId,
+                QueryPageRequest(limit = 1, offset = 1),
+            )
+            assertFalse(secondPage.hasMore)
+            assertEquals("Book 20000", secondPage.items.single().excerpt)
+
+            // A refusal outlives the source it was made against; the accepted path does not.
+            assertTrue(
+                events.rejectLink(book.eventId, draftId, expectedRevision = 0) is
+                    ContextLinkResult.Linked,
+            )
+            CaptureMessageRepository(database).revise(
+                id = captureId,
+                expectedRevision = 0,
+                bodyText = "S66: Cafe 50000 edited; Book 20000",
+            )
+
+            val afterEdit = query.draftContextLinks(draftId, QueryPageRequest(limit = LIST_PAGE_SIZE))
+            val retained = afterEdit.items.single()
+            assertEquals(book.eventId, retained.eventId)
+            assertEquals(ContextLinkState.REJECTED, retained.state)
+            assertNull(retained.excerpt)
+            assertFalse(retained.sourceCurrent)
+            assertEquals(1, retained.captureRevision)
+            assertNull(retained.readingText)
+        }
 }

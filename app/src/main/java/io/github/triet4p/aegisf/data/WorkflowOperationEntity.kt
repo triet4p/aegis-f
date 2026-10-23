@@ -89,6 +89,10 @@ internal fun encodeWorkflowChange(change: WorkflowChange): String = when (change
     is WorkflowChange.CaptureRevised -> encodeFields(
         listOf("CAPTURE_REVISED", change.captureId.toString(), change.revision.toString()),
     )
+    is WorkflowChange.CaptureDeleted -> encodeFields(
+        listOf("CAPTURE_DELETED", change.captureId.toString(), change.revision.toString()),
+    )
+
     is WorkflowChange.EventStored -> encodeFields(
         listOf("EVENT_STORED", change.eventId.toString(), change.revision.toString()),
     )
@@ -181,6 +185,11 @@ internal fun decodeWorkflowChange(summary: String?): WorkflowChange? {
             captureId = fields.longAt(1),
             revision = fields.intAt(2),
         )
+        "CAPTURE_DELETED" -> WorkflowChange.CaptureDeleted(
+            captureId = fields.longAt(1),
+            revision = fields.intAt(2),
+        )
+
         "EVENT_STORED" -> WorkflowChange.EventStored(
             eventId = fields.longAt(1),
             revision = fields.intAt(2),

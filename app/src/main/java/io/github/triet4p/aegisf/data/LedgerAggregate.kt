@@ -83,7 +83,8 @@ data class LedgerDailySpending(
  * separately so that the exclusion is visible rather than implied: an internal transfer
  * moves money between the user's own holdings and changes neither spending nor income, and
  * it is never added to either figure. [excludedDraftCount] counts the records in the range
- * that are not confirmed and are therefore in no figure above.
+ * that are not confirmed and are therefore in no figure above. [dailySpendingCategory]
+ * narrows only [dailySpending]; the overall [spending] total remains for the full range.
  */
 data class LedgerAggregate(
     val range: LedgerDateRange,
@@ -92,8 +93,10 @@ data class LedgerAggregate(
     val transfers: LedgerTotal,
     /** The records in the range that are not confirmed and are in no figure above. */
     val excludedDraftCount: Int,
-    /** One entry per day of the range that has confirmed spending, in day order. */
+    /** One entry per day of confirmed spending matching [dailySpendingCategory], in day order. */
     val dailySpending: List<LedgerDailySpending>,
+    /** The category selector used for [dailySpending]. */
+    val dailySpendingCategory: LedgerCategoryFilter = LedgerCategoryFilter.All,
 )
 
 /**
@@ -111,7 +114,8 @@ data class LedgerAggregate(
  * lower bound with the overflow marked instead of being wrapped.
  *
  * The zone is optional and is only needed for the day buckets: a figure that counts no days
- * does not need one, and a fold without a zone reports no days at all.
+ * does not need one, and a fold without a zone reports no days at all. The category selector
+ * narrows only those daily buckets; totals and category totals still cover the full range.
  */
 class LedgerRangeFold(
     /** The first instant of the range; it belongs to the range. */
@@ -119,6 +123,7 @@ class LedgerRangeFold(
     /** The first instant after the range; it does not belong to the range. */
     val throughExclusiveEpochMillis: Long,
     private val zone: TimeZone? = null,
+    private val dailySpendingCategory: LedgerCategoryFilter = LedgerCategoryFilter.All,
 ) {
     init {
         require(fromEpochMillis < throughExclusiveEpochMillis) {
@@ -145,6 +150,7 @@ class LedgerRangeFold(
         totalsByType.getOrPut(record.type) { RunningTotal() }.add(record.amountVnd)
         if (record.type != TransactionType.EXPENSE) return
         totalsByCategory.getOrPut(record.categoryId) { RunningTotal() }.add(record.amountVnd)
+        if (!matchesDailySpendingCategory(record.categoryId)) return
         val dayZone = zone ?: return
         val dayText = ManualDateTime.dateFieldText(record.occurredAtEpochMillis, dayZone)
         totalsByDay.getOrPut(dayText) { RunningTotal() }.add(record.amountVnd)
@@ -195,7 +201,7 @@ class LedgerRangeFold(
         )
     }
 
-    /** The confirmed spending of each calendar day of the range, in day order. */
+    /** The confirmed spending of each matching calendar day of the range, in day order. */
     fun dailySpending(): List<LedgerDailySpending> = totalsByDay
         .map { (dayText, bucket) ->
             LedgerDailySpending(
@@ -208,6 +214,13 @@ class LedgerRangeFold(
         }
         .sortedBy { it.dayStartEpochMillis }
 
+    private fun matchesDailySpendingCategory(categoryId: Long?): Boolean =
+        when (dailySpendingCategory) {
+            LedgerCategoryFilter.All -> true
+            LedgerCategoryFilter.Uncategorized -> categoryId == null
+            is LedgerCategoryFilter.Specific -> categoryId == dailySpendingCategory.categoryId
+        }
+
     /** The whole figure of the range, with the category names still unresolved. */
     fun build(range: LedgerDateRange): LedgerAggregate = LedgerAggregate(
         range = range,
@@ -215,6 +228,7 @@ class LedgerRangeFold(
         income = total(TransactionType.INCOME),
         transfers = total(TransactionType.TRANSFER),
         excludedDraftCount = excludedDraftCount,
+        dailySpendingCategory = dailySpendingCategory,
         dailySpending = dailySpending(),
     )
 }

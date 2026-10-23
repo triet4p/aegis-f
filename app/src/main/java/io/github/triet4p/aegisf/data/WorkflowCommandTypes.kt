@@ -168,6 +168,9 @@ sealed interface WorkflowChange {
     /** A capture's text was replaced. */
     data class CaptureRevised(val captureId: Long, val revision: Int) : WorkflowChange
 
+    /** A user-authored capture's text was cleared and its tombstone retained. */
+    data class CaptureDeleted(val captureId: Long, val revision: Int) : WorkflowChange
+
     /** A reading was stored for a span that had none. */
     data class EventStored(val eventId: Long, val revision: Int) : WorkflowChange
 
@@ -303,10 +306,23 @@ data class ReviseCaptureRequest(
 )
 
 /**
+ * One request to delete the text of a capture while preserving its source identity.
+ *
+ * [expectedRevision] is the revision the caller read: a capture that moved on is left
+ * untouched and reports a conflict instead of deleting newer text.
+ */
+data class DeleteCaptureRequest(
+    val idempotencyKey: String,
+    val captureId: Long,
+    val expectedRevision: Int,
+)
+
+/**
  * One request to store or revise the reading of a span of a capture.
  *
  * [expectedCaptureRevision] is the capture revision the reading was taken from: a reading
- * of text the caller never saw is refused rather than stored.
+ * of text the caller never saw is refused rather than stored. [expectedEventRevision] pins
+ * an edit to the interpretation revision the caller read; leave it null when adding an event.
  */
 data class UpdateEventRequest(
     val idempotencyKey: String,
@@ -314,6 +330,8 @@ data class UpdateEventRequest(
     val expectedCaptureRevision: Int,
     val interpretation: NoteEventInterpretation,
     val extractionVersion: String,
+    /** The interpretation revision being edited, or null when this is a new event. */
+    val expectedEventRevision: Int? = null,
 )
 
 /**

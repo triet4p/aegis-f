@@ -369,6 +369,146 @@ class WorkflowCommandServiceTest {
     }
 
     @Test
+    fun `editing a linked capture clears derived context and retains its provenance`() = runTest {
+        val database = open()
+        try {
+            val commands = commands(database)
+            val fixture = linkedCaptureFixture(commands, database, "edit-linked")
+            val original = database.captureMessageDao().findById(fixture.captureId)!!
+            val query = WorkflowQueryService(database)
+            val before = query.captureContextSummaries(listOf(fixture.captureId)).getValue(
+                fixture.captureId,
+            )
+            assertEquals(1, before.interpretedEventCount)
+            assertEquals(1, before.unmatchedEventCount)
+            assertEquals(1, before.acceptedLinkCount)
+            assertEquals(1, before.rejectedLinkCount)
+            assertTrue(database.transactionDao().findAll().isEmpty())
+
+            val outcome = commands.reviseCapture(
+                WorkflowCallerScope.User,
+                ReviseCaptureRequest(
+                    idempotencyKey = "edit-linked-source",
+                    captureId = fixture.captureId,
+                    expectedRevision = original.revision,
+                    bodyText = "Plans changed after lunch.",
+                ),
+            )
+            assertTrue("the source edit was refused: $outcome", outcome is WorkflowCommandOutcome.Applied)
+
+            val revised = database.captureMessageDao().findById(fixture.captureId)!!
+            assertEquals("Plans changed after lunch.", revised.bodyText)
+            assertEquals(original.sourceIdentity, revised.sourceIdentity)
+            assertEquals(original.capturedAtEpochMillis, revised.capturedAtEpochMillis)
+            assertEquals(original.captureTimezone, revised.captureTimezone)
+            assertEquals(1, revised.revision)
+
+            val events = database.noteEventDao().findForCapture(fixture.captureId)
+                .associateBy { it.id }
+            assertEquals(NoteEventStatus.UNRESOLVED, events.getValue(fixture.acceptedEventId).status)
+            assertEquals("SOURCE_EDITED", events.getValue(fixture.acceptedEventId).unresolvedReason)
+            assertNull(events.getValue(fixture.acceptedEventId).normalizedText)
+            assertEquals(NoteEventStatus.NO_MATCH, events.getValue(fixture.rejectedEventId).status)
+            assertNull(events.getValue(fixture.rejectedEventId).normalizedText)
+            assertTrue(database.contextLinkDao().findForEvent(fixture.acceptedEventId).isEmpty())
+            assertEquals(
+                ContextLinkState.REJECTED,
+                database.contextLinkDao().findForEvent(fixture.rejectedEventId).single().state,
+            )
+
+            val after = query.captureContextSummaries(listOf(fixture.captureId)).getValue(
+                fixture.captureId,
+            )
+            assertEquals(1, after.unresolvedEventCount)
+            assertEquals(1, after.unmatchedEventCount)
+            assertEquals(0, after.acceptedLinkCount)
+            assertEquals(1, after.rejectedLinkCount)
+            assertTrue(database.transactionDao().findAll().isEmpty())
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun `deleting a linked capture is idempotent and leaves its text free tombstone`() = runTest {
+        val database = open()
+        try {
+            val commands = commands(database)
+            val fixture = linkedCaptureFixture(commands, database, "delete-linked")
+            val original = database.captureMessageDao().findById(fixture.captureId)!!
+            val request = DeleteCaptureRequest(
+                idempotencyKey = "delete-linked-source",
+                captureId = fixture.captureId,
+                expectedRevision = original.revision,
+            )
+            assertTrue(database.transactionDao().findAll().isEmpty())
+
+            val first = commands.deleteCapture(WorkflowCallerScope.User, request)
+            assertEquals(
+                WorkflowCommandOutcome.Applied(WorkflowChange.CaptureDeleted(fixture.captureId, 1)),
+                first,
+            )
+            val replay = commands.deleteCapture(WorkflowCallerScope.User, request)
+            assertTrue(
+                "delete replay was not a no-change: $replay",
+                replay is WorkflowCommandOutcome.NoChange,
+            )
+            assertEquals(
+                WorkflowChange.CaptureDeleted(fixture.captureId, 1),
+                (replay as WorkflowCommandOutcome.NoChange).change,
+            )
+
+            val deleted = database.captureMessageDao().findById(fixture.captureId)!!
+            assertNull(deleted.bodyText)
+            assertTrue(deleted.tombstone)
+            assertEquals(original.sourceIdentity, deleted.sourceIdentity)
+            assertEquals(original.capturedAtEpochMillis, deleted.capturedAtEpochMillis)
+            assertEquals(original.captureTimezone, deleted.captureTimezone)
+            assertEquals(1, deleted.revision)
+
+            val query = WorkflowQueryService(database)
+            assertTrue(
+                query.sourceExcerpts(
+                    SourceQuery(
+                        kind = CaptureKind.USER_NOTE,
+                        sourceKind = CaptureSourceKind.USER_QUICK_CAPTURE,
+                        bounds = QueryPageRequest(LIST_PAGE_SIZE),
+                    ),
+                ).items.isEmpty(),
+            )
+            val tombstone = query.sourceExcerpts(
+                SourceQuery(
+                    kind = CaptureKind.USER_NOTE,
+                    sourceKind = CaptureSourceKind.USER_QUICK_CAPTURE,
+                    state = SourceState.DELETED,
+                    bounds = QueryPageRequest(LIST_PAGE_SIZE),
+                ),
+            ).items.single()
+            assertNull(tombstone.bodyText)
+            assertTrue(tombstone.tombstone)
+
+            val events = database.noteEventDao().findForCapture(fixture.captureId)
+                .associateBy { it.id }
+            assertEquals("SOURCE_DELETED", events.getValue(fixture.acceptedEventId).unresolvedReason)
+            assertNull(events.getValue(fixture.acceptedEventId).normalizedText)
+            assertNull(events.getValue(fixture.rejectedEventId).normalizedText)
+            assertTrue(database.contextLinkDao().findForEvent(fixture.acceptedEventId).isEmpty())
+            assertEquals(
+                ContextLinkState.REJECTED,
+                database.contextLinkDao().findForEvent(fixture.rejectedEventId).single().state,
+            )
+            val summary = query.captureContextSummaries(listOf(fixture.captureId)).getValue(
+                fixture.captureId,
+            )
+            assertEquals(0, summary.acceptedLinkCount)
+            assertEquals(1, summary.rejectedLinkCount)
+            assertTrue(database.transactionDao().findAll().isEmpty())
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
     fun `a stale reading revision is a conflict and changes nothing`() = runTest {
         val database = open()
         try {
@@ -415,6 +555,111 @@ class WorkflowCommandServiceTest {
             assertTrue(
                 "the stale reading was stored against the old text",
                 events.none { it.normalizedText == "Fuel 55,000 at 15:05" },
+            )
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun `editing an interpretation requires the revision that was read`() = runTest {
+        val database = open()
+        try {
+            val commands = commands(database)
+            val captureId = saveCapture(commands, "save-note-revision", NOTE_TEXT)
+            val first = commands.updateEventInterpretation(
+                WorkflowCallerScope.User,
+                UpdateEventRequest(
+                    idempotencyKey = "event-revision-create",
+                    captureId = captureId,
+                    expectedCaptureRevision = 0,
+                    interpretation = reading("Fuel 50,000 at 15:00", "Fuel"),
+                    extractionVersion = EXTRACTION_VERSION,
+                ),
+            )
+            assertTrue(first is WorkflowCommandOutcome.Applied)
+            val updated = commands.updateEventInterpretation(
+                WorkflowCallerScope.User,
+                UpdateEventRequest(
+                    idempotencyKey = "event-revision-update",
+                    captureId = captureId,
+                    expectedCaptureRevision = 0,
+                    interpretation = reading("Fuel 50,000 at 15:00", "Fuel purchase"),
+                    extractionVersion = EXTRACTION_VERSION,
+                    expectedEventRevision = 0,
+                ),
+            )
+            assertTrue(updated is WorkflowCommandOutcome.Applied)
+
+            val stale = commands.updateEventInterpretation(
+                WorkflowCallerScope.User,
+                UpdateEventRequest(
+                    idempotencyKey = "event-revision-stale",
+                    captureId = captureId,
+                    expectedCaptureRevision = 0,
+                    interpretation = reading("Fuel 50,000 at 15:00", "Stale overwrite"),
+                    extractionVersion = EXTRACTION_VERSION,
+                    expectedEventRevision = 0,
+                ),
+            )
+            assertTrue(
+                "the stale interpretation was not a conflict: $stale",
+                stale is WorkflowCommandOutcome.Conflict,
+            )
+            val stored = database.noteEventDao().findForCapture(captureId).single()
+            assertEquals(1, stored.revision)
+            assertEquals("Fuel purchase", stored.normalizedText)
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun `link decisions never change the bank draft or ledger`() = runTest {
+        val database = open()
+        try {
+            val commands = commands(database)
+            val captureId = saveCapture(commands, "save-note-link-invariant", NOTE_TEXT)
+            val eventId = storeEvent(commands, captureId, "event-link-invariant")
+            val draftId = storeDraft(database, "link-invariant", 50_000L)
+            val originalDraft = database.pendingBankDraftDao().findById(draftId)!!
+            val query = WorkflowQueryService(database)
+
+            val proposed = commands.proposeLink(
+                WorkflowCallerScope.User,
+                ProposeLinkRequest("propose-invariant", eventId, draftId),
+            )
+            assertTrue(proposed is WorkflowCommandOutcome.Applied)
+            assertEquals(originalDraft, database.pendingBankDraftDao().findById(draftId))
+
+            val attached = commands.attachLink(
+                WorkflowCallerScope.User,
+                AttachLinkRequest("attach-invariant", eventId, draftId, expectedRevision = 0),
+            )
+            assertTrue(attached is WorkflowCommandOutcome.Applied)
+            assertEquals(originalDraft, database.pendingBankDraftDao().findById(draftId))
+
+            val unlinked = commands.unlinkLink(
+                WorkflowCallerScope.User,
+                UnlinkLinkRequest("unlink-invariant", eventId, draftId, expectedRevision = 1),
+            )
+            assertTrue(unlinked is WorkflowCommandOutcome.Applied)
+            assertEquals(originalDraft, database.pendingBankDraftDao().findById(draftId))
+
+            val reproposed = commands.proposeLink(
+                WorkflowCallerScope.User,
+                ProposeLinkRequest("repropose-invariant", eventId, draftId),
+            )
+            assertTrue(reproposed is WorkflowCommandOutcome.Applied)
+            val rejected = commands.rejectLink(
+                WorkflowCallerScope.User,
+                RejectLinkRequest("reject-invariant", eventId, draftId, expectedRevision = 0),
+            )
+            assertTrue(rejected is WorkflowCommandOutcome.Applied)
+            assertEquals(originalDraft, database.pendingBankDraftDao().findById(draftId))
+            assertTrue(
+                query.ledgerRecords(LedgerRecordQuery(bounds = QueryPageRequest(LIST_PAGE_SIZE)))
+                    .items.isEmpty(),
             )
         } finally {
             database.close()
@@ -2457,6 +2702,96 @@ class WorkflowCommandServiceTest {
             bigText = null,
         ),
     )
+
+    private data class LinkedCaptureFixture(
+        val captureId: Long,
+        val acceptedEventId: Long,
+        val rejectedEventId: Long,
+    )
+
+    private suspend fun linkedCaptureFixture(
+        commands: WorkflowCommandService,
+        database: LedgerDatabase,
+        key: String,
+    ): LinkedCaptureFixture {
+        val captureId = saveCapture(commands, "$key-save", NOTE_TEXT)
+        val acceptedEventId = storeEvent(commands, captureId, "$key-fuel-event")
+        val rejectedEventId = storeEvent(
+            commands = commands,
+            captureId = captureId,
+            key = "$key-snack-event",
+            span = "Circle K snack 20,000 at 15:15",
+            amountVnd = 20_000L,
+        )
+        val acceptedDraftId = storeDraft(database, "$key-fuel-draft", 50_000L)
+        val rejectedDraftId = storeDraft(database, "$key-snack-draft", 20_000L)
+
+        val acceptedProposal = commands.proposeLink(
+            WorkflowCallerScope.User,
+            ProposeLinkRequest(
+                idempotencyKey = "$key-fuel-proposal",
+                eventId = acceptedEventId,
+                draftId = acceptedDraftId,
+            ),
+        )
+        assertTrue(
+            "the fixture link was not proposed: $acceptedProposal",
+            acceptedProposal is WorkflowCommandOutcome.Applied,
+        )
+        val acceptedLink = database.contextLinkDao()
+            .findByPair(acceptedEventId, acceptedDraftId)!!
+        val attached = commands.attachLink(
+            WorkflowCallerScope.User,
+            AttachLinkRequest(
+                idempotencyKey = "$key-fuel-attach",
+                eventId = acceptedEventId,
+                draftId = acceptedDraftId,
+                expectedRevision = acceptedLink.revision,
+            ),
+        )
+        assertTrue(
+            "the fixture link was not accepted: $attached",
+            attached is WorkflowCommandOutcome.Applied,
+        )
+
+        val rejectedProposal = commands.proposeLink(
+            WorkflowCallerScope.User,
+            ProposeLinkRequest(
+                idempotencyKey = "$key-snack-proposal",
+                eventId = rejectedEventId,
+                draftId = rejectedDraftId,
+            ),
+        )
+        assertTrue(
+            "the refused fixture link was not proposed: $rejectedProposal",
+            rejectedProposal is WorkflowCommandOutcome.Applied,
+        )
+        val rejectedLink = database.contextLinkDao()
+            .findByPair(rejectedEventId, rejectedDraftId)!!
+        val rejected = commands.rejectLink(
+            WorkflowCallerScope.User,
+            RejectLinkRequest(
+                idempotencyKey = "$key-snack-reject",
+                eventId = rejectedEventId,
+                draftId = rejectedDraftId,
+                expectedRevision = rejectedLink.revision,
+            ),
+        )
+        assertTrue(
+            "the fixture refusal was not stored: $rejected",
+            rejected is WorkflowCommandOutcome.Applied,
+        )
+        assertEquals(
+            ContextLinkState.REJECTED,
+            database.contextLinkDao().findForEvent(rejectedEventId).single().state,
+        )
+
+        return LinkedCaptureFixture(
+            captureId = captureId,
+            acceptedEventId = acceptedEventId,
+            rejectedEventId = rejectedEventId,
+        )
+    }
 
     private companion object {
         const val BANK_PACKAGE = "com.example.bank"

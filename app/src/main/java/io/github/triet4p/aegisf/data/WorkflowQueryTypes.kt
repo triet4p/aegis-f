@@ -86,6 +86,13 @@ data class UnrecordedNoteEvent(
     val merchant: String?,
     val normalizedText: String?,
     val captureText: String?,
+    /**
+     * The exact stored source text of the span the reading was taken from.
+     *
+     * It is null when the reading no longer matches the capture's current text or its span
+     * no longer fits, so review never presents text at an old offset as the user's words.
+     */
+    val excerpt: String? = null,
 )
 
 /**
@@ -309,6 +316,17 @@ data class EventOperationQuery(
 )
 
 /**
+ * A bounded page of the editable readings attached to one saved capture.
+ *
+ * Unlike [EventOperationQuery], this view includes the source span and interpretation fields
+ * needed to let the user review and revise the actual stored reading.
+ */
+data class CaptureEventQuery(
+    val captureId: Long,
+    val bounds: QueryPageRequest,
+)
+
+/**
  * A bounded read of the stored classification results — the results of the classification
  * requests.
  *
@@ -349,6 +367,46 @@ data class LinkOperation(
 )
 
 /**
+ * One stored context link of one bank draft, with the exact note excerpt it joins.
+ *
+ * The link row alone names the pair; review also needs the user's own words, so this view
+ * carries the reading and the exact span of the stored source text it was taken from. It is
+ * provenance evidence and nothing else: no field here is a ledger value, and reading it can
+ * never change the bank draft, its amount, or a ledger figure.
+ *
+ * [sourceCurrent] is the app's own fact about currency. It is false when the reading no
+ * longer matches the capture's current revision, when the capture's text is gone, or when
+ * the stored span no longer fits the text. A stale reading is still reported — a refused
+ * link outlives the text it was made against — so review can say plainly that the excerpt
+ * is no longer current instead of presenting an old copy of edited text as the source.
+ */
+data class DraftContextLink(
+    val linkId: Long,
+    val eventId: Long,
+    val draftId: Long,
+    val state: ContextLinkState,
+    val revision: Int,
+    val userOverride: String?,
+    /** The capture the reading was taken from, or null when the event row is gone. */
+    val captureId: Long?,
+    /** The capture's current revision, or null when the event row is gone. */
+    val captureRevision: Int?,
+    /** The reading's revision, or null when the event row is gone. */
+    val eventRevision: Int?,
+    /** The capture revision the reading was taken from, or null when the event row is gone. */
+    val eventSourceRevision: Int?,
+    /** The exact stored source text of the span, or null when it is no longer readable. */
+    val excerpt: String?,
+    /** The reading's normalized text, or null when the source no longer supports it. */
+    val readingText: String?,
+    val amountVnd: Long?,
+    val anchorDate: String?,
+    val merchant: String?,
+    /** Whether the reading still matches the capture's current text. */
+    val sourceCurrent: Boolean,
+)
+
+/**
  * The stored result of one bank-draft review decision.
  *
  * [reviewRevision] is the stored compare-and-set revision the review was written at, and
@@ -379,6 +437,39 @@ data class CaptureOperation(
     val capturedAtEpochMillis: Long?,
     val captureTimezone: String?,
 )
+
+/**
+ * A bounded summary of the stored interpretations and link decisions for one capture.
+ *
+ * These counts describe current source context only; they do not imply that a model ran,
+ * that a proposed link was accepted, or that any financial record was created.
+ */
+data class CaptureContextSummary(
+    val eventCount: Int = 0,
+    val interpretedEventCount: Int = 0,
+    val unresolvedEventCount: Int = 0,
+    val unmatchedEventCount: Int = 0,
+    val resolvedEventCount: Int = 0,
+    val proposedLinkCount: Int = 0,
+    val acceptedLinkCount: Int = 0,
+    val rejectedLinkCount: Int = 0,
+)
+
+/** Grouped event counts returned by the fixed capture-context query. */
+data class CaptureEventStatusCount(
+    val captureId: Long,
+    val status: NoteEventStatus,
+    val eventCount: Int,
+    val resolvedEventCount: Int,
+)
+
+/** Grouped link counts returned by the fixed capture-context query. */
+data class CaptureLinkStatusCount(
+    val captureId: Long,
+    val state: ContextLinkState,
+    val linkCount: Int,
+)
+
 
 /**
  * The stored result of one event interpretation.

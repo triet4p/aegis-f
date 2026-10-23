@@ -242,6 +242,8 @@ class WorkflowQueryService(
      * The reading is exact: whole dong, summed with the ledger's own overflow rule. A
      * total that passes the largest whole-dong value is reported as a proven lower bound
      * with the overflow marked, never as a wrapped or invented number.
+     * The optional [dailySpendingCategory] narrows only the per-day breakdown; the total
+     * spending and the category breakdown remain the full range.
      *
      * The range is not held in memory. The records of the range are read in bounded
      * chunks, inside one database transaction, and each chunk is folded into the running
@@ -249,8 +251,11 @@ class WorkflowQueryService(
      * not the number of records the range holds. The one transaction is what makes the
      * figure one consistent view of the range even while the ledger is being written.
      */
-    suspend fun confirmedLedgerAggregate(range: LedgerDateRange): LedgerAggregate {
-        val aggregate = foldRange(range)
+    suspend fun confirmedLedgerAggregate(
+        range: LedgerDateRange,
+        dailySpendingCategory: LedgerCategoryFilter = LedgerCategoryFilter.All,
+    ): LedgerAggregate {
+        val aggregate = foldRange(range, dailySpendingCategory)
         val categories = categoryDao.findByIds(aggregate.categoryIds())
         return aggregate.withCategoryNames(categories)
     }
@@ -258,16 +263,20 @@ class WorkflowQueryService(
     /**
      * The same confirmed-ledger aggregate as [confirmedLedgerAggregate], as a live stream.
      *
-     * The stream re-emits when a record of the range is stored, corrected, or deleted, and
-     * when a category of the breakdown is renamed or archived — so a summary that shows
-     * these figures follows the ledger on its own.
+     * [dailySpendingCategory] narrows only the per-day breakdown; the total spending and
+     * category breakdown remain the full range. The stream re-emits when a record of the
+     * range is stored, corrected, or deleted, and when a category of the breakdown is
+     * renamed or archived.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun observeConfirmedLedgerAggregate(range: LedgerDateRange): Flow<LedgerAggregate> {
+    fun observeConfirmedLedgerAggregate(
+        range: LedgerDateRange,
+        dailySpendingCategory: LedgerCategoryFilter = LedgerCategoryFilter.All,
+    ): Flow<LedgerAggregate> {
         val from = requireClosedRange(range)
         val through = requireNotNull(range.throughExclusiveEpochMillis)
         return transactionDao.observeRangeRevision(from, through)
-            .mapLatest { foldRange(range) }
+            .mapLatest { foldRange(range, dailySpendingCategory) }
             .flatMapLatest { aggregate ->
                 val ids = aggregate.categoryIds()
                 if (ids.isEmpty()) {
@@ -286,10 +295,18 @@ class WorkflowQueryService(
      * The fold reads the range in bounded chunks inside one database transaction, so the
      * figures are one snapshot of the range and the read never holds more than a chunk.
      */
-    private suspend fun foldRange(range: LedgerDateRange): LedgerAggregate {
+    private suspend fun foldRange(
+        range: LedgerDateRange,
+        dailySpendingCategory: LedgerCategoryFilter = LedgerCategoryFilter.All,
+    ): LedgerAggregate {
         val from = requireClosedRange(range)
         val through = requireNotNull(range.throughExclusiveEpochMillis)
-        val fold = LedgerRangeFold(from, through, TimeZone.getTimeZone(range.zoneId))
+        val fold = LedgerRangeFold(
+            fromEpochMillis = from,
+            throughExclusiveEpochMillis = through,
+            zone = TimeZone.getTimeZone(range.zoneId),
+            dailySpendingCategory = dailySpendingCategory,
+        )
         withContext(Dispatchers.IO) {
             transactionDao.foldConfirmedRange(AGGREGATE_CHUNK_SIZE, fold)
         }
@@ -350,6 +367,59 @@ class WorkflowQueryService(
         bounds = query.bounds,
     )
 
+    /**
+     * Summarizes the stored interpretation and link states for one bounded set of captures.
+     *
+     * Counts come from the event and link rows themselves, so an unprocessed note remains
+     * unresolved, a proposal is not presented as an accepted link, and a linked capture is
+     * never reported as a new ledger record.
+     */
+    suspend fun captureContextSummaries(
+        captureIds: List<Long>,
+    ): Map<Long, CaptureContextSummary> {
+        val ids = captureIds.distinct()
+        require(ids.size <= LIST_PAGE_SIZE) {
+            "Capture context summaries are bounded to one maximum query page."
+        }
+        if (ids.isEmpty()) return emptyMap()
+
+        val summaries = ids.associateWith { CaptureContextSummary() }.toMutableMap()
+        noteEventDao.findCaptureStatusCounts(ids).forEach { counts ->
+            val current = summaries.getValue(counts.captureId)
+            val withStatus = when (counts.status) {
+                NoteEventStatus.INTERPRETED -> current.copy(
+                    interpretedEventCount = current.interpretedEventCount + counts.eventCount,
+                )
+                NoteEventStatus.UNRESOLVED -> current.copy(
+                    unresolvedEventCount = current.unresolvedEventCount + counts.eventCount,
+                )
+                NoteEventStatus.NO_MATCH -> current.copy(
+                    unmatchedEventCount = current.unmatchedEventCount + counts.eventCount,
+                )
+            }
+            summaries[counts.captureId] = withStatus.copy(
+                eventCount = withStatus.eventCount + counts.eventCount,
+                resolvedEventCount = withStatus.resolvedEventCount + counts.resolvedEventCount,
+            )
+        }
+        contextLinkDao.findCaptureStatusCounts(ids).forEach { counts ->
+            val current = summaries.getValue(counts.captureId)
+            summaries[counts.captureId] = when (counts.state) {
+                ContextLinkState.PROPOSED -> current.copy(
+                    proposedLinkCount = current.proposedLinkCount + counts.linkCount,
+                )
+                ContextLinkState.ACCEPTED -> current.copy(
+                    acceptedLinkCount = current.acceptedLinkCount + counts.linkCount,
+                )
+                ContextLinkState.REJECTED -> current.copy(
+                    rejectedLinkCount = current.rejectedLinkCount + counts.linkCount,
+                )
+            }
+        }
+        return summaries
+    }
+
+
     // --- Unrecorded note events ----------------------------------------------
 
     /**
@@ -386,10 +456,32 @@ class WorkflowQueryService(
                 merchant = event.merchant,
                 normalizedText = event.normalizedText,
                 captureText = captures[event.captureId]?.bodyText,
+                excerpt = exactSourceExcerpt(event, captures[event.captureId]),
             )
         }
         return pageOf(rows = rows, bounds = bounds)
     }
+
+    /** One hand-recordable event by id, or null once linked, resolved, or made incomplete. */
+    suspend fun unrecordedNoteEvent(eventId: Long): UnrecordedNoteEvent? {
+        val event = noteEventDao.findUnrecordedById(eventId) ?: return null
+        val capture = captureMessageDao.findById(event.captureId) ?: return null
+        if (capture.tombstone) return null
+        val captureText = capture.bodyText ?: return null
+        return UnrecordedNoteEvent(
+            eventId = event.id,
+            captureId = event.captureId,
+            revision = event.revision,
+            amountVnd = event.amountVnd,
+            anchorDate = event.anchorDate,
+            anchorTime = event.anchorTime,
+            merchant = event.merchant,
+            normalizedText = event.normalizedText,
+            captureText = captureText,
+            excerpt = exactSourceExcerpt(event, capture),
+        )
+    }
+
 
     // --- Draft candidates ---------------------------------------------------
     /**
@@ -478,6 +570,87 @@ class WorkflowQueryService(
     )
 
     /**
+     * A bounded page of the stored context links of one bank draft, with the note excerpt
+     * each link joins.
+     *
+     * The read is provenance and nothing else: it returns each link's own state and
+     * revision, the reading it names, and the exact span of the stored source text the
+     * reading was taken from. It never rewrites, re-links, or re-scores anything, and no
+     * row here is a ledger value.
+     *
+     * A reading that no longer matches its capture's current revision — an edited or
+     * deleted source, a cleared reading — is reported with [DraftContextLink.sourceCurrent]
+     * false and no excerpt. A refused link is still reported, because a refusal outlives
+     * the text it was made against; review can then say that its excerpt is no longer
+     * current instead of presenting old text as the source.
+     */
+    suspend fun draftContextLinks(
+        draftId: Long,
+        bounds: QueryPageRequest,
+    ): QueryPage<DraftContextLink> {
+        val links = contextLinkDao.findPage(
+            state = null,
+            eventId = null,
+            draftId = draftId,
+            limit = bounds.limit + 1,
+            offset = bounds.offset,
+        )
+        val pageLinks = links.take(bounds.limit)
+        val events = if (pageLinks.isEmpty()) {
+            emptyMap()
+        } else {
+            noteEventDao.findByIds(pageLinks.map { it.eventId }.distinct())
+                .associateBy { it.id }
+        }
+        val captures = if (events.isEmpty()) {
+            emptyMap()
+        } else {
+            captureMessageDao.findByIds(events.values.map { it.captureId }.distinct())
+                .associateBy { it.id }
+        }
+        val rows = pageLinks.map { link ->
+            val event = events[link.eventId]
+            val capture = event?.let { captures[it.captureId] }
+            val sourceText = capture?.takeIf { !it.tombstone }?.bodyText
+            val excerpt = if (
+                event != null && capture != null && sourceText != null &&
+                event.sourceRevision == capture.revision &&
+                event.normalizedText != null &&
+                event.spanStart >= 0 && event.spanEnd > event.spanStart &&
+                event.spanEnd <= sourceText.length
+            ) {
+                sourceText.substring(event.spanStart, event.spanEnd)
+            } else {
+                null
+            }
+            DraftContextLink(
+                linkId = link.id,
+                eventId = link.eventId,
+                draftId = link.draftId,
+                state = link.state,
+                revision = link.revision,
+                userOverride = link.userOverride,
+                captureId = event?.captureId,
+                captureRevision = capture?.revision,
+                eventRevision = event?.revision,
+                eventSourceRevision = event?.sourceRevision,
+                excerpt = excerpt,
+                readingText = event?.normalizedText,
+                amountVnd = event?.amountVnd,
+                anchorDate = event?.anchorDate,
+                merchant = event?.merchant,
+                sourceCurrent = excerpt != null,
+            )
+        }
+        return QueryPage(
+            items = rows,
+            offset = bounds.offset,
+            limit = bounds.limit,
+            hasMore = links.size > bounds.limit,
+        )
+    }
+
+    /**
      * A bounded page of the stored review decisions of the bank drafts.
      *
      * The stored state is the lifecycle state itself: pending, confirmed, or dismissed.
@@ -557,6 +730,17 @@ class WorkflowQueryService(
         bounds = query.bounds,
     )
 
+    /** A bounded page of the full editable interpretations for one saved capture. */
+    suspend fun captureEvents(query: CaptureEventQuery): QueryPage<NoteEventEntity> = pageOf(
+        rows = noteEventDao.findPage(
+            captureId = query.captureId,
+            status = null,
+            limit = query.bounds.limit + 1,
+            offset = query.bounds.offset,
+        ),
+        bounds = query.bounds,
+    )
+
     /**
      * A bounded page of the stored classification results.
      *
@@ -628,6 +812,25 @@ private fun <T> pageOf(rows: List<T>, bounds: QueryPageRequest): QueryPage<T> {
         limit = bounds.limit,
         hasMore = hasMore,
     )
+}
+
+/**
+ * The exact stored source text of one reading's span, or null when it is no longer current.
+ *
+ * A reading whose capture revision moved on, whose text is a tombstone, or whose span no
+ * longer fits the current text is not excerpted: an old offset into edited text would be
+ * presented as if the user still wrote that text there.
+ */
+private fun exactSourceExcerpt(
+    event: NoteEventEntity,
+    capture: CaptureMessageEntity?,
+): String? {
+    val source = capture?.takeIf { !it.tombstone }?.bodyText ?: return null
+    if (event.sourceRevision != capture.revision || event.normalizedText == null) return null
+    if (event.spanStart < 0 || event.spanEnd <= event.spanStart || event.spanEnd > source.length) {
+        return null
+    }
+    return source.substring(event.spanStart, event.spanEnd)
 }
 
 /** The stored state a category query reads: null for every state. */

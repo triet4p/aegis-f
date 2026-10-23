@@ -53,6 +53,19 @@ abstract class ContextLinkDao {
         offset: Int,
     ): List<ContextLinkEntity>
 
+    /** The link states for the named captures, grouped so history reads remain bounded. */
+    @Query(
+        "SELECT note_events.captureId AS captureId, context_links.state AS state, " +
+            "COUNT(*) AS linkCount FROM context_links " +
+            "INNER JOIN note_events ON note_events.id = context_links.eventId " +
+            "WHERE note_events.captureId IN (:captureIds) " +
+            "GROUP BY note_events.captureId, context_links.state",
+    )
+    abstract suspend fun findCaptureStatusCounts(
+        captureIds: List<Long>,
+    ): List<CaptureLinkStatusCount>
+
+
     @Query("SELECT * FROM context_links WHERE draftId = :draftId ORDER BY id")
     abstract suspend fun findForDraft(draftId: Long): List<ContextLinkEntity>
 

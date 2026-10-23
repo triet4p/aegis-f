@@ -24,6 +24,10 @@ abstract class NoteEventDao {
     @Query("SELECT * FROM note_events WHERE id = :id")
     abstract suspend fun findById(id: Long): NoteEventEntity?
 
+    /** The named readings, read by their ids; an empty list reads nothing. */
+    @Query("SELECT * FROM note_events WHERE id IN (:ids)")
+    abstract suspend fun findByIds(ids: List<Long>): List<NoteEventEntity>
+
     @Query("SELECT * FROM note_events WHERE captureId = :captureId ORDER BY spanStart, id")
     abstract suspend fun findForCapture(captureId: Long): List<NoteEventEntity>
 
@@ -56,6 +60,18 @@ abstract class NoteEventDao {
     /** The same readings as [findForCapture], as a live stream of the current rows. */
     @Query("SELECT * FROM note_events WHERE captureId = :captureId ORDER BY spanStart, id")
     abstract fun observeForCapture(captureId: Long): Flow<List<NoteEventEntity>>
+
+    /** A bounded-by-capture summary of event states and source-backed resolutions. */
+    @Query(
+        "SELECT captureId, status, COUNT(*) AS eventCount, " +
+            "SUM(CASE WHEN resolvedTransactionId IS NOT NULL THEN 1 ELSE 0 END) " +
+            "AS resolvedEventCount FROM note_events WHERE captureId IN (:captureIds) " +
+            "GROUP BY captureId, status",
+    )
+    abstract suspend fun findCaptureStatusCounts(
+        captureIds: List<Long>,
+    ): List<CaptureEventStatusCount>
+
 
     /**
      * Replaces the reading of an event while its revision still matches.
@@ -182,4 +198,14 @@ abstract class NoteEventDao {
             "ORDER BY captureId ASC, spanStart ASC, id ASC LIMIT :limit OFFSET :offset",
     )
     abstract suspend fun findUnrecordedPage(limit: Int, offset: Int): List<NoteEventEntity>
+
+    /** The same hand-recordable event as [findUnrecordedPage], addressed by stable id. */
+    @Query(
+        "SELECT * FROM note_events WHERE id = :eventId AND " +
+            "resolvedTransactionId IS NULL AND normalizedText IS NOT NULL AND " +
+            "unresolvedReason IS NULL AND NOT EXISTS (" +
+            "SELECT 1 FROM context_links WHERE context_links.eventId = note_events.id " +
+            "AND context_links.state IN ('PROPOSED', 'ACCEPTED'))",
+    )
+    abstract suspend fun findUnrecordedById(eventId: Long): NoteEventEntity?
 }

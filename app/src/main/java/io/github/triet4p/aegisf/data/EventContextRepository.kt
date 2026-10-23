@@ -157,14 +157,15 @@ internal class EventContextRepository(
      * Stores the reading of one span of a capture.
      *
      * [expectedCaptureRevision] is the capture revision the reading was taken from: when the
-     * capture has moved on, the reading is refused with [NoteEventWriteResult.Changed] instead
-     * of being written against text the caller never saw.
+     * capture has moved on, the reading is refused with [NoteEventWriteResult.Changed].
+     * [expectedEventRevision] similarly prevents an edit from overwriting a newer reading.
      */
     suspend fun recordEvent(
         captureId: Long,
         expectedCaptureRevision: Int,
         interpretation: NoteEventInterpretation,
         extractionVersion: String,
+        expectedEventRevision: Int? = null,
     ): NoteEventWriteResult = database.withTransaction {
         val capture = captureDao.findById(captureId)
             ?: return@withTransaction NoteEventWriteResult.NotFound
@@ -214,6 +215,11 @@ internal class EventContextRepository(
             spanEnd = interpretation.spanEnd,
         )
         val existing = eventDao.findByIdentity(captureId, identity)
+        if (expectedEventRevision != null &&
+            (existing == null || existing.revision != expectedEventRevision)
+        ) {
+            return@withTransaction NoteEventWriteResult.Changed
+        }
         val status = interpretationStatus(
             eventId = existing?.id,
             unresolved = unresolvedReason != null,

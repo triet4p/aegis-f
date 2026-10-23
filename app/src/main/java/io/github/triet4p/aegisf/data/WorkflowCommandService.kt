@@ -231,16 +231,68 @@ class WorkflowCommandService(
         }
     }
 
+    /**
+     * Deletes the text of one user-authored capture without deleting its source identity.
+     *
+     * The capture's revision is part of the request, and the repository applies the
+     * existing source-edit policy atomically: derived readings are cleared, active links
+     * are removed, refused links remain, and no ledger record is changed.
+     */
+    suspend fun deleteCapture(
+        scope: WorkflowCallerScope,
+        request: DeleteCaptureRequest,
+    ): WorkflowCommandOutcome = runCommand(
+        scope = scope,
+        command = COMMAND_DELETE_CAPTURE,
+        idempotencyKey = request.idempotencyKey,
+        payload = listOf(
+            COMMAND_DELETE_CAPTURE,
+            request.captureId.toString(),
+            request.expectedRevision.toString(),
+        ),
+        authorize = { authorizeCapture(scope, request.captureId) },
+    ) {
+        val current = captureDao.findById(request.captureId)
+            ?: return@runCommand WorkflowCommandOutcome.NotFound
+        captureWriteEligibility(current)?.let { refusal ->
+            return@runCommand refusal.toOutcome()
+        }
+        if (current.revision != request.expectedRevision) {
+            return@runCommand WorkflowCommandOutcome.Conflict(
+                "The capture changed under the caller.",
+            )
+        }
+        when (val result = captures.delete(current.id, request.expectedRevision)) {
+            is CaptureMessageWriteResult.Deleted -> WorkflowCommandOutcome.Applied(
+                WorkflowChange.CaptureDeleted(current.id, result.revision),
+            )
+            is CaptureMessageWriteResult.Saved -> WorkflowCommandOutcome.Conflict(
+                "The capture changed under the caller.",
+            )
+            CaptureMessageWriteResult.NotFound -> WorkflowCommandOutcome.NotFound
+            CaptureMessageWriteResult.Changed -> WorkflowCommandOutcome.Conflict(
+                "The capture changed under the caller.",
+            )
+            CaptureMessageWriteResult.AlreadyDeleted -> WorkflowCommandOutcome.Denied(
+                WorkflowDenialReason.ALREADY_DELETED,
+            )
+            CaptureMessageWriteResult.ImmutableSource -> WorkflowCommandOutcome.Denied(
+                WorkflowDenialReason.IMMUTABLE_SOURCE,
+            )
+        }
+    }
+
     // --- Event interpretations ----------------------------------------------
 
     /**
      * Stores or revises the reading of one span of one capture.
      *
-     * The reading is taken from a named revision of a named capture. A span outside the
-     * current text, a capture that changed under the caller, a deleted capture, an
-     * unusable amount, and a malformed time are all refused, and a refused reading writes
-     * nothing at all. One span of one capture holds one reading: a repeated extraction of
-     * the same span addresses the same event instead of appending a second copy.
+     * An edit is compare-and-set against both the capture revision and, when supplied, the
+     * interpretation revision. A stale caller is refused without overwriting newer input.
+     * A span outside the current text, a deleted capture, an unusable amount, and a
+     * malformed time are also refused. One span of one capture holds one reading: a
+     * repeated extraction of the same span addresses the same event instead of appending
+     * a second copy.
      */
     suspend fun updateEventInterpretation(
         scope: WorkflowCallerScope,
@@ -253,6 +305,7 @@ class WorkflowCommandService(
             COMMAND_UPDATE_EVENT,
             request.captureId.toString(),
             request.expectedCaptureRevision.toString(),
+            request.expectedEventRevision?.toString(),
             request.extractionVersion,
             request.interpretation.spanStart.toString(),
             request.interpretation.spanEnd.toString(),
@@ -274,6 +327,7 @@ class WorkflowCommandService(
                 expectedCaptureRevision = request.expectedCaptureRevision,
                 interpretation = request.interpretation,
                 extractionVersion = request.extractionVersion,
+                expectedEventRevision = request.expectedEventRevision,
             )
         ) {
             is NoteEventWriteResult.Stored -> WorkflowCommandOutcome.Applied(
@@ -288,7 +342,7 @@ class WorkflowCommandService(
             )
             NoteEventWriteResult.NotFound -> WorkflowCommandOutcome.NotFound
             NoteEventWriteResult.Changed -> WorkflowCommandOutcome.Conflict(
-                "The capture changed under the caller.",
+                "The capture or interpretation changed under the caller.",
             )
             NoteEventWriteResult.SourceDeleted -> WorkflowCommandOutcome.Denied(
                 WorkflowDenialReason.ALREADY_DELETED,
@@ -2411,6 +2465,8 @@ class WorkflowCommandService(
     internal companion object {
         const val COMMAND_SAVE_CAPTURE = "SAVE_CAPTURE"
         const val COMMAND_REVISE_CAPTURE = "REVISE_CAPTURE"
+        const val COMMAND_DELETE_CAPTURE = "DELETE_CAPTURE"
+
         const val COMMAND_UPDATE_EVENT = "UPDATE_EVENT"
         const val COMMAND_PROPOSE_LINK = "PROPOSE_LINK"
         const val COMMAND_ATTACH_LINK = "ATTACH_LINK"
