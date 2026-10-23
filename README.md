@@ -15,11 +15,31 @@ opt-in notification review inbox — every bank-derived record still requires th
 
 ## What the app does today
 
-- **Record a transaction** — amount, type (expense, income, internal transfer), date (`YYYY-MM-DD`),
-  time (`HH:mm`, device time zone), optional description, and a category. Amounts accept digits only:
-  zero, negative, fractional, or out-of-range input is refused with a message and stores nothing. An
-  internal transfer carries no category.
-- **Manage categories** — add, rename, archive, and permanently delete categories. A duplicate
+- **Four destinations** — a bottom navigation bar leads to **Dashboard**, **Chat** (Chat / Quick
+  Capture), **Review** (Review notifications, with a live waiting count) and **Manual**. The
+  numeric Review badge's accessible description includes the full number of drafts waiting.
+  Categories, settings and transaction detail/edit screens are routes opened from those
+  destinations. At 1.3× system font scale, all four tab labels remain on one line. Switching
+  destinations or going back keeps unsaved form input and list filters, and the open destination,
+  route and draft survive process recreation.
+- **Chat / Quick Capture** — a persistent local journal, not a fake chat. Any nonblank text saves
+  as a source-backed note with a timestamp and stored unresolved/linked status. Each capture can
+  hold multiple editable event interpretations tied to exact, user-selected source excerpts.
+  Bounded pending-draft browsing lets you explicitly attach, permanently reject, or unlink context;
+  missing or multiple candidates are never selected automatically, stale source conflicts stay
+  visible, and link decisions never change a bank-stated amount. An unmatched event can open a
+  prefilled Manual form with its saved-note/event provenance; it becomes a ledger record only after
+  you explicitly save it, so cash or other entries never wait for a notification match. History
+  edits and deletes follow source revision rules; deletion leaves a text-free provenance tombstone,
+  clears derived context and active links, and does not change the ledger. No notification access
+  or model setup is needed; no assistant reply, automatic match or financial record is created.
+- **Manual → Record a transaction** — amount, type (expense, income, internal transfer), date (`YYYY-MM-DD`),
+  time (`HH:mm`, device time zone), optional description, and a category. Starting from an unmatched
+  note event pre-fills the stated amount, date, description and provenance reference; nothing is
+  written until you explicitly save. Amounts accept digits only: zero, negative, fractional, or
+  out-of-range input is refused with a message and stores nothing. An internal transfer carries no
+  category. The selected type is marked with a check and label as well as color.
+- **Manual → Manage categories** — add, rename, archive, and permanently delete categories. A duplicate
   active name is refused inline. Archiving keeps the category and its history: records already filed
   under it keep it, it is shown as `(archived)`, and it is no longer offered for new records.
   **Delete** is a separate, clearly labelled action for a category you no longer want at all, and
@@ -29,23 +49,39 @@ opt-in notification review inbox — every bank-derived record still requires th
   keep their amounts, types, dates, and descriptions, and monthly totals do not move — and the
   removed category is gone from the picker, from later suggestions, and from the stored rules. A
   delete that fails reports the reason instead of looking like a success.
-- **Saved transactions** — every stored record, newest first, with amount, type, description,
+- **Manual → Saved transactions** — every stored record, newest first, with amount, type, description,
   category, and moment, including records saved in earlier sessions. Opening a record shows its
   detail with **Edit** (the same form, prefilled) and a **Delete** confirmation that names the record.
 - **Filters** — narrow the saved list by type, by category (including `No category` and archived
-  categories), and by an inclusive from/through calendar-day range, combined with AND. The controls
-  start collapsed behind a one-line **Show filters** / **Hide filters** toggle that reports how many
-  dimensions are active. Filters only read: they never change or delete records, and they are not
-  persisted between sessions.
-- **THIS MONTH card** — the home screen names the device-local calendar month and shows that month's
-  confirmed expenses in exact whole dong, with one row per category that has spending (including
-  `No category` and `(archived)`). It counts confirmed expenses only: income, internal transfers,
-  drafts, and records dated outside the current month are excluded. It follows saves, corrections, and
-  deletions, and it follows the phone into a new month.
+  categories), and by an inclusive from/through calendar-day range, combined with AND. Accepted
+  non-zero-padded month/day values are ordered by calendar day; a reversed range is refused instead
+  of applied. The controls start collapsed behind a one-line **Show filters** / **Hide filters**
+  toggle that reports how many dimensions are active. Filters only read: they never change or delete
+  records, and they are not persisted between sessions.
+- **Dashboard summaries and scoped filters** — the Dashboard destination shows exact whole-dong
+  figures for the inclusive calendar days and selected spending category. Confirmed spending is
+  the primary figure; a compact secondary strip keeps confirmed income, internal transfers, and
+  Review separate. Income is money arriving, transfers move money between your own accounts, and
+  neither is added to spending. Review shows the count of bank notifications waiting for review
+  and, separately, unconfirmed records in the chosen date range; neither is summed into a ledger
+  figure. Both date fields are inclusive `YYYY-MM-DD` days in the device's time zone and are
+  required; an unfinished or reversed range shows no figure at all and says why. The scope
+  button shows zero-padded compact labels from resolved days, and its helper keeps the full
+  inclusive ISO dates; the date fields retain the user's typed text while editing. The category
+  narrows spending only — income and transfers remain for every category in the date range.
+  Spending-by-category rows show each category's exact VND amount, share, and confirmed-expense
+  count beside a proportional chart; the daily trend shows exact amounts and counts with a
+  text-list alternative. Each category and day opens only its matching spending records, without
+  an `Other` bucket or a broadened scope. Category hues are stable by stored category identity and
+  shared across charts, selectors, and transaction rows. Archived categories keep a separate
+  `ARCHIVED` marker, and `No category` is a named, selectable scope. The Dashboard's chosen days and
+  category survive destination changes,
+  record navigation, and restart. These figures cover records stored in the app, not a complete
+  bank history: the app is not connected to your bank accounts.
 - **Local persistence** — the ledger survives closing the app, swiping it away from the recent-apps
   view, and force-stopping it. The manual ledger does not require a model file, login, network, or
   bank integration. Bank-notification access is optional and off by default.
-- **Offline model setup (optional)** — the home screen's **Model setup** page reports whether the
+- **Dashboard → Settings → Model setup (optional)** — the page reports whether the
   pinned model is missing, corrupt/incompatible, or locally verified. It can import the three
   pinned export files from a user-selected folder, streams them into app-private storage while
   checking their exact sizes and SHA-256 hashes, and publishes only after the local ONNX runtime
@@ -62,7 +98,7 @@ opt-in notification review inbox — every bank-derived record still requires th
   accuracy guarantee, and manual fallback remains essential. See the
   [sanitized evaluation](artifacts/sprint-4/workers/S4.9-A1.md).
 - **Bank notification setup, filtering, parsing, and pending drafts (opt-in, no
-  auto-confirmation)** — the home screen's **Bank notifications** page shows whether
+  auto-confirmation)** — the **Dashboard → Settings → Bank notification settings** page shows whether
   system notification access is granted, whether the listener is connected, and which
   bank app packages may become draft sources. Access is granted or revoked only in the
   system settings (the page opens that screen and the app-info screen for
@@ -106,7 +142,7 @@ opt-in notification review inbox — every bank-derived record still requires th
   A draft the user has already confirmed or dismissed keeps that state and its
   draft-to-ledger link through any replay of its own delivery. Drafts survive closing and
   reopening the database and are recovered for review; they enter
-  no summary and are never confirmed automatically. From the home screen, **Review bank drafts**
+  no summary and are never confirmed automatically. The **Review** destination
   opens the pending inbox, where the bank/source, stated date, amount, direction, memo, and any
   unresolved reason are visible. You can correct amount, date, time, or optional description,
   explicitly choose Expense, Income, or Internal transfer, and choose a category or explicitly
@@ -115,7 +151,13 @@ opt-in notification review inbox — every bank-derived record still requires th
   unknown memo may remain visibly unresolved. The bank timestamp stays a wall clock until you
   confirm, when the app interprets it in the device's current time zone and lets you correct it
   first. Possible duplicates link to the related draft and its pending, confirmed, or dismissed
-  state; neither candidate is automatically removed. Confirmation creates and links one confirmed
+  state; neither candidate is automatically removed. Your own saved note excerpts appear beside the
+  bank evidence as provenance — the exact source span, the reading, and the stored revisions — and
+  you can explicitly attach one, refuse it, or unlink it; none of those decisions changes the bank
+  amount, the review fields, or the ledger. The confirmation preview names the exact values it
+  would write, and if the draft or your fields move after that preview it is marked stale and
+  Confirm is withheld until you check the current values; a failed command leaves the draft and
+  your unsaved fields in place. Confirmation creates and links one confirmed
   ledger record atomically, while dismissal creates no record and changes no total. Revoking access
   stops intake while manual recording works unchanged, and intake drafts stay visibly incomplete
   evidence, never a bank statement. The status line tells access apart from binding:

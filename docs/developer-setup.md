@@ -201,6 +201,7 @@ Manual checks after installing and opening:
 - In portrait the content stays readable and clear of the status and navigation bars; scrolling works when the available height is reduced.
 - Text stays legible after increasing the system font size, and the screen stays readable in both light and dark system themes.
 - Close the app from the recent-apps view, reopen it from the launcher (or the component command), and confirm the same screen appears with no crash.
+- For the four-destination workflow, repeat the primary tabs at a 1.3× system font scale on an authorized isolated package. Check all four labels and the numeric Review count, confirm selected tabs have a non-color indicator, and verify each touch target is at least 48 dp. Use TalkBack or keyboard accessibility focus to reach and activate a critical action; do not infer accessibility from source or UI-tree text alone. Open Manual and Quick Capture fields with the IME visible, confirm the toolbar stays below the status bar and scrolling keeps Save reachable, then exercise tab/back and restart restoration. Return font scale and accessibility services to their recorded starting values.
 
 Category management checks (S2.3, consolidated for the S2.8 run; the exact step list with expected results lives in the [S2.3 category management proof](../artifacts/sprint-2/S2.3-a1/category-proof.md)):
 

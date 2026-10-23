@@ -7,7 +7,78 @@ and no release has been tagged or published. Format follows
 
 ## [Unreleased]
 
+### Added
+
+- Added dashboard cards and a scoped dashboard view. The Dashboard now shows the exact whole-dong
+  spending, income and internal-transfer figures of the calendar days and the category you choose,
+  counts pending bank notifications and unconfirmed records apart from every figure, and states
+  plainly that these figures cover the records stored in this app and are not a complete bank
+  history. Every card opens the records behind it — the same scope and the same total — and the
+  chosen days and category survive switching destinations, opening a record, and a restart.
+  It also charts confirmed spending by category and calendar day, with exact whole-dong totals
+  and counts, a text-only list alternative, and category/day drill-downs that preserve the other
+  selected filter. Archived categories remain marked, and days without confirmed spending are
+  omitted.
+
+- Added a four-destination navigation shell: **Dashboard**, **Chat / Quick Capture**, **Review**
+  notifications and **Manual**. The Review destination shows how many bank drafts are waiting,
+  and categories, settings (bank notifications and model setup) and transaction detail/edit
+  screens open from those destinations. Switching destinations or going back keeps unsaved form
+  input and list filters, and the open destination and draft come back after process recreation.
+
+- Added persistent Quick Capture to Chat. Nonblank arbitrary text saves as a local source-backed
+  note with durable history and truthful unresolved/linked state. The shared idempotent command
+  boundary handles retries; editing and deletion follow the existing provenance policy (revision
+  checks, text-free tombstones, derived-context and active-link removal, retained refused-link
+  decisions, and an unchanged ledger). No notification access or model setup is needed, and saving
+  never creates an automatic reply, match, or financial record.
+
+- Added manual event interpretations to Quick Capture. A saved note can supply separate, editable
+  readings from exact source excerpts, with bounded pending-draft browsing and explicit attach,
+  reject, and unlink actions. Stale source conflicts stay visible; missing or multiple candidates
+  remain unresolved until the user chooses. Unmatched events open a prefilled Manual form that
+  retains the note/event reference and writes nothing before explicit save. Link decisions never
+  change the bank-stated amount.
+
+- Made Review self-contained and transparent. A pending draft now shows the user's own saved
+  note excerpts — the exact source span, the reading, and the stored revisions — beside the bank
+  source, the editable financial fields and type, and the current category probabilities and
+  confidence with the user's selected category. An excerpt can be attached, refused, or unlinked
+  without leaving Review, and none of those decisions changes the bank amount, the review fields,
+  or the ledger. The confirmation preview names the exact values it will write; if the draft or
+  the form changes afterwards it is marked stale and cannot be confirmed until the current values
+  are checked again, and a failed command leaves the draft and unsaved fields in place.
+
+### Changed
+
+- Reworked the Dashboard, Quick Capture, Review and Manual surfaces around a flat, angular
+  hierarchy with role-colored emphasis and dividers. The Dashboard now gives confirmed spending
+  primary emphasis and consolidates confirmed income, internal transfers and Review into a
+  secondary metric strip. Category rows show exact amounts, shares and counts; daily amounts and
+  counts retain a text alternative and exact scoped drill-downs. Category colors are shared by
+  stored identity across charts, selectors and transaction rows; archived and uncategorized
+  states remain explicitly named, including in supported light and dark themes.
+  The date button uses a compact month/day label while its helper line keeps the full inclusive
+  dates; archived chart markers sit below their names when text wraps. Manual type choices use
+  angular segments with a visible checkmark and label.
+
 ### Fixed
+
+- Fixed the Manual saved-transaction date filter to compare accepted From/Through values by
+  local calendar-day boundaries instead of text, so non-zero-padded dates are ordered
+  chronologically and reversed ranges are refused.
+
+- Fixed the Dashboard date-range label crashing on accepted single-digit months or days. It now
+  uses the resolved calendar days without rewriting the text being edited, while the helper keeps
+  the full inclusive ISO range; malformed and reversed dates remain refused.
+
+- Fixed the Dashboard bottom-navigation label clipping and the Review count wrapping at 1.3× system
+  font scale. All four labels stay on one line, while the numeric count badge retains the full
+  waiting count in its accessible description.
+
+- Fixed the Manual transaction form panning beneath the status bar when the keyboard opens.
+  The activity now resizes for the IME, and the scrollable form consumes keyboard insets so
+  its toolbar stays visible and Save remains reachable.
 
 - Fixed a record written from a saved note being filed against a note reading the user
   never saw. Recording money straight from a saved note now states the note *and* the
