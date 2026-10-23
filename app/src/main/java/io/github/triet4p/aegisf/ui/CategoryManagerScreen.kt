@@ -391,31 +391,47 @@ private fun CategoryRow(
     onArchive: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 24.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(start = 24.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = category.name,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onBackground,
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top,
+        ) {
+            CategorySwatch(
+                categoryId = category.id,
+                archived = category.archived,
+                directory = true,
             )
-            if (category.archived) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 10.dp),
+            ) {
                 Text(
-                    text = "Archived",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = category.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onBackground,
                 )
+                if (category.archived) {
+                    ArchivedCategoryBadge()
+                }
             }
         }
-        TextButton(onClick = onRename) { Text("Rename") }
-        TextButton(onClick = onArchive) { Text("Archive") }
-        // Kept visually apart from Archive: this one cannot be undone.
-        TextButton(onClick = onDelete) {
-            Text("Delete", color = MaterialTheme.colorScheme.error)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = onRename) { Text("Rename") }
+            TextButton(onClick = onArchive) { Text("Archive") }
+            // Kept visually apart from Archive: this one cannot be undone.
+            TextButton(onClick = onDelete) {
+                Text("Delete", color = MaterialTheme.colorScheme.error)
+            }
         }
     }
 }

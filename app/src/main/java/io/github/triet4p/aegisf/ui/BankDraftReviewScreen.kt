@@ -1,12 +1,15 @@
 package io.github.triet4p.aegisf.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -48,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.triet4p.aegisf.data.BankDraftReviewEdits
 import io.github.triet4p.aegisf.data.BankDraftReviewField
 import io.github.triet4p.aegisf.data.CategoryEntity
@@ -61,7 +65,9 @@ import io.github.triet4p.aegisf.data.IntakeParseStatus
 import io.github.triet4p.aegisf.data.IntakeReviewStatus
 import io.github.triet4p.aegisf.data.CategoryQuery
 import io.github.triet4p.aegisf.data.CategoryState
+import io.github.triet4p.aegisf.data.ContextLinkState
 import io.github.triet4p.aegisf.data.DraftCandidateQuery
+import io.github.triet4p.aegisf.data.DraftContextLink
 import io.github.triet4p.aegisf.data.LIST_PAGE_SIZE
 import io.github.triet4p.aegisf.data.PreviewDraftConfirmationRequest
 import io.github.triet4p.aegisf.data.QueryPage
@@ -77,12 +83,15 @@ import io.github.triet4p.aegisf.data.LedgerValidationException
 import io.github.triet4p.aegisf.data.PendingBankDraftEntity
 import io.github.triet4p.aegisf.data.PredictionSource
 import io.github.triet4p.aegisf.data.TransactionType
+import io.github.triet4p.aegisf.data.UnlinkLinkRequest
+import io.github.triet4p.aegisf.data.UnrecordedNoteEvent
 import io.github.triet4p.aegisf.data.VndMoney
 import io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner
 import io.github.triet4p.aegisf.data.reviewClassificationRequestKey
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -98,6 +107,12 @@ fun BankDraftReviewScreen(
     draftId: Long?,
     onSelectDraft: (Long) -> Unit,
     onNavigateUp: () -> Unit,
+    /**
+     * False when the inbox is a primary destination's root: there is no previous screen,
+     * so the screen must not draw a Back control or consume the system back gesture. The
+     * shell owns navigation out of a root destination.
+     */
+    showBack: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -153,14 +168,24 @@ fun BankDraftReviewScreen(
     }
     val selectedRelatedDrafts by selectedRelatedFlow.collectAsState(initial = emptyList())
 
-    BackHandler(enabled = draftId == null) { onNavigateUp() }
+    BackHandler(enabled = showBack && draftId == null) { onNavigateUp() }
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text(if (draftId == null) "Review bank drafts" else "Draft #$draftId") },
+                title = {
+                    Text(
+                        if (draftId == null) "REVIEW NOTIFICATIONS" else "DRAFT #$draftId",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.6.sp,
+                    )
+                },
                 navigationIcon = {
-                    TextButton(onClick = onNavigateUp) { Text("Back") }
+                    if (showBack) {
+                        TextButton(onClick = onNavigateUp) { Text("Back") }
+                    }
                 },
             )
         },
@@ -222,8 +247,8 @@ private fun InboxContent(
         modifier = contentModifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
             text = "Pending bank notifications are evidence to review, not transactions. " +
@@ -282,11 +307,12 @@ private fun DraftInboxCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onSelectDraft),
-        shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(4.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
         Column(
-            modifier = Modifier.padding(20.dp),
+            modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Row(
@@ -369,17 +395,33 @@ private fun DraftDetailContent(
         mutableIntStateOf(draft.reviewRevision)
     }
     var validationRequested by rememberSaveable(draft.id) { mutableStateOf(false) }
-    // The confirmation the user is about to approve: the exact fields it would write and
-    // the binding that ties them to the state they were read from.
-    var pendingConfirmation by remember { mutableStateOf<DraftConfirmationPreview.Ready?>(null) }
+    // The confirmation the user is about to approve: the exact fields it would write, the
+    // binding that ties them to the state they were read from, and the edits they were
+    // computed from. Keeping the edits is what lets the screen notice that the form moved
+    // after the preview, so a stale preview is shown as stale instead of being confirmed.
+    var pendingConfirmation by remember { mutableStateOf<PendingConfirmation?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var previewing by remember { mutableStateOf(false) }
     var confirmingDismiss by rememberSaveable(draft.id) { mutableStateOf(false) }
     var feedback by rememberSaveable(draft.id) { mutableStateOf<String?>(null) }
+    // The stored note context of this draft: the excerpts the user attached, proposed, or
+    // refused, read through the shared bounded query. The reload counter is bumped after
+    // every explicit link action so the section follows the stored decision it just made.
+    var contextReload by remember(draft.id) { mutableIntStateOf(0) }
+    var contextPageIndex by rememberSaveable(draft.id) { mutableIntStateOf(0) }
+    var contextPage by remember(draft.id) { mutableStateOf<QueryPage<DraftContextLink>?>(null) }
+    var contextLoading by remember(draft.id) { mutableStateOf(true) }
+    var contextError by remember(draft.id) { mutableStateOf<String?>(null) }
+    var contextFeedback by rememberSaveable(draft.id) { mutableStateOf<String?>(null) }
+    var contextFeedbackIsError by rememberSaveable(draft.id) { mutableStateOf(false) }
+    var contextActionBusy by remember { mutableStateOf(false) }
+    var addingContext by rememberSaveable(draft.id) { mutableStateOf(false) }
     val selectedType = selectedTypeName?.let { TransactionType.valueOf(it) }
     val active = draft.reviewStatus == IntakeReviewStatus.PENDING &&
         draft.confirmedTransactionId == null
     val scope = rememberCoroutineScope()
     val writeInFlight = remember(draft.id) { AtomicBoolean(false) }
+    val contextWriteInFlight = remember(draft.id) { AtomicBoolean(false) }
     // Review-only suggestion identity: one draft's memo text plus the current category
     // snapshot. Any change invalidates the pending result; nothing here writes a record
     // or changes the category field itself. The memo and the optional note stay strictly
@@ -557,6 +599,31 @@ private fun DraftDetailContent(
             resolution = LayaCandidatePlanner.resolveCurrent(decision.decision, currentCategories),
         )
     }
+    LaunchedEffect(queryService, draft.id, contextReload, contextPageIndex) {
+        contextLoading = true
+        contextError = null
+        try {
+            contextPage = queryService.draftContextLinks(
+                draftId = draft.id,
+                bounds = QueryPageRequest(
+                    limit = LIST_PAGE_SIZE,
+                    offset = contextPageIndex * LIST_PAGE_SIZE,
+                ),
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            contextError =
+                "Note context could not be loaded. The bank evidence and the review fields are unchanged."
+        } finally {
+            contextLoading = false
+        }
+    }
+    ClampPageToRows(
+        pageIndex = contextPageIndex,
+        hasRows = contextPage?.items?.isNotEmpty(),
+        onClamp = { contextPageIndex = it },
+    )
     val edits = BankDraftReviewEdits(
         amountText = amountText,
         dateText = dateText,
@@ -661,6 +728,7 @@ private fun DraftDetailContent(
         if (!writeInFlight.compareAndSet(false, true)) return
         validationRequested = true
         busy = true
+        previewing = true
         feedback = null
         scope.launch {
             try {
@@ -674,7 +742,11 @@ private fun DraftDetailContent(
                     )
                 ) {
                     is DraftConfirmationPreview.Ready -> {
-                        pendingConfirmation = preview
+                        // The preview is the state the confirmation will name, so adopt its
+                        // revision: a check after a concurrent change makes the next save
+                        // or confirmation target the state the user just saw.
+                        expectedRevision = preview.expectedRevision
+                        pendingConfirmation = PendingConfirmation(preview, edits)
                     }
                     is DraftConfirmationPreview.NeedsCorrection -> {
                         validationRequested = true
@@ -689,6 +761,7 @@ private fun DraftDetailContent(
                 }
             } finally {
                 busy = false
+                previewing = false
                 writeInFlight.set(false)
             }
         }
@@ -705,11 +778,15 @@ private fun DraftDetailContent(
                     commandService.confirmDraft(
                         scope = WorkflowCallerScope.User,
                         request = ConfirmDraftRequest(
-                            idempotencyKey = "draft-confirm:${draft.id}:$expectedRevision",
+                            idempotencyKey =
+                                "draft-confirm:${draft.id}:${pending.preview.expectedRevision}",
                             draftId = draft.id,
-                            expectedRevision = expectedRevision,
-                            expectedBinding = pending.binding,
-                            edits = edits,
+                            // The confirmation carries the revision and fields the preview
+                            // was made from, so checking the current values makes a
+                            // confirmation possible again after the draft moved on.
+                            expectedRevision = pending.preview.expectedRevision,
+                            expectedBinding = pending.preview.binding,
+                            edits = pending.edits,
                         ),
                     ),
                     "confirm",
@@ -746,22 +823,102 @@ private fun DraftDetailContent(
         }
     }
 
+    /**
+     * Runs one explicit note-context decision and reports what the stored row says.
+     *
+     * The decision goes through the shared command boundary, so a refused, stale, or
+     * failed request writes nothing and its own words are shown. The bank amount, the
+     * review fields, and the ledger are untouched by every branch here; only the link
+     * row changes, and the section re-reads it afterwards.
+     */
+    fun runContextAction(
+        successMessage: String,
+        action: suspend () -> WorkflowCommandOutcome,
+    ) {
+        if (!contextWriteInFlight.compareAndSet(false, true)) return
+        contextActionBusy = true
+        contextFeedback = null
+        scope.launch {
+            try {
+                val outcome = action()
+                val applied = outcome.isAppliedOrNoChange()
+                contextFeedback = if (applied) successMessage else outcome.linkFailureMessage()
+                contextFeedbackIsError = !applied
+                contextReload += 1
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                contextFeedback =
+                    "The note decision did not complete. No financial amount was changed; reload and try again."
+                contextFeedbackIsError = true
+            } finally {
+                contextActionBusy = false
+                contextWriteInFlight.set(false)
+            }
+        }
+    }
+
+    fun unlinkContext(link: DraftContextLink) {
+        runContextAction(
+            successMessage = "Note excerpt unlinked. The bank amount and ledger are unchanged.",
+        ) {
+            commandService.unlinkLink(
+                scope = WorkflowCallerScope.User,
+                request = UnlinkLinkRequest(
+                    idempotencyKey = UUID.randomUUID().toString(),
+                    eventId = link.eventId,
+                    draftId = link.draftId,
+                    expectedRevision = link.revision,
+                ),
+            )
+        }
+    }
+
+    fun attachContext(link: DraftContextLink) {
+        runContextAction(
+            successMessage = "Note excerpt attached. The bank amount and ledger are unchanged.",
+        ) {
+            decideUserLink(
+                commandService = commandService,
+                eventId = link.eventId,
+                draftId = link.draftId,
+                attach = true,
+                overrideNote = "User explicitly attached note context in Review.",
+            )
+        }
+    }
+
+    fun rejectContext(link: DraftContextLink) {
+        runContextAction(
+            successMessage = "Note excerpt refused. That decision is retained.",
+        ) {
+            decideUserLink(
+                commandService = commandService,
+                eventId = link.eventId,
+                draftId = link.draftId,
+                attach = false,
+                overrideNote = "User explicitly refused note context in Review.",
+            )
+        }
+    }
+
     BackHandler { if (!busy) onNavigateUp() }
 
     Column(
         modifier = contentModifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant,
+            shape = RoundedCornerShape(4.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
+                modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(bankLabel(draft.bank), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
@@ -796,6 +953,25 @@ private fun DraftDetailContent(
                 onSelectDraft(candidate.id)
             }
         }
+
+        DraftContextSection(
+            links = contextPage?.items.orEmpty(),
+            loading = contextLoading,
+            error = contextError,
+            pageIndex = contextPageIndex,
+            hasMore = contextPage?.hasMore == true,
+            active = active,
+            busy = busy || contextActionBusy,
+            feedback = contextFeedback,
+            feedbackIsError = contextFeedbackIsError,
+            onPrevious = { contextPageIndex -= 1 },
+            onNext = { contextPageIndex += 1 },
+            onRetry = { contextReload += 1 },
+            onAddContext = { addingContext = true },
+            onAttach = ::attachContext,
+            onReject = ::rejectContext,
+            onUnlink = ::unlinkContext,
+        )
 
         if (!active) {
             Text(
@@ -1020,6 +1196,8 @@ private fun DraftDetailContent(
                 if (chosen != null && choiceCategories.none { it.id == chosen.id }) {
                     CategoryChoice(
                         name = chosen.name,
+                        categoryId = chosen.id,
+                        archived = chosen.archived,
                         selected = true,
                     ) {
                         suggestionMachine.chooseManually(suggestionIntent)
@@ -1032,6 +1210,8 @@ private fun DraftDetailContent(
                 choiceCategories.forEach { category ->
                     CategoryChoice(
                         name = category.name,
+                        categoryId = category.id,
+                        archived = category.archived,
                         selected = category.id == selectedCategoryId,
                     ) {
                         suggestionMachine.chooseManually(suggestionIntent)
@@ -1065,27 +1245,21 @@ private fun DraftDetailContent(
                     },
                 )
             }
-            Button(
-                onClick = ::preview,
-                enabled = !busy,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(if (busy) "Saving…" else "Confirm transaction")
-            }
-            OutlinedButton(
-                onClick = ::saveCorrections,
-                enabled = !busy,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Save corrections")
-            }
-            OutlinedButton(
-                onClick = { confirmingDismiss = true },
-                enabled = !busy,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Dismiss draft")
-            }
+            Button(shape = MaterialTheme.shapes.small, onClick = ::preview,
+            enabled = !busy,
+            modifier = Modifier.fillMaxWidth(),) { Text(
+                when {
+                    previewing -> "Checking exact values…"
+                    busy -> "Working…"
+                    else -> "Confirm transaction"
+                },
+            ) }
+            OutlinedButton(shape = MaterialTheme.shapes.small, onClick = ::saveCorrections,
+            enabled = !busy,
+            modifier = Modifier.fillMaxWidth(),) { Text("Save corrections") }
+            OutlinedButton(shape = MaterialTheme.shapes.small, onClick = { confirmingDismiss = true },
+            enabled = !busy,
+            modifier = Modifier.fillMaxWidth(),) { Text("Dismiss draft") }
         }
     }
 
@@ -1110,34 +1284,67 @@ private fun DraftDetailContent(
     }
 
     val pending = pendingConfirmation
-    if (pending != null && active) {
+    if (pending != null) {
+        // A preview is a promise about one exact state. When the draft's own revision or
+        // the form's values moved after it was made, the promise is stale: say so and offer
+        // a fresh check instead of letting Confirm carry an outdated binding.
+        val preview = pending.preview
+        val staleReason = when {
+            !active ->
+                "This draft was already confirmed or dismissed after the preview. " +
+                    "Nothing was written here."
+            draft.reviewRevision != preview.expectedRevision ->
+                "This draft changed after the preview (review revision " +
+                    "${preview.expectedRevision} → ${draft.reviewRevision}). " +
+                    "Nothing has been written."
+            pending.edits != edits ->
+                "The review fields changed after the preview, so the values below are no " +
+                    "longer what would be written. Nothing has been written."
+            else -> null
+        }
         AlertDialog(
             onDismissRequest = { if (!busy) pendingConfirmation = null },
-            title = { Text("Confirm this record?") },
+            title = {
+                Text(if (staleReason == null) "Confirm this record?" else "Preview is stale")
+            },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (staleReason != null) {
+                        Text(
+                            text = staleReason,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        Text(
+                            "The bank notification, the draft, and your unsaved fields are " +
+                                "still here. Check the current values before confirming.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        Text(
+                            "These are the exact values that will be stored:",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                    Text("Amount: ${VndMoney.formatAmount(preview.fields.amountVnd)}")
+                    Text("Type: ${typeLabel(preview.fields.type)}")
                     Text(
-                        "These are the exact values that will be stored:",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text("Amount: ${VndMoney.formatAmount(pending.fields.amountVnd)}")
-                    Text("Type: ${typeLabel(pending.fields.type)}")
-                    Text(
-                        "When: ${ManualDateTime.formatMoment(pending.fields.occurredAtEpochMillis)} " +
+                        "When: ${ManualDateTime.formatMoment(preview.fields.occurredAtEpochMillis)} " +
                             "device time",
                     )
                     Text(
                         "Description: " +
-                            (pending.fields.description.ifEmpty { "(none)" }),
+                            (preview.fields.description.ifEmpty { "(none)" }),
                     )
                     Text(
                         "Category: " + (
-                            pending.fields.categoryId?.let { categoryId ->
+                            preview.fields.categoryId?.let { categoryId ->
                                 catalog?.firstOrNull { it.id == categoryId }?.name ?: "unknown"
                             } ?: "no category"
                             ),
                     )
-                    val risk = pending.duplicateRisk
+                    val risk = preview.duplicateRisk
                     if (risk != null) {
                         Text(
                             text = "A stored record may already be this money: " +
@@ -1157,17 +1364,447 @@ private fun DraftDetailContent(
                 }
             },
             confirmButton = {
-                TextButton(onClick = ::confirm, enabled = !busy) {
-                    Text(if (busy) "Confirming…" else "Confirm")
+                if (staleReason == null) {
+                    TextButton(
+                        onClick = ::confirm,
+                        enabled = !busy,
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) {
+                        Text(if (busy) "Confirming…" else "Confirm")
+                    }
+                } else {
+                    TextButton(
+                        onClick = ::preview,
+                        enabled = !busy && active,
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) {
+                        Text(if (previewing) "Checking…" else "Check current values")
+                    }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingConfirmation = null }, enabled = !busy) {
+                TextButton(
+                    onClick = { pendingConfirmation = null },
+                    enabled = !busy,
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) {
                     Text("Back to review")
                 }
             },
         )
     }
+
+    if (addingContext && active) {
+        AddNoteContextDialog(
+            draftId = draft.id,
+            queryService = queryService,
+            commandService = commandService,
+            onDismiss = { addingContext = false },
+            onLinked = { message ->
+                contextFeedback = message
+                contextFeedbackIsError = false
+                contextReload += 1
+            },
+        )
+    }
+}
+
+/**
+ * One preview the user can approve: the exact fields it would write and the form values
+ * they were computed from.
+ *
+ * The edits are kept beside the preview so the screen can notice that the form moved
+ * after the preview. A stale preview is then shown as stale and its Confirm action is
+ * withheld; it is never carried into a confirmation that would write other values.
+ */
+private data class PendingConfirmation(
+    val preview: DraftConfirmationPreview.Ready,
+    val edits: BankDraftReviewEdits,
+)
+
+/**
+ * The user's own note excerpts beside one bank draft's review.
+ *
+ * These are the words the user saved, not a match the app invented: each card names the
+ * exact source span, the reading, and the stored revisions, and the actions are the
+ * user's explicit decisions through the shared command boundary. Attaching, refusing,
+ * or unlinking an excerpt touches only the link row — the bank amount, the review fields,
+ * and the ledger are never changed by any of them.
+ */
+@Composable
+private fun DraftContextSection(
+    links: List<DraftContextLink>,
+    loading: Boolean,
+    error: String?,
+    pageIndex: Int,
+    hasMore: Boolean,
+    active: Boolean,
+    busy: Boolean,
+    feedback: String?,
+    feedbackIsError: Boolean,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onRetry: () -> Unit,
+    onAddContext: () -> Unit,
+    onAttach: (DraftContextLink) -> Unit,
+    onReject: (DraftContextLink) -> Unit,
+    onUnlink: (DraftContextLink) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Note context", style = MaterialTheme.typography.labelLarge)
+        Text(
+            "Your own saved words beside the bank's statement. An excerpt is provenance " +
+                "only: attaching or removing one never changes the bank amount, the review " +
+                "fields, or the ledger.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (loading && links.isEmpty()) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            Text("Loading note excerpts…", style = MaterialTheme.typography.bodyMedium)
+        }
+        if (error != null) {
+            Text(
+                text = error,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+            TextButton(onClick = onRetry) { Text("Retry note context") }
+        }
+        if (!loading && error == null && links.isEmpty() && pageIndex == 0) {
+            Text(
+                text = "No note excerpt is attached. The bank evidence stands on its own, so " +
+                    "you can review and confirm without one.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (pageIndex > 0 || hasMore) {
+            PageControls(
+                pageIndex = pageIndex,
+                hasMore = hasMore,
+                onPrevious = onPrevious,
+                onNext = onNext,
+            )
+        }
+        links.forEach { link ->
+            DraftContextCard(
+                link = link,
+                active = active,
+                busy = busy,
+                onAttach = { onAttach(link) },
+                onReject = { onReject(link) },
+                onUnlink = { onUnlink(link) },
+            )
+        }
+        if (feedback != null) {
+            Text(
+                text = feedback,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (feedbackIsError) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+            )
+        }
+        if (active) {
+            OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onAddContext,
+            enabled = !busy,
+            modifier = Modifier.fillMaxWidth(),) { Text("Add note context") }
+        }
+    }
+}
+
+@Composable
+private fun DraftContextCard(
+    link: DraftContextLink,
+    active: Boolean,
+    busy: Boolean,
+    onAttach: () -> Unit,
+    onReject: () -> Unit,
+    onUnlink: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(4.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = when (link.state) {
+                    ContextLinkState.ACCEPTED -> "Attached note excerpt"
+                    ContextLinkState.PROPOSED -> "Proposed note excerpt"
+                    ContextLinkState.REJECTED -> "Refused note excerpt (decision retained)"
+                },
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "Saved note #${link.captureId?.toString() ?: "unavailable"} · " +
+                    "event #${link.eventId}",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            val excerpt = link.excerpt
+            if (excerpt != null) {
+                Text(
+                    text = "Source excerpt: “$excerpt”",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            } else {
+                Text(
+                    text = "The source changed after this reading (saved note revision " +
+                        "${link.captureRevision?.toString() ?: "gone"} vs reading revision " +
+                        "${link.eventSourceRevision?.toString() ?: "gone"}), so it is not " +
+                        "shown as your words.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            link.readingText?.let { reading ->
+                Text("Reading: $reading", style = MaterialTheme.typography.bodySmall)
+            }
+            val facts = buildList {
+                link.amountVnd?.let { add(VndMoney.formatAmount(it)) }
+                link.anchorDate?.let { add(it) }
+                link.merchant?.takeIf(String::isNotBlank)?.let { add(it) }
+            }
+            if (facts.isNotEmpty()) {
+                Text(facts.joinToString(" · "), style = MaterialTheme.typography.bodySmall)
+            }
+            Text(
+                text = "Reading revision ${link.eventRevision?.toString() ?: "gone"} · " +
+                    "link revision ${link.revision}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (active) {
+                when (link.state) {
+                    ContextLinkState.PROPOSED -> Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Button(shape = MaterialTheme.shapes.small, onClick = onAttach, enabled = !busy) { Text("Attach") }
+                        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onReject, enabled = !busy) { Text("Refuse") }
+                    }
+                    ContextLinkState.ACCEPTED -> OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onUnlink,
+                    enabled = !busy,) { Text("Unlink excerpt") }
+                    ContextLinkState.REJECTED -> Text(
+                        text = "This pair cannot be proposed again; the refusal is kept.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private const val CONTEXT_CANDIDATE_PAGE_SIZE = 5
+
+/**
+ * The bounded list of saved note excerpts that can still be attached to this draft.
+ *
+ * The list never selects a match automatically, and every attachment is one explicit
+ * user decision through the shared command boundary. An excerpt that is no longer current
+ * is shown as such and cannot be attached, and the bank amount and ledger are never
+ * changed by a link decision.
+ */
+@Composable
+private fun AddNoteContextDialog(
+    draftId: Long,
+    queryService: WorkflowQueryService,
+    commandService: WorkflowCommandService,
+    onDismiss: () -> Unit,
+    onLinked: (String) -> Unit,
+) {
+    var offset by rememberSaveable { mutableIntStateOf(0) }
+    var reload by remember { mutableIntStateOf(0) }
+    var page by remember { mutableStateOf<QueryPage<UnrecordedNoteEvent>?>(null) }
+    var loading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var actionBusy by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    var messageIsError by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val writeInFlight = remember { AtomicBoolean(false) }
+
+    LaunchedEffect(queryService, offset, reload) {
+        loading = true
+        error = null
+        try {
+            page = queryService.unrecordedNoteEvents(
+                QueryPageRequest(limit = CONTEXT_CANDIDATE_PAGE_SIZE, offset = offset),
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            error = "Saved note excerpts could not be loaded. No link was changed."
+        } finally {
+            loading = false
+        }
+    }
+
+    fun attach(event: UnrecordedNoteEvent) {
+        if (!writeInFlight.compareAndSet(false, true)) return
+        actionBusy = true
+        message = null
+        messageIsError = false
+        scope.launch {
+            try {
+                val outcome = decideUserLink(
+                    commandService = commandService,
+                    eventId = event.eventId,
+                    draftId = draftId,
+                    attach = true,
+                    overrideNote = "User explicitly attached note context in Review.",
+                )
+                val applied = outcome.isAppliedOrNoChange()
+                messageIsError = !applied
+                message = if (applied) {
+                    "Saved note #${event.captureId} attached as context. The bank amount " +
+                        "and ledger are unchanged."
+                } else {
+                    outcome.linkFailureMessage()
+                }
+                if (applied) {
+                    onLinked(
+                        "Saved note #${event.captureId} attached as context. The bank " +
+                            "amount and ledger are unchanged.",
+                    )
+                }
+                reload += 1
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                messageIsError = true
+                message = "Attach failed. No financial amount was changed; reload and try again."
+            } finally {
+                actionBusy = false
+                writeInFlight.set(false)
+            }
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = { if (!actionBusy) onDismiss() },
+        title = { Text("Add note context to draft #$draftId") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 480.dp)
+                    .verticalScroll(rememberScrollState())
+                    .imePadding(),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    text = "Only saved notes whose reading is complete and not already " +
+                        "linked are offered. The list is bounded and never selects a match " +
+                        "automatically. Attaching an excerpt never changes the bank amount, " +
+                        "the review fields, or the ledger.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                if (loading && page == null) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    Text("Loading saved note excerpts…", style = MaterialTheme.typography.bodyMedium)
+                }
+                error?.let { failure ->
+                    Text(failure, color = MaterialTheme.colorScheme.error)
+                    TextButton(onClick = { reload += 1 }) { Text("Retry") }
+                }
+                val current = page
+                if (!loading && error == null && current?.items.isNullOrEmpty() && offset == 0) {
+                    Text(
+                        text = "No saved note excerpt is available to attach. Save a note in " +
+                            "Chat first; a complete reading appears here.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                current?.items.orEmpty().forEach { event ->
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(4.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text(
+                                text = "Saved note #${event.captureId} · event #${event.eventId}",
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                text = event.excerpt?.let { "Excerpt: “$it”" }
+                                    ?: "The source text is no longer current; this excerpt " +
+                                    "cannot be attached.",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            event.normalizedText?.let { reading ->
+                                Text("Reading: $reading", style = MaterialTheme.typography.bodySmall)
+                            }
+                            val facts = buildList {
+                                event.amountVnd?.let { add(VndMoney.formatAmount(it)) }
+                                event.anchorDate?.let { add(it) }
+                                event.merchant?.takeIf(String::isNotBlank)?.let { add(it) }
+                            }
+                            if (facts.isNotEmpty()) {
+                                Text(
+                                    facts.joinToString(" · "),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                            Button(shape = MaterialTheme.shapes.small, onClick = { attach(event) },
+                            enabled = !actionBusy && event.excerpt != null,
+                            modifier = Modifier.fillMaxWidth(),) { Text("Attach as context") }
+                        }
+                    }
+                }
+                if (current != null && (current.hasMore || offset > 0)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        TextButton(
+                            onClick = {
+                                offset = (offset - CONTEXT_CANDIDATE_PAGE_SIZE).coerceAtLeast(0)
+                            },
+                            enabled = offset > 0 && !loading && !actionBusy,
+                        ) { Text("Previous excerpts") }
+                        Text(
+                            text = "${offset + 1}–${offset + current.items.size}",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        TextButton(
+                            onClick = { offset += current.items.size },
+                            enabled = current.hasMore && current.items.isNotEmpty() &&
+                                !loading && !actionBusy,
+                        ) { Text("Next excerpts") }
+                    }
+                }
+                if (actionBusy) {
+                    Text("Saving the explicit link decision…", style = MaterialTheme.typography.bodyMedium)
+                }
+                message?.let { text ->
+                    Text(
+                        text = text,
+                        color = if (messageIsError) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss, enabled = !actionBusy) { Text("Close") }
+        },
+    )
 }
 
 /**
@@ -1322,18 +1959,12 @@ private fun DraftSuggestionPanel(
                         onChooseNoCategory = onChooseNoCategory,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = onIgnoreSuggestion, enabled = enabled) {
-                            Text("Ignore")
-                        }
+                        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onIgnoreSuggestion, enabled = enabled) { Text("Ignore") }
                     }
                 } else {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = onUseSuggestion, enabled = enabled) {
-                            Text("Use suggestion")
-                        }
-                        OutlinedButton(onClick = onIgnoreSuggestion, enabled = enabled) {
-                            Text("Ignore")
-                        }
+                        Button(shape = MaterialTheme.shapes.small, onClick = onUseSuggestion, enabled = enabled) { Text("Use suggestion") }
+                        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onIgnoreSuggestion, enabled = enabled) { Text("Ignore") }
                     }
                 }
             }
@@ -1347,37 +1978,25 @@ private fun DraftSuggestionPanel(
                         onChooseNoCategory = onChooseNoCategory,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = onIgnoreSuggestion, enabled = enabled) {
-                            Text("Ignore")
-                        }
+                        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onIgnoreSuggestion, enabled = enabled) { Text("Ignore") }
                     }
                 }
             }
             is ManualCategorySuggestionState.Remembered -> {
                 if (!state.accepted) {
-                    Button(
-                        onClick = onUseRememberedRule,
-                        enabled = enabled,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Use remembered category")
-                    }
+                    Button(shape = MaterialTheme.shapes.small, onClick = onUseRememberedRule,
+                    enabled = enabled,
+                    modifier = Modifier.fillMaxWidth(),) { Text("Use remembered category") }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onIgnoreSuggestion, enabled = enabled) {
-                        Text("Ignore")
-                    }
+                    OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onIgnoreSuggestion, enabled = enabled) { Text("Ignore") }
                 }
             }
             is ManualCategorySuggestionState.Accepted -> {
-                OutlinedButton(onClick = onChooseManually, enabled = enabled) {
-                    Text("Keep manual choice")
-                }
+                OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onChooseManually, enabled = enabled) { Text("Keep manual choice") }
             }
             is ManualCategorySuggestionState.NoCategory -> {
-                OutlinedButton(onClick = onChooseManually, enabled = enabled) {
-                    Text("Keep manual choice")
-                }
+                OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onChooseManually, enabled = enabled) { Text("Keep manual choice") }
             }
             else -> Unit
         }
@@ -1388,8 +2007,9 @@ private fun DraftSuggestionPanel(
 private fun DuplicateWarning(draftId: Long, status: String, onOpen: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(4.dp),
         color = MaterialTheme.colorScheme.errorContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
@@ -1405,16 +2025,37 @@ private fun DuplicateWarning(draftId: Long, status: String, onOpen: () -> Unit) 
 }
 
 @Composable
-private fun CategoryChoice(name: String, selected: Boolean, onSelect: () -> Unit) {
+private fun CategoryChoice(
+    name: String,
+    categoryId: Long? = null,
+    archived: Boolean = false,
+    selected: Boolean,
+    onSelect: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onSelect)
+            .heightIn(min = 48.dp)
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(selected = selected, onClick = onSelect)
-        Text(name, style = MaterialTheme.typography.bodyLarge)
+        CategorySwatch(
+            categoryId = categoryId,
+            archived = archived,
+            directory = true,
+        )
+        Text(
+            name,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 8.dp),
+        )
+        if (archived) {
+            ArchivedCategoryBadge()
+        }
     }
 }
 

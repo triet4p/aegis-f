@@ -238,7 +238,7 @@ fun LayaProvisioningScreen(
                                 "Any model that was already installed remains unchanged."
                         } else {
                             "The check stopped without changing the installed model. Manual " +
-                                "transaction entry remains available from the home screen."
+                                "transaction entry remains available in the Manual destination."
                         },
                     )
                 }
@@ -264,10 +264,10 @@ fun LayaProvisioningScreen(
                         title = "Model missing or incomplete",
                         body = if (snapshot.files.isEmpty()) {
                             "The pinned model is not installed. Manual transaction entry remains " +
-                                "available from the home screen."
+                                "available in the Manual destination."
                         } else {
                             "These required files are missing: ${snapshot.files.joinToString()}. " +
-                                "Manual transaction entry remains available from the home screen."
+                                "Manual transaction entry remains available in the Manual destination."
                         },
                     )
                     ImportInstructions()
@@ -281,7 +281,7 @@ fun LayaProvisioningScreen(
                     StatusCard(
                         title = "Model corrupt or incompatible",
                         body = snapshot.reason + " Manual transaction entry remains available " +
-                            "from the home screen.",
+                            "from the Manual destination.",
                         isError = true,
                     )
                     ImportInstructions()

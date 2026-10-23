@@ -344,12 +344,8 @@ private fun FilterPanel(
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        OutlinedButton(
-            onClick = { categoryDialogVisible = true },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(categorySelectionLabel(filters.category, selectedCategory))
-        }
+        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = { categoryDialogVisible = true },
+        modifier = Modifier.fillMaxWidth(),) { Text(categorySelectionLabel(filters.category, selectedCategory)) }
 
         Text(
             text = "Dates are calendar days (YYYY-MM-DD) in your device's time zone, " +
@@ -418,6 +414,7 @@ private fun TypeFilterChips(
     ) {
         FilterChip(
             selected = selected == null,
+            shape = MaterialTheme.shapes.small,
             onClick = { onSelect(null) },
             label = { Text("All types") },
         )
@@ -425,6 +422,7 @@ private fun TypeFilterChips(
             FilterChip(
                 selected = selected == type,
                 onClick = { onSelect(type) },
+                shape = MaterialTheme.shapes.small,
                 label = { Text(typeLabel(type)) },
             )
         }
@@ -462,7 +460,7 @@ private fun categorySelectionLabel(
  * still shown, and still marked, on another.
  */
 @Composable
-private fun CategoryFilterDialog(
+internal fun CategoryFilterDialog(
     queryService: WorkflowQueryService,
     selected: LedgerCategoryFilter,
     onSelect: (LedgerCategoryFilter) -> Unit,
@@ -511,6 +509,7 @@ private fun CategoryFilterDialog(
                 CategoryFilterOption(
                     text = "All categories",
                     selected = selected is LedgerCategoryFilter.All,
+                    showSwatch = false,
                     onSelect = { onSelect(LedgerCategoryFilter.All) },
                 )
                 CategoryFilterOption(
@@ -521,14 +520,18 @@ private fun CategoryFilterDialog(
                 val retainedRow = selectedRow
                 if (retainedRow != null && categories.none { it.id == retainedRow.id }) {
                     CategoryFilterOption(
-                        text = categoryLabel(retainedRow),
+                        text = retainedRow.name,
+                        categoryId = retainedRow.id,
+                        archived = retainedRow.archived,
                         selected = true,
                         onSelect = { onSelect(LedgerCategoryFilter.Specific(retainedRow.id)) },
                     )
                 }
                 categories.forEach { category ->
                     CategoryFilterOption(
-                        text = categoryLabel(category),
+                        text = category.name,
+                        categoryId = category.id,
+                        archived = category.archived,
                         selected = selected is LedgerCategoryFilter.Specific &&
                             selected.categoryId == category.id,
                         onSelect = { onSelect(LedgerCategoryFilter.Specific(category.id)) },
@@ -543,7 +546,14 @@ private fun CategoryFilterDialog(
 }
 
 @Composable
-private fun CategoryFilterOption(text: String, selected: Boolean, onSelect: () -> Unit) {
+private fun CategoryFilterOption(
+    text: String,
+    selected: Boolean,
+    categoryId: Long? = null,
+    archived: Boolean = false,
+    showSwatch: Boolean = true,
+    onSelect: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -552,12 +562,24 @@ private fun CategoryFilterOption(text: String, selected: Boolean, onSelect: () -
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(selected = selected, onClick = onSelect)
+        if (showSwatch) {
+            CategorySwatch(
+                categoryId = categoryId,
+                archived = archived,
+                directory = true,
+            )
+        }
         Text(
             text = text,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(start = 8.dp),
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 8.dp),
         )
+        if (archived) {
+            ArchivedCategoryBadge()
+        }
     }
 }
 
@@ -585,9 +607,12 @@ private fun TransactionList(
 ) {
     LazyColumn(modifier = modifier.fillMaxSize()) {
         items(records, key = { it.id }) { record ->
+            val category = record.categoryId?.let(categoriesById::get)
             TransactionRow(
                 record = record,
-                categoryName = categoryLabel(record.categoryId?.let { categoriesById[it] }),
+                categoryName = categoryDisplayName(record.categoryId, category),
+                categoryId = record.categoryId,
+                categoryArchived = category?.archived == true,
                 onOpen = { onSelect(record.id) },
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -595,17 +620,27 @@ private fun TransactionList(
     }
 }
 
+/**
+ * One stored record in a list: its type, description, category, moment, and amount.
+ *
+ * [statusLabel] adds the record's own confirmation state to the row when the list needs
+ * to show it — the Dashboard's scoped list names the state of every row it shows — and is
+ * left out when the list already says elsewhere that every row is confirmed.
+ */
 @Composable
-private fun TransactionRow(
+internal fun TransactionRow(
     record: TransactionEntity,
     categoryName: String,
+    categoryId: Long?,
+    categoryArchived: Boolean,
     onOpen: () -> Unit,
+    statusLabel: String? = null,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onOpen)
-            .padding(horizontal = 24.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -625,18 +660,55 @@ private fun TransactionRow(
                     color = MaterialTheme.colorScheme.onBackground,
                 )
             }
-            Text(
-                text = categoryName + " · " +
-                    ManualDateTime.formatMoment(record.occurredAtEpochMillis),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                CategorySwatch(
+                    categoryId = categoryId,
+                    archived = categoryArchived,
+                    directory = true,
+                    size = 10.dp,
+                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            text = categoryName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (categoryArchived) {
+                            ArchivedCategoryBadge()
+                        }
+                    }
+                    Text(
+                        text = ManualDateTime.formatMoment(record.occurredAtEpochMillis) +
+                            (statusLabel?.let { " · $it" } ?: ""),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
         Text(
             text = VndMoney.formatAmount(record.amountVnd),
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+            ),
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary,
+            color = when (record.type) {
+                TransactionType.EXPENSE -> MaterialTheme.colorScheme.error
+                TransactionType.INCOME -> MaterialTheme.colorScheme.secondary
+                TransactionType.TRANSFER -> MaterialTheme.colorScheme.primary
+            },
             modifier = Modifier.padding(start = 12.dp),
         )
     }
@@ -658,7 +730,7 @@ private fun EmptyLedger(modifier: Modifier = Modifier) {
         )
         Text(
             text = "Records you save appear here, newest first. Record a transaction from the " +
-                "home screen to add the first one.",
+                "Manual destination to add the first one.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -688,11 +760,7 @@ private fun NoMatchingTransactions(onClearFilters: () -> Unit, modifier: Modifie
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        OutlinedButton(
-            onClick = onClearFilters,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Clear filters")
-        }
+        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onClearFilters,
+        modifier = Modifier.fillMaxWidth(),) { Text("Clear filters") }
     }
 }

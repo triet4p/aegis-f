@@ -214,20 +214,12 @@ private fun TransactionDetail(
             )
         }
 
-        Button(
-            onClick = onEdit,
-            enabled = !deleting,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Edit")
-        }
-        OutlinedButton(
-            onClick = onDelete,
-            enabled = !deleting,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Delete")
-        }
+        Button(shape = MaterialTheme.shapes.small, onClick = onEdit,
+        enabled = !deleting,
+        modifier = Modifier.fillMaxWidth(),) { Text("Edit") }
+        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onDelete,
+        enabled = !deleting,
+        modifier = Modifier.fillMaxWidth(),) { Text("Delete") }
     }
 }
 

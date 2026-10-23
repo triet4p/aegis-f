@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -27,7 +29,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -48,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.triet4p.aegisf.data.CategoryEntity
 import io.github.triet4p.aegisf.data.CategoryQuery
 import io.github.triet4p.aegisf.data.CategoryState
@@ -129,6 +131,7 @@ fun TransactionEditorScreen(
     layaInferenceLifecycle: LayaInferenceLifecycle,
     transactionId: Long?,
     onNavigateUp: () -> Unit,
+    sourceEventId: Long? = null,
     modifier: Modifier = Modifier,
 ) {
     if (transactionId == null) {
@@ -138,6 +141,7 @@ fun TransactionEditorScreen(
             layaInferenceLifecycle = layaInferenceLifecycle,
             storedRecord = null,
             storedCategory = null,
+            sourceEventId = sourceEventId,
             onNavigateUp = onNavigateUp,
             modifier = modifier,
         )
@@ -201,6 +205,7 @@ private fun TransactionFormScreen(
     storedRecord: TransactionEntity?,
     storedCategory: CategoryEntity?,
     onNavigateUp: () -> Unit,
+    sourceEventId: Long? = null,
     modifier: Modifier = Modifier,
 ) {
     val editing = storedRecord != null
@@ -241,7 +246,18 @@ private fun TransactionFormScreen(
     // The note this record is written from, when the user records an unmatched note by
     // hand. The saved record resolves that note, so a bank notification that arrives later
     // cannot consume the same occurrence again.
-    var sourceEvent by remember { mutableStateOf<UnrecordedNoteEvent?>(null) }
+    var sourceEvent by remember(sourceEventId) {
+        mutableStateOf<UnrecordedNoteEvent?>(null)
+    }
+    var sourceEventLoading by remember(sourceEventId) {
+        mutableStateOf(sourceEventId != null)
+    }
+    var sourceEventLoadError by rememberSaveable(sourceEventId) {
+        mutableStateOf<String?>(null)
+    }
+    var sourcePrefillApplied by rememberSaveable(sourceEventId) {
+        mutableStateOf(false)
+    }
     var notePickerVisible by rememberSaveable { mutableStateOf(false) }
 
     // The whole catalog, live and read in bounded chunks: the model's candidate ranking
@@ -262,6 +278,36 @@ private fun TransactionFormScreen(
     }
     val latestSuggestionIntent by rememberUpdatedState(suggestionIntent)
     val latestObservedCategories by rememberUpdatedState(catalog)
+
+    LaunchedEffect(queryService, sourceEventId) {
+        val eventId = sourceEventId ?: return@LaunchedEffect
+        sourceEventLoading = true
+        sourceEventLoadError = null
+        try {
+            val note = queryService.unrecordedNoteEvent(eventId)
+            if (note == null) {
+                sourceEventLoadError =
+                    "The saved event is no longer available for manual recording. " +
+                        "Choose another saved event or cancel; no transaction was saved."
+            } else {
+                sourceEvent = note
+                if (!sourcePrefillApplied) {
+                    note.amountVnd?.let { amountText = it.toString() }
+                    note.anchorDate?.let { dateText = it }
+                    note.anchorTime?.let { timeText = it }
+                    descriptionText = note.normalizedText.orEmpty()
+                    sourcePrefillApplied = true
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            sourceEventLoadError =
+                "The saved event could not be loaded. Your form is unchanged; retry or choose another note."
+        } finally {
+            sourceEventLoading = false
+        }
+    }
 
     // Kept as an id so the confirmation survives a configuration change: the record is
     // re-read from storage instead of being held in unsaveable state.
@@ -469,6 +515,16 @@ private fun TransactionFormScreen(
         timeError = null
         categoryError = null
         saveError = null
+        if (sourceEventLoading) {
+            saveError = "The saved event is still loading. No transaction was saved."
+            writeInFlight.set(false)
+            return
+        }
+        if (sourceEventId != null && sourceEvent == null && sourceEventLoadError != null) {
+            saveError = sourceEventLoadError
+            writeInFlight.set(false)
+            return
+        }
 
         val amountVnd = try {
             VndMoney.parseManualAmount(amountText)
@@ -650,6 +706,7 @@ private fun TransactionFormScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             EditorTopBar(
                 title = if (editing) "Edit transaction" else "New transaction",
@@ -711,6 +768,10 @@ private fun TransactionFormScreen(
                     descriptionText = it
                 },
                 categoryName = categoryButtonLabel,
+                categoryId = selectedCategoryId,
+                categoryArchived = currentSelectedCategory?.archived
+                    ?: (storedCategory?.archived == true &&
+                        selectedCategoryId == storedCategory.id),
                 categoryNote = categoryNote,
                 categoryError = categoryError,
                 rememberableCategoryName = rememberableCategoryName,
@@ -760,10 +821,15 @@ private fun TransactionFormScreen(
                     }
                 },
                 sourceEvent = sourceEvent,
+                sourceEventLoading = sourceEventLoading,
+                sourceEventLoadError = sourceEventLoadError,
                 onPickNote = { notePickerVisible = true },
-                onClearNote = { sourceEvent = null },
+                onClearNote = {
+                    sourceEvent = null
+                    sourceEventLoadError = null
+                },
                 saveError = saveError,
-                saving = saving,
+                saving = saving || sourceEventLoading,
                 editing = editing,
                 // The guard is checked before the coroutine starts, so two taps inside one
                 // frame still produce a single write; the button state only makes it visible.
@@ -807,11 +873,15 @@ private fun TransactionFormScreen(
         NoteEventPickerDialog(
             queryService = queryService,
             onSelect = { note ->
-                // The note states the money and the day; the moment and the rest stay the
-                // user's own to fill in.
+                // Selecting a saved event fills the fields it actually states; every value
+                // remains editable and nothing is written until the user presses Save.
                 sourceEvent = note
+                sourceEventLoadError = null
+                sourcePrefillApplied = true
                 note.amountVnd?.let { amount -> amountText = amount.toString() }
                 note.anchorDate?.let { day -> dateText = day }
+                note.anchorTime?.let { time -> timeText = time }
+                descriptionText = note.normalizedText.orEmpty()
                 notePickerVisible = false
             },
             onDismiss = { notePickerVisible = false },
@@ -850,12 +920,8 @@ private fun NoteEventPickerDialog(
                         Text("No saved note is waiting to be recorded.")
                     } else {
                         loaded.forEach { note ->
-                            OutlinedButton(
-                                onClick = { onSelect(note) },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(noteLabel(note))
-                            }
+                            OutlinedButton(shape = MaterialTheme.shapes.small, onClick = { onSelect(note) },
+                            modifier = Modifier.fillMaxWidth(),) { Text(noteLabel(note)) }
                         }
                     }
                 }
@@ -899,7 +965,14 @@ private fun EditorTopBar(
     backEnabled: Boolean = true,
 ) {
     TopAppBar(
-        title = { Text(title) },
+        title = {
+            Text(
+                title.uppercase(Locale.ROOT),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.6.sp,
+            )
+        },
         navigationIcon = {
             TextButton(
                 onClick = onNavigateUp,
@@ -980,6 +1053,8 @@ private fun TransactionForm(
     descriptionText: String,
     onDescriptionChange: (String) -> Unit,
     categoryName: String?,
+    categoryId: Long?,
+    categoryArchived: Boolean,
     categoryNote: String?,
     categoryError: String?,
     rememberableCategoryName: String?,
@@ -995,6 +1070,8 @@ private fun TransactionForm(
     onChooseDistributionOption: (Long) -> Unit,
     onChooseNoCategory: () -> Unit,
     sourceEvent: UnrecordedNoteEvent?,
+    sourceEventLoading: Boolean,
+    sourceEventLoadError: String?,
     onPickNote: () -> Unit,
     onClearNote: () -> Unit,
     saveError: String?,
@@ -1008,7 +1085,8 @@ private fun TransactionForm(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 16.dp),
+            .imePadding()
+            .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
@@ -1030,6 +1108,10 @@ private fun TransactionForm(
         OutlinedTextField(
             value = amountText,
             onValueChange = onAmountChange,
+            textStyle = MaterialTheme.typography.headlineSmall.copy(
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+            ),
             label = { Text("Amount (VND)") },
             placeholder = { Text("45000") },
             singleLine = true,
@@ -1049,7 +1131,19 @@ private fun TransactionForm(
             selectedType = selectedType,
             onTypeChange = onTypeChange,
         )
-
+        Text(
+            text = when (selectedType) {
+                TransactionType.EXPENSE -> "Money leaving · counted as spending after save"
+                TransactionType.INCOME -> "Money arriving · kept separate from spending"
+                TransactionType.TRANSFER -> "Between your own accounts · neither spend nor income"
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = when (selectedType) {
+                TransactionType.EXPENSE -> MaterialTheme.colorScheme.error
+                TransactionType.INCOME -> MaterialTheme.colorScheme.secondary
+                TransactionType.TRANSFER -> MaterialTheme.colorScheme.primary
+            },
+        )
         OutlinedTextField(
             value = dateText,
             onValueChange = onDateChange,
@@ -1093,12 +1187,27 @@ private fun TransactionForm(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
-            OutlinedButton(
-                onClick = onPickCategory,
-                modifier = Modifier.fillMaxWidth(),
+            OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onPickCategory,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp),) { Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text(categoryName ?: "Select category (optional)")
-            }
+                CategorySwatch(
+                    categoryId = categoryId,
+                    archived = categoryArchived,
+                    directory = true,
+                )
+                Text(
+                    categoryName?.removeSuffix(" (archived)")
+                        ?: "Select category (optional)",
+                    modifier = Modifier.weight(1f),
+                )
+                if (categoryArchived) {
+                    ArchivedCategoryBadge()
+                }
+            } }
             if (categoryNote != null) {
                 Text(
                     text = categoryNote,
@@ -1131,18 +1240,25 @@ private fun TransactionForm(
         }
 
         if (!editing) {
-            OutlinedButton(
-                onClick = onPickNote,
-                enabled = !saving,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Record from a saved note")
+            OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onPickNote,
+            enabled = !saving,
+            modifier = Modifier.fillMaxWidth(),) { Text("Record from a saved note") }
+            if (sourceEventLoading) {
+                Text("Loading the selected saved event before manual recording…")
+            }
+            sourceEventLoadError?.let { message ->
+                Text(message, color = MaterialTheme.colorScheme.error)
             }
             if (sourceEvent != null) {
                 Text(
-                    text = "This record resolves the saved note “${noteLabel(sourceEvent)}”. " +
-                        "A bank notification that arrives later will not be matched to that " +
-                        "note again.",
+                    "Provenance reference: saved note #${sourceEvent.captureId}, " +
+                        "event #${sourceEvent.eventId}.",
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                Text(
+                    text = "This record will resolve the saved event “${noteLabel(sourceEvent)}”. " +
+                        "It is only saved after you press Save transaction; a later bank " +
+                        "notification will not be matched to that event again.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1160,26 +1276,22 @@ private fun TransactionForm(
             )
         }
 
-        Button(
-            onClick = onSave,
-            enabled = !saving,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(
-                text = when {
-                    saving -> "Saving…"
-                    editing -> "Save changes"
-                    else -> "Save transaction"
-                },
-            )
-        }
-        OutlinedButton(
-            onClick = onCancel,
-            enabled = !saving,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Cancel")
-        }
+        Button(shape = MaterialTheme.shapes.small, onClick = onSave,
+        enabled = !saving,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp),) { Text(
+            text = when {
+                saving -> "Saving…"
+                editing -> "Save changes"
+                else -> "Save transaction"
+            },
+        ) }
+        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onCancel,
+        enabled = !saving,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp),) { Text("Cancel") }
     }
 }
 @Composable
@@ -1347,18 +1459,12 @@ private fun ManualSuggestionPanel(
                         onChooseNoCategory = onChooseNoCategory,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = onIgnore, enabled = enabled) {
-                            Text("Ignore")
-                        }
+                        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onIgnore, enabled = enabled) { Text("Ignore") }
                     }
                 } else {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = onAccept, enabled = enabled) {
-                            Text("Use suggestion")
-                        }
-                        OutlinedButton(onClick = onIgnore, enabled = enabled) {
-                            Text("Ignore")
-                        }
+                        Button(shape = MaterialTheme.shapes.small, onClick = onAccept, enabled = enabled) { Text("Use suggestion") }
+                        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onIgnore, enabled = enabled) { Text("Ignore") }
                     }
                 }
             }
@@ -1372,29 +1478,19 @@ private fun ManualSuggestionPanel(
                         onChooseNoCategory = onChooseNoCategory,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = onIgnore, enabled = enabled) {
-                            Text("Ignore")
-                        }
+                        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onIgnore, enabled = enabled) { Text("Ignore") }
                     }
                 }
             }
             is ManualCategorySuggestionState.Remembered -> {
                 if (!state.accepted || state.manualSelection) {
-                    Button(
-                        onClick = onAcceptRememberedRule,
-                        enabled = enabled,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Use remembered category")
-                    }
+                    Button(shape = MaterialTheme.shapes.small, onClick = onAcceptRememberedRule,
+                    enabled = enabled,
+                    modifier = Modifier.fillMaxWidth(),) { Text("Use remembered category") }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onIgnore, enabled = enabled) {
-                        Text("Ignore")
-                    }
-                    OutlinedButton(onClick = onRemoveRememberedRule, enabled = enabled) {
-                        Text("Remove rule")
-                    }
+                    OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onIgnore, enabled = enabled) { Text("Ignore") }
+                    OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onRemoveRememberedRule, enabled = enabled) { Text("Remove rule") }
                 }
             }
             is ManualCategorySuggestionState.Accepted -> Unit
@@ -1422,13 +1518,9 @@ private fun ManualSuggestionPanel(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            OutlinedButton(
-                onClick = onRemember,
-                enabled = enabled,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Remember ${rememberableCategoryName} for this description")
-            }
+            OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onRemember,
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth(),) { Text("Remember ${rememberableCategoryName} for this description") }
         }
         if (ruleActionError != null) {
             Text(
@@ -1467,27 +1559,32 @@ internal fun ManualDistributionList(
         )
         distribution.options.forEach { option ->
             val current = option.currentCategory
-            OutlinedButton(
-                onClick = { onChooseDistributionOption(option.categoryId) },
-                enabled = enabled && current != null,
-                modifier = Modifier.fillMaxWidth(),
+            OutlinedButton(shape = MaterialTheme.shapes.small, onClick = { onChooseDistributionOption(option.categoryId) },
+            enabled = enabled && current != null,
+            modifier = Modifier.fillMaxWidth(),) { Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                CategorySwatch(categoryId = option.categoryId, directory = true)
                 Text(
                     if (current != null) {
                         "${current.name} — ${formatProbability(option.probability)}"
                     } else {
-                        "${option.snapshotName} — ${formatProbability(option.probability)} (unavailable)"
+                        "${option.snapshotName} — ${formatProbability(option.probability)} " +
+                            "(unavailable)"
                     },
                 )
-            }
+            } }
         }
-        OutlinedButton(
-            onClick = onChooseNoCategory,
-            enabled = enabled,
-            modifier = Modifier.fillMaxWidth(),
+        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onChooseNoCategory,
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth(),) { Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            CategorySwatch(categoryId = null, directory = true)
             Text("Unknown / no fit — ${formatProbability(distribution.unknownProbability)}")
-        }
+        } }
     }
 }
 
@@ -1514,10 +1611,7 @@ internal fun TransactionTypePicker(
                 selected = type == selectedType,
                 onClick = { onTypeChange(type) },
                 modifier = Modifier.fillMaxHeight(),
-                shape = SegmentedButtonDefaults.itemShape(
-                    index = index,
-                    count = TransactionType.entries.size,
-                ),
+                shape = MaterialTheme.shapes.small,
                 label = { Text(typeLabel(type)) },
             )
         }
@@ -1568,23 +1662,15 @@ private fun SavedTransactionPanel(
         DetailRow("Source", sourceLabel(record.source))
         DetailRow("Recorded at", ManualDateTime.formatMoment(record.createdAtEpochMillis))
         Text(
-            text = "This is the stored record. Open Saved transactions from the home screen " +
-                "to view, correct, or delete it.",
+            text = "This is the stored record. Open Saved transactions in the Manual " +
+                "destination to view, correct, or delete it.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Button(
-            onClick = onRecordAnother,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Record another")
-        }
-        OutlinedButton(
-            onClick = onDone,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Done")
-        }
+        Button(shape = MaterialTheme.shapes.small, onClick = onRecordAnother,
+        modifier = Modifier.fillMaxWidth(),) { Text("Record another") }
+        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onDone,
+        modifier = Modifier.fillMaxWidth(),) { Text("Done") }
     }
 }
 
@@ -1660,7 +1746,9 @@ private fun CategoryPickerDialog(
                     )
                     if (retainedCategory != null) {
                         CategoryOption(
-                            text = categoryLabel(retainedCategory),
+                            text = retainedCategory.name,
+                            categoryId = retainedCategory.id,
+                            archived = retainedCategory.archived,
                             selected = retainedCategory.id == selectedCategoryId,
                             onSelect = {
                                 onSelect(retainedCategory.id, retainedCategory.name)
@@ -1670,7 +1758,9 @@ private fun CategoryPickerDialog(
                     val chosen = selectedRow
                     if (chosen != null && categories.none { it.id == chosen.id }) {
                         CategoryOption(
-                            text = categoryLabel(chosen),
+                            text = chosen.name,
+                            categoryId = chosen.id,
+                            archived = chosen.archived,
                             selected = true,
                             onSelect = { onSelect(chosen.id, chosen.name) },
                         )
@@ -1678,6 +1768,8 @@ private fun CategoryPickerDialog(
                     categories.forEach { category ->
                         CategoryOption(
                             text = category.name,
+                            categoryId = category.id,
+                            archived = category.archived,
                             selected = category.id == selectedCategoryId,
                             onSelect = { onSelect(category.id, category.name) },
                         )
@@ -1692,7 +1784,13 @@ private fun CategoryPickerDialog(
 }
 
 @Composable
-private fun CategoryOption(text: String, selected: Boolean, onSelect: () -> Unit) {
+private fun CategoryOption(
+    text: String,
+    categoryId: Long? = null,
+    archived: Boolean = false,
+    selected: Boolean,
+    onSelect: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1701,11 +1799,21 @@ private fun CategoryOption(text: String, selected: Boolean, onSelect: () -> Unit
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(selected = selected, onClick = onSelect)
+        CategorySwatch(
+            categoryId = categoryId,
+            archived = archived,
+            directory = true,
+        )
         Text(
             text = text,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(start = 8.dp),
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 8.dp),
         )
+        if (archived) {
+            ArchivedCategoryBadge()
+        }
     }
 }

@@ -125,6 +125,35 @@ class TransactionFilterTest {
     }
 
     @Test
+    fun `non-zero-padded dates are ordered by calendar day and preserve their boundaries`() {
+        val chronological = resolveDateFilter("2026-9-30", "2026-10-1", hoChiMinh)
+        assertNull(chronological.fromError)
+        assertNull(chronological.throughError)
+        assertNull(chronological.rangeError)
+        val range = chronological.range!!
+        val firstDay = LocalDate.of(2026, 9, 30)
+        val dayAfterThrough = LocalDate.of(2026, 10, 2)
+        val startOfFrom = firstDay.atStartOfDay(hoChiMinhZoneId).toInstant().toEpochMilli()
+        val startAfterThrough =
+            dayAfterThrough.atStartOfDay(hoChiMinhZoneId).toInstant().toEpochMilli()
+        assertEquals(startOfFrom, range.fromEpochMillis)
+        assertEquals(startAfterThrough, range.throughExclusiveEpochMillis)
+        assertTrue(atTime("2026-9-29", "23:59", hoChiMinh) < startOfFrom)
+        assertTrue(atTime("2026-9-30", "00:00", hoChiMinh) >= startOfFrom)
+        assertTrue(atTime("2026-10-1", "23:59", hoChiMinh) < startAfterThrough)
+        assertTrue(atTime("2026-10-2", "00:00", hoChiMinh) >= startAfterThrough)
+
+        val reversedDayOfMonth = resolveDateFilter("2026-10-16", "2026-10-3", hoChiMinh)
+        assertNotNull(reversedDayOfMonth.rangeError)
+        assertNull(reversedDayOfMonth.range)
+
+        val reversedMonthBoundary = resolveDateFilter("2026-10-1", "2026-9-30", hoChiMinh)
+        assertNotNull(reversedMonthBoundary.rangeError)
+        assertNull(reversedMonthBoundary.range)
+    }
+
+
+    @Test
     fun `a daylight-saving start day contributes its actual 23 hours, not 24`() {
         // America/New_York springs forward on 2026-03-08: that local day is 23 hours long.
         val resolved = resolveDateFilter("2026-03-08", "2026-03-08", newYork)

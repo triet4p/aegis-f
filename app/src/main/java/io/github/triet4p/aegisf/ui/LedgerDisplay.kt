@@ -53,6 +53,13 @@ internal fun categoryLabel(category: CategoryEntity?): String = when {
     else -> category.name
 }
 
+/** A row-facing category name that keeps an unresolved stored link distinct from no category. */
+internal fun categoryDisplayName(categoryId: Long?, category: CategoryEntity?): String = when {
+    categoryId == null -> "No category"
+    category == null -> "Unknown category"
+    else -> category.name
+}
+
 /** One stored field: its name on the left, its value on the right. */
 @Composable
 internal fun DetailRow(label: String, value: String) {

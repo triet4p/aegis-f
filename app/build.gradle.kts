@@ -3,6 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
 }
+
 android {
     namespace = "io.github.triet4p.aegisf"
     compileSdk = 37

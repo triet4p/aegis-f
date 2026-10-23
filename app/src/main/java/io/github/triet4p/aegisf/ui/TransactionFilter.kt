@@ -69,10 +69,10 @@ data class ResolvedDateFilter(
  * Validates the From/Through date texts and converts them to a [LedgerDateRange].
  *
  * Each non-empty end must satisfy [ManualDateTime.dateError]; when both ends are present and
- * valid, From must not be after Through (compared as `YYYY-MM-DD` text, which orders the
- * same as the calendar days). Either end may be empty. [zone] is the device's current
- * default zone in production and an explicit oracle zone in tests.
- *
+ * valid, From must not be after Through (compared through their local-day epoch boundaries,
+ * so accepted non-zero-padded dates are ordered by date rather than text). Either end may be
+ * empty. [zone] is the device's current default zone in production and an explicit oracle zone
+ * in tests.
  * The range carries that zone with it, so the day a record is counted in is the day the
  * device clock showed when it happened and never a day of some other zone.
  */
@@ -83,9 +83,15 @@ fun resolveDateFilter(
 ): ResolvedDateFilter {
     val fromError = if (fromText.isEmpty()) null else ManualDateTime.dateError(fromText)
     val throughError = if (throughText.isEmpty()) null else ManualDateTime.dateError(throughText)
+    val fromStartEpochMillis = fromText
+        .takeIf { it.isNotEmpty() && fromError == null }
+        ?.let { ManualDateTime.dayStartEpochMillis(it, zone) }
+    val throughExclusiveEpochMillis = throughText
+        .takeIf { it.isNotEmpty() && throughError == null }
+        ?.let { ManualDateTime.dayAfterStartEpochMillis(it, zone) }
     val rangeError =
-        if (fromError == null && throughError == null &&
-            fromText.isNotEmpty() && throughText.isNotEmpty() && fromText > throughText
+        if (fromStartEpochMillis != null && throughExclusiveEpochMillis != null &&
+            fromStartEpochMillis >= throughExclusiveEpochMillis
         ) {
             "The From date is after the Through date."
         } else {
@@ -95,12 +101,8 @@ fun resolveDateFilter(
         null
     } else {
         LedgerDateRange(
-            fromEpochMillis = fromText.ifEmpty { null }?.let {
-                ManualDateTime.dayStartEpochMillis(it, zone)
-            },
-            throughExclusiveEpochMillis = throughText.ifEmpty { null }?.let {
-                ManualDateTime.dayAfterStartEpochMillis(it, zone)
-            },
+            fromEpochMillis = fromStartEpochMillis,
+            throughExclusiveEpochMillis = throughExclusiveEpochMillis,
             zoneId = zone.id,
         )
     }
