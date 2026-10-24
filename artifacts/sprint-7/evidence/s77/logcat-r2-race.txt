@@ -1,0 +1,4 @@
+         1792883339.012 18893 27610 I BankNotificationListener: persistOne: permitted notification from com.android.shell (postTime=1792883338742); storing draft
+         1792883339.069 18893 28827 I LayaInference: inference session released after idle
+         1792883339.095 18893 27903 I BankDraftClassification: intake classification draft=34 scheduled question=e4edba2a6cc1
+         1792883339.126 18893 27903 I BankDraftClassification: intake classification draft=34 outcome=APPLIED

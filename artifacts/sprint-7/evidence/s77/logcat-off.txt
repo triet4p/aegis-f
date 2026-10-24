@@ -1,0 +1,3 @@
+         1792879128.186  2915  8103 I BankNotificationListener: persistOne: permitted notification from com.android.shell (postTime=1792879127922); storing draft
+         1792879128.264  2915  8103 I BankDraftClassification: intake classification draft=29 scheduled question=1f5751a1ce1b
+         1792879128.286  2915  7363 I BankDraftClassification: intake classification draft=29 outcome=FAILED
