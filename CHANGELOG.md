@@ -18,8 +18,20 @@ and no release has been tagged or published. Format follows
   never selected, confirmed, or written to the ledger. A missing, busy, cancelled, or failing
   model leaves the draft stored and reviewable with no suggestion, intake never waits for
   inference, and repeating the same delivery replays the recorded request instead of asking the
-  model again. Work that a process interruption leaves unclassified stays visible as
-  unclassified; resumable and coalesced queueing remains a later sprint task.
+  model again.
+
+- Added a durable, coalescing classification job for every incoming bank draft. Classification
+  work is now stored as one job per draft with explicit pending, running, result, cancelled and
+  failed states, so an interruption no longer loses a draft's suggestion: a process that ends
+  mid-inference resumes the job on its next start, and work queued behind a busy model is still
+  there after a restart. A newer description, linked note reading, category catalog or
+  remembered rule replaces the waiting question in place instead of adding a second one, so
+  rapid edits are answered about the newest wording only, and an accepted change that does not
+  alter the model's input — correcting an amount, for example — asks nothing at all. Jobs are
+  admitted only for drafts still waiting for review, one inference runs at a time, a missing or
+  unusable model is recorded as a failed job with no guessed prediction, and a draft the user
+  resolves, confirms or dismisses has its job cancelled before the model is asked. Notification
+  intake still stores first and never waits for inference.
 
 - Added dashboard cards and a scoped dashboard view. The Dashboard now shows the exact whole-dong
   spending, income and internal-transfer figures of the calendar days and the category you choose,

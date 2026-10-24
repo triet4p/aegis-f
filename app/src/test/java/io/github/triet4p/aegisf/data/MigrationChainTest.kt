@@ -299,6 +299,9 @@ class MigrationChainTest {
                 assertEquals(0L, scalar(room, "SELECT COUNT(*) FROM context_links"))
                 assertEquals(0L, scalar(room, "SELECT COUNT(*) FROM classification_snapshots"))
                 assertEquals(0L, scalar(room, "SELECT COUNT(*) FROM workflow_operations"))
+                // The durable classification jobs are a new table: the older file held no
+                // job, and the upgrade invents none, so no draft is classified unasked.
+                assertEquals(0L, scalar(room, "SELECT COUNT(*) FROM classification_work"))
 
                 // --- The constraints the newer versions rely on -------------------------
                 room.query(SimpleSQLiteQuery("PRAGMA foreign_key_check")).use { cursor ->
@@ -311,6 +314,8 @@ class MigrationChainTest {
                     "index_workflow_operations_idempotencyKey",
                     "index_context_links_eventId_draftId",
                     "index_classification_snapshots_draftId",
+                    "index_classification_work_draftId",
+                    "index_classification_work_state_updatedAtEpochMillis",
                 )) {
                     assertEquals(
                         "the index $index must exist after the upgrade",
@@ -563,6 +568,7 @@ class MigrationChainTest {
                 for (table in listOf(
                     "capture_messages",
                     "context_links",
+                    "note_events",
                     "classification_snapshots",
                     "workflow_operations",
                 )) {
@@ -590,7 +596,7 @@ class MigrationChainTest {
                 }
                 // The injected defect is removed: the file is the older database again,
                 // without the object that made the last step fail.
-                legacy.execSQL("DROP TABLE `note_events`")
+                legacy.execSQL("DROP TABLE `classification_work`")
             } finally {
                 legacy.close()
             }
@@ -649,12 +655,12 @@ class MigrationChainTest {
         try {
             exportedStatements(6).forEach { statement -> database.execSQL(statement) }
             if (injectFailureInLastMigration) {
-                val noteEvents = exportedStatements(8).first { statement ->
-                    statement.contains("CREATE TABLE IF NOT EXISTS `note_events`")
-                }
-                database.execSQL(noteEvents)
+                // A table under the name the last migration creates, of a shape its own
+                // index statement cannot use: the last step of the chain then fails on
+                // the missing column, which is a failure inside the upgrade transaction.
                 database.execSQL(
-                    "ALTER TABLE `note_events` ADD COLUMN `resolvedTransactionId` INTEGER",
+                    "CREATE TABLE `classification_work` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `note` TEXT)",
                 )
             }
             insertCategory(database, FOOD_CATEGORY_ID, "Food", archived = 0)

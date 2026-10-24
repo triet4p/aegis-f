@@ -1,170 +1,631 @@
 package io.github.triet4p.aegisf.data
 
 import android.util.Log
+import androidx.room.withTransaction
 import java.io.Closeable
+import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * Process-owned, bounded classification work for durably persisted bank drafts.
+ * The process-owned worker that turns durably stored bank drafts into review-only Laya
+ * predictions — and the durable queue that makes that work resumable.
  *
- * [IntakeRepository] reports every supported draft it stored — the newly inserted one and,
- * on a replayed delivery, the draft that delivery already names — and this queue runs one
- * classification request for it through [WorkflowCommandService]. Admission is a bounded
- * in-memory hand-off: it neither reads the database nor waits for the model, so a missing,
- * busy, or slow model can never delay or fail notification persistence.
+ * The jobs live in [ClassificationWorkEntity]: one row per draft, with a real
+ * pending/running/result/cancelled/failed lifecycle. The in-memory channel here is only a
+ * wake-up signal; it holds no work, so a burst that fills it cannot lose a job and a
+ * process that ends cannot lose a queued question either.
  *
- * One logical work item per draft, and one inference per question:
+ * What the queue guarantees:
  *
- * - A draft id is tracked from admission until its work ends, so a duplicate notification
- *   that resolves to the same stored draft adds no second item while its work is pending.
- * - The work is bound to the context and catalog revision it was scheduled for, and the
- *   idempotency key is derived from that revision. The command boundary claims the key
- *   durably before the model is asked, so a repeated enqueue for the same draft and the
- *   same revision replays the recorded request instead of asking the model again. A
- *   changed revision is a different question and gets its own key.
- * - Correction rules, the manual-selection rule, safety-blocked text, the dependency check
- *   and the refusal of a settled draft are not re-implemented here: the request goes
- *   through the same [WorkflowCommandService.requestClassification] the review screen uses.
- *   A draft the user already resolved is skipped before the model is asked, because the
- *   boundary would preserve that choice anyway and automatic work must not spend a bounded
- *   inference on it.
+ * - **One logical job per draft, at the newest relevant revision.** A newer question
+ *   replaces the queued one in place ([ClassificationWorkDao.arm]) or updates the one a
+ *   running attempt already holds ([ClassificationWorkDao.retarget]). Rapid edits
+ *   therefore cost one job and one model question, not one per edit.
+ * - **Only relevant changes schedule work.** A question is identified by the digest of
+ *   the description, the linked event readings, and the catalog, rule, model, and
+ *   candidate-set revisions ([classificationQuestionDigest]). An accepted command asks
+ *   the queue to re-check its jobs, and a job whose question did not change is not asked
+ *   again. Redrawing a screen, re-reading a draft, or correcting an amount (none of which
+ *   changes the model's input) schedules nothing.
+ * - **Resumable across process death.** A running job is written before the model is
+ *   asked and finished only by the attempt that wrote it. When the queue starts in a new
+ *   process every interrupted running job returns to pending before the worker claims
+ *   anything, so the draft is classified after a restart instead of staying unclassified.
+ * - **Bounded resources.** One worker, one model request at a time, one inference session
+ *   at a time through the shared lifecycle, a bounded number of waiting jobs, and a
+ *   bounded number of attempts per question. A missing or busy model ends the attempt in
+ *   a recorded state and never touches intake.
+ * - **The user's decisions stand.** A draft the user resolved, confirmed, or dismissed is
+ *   cancelled before the model is asked; a late result is refused by the command boundary
+ *   and by the job's own conditional transitions.
  *
- * The queue is process-owned, not durable. A process that ends mid-work leaves the drafts
- * stored — they were persisted before admission — and their classification missing, which
- * review shows as unclassified rather than as a guessed answer. Resumable
- * pending/running/result/cancelled/failed work, revision-aware coalescing and retry
- * admission are S7.3's separate policy; this queue only does what "trigger classification
- * from bank intake" requires. Nothing here writes a ledger record or selects a category.
+ * The queue never selects a category, confirms a draft, or writes a ledger record. The
+ * notification listener only reports a stored draft id; it never constructs this queue,
+ * never opens the model, and never holds an inference session.
  */
 class BankDraftClassificationQueue(
-    database: LedgerDatabase,
+    private val database: LedgerDatabase,
     private val commands: WorkflowCommandService,
-    maxPending: Int = MAX_PENDING,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    private val clock: LedgerClock = SystemLedgerClock,
+    private val maxQueued: Int = MAX_QUEUED,
+    private val retryBackoffMillis: Long = RETRY_BACKOFF_MILLIS,
 ) : Closeable {
     private val drafts = database.pendingBankDraftDao()
-    private val snapshots = ClassificationSnapshotRepository(database = database)
+    private val work = database.classificationWorkDao()
+    private val snapshots = ClassificationSnapshotRepository(database = database, clock = clock)
 
-    /** The drafts admitted and not yet finished: one logical work item per draft id. */
-    private val tracked = HashSet<Long>()
-    private val lock = Any()
-    private val pending = Channel<Long>(capacity = maxPending)
+    /** Wakes the worker; an empty signal is enough because the jobs are in the database. */
+    private val wake = Channel<Unit>(Channel.CONFLATED)
 
     @Volatile
     private var closed = false
 
     /**
-     * The one worker that runs the admitted work.
+     * The one worker that runs the queued jobs.
      *
      * One worker, not one job per draft: the local model answers one request at a time, so
-     * admitting a second draft must queue it behind the first instead of piling native work
-     * onto the inference lifecycle. The worker is a suspended coroutine between items, never
-     * a thread and never an open model session.
+     * admitting a second draft queues it behind the first instead of piling native work
+     * onto the inference lifecycle. The worker is a suspended coroutine between items,
+     * never a thread and never an open model session.
      */
     private val worker = scope.launch {
-        for (draftId in pending) {
-            try {
-                classify(draftId)
+        resumeInterruptedWork()
+        while (isActive) {
+            val job = try {
+                work.oldestInState(CLASSIFICATION_WORK_PENDING)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
-                // The draft is already stored and reviewable; a failed scheduling step is
-                // reported as the miss it is and never turns into a claim about the draft.
-                Log.w(
-                    TAG,
-                    "intake classification failed for draft=$draftId " +
-                        "(${error.javaClass.simpleName})",
+                Log.w(TAG, "classification work could not be read (${error.javaClass.simpleName})")
+                null
+            }
+            if (job == null) {
+                wake.receive()
+                continue
+            }
+            if (runAttempt(job)) delay(retryBackoffMillis)
+        }
+    }
+
+    /**
+     * Reports one durably stored draft, or one whose delivery was re-read, to the queue.
+     *
+     * Called after the draft's own transaction has committed. The call records the job
+     * before it returns, so the work survives a process that ends immediately afterwards,
+     * and it never waits for the model. A draft that is already resolved or no longer
+     * pending is cancelled instead of being queued, and a job that already produced a
+     * prediction for the same question is left alone. The one case that is retried under
+     * the same question is a job that ended failed or cancelled: a re-read of the delivery
+     * is the app's honest recovery signal, so it re-arms that miss.
+     */
+    suspend fun admit(draftId: Long) {
+        if (draftId <= 0L || closed) return
+        admitCurrentQuestion(draftId, rearmSameQuestion = true)
+    }
+
+    /**
+     * Reconsiders the queued work after an accepted command changed the draft's context.
+     *
+     * The command boundary calls this only after it stored an accepted change and its
+     * commit succeeded; a redraw, a read, or a refused command never reaches it. A
+     * confirmed or dismissed draft has its job cancelled at once; every context, rule,
+     * catalog, or description change re-checks the jobs whose question may now differ.
+     */
+    suspend fun onAcceptedChange(change: WorkflowChange) {
+        if (closed) return
+        when (change) {
+            is WorkflowChange.DraftConfirmed ->
+                cancelForDraft(change.draftId, ClassificationWorkReason.DRAFT_REVIEWED)
+            is WorkflowChange.DraftDismissed ->
+                cancelForDraft(change.draftId, ClassificationWorkReason.DRAFT_REVIEWED)
+            // The change names its draft, so no full scan is needed: a resolved draft has
+            // its job cancelled before the model is asked, a changed description re-arms
+            // it, and an unchanged one is left alone.
+            is WorkflowChange.DraftReviewSaved ->
+                admitCurrentQuestion(change.draftId, rearmSameQuestion = false)
+            else -> if (change.affectsClassification()) reconcile()
+        }
+    }
+
+    /** Stops admission and abandons waiting work; stored drafts and jobs are untouched. */
+    override fun close() {
+        if (closed) return
+        closed = true
+        worker.cancel()
+        scope.cancel()
+        wake.close()
+    }
+
+    // --- Admission ---------------------------------------------------------
+
+    /**
+     * Admits the draft's current question, or coalesces it into the job it already has.
+     *
+     * The question is computed from the state the draft is in now, so a burst of accepted
+     * edits leaves exactly the newest question queued. The draft's own guards — pending
+     * review, no user category, a description — are applied here as well as before the
+     * model is asked, so a resolved draft is never queued and a later resolution cancels
+     * the queued job.
+     */
+    private suspend fun admitCurrentQuestion(draftId: Long, rearmSameQuestion: Boolean) {
+        val draft = try {
+            drafts.findById(draftId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Log.w(TAG, "classification admission could not read draft=$draftId")
+            return
+        } ?: run {
+            cancelForDraft(draftId, ClassificationWorkReason.DRAFT_MISSING)
+            return
+        }
+        when {
+            draft.reviewStatus != IntakeReviewStatus.PENDING ->
+                cancelForDraft(draftId, ClassificationWorkReason.DRAFT_REVIEWED)
+            draft.reviewCategoryResolved ->
+                cancelForDraft(draftId, ClassificationWorkReason.DRAFT_RESOLVED)
+            else -> {
+                val description = draft.classificationDescription()
+                val effective = try {
+                    snapshots.effectiveContextFor(draftId, description)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    Log.w(TAG, "classification admission could not read context for draft=$draftId")
+                    null
+                } ?: return
+                admitQuestion(
+                    draftId = draftId,
+                    question = classificationQuestionDigest(
+                        description = description,
+                        context = effective.context,
+                        dependencies = effective.dependencies,
+                    ),
+                    rearmSameQuestion = rearmSameQuestion,
+                    freshSnapshotId = freshSnapshotId(draftId),
                 )
-            } finally {
-                synchronized(lock) { tracked.remove(draftId) }
             }
         }
     }
 
     /**
-     * Admits one logical classification work item for [draftId].
+     * The stored prediction of the draft when it still answers the question the draft
+     * poses now, or null.
      *
-     * Called after the draft's own transaction has committed. The call never suspends, never
-     * throws into the caller, and never reads the database; a draft already admitted is
-     * ignored, so the same stored draft cannot occupy the queue twice. A full queue refuses
-     * admission and says so in the log: the draft stays visible as unclassified instead of
-     * being silently replaced by a second guess, and intake is unaffected either way.
+     * A prediction is fresh only while every dependency it was recorded against still
+     * matches, and those dependencies include the description and the linked readings —
+     * so a fresh prediction is the answer to the same question the queue would ask. A
+     * re-read delivery, or a draft carried over from a build that did not keep durable
+     * jobs, therefore reuses it instead of spending an inference on a known answer.
      */
-    fun enqueue(draftId: Long) {
-        if (draftId <= 0L) return
-        synchronized(lock) {
-            if (closed) return
-            if (!tracked.add(draftId)) return
-            if (pending.trySend(draftId).isFailure) {
-                tracked.remove(draftId)
-                Log.w(
-                    TAG,
-                    "intake classification queue is full; draft=$draftId stays unclassified",
+    private suspend fun freshSnapshotId(draftId: Long): Long? = try {
+        val fresh = snapshots.snapshotFor(draftId)?.takeIf { it.staleReason == null }
+        if (fresh == null) null else snapshots.storedSnapshot(draftId)?.id
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: Exception) {
+        Log.w(TAG, "classification admission could not read the stored prediction for draft=$draftId")
+        null
+    }
+
+    /**
+     * Queues [question] for [draftId], coalescing with the job the draft already has.
+     *
+     * One transaction decides which of "insert", "replace the queued question", "update
+     * the question a running attempt will run next", and "leave it alone" applies, so two
+     * concurrent admissions cannot both insert a second job for one draft.
+     */
+    private suspend fun admitQuestion(
+        draftId: Long,
+        question: String,
+        rearmSameQuestion: Boolean,
+        freshSnapshotId: Long? = null,
+    ) {
+        val now = clock.nowEpochMillis()
+        var queued = false
+        database.withTransaction {
+            val job = work.findForDraft(draftId)
+            if (job == null) {
+                if (isFull()) {
+                    Log.w(TAG, "classification queue is full; draft=$draftId stays unclassified")
+                    return@withTransaction
+                }
+                if (freshSnapshotId != null) {
+                    // A fresh prediction is the answer to this very question (its
+                    // dependencies cover the description and the readings), so the job is
+                    // recorded as a result without asking the model again.
+                    work.insert(
+                        ClassificationWorkEntity(
+                            draftId = draftId,
+                            state = CLASSIFICATION_WORK_RESULT,
+                            requestedQuestion = question,
+                            executedQuestion = question,
+                            attemptCount = 0,
+                            snapshotId = freshSnapshotId,
+                            statusReason = null,
+                            ownerToken = null,
+                            createdAtEpochMillis = now,
+                            updatedAtEpochMillis = now,
+                        ),
+                    )
+                    return@withTransaction
+                }
+                work.insert(
+                    ClassificationWorkEntity(
+                        draftId = draftId,
+                        state = CLASSIFICATION_WORK_PENDING,
+                        requestedQuestion = question,
+                        executedQuestion = null,
+                        attemptCount = 0,
+                        snapshotId = null,
+                        statusReason = null,
+                        ownerToken = null,
+                        createdAtEpochMillis = now,
+                        updatedAtEpochMillis = now,
+                    ),
                 )
+                queued = true
+                return@withTransaction
+            }
+            when {
+                job.requestedQuestion == question -> {
+                    // The same question is already queued, running, or answered. Only a
+                    // recorded miss is retried by an explicit re-report of the delivery.
+                    if (rearmSameQuestion && job.state in RETRYABLE_STATES) {
+                        queued = work.arm(job.id, question, now) == 1
+                    }
+                }
+                job.state == CLASSIFICATION_WORK_RUNNING ->
+                    work.retarget(job.id, CLASSIFICATION_WORK_RUNNING, question, now)
+                else -> {
+                    if (isFull()) {
+                        Log.w(TAG, "classification queue is full; draft=$draftId stays unclassified")
+                        return@withTransaction
+                    }
+                    queued = work.arm(job.id, question, now) == 1
+                }
             }
         }
+        if (queued) wake.trySend(Unit)
     }
 
-    /** Stops admission and abandons queued work; stored drafts are untouched. */
-    override fun close() {
-        synchronized(lock) {
-            if (closed) return
-            closed = true
+    /** A bounded number of waiting jobs is the admission limit, not a limit on intake. */
+    private suspend fun isFull(): Boolean =
+        work.countInState(CLASSIFICATION_WORK_PENDING) >= maxQueued
+
+    // --- Reconciliation ----------------------------------------------------
+
+    /**
+     * Re-checks every job that is no longer waiting against the question the draft poses
+     * now, and re-arms the ones that differ.
+     *
+     * Only released jobs are visited: a pending job runs whatever the newest state is, and
+     * a running job is covered by the attempt's own freshness check. A job whose question
+     * did not change stays exactly as it is, which is what keeps a catalog or rule change
+     * from re-asking the model for drafts it cannot affect.
+     */
+    private suspend fun reconcile() {
+        var afterId = 0L
+        while (true) {
+            val ids = try {
+                work.idsInStatesAfter(RECONCILED_STATES, afterId, RECONCILE_PAGE)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.w(TAG, "classification work could not be reconciled")
+                return
+            }
+            if (ids.isEmpty()) return
+            for (id in ids) {
+                afterId = id
+                val job = work.findById(id) ?: continue
+                admitCurrentQuestion(job.draftId, rearmSameQuestion = false)
+            }
+            if (ids.size < RECONCILE_PAGE) return
         }
-        pending.close()
-        worker.cancel()
-        scope.cancel()
     }
 
-    /** Runs one admitted work item against the state it is scheduled for. */
-    private suspend fun classify(draftId: Long) {
-        val draft = drafts.findById(draftId)
-        if (draft == null) {
-            Log.i(TAG, "intake classification skipped: draft=$draftId no longer exists")
-            return
+    // --- The worker --------------------------------------------------------
+
+    /**
+     * Runs one claimed job.
+     *
+     * @return true when the job asked to be tried again shortly, so the worker backs off
+     * instead of spinning on a question another live attempt holds.
+     */
+    private suspend fun runAttempt(job: ClassificationWorkEntity): Boolean {
+        val token = UUID.randomUUID().toString()
+        val claimed = try {
+            work.claim(job.id, token, clock.nowEpochMillis())
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Log.w(TAG, "classification job could not be claimed (${error.javaClass.simpleName})")
+            0
         }
-        if (draft.reviewStatus != IntakeReviewStatus.PENDING) {
-            Log.i(
-                TAG,
-                "intake classification skipped: draft=$draftId is ${draft.reviewStatus.name}",
-            )
-            return
+        if (claimed != 1) return false
+        return try {
+            classify(job.id, token)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            // The draft is already stored and reviewable; a failed attempt is recorded as
+            // the miss it is and never turns into a claim about the draft.
+            Log.w(TAG, "classification attempt failed (${error.javaClass.simpleName})")
+            settle(job.id, token, CLASSIFICATION_WORK_FAILED, null, ClassificationWorkReason.MODEL_OR_INFERENCE_FAILED)
+            false
         }
-        if (draft.reviewCategoryResolved) {
-            Log.i(
-                TAG,
-                "intake classification skipped: draft=$draftId already carries the user's category",
-            )
-            return
+    }
+
+    /** Runs one claimed job against the draft's current state. */
+    private suspend fun classify(jobId: Long, token: String): Boolean {
+        val job = work.findById(jobId) ?: return false
+        val draft = drafts.findById(job.draftId)
+            ?: return cancel(jobId, token, ClassificationWorkReason.DRAFT_MISSING)
+        when {
+            draft.reviewStatus != IntakeReviewStatus.PENDING ->
+                return cancel(jobId, token, ClassificationWorkReason.DRAFT_REVIEWED)
+            draft.reviewCategoryResolved ->
+                return cancel(jobId, token, ClassificationWorkReason.DRAFT_RESOLVED)
         }
-        // The same working description the review form opens with: the user's own wording
-        // when they corrected it, the permitted bank memo otherwise. The bank memo and a
-        // review note are never concatenated, and a blank one is left to the boundary to
-        // report as needing a description.
-        val description = if (draft.reviewMemoEdited) {
-            draft.reviewMemo.orEmpty()
-        } else {
-            draft.memo.orEmpty()
+        val description = draft.classificationDescription()
+        if (description.isBlank()) {
+            return cancel(jobId, token, ClassificationWorkReason.DESCRIPTION_MISSING)
         }
-        val effective = snapshots.effectiveContextFor(draftId, description) ?: return
-        val key = intakeClassificationRequestKey(draftId, effective.dependencies)
-        Log.i(TAG, "intake classification draft=$draftId scheduled against its revision")
+        // The question is recomputed from what is stored now, not from what the row held
+        // when it was admitted: the durable queue may have waited while the user edited.
+        val effective = snapshots.effectiveContextFor(draft.id, description)
+            ?: return cancel(jobId, token, ClassificationWorkReason.DRAFT_MISSING)
+        val question = classificationQuestionDigest(
+            description = description,
+            context = effective.context,
+            dependencies = effective.dependencies,
+        )
+        if (work.markExecuting(jobId, token, question) != 1) return false
+        // A fresh key per attempt: an attempt that ended with the process can never be
+        // taken over inside its own lease, because nothing is left to take over. The key
+        // still names the exact question and attempt, so a changed question or a changed
+        // retry is never answered as the interrupted attempt's request.
+        val key = classificationRequestKey(
+            draftId = draft.id,
+            question = question,
+            attempt = job.attemptCount,
+        )
+        Log.i(
+            TAG,
+            "intake classification draft=${draft.id} scheduled question=${question.take(QUESTION_LOG_CHARS)}",
+        )
         val outcome = commands.requestClassification(
             scope = WorkflowCallerScope.User,
             request = ClassificationRequest(
                 idempotencyKey = key,
-                draftId = draftId,
+                draftId = draft.id,
                 description = description,
                 expectedReviewRevision = draft.reviewRevision,
             ),
         )
-        Log.i(TAG, "intake classification draft=$draftId outcome=${outcome.logName()}")
+        Log.i(TAG, "intake classification draft=${draft.id} outcome=${outcome.logName()}")
+        return settleOutcome(jobId, token, question, key, outcome)
+    }
+
+    /**
+     * Records what one attempt reached, in the same transaction that checks the attempt
+     * still owns the job.
+     *
+     * A newer question that arrived while the model was working requeues the newer one;
+     * a context that moved on requeues within the attempt budget; a user decision or a
+     * missing description cancels; a missing model records the miss. The transitions are
+     * conditional on the attempt's own token, so a job cancelled or re-armed while the
+     * model worked cannot be overwritten by this attempt's late answer.
+     */
+    private suspend fun settleOutcome(
+        jobId: Long,
+        token: String,
+        question: String,
+        key: String,
+        outcome: WorkflowCommandOutcome,
+    ): Boolean {
+        val now = clock.nowEpochMillis()
+        var retry = false
+        database.withTransaction {
+            val job = work.findById(jobId) ?: return@withTransaction
+            if (job.state != CLASSIFICATION_WORK_RUNNING || job.ownerToken != token) {
+                return@withTransaction
+            }
+            val newerQuestion = job.requestedQuestion != question
+            fun retryOrSettle(reason: String): JobTransition =
+                when {
+                    newerQuestion -> JobTransition.Requeue(attempts = 0, reason = reason)
+                    job.attemptCount < MAX_ATTEMPTS ->
+                        JobTransition.Requeue(attempts = job.attemptCount, reason = reason)
+                    else -> JobTransition.Settle(CLASSIFICATION_WORK_FAILED, null, reason)
+                }
+            val transition: JobTransition = when (outcome) {
+                is WorkflowCommandOutcome.Applied -> when (val change = outcome.change) {
+                    is WorkflowChange.Classified -> when {
+                        newerQuestion -> JobTransition.Requeue(0, ClassificationWorkReason.CONTEXT_CHANGED)
+                        change.snapshotId > 0L -> JobTransition.Settle(
+                            CLASSIFICATION_WORK_RESULT,
+                            change.snapshotId,
+                            null,
+                        )
+                        else -> JobTransition.Settle(
+                            CLASSIFICATION_WORK_FAILED,
+                            null,
+                            ClassificationWorkReason.NOT_RECORDED,
+                        )
+                    }
+                    else -> JobTransition.Settle(
+                        CLASSIFICATION_WORK_FAILED,
+                        null,
+                        ClassificationWorkReason.NOT_RECORDED,
+                    )
+                }
+                is WorkflowCommandOutcome.NoChange -> when (val change = outcome.change) {
+                    is WorkflowChange.Classified -> when {
+                        newerQuestion -> JobTransition.Requeue(0, ClassificationWorkReason.CONTEXT_CHANGED)
+                        change.snapshotId > 0L -> JobTransition.Settle(
+                            CLASSIFICATION_WORK_RESULT,
+                            change.snapshotId,
+                            null,
+                        )
+                        // The user's own category choice stands: the job is settled, not
+                        // retried, and the choice is left exactly as the user made it.
+                        else -> JobTransition.Settle(
+                            CLASSIFICATION_WORK_CANCELLED,
+                            null,
+                            ClassificationWorkReason.DRAFT_RESOLVED,
+                        )
+                    }
+                    null -> if (newerQuestion) {
+                        JobTransition.Requeue(0, ClassificationWorkReason.CONTEXT_CHANGED)
+                    } else {
+                        JobTransition.Settle(CLASSIFICATION_WORK_RESULT, null, null)
+                    }
+                    else -> JobTransition.Settle(CLASSIFICATION_WORK_RESULT, null, null)
+                }
+                is WorkflowCommandOutcome.NeedsClarification ->
+                    JobTransition.Settle(
+                        CLASSIFICATION_WORK_CANCELLED,
+                        null,
+                        ClassificationWorkReason.DESCRIPTION_MISSING,
+                    )
+                is WorkflowCommandOutcome.Conflict ->
+                    retryOrSettle(ClassificationWorkReason.CONTEXT_CHANGED)
+                WorkflowCommandOutcome.Cancelled -> retryOrSettle(ClassificationWorkReason.SUPERSEDED)
+                WorkflowCommandOutcome.NotFound ->
+                    JobTransition.Settle(
+                        CLASSIFICATION_WORK_CANCELLED,
+                        null,
+                        ClassificationWorkReason.DRAFT_MISSING,
+                    )
+                is WorkflowCommandOutcome.Denied -> when {
+                    newerQuestion -> JobTransition.Requeue(0, ClassificationWorkReason.CONTEXT_CHANGED)
+                    else -> JobTransition.Settle(
+                        CLASSIFICATION_WORK_CANCELLED,
+                        null,
+                        ClassificationWorkReason.DENIED,
+                    )
+                }
+                is WorkflowCommandOutcome.Failed -> when {
+                    newerQuestion -> JobTransition.Requeue(
+                        0,
+                        ClassificationWorkReason.MODEL_OR_INFERENCE_FAILED,
+                    )
+                    // Another live attempt in this process holds the question: the job is
+                    // not failed for a race, it waits for that attempt to finish.
+                    WorkflowClaimGuard.isHeld(key) ->
+                        retryOrSettle(ClassificationWorkReason.SUPERSEDED)
+                    else -> JobTransition.Settle(
+                        CLASSIFICATION_WORK_FAILED,
+                        null,
+                        ClassificationWorkReason.MODEL_OR_INFERENCE_FAILED,
+                    )
+                }
+            }
+            when (transition) {
+                is JobTransition.Requeue -> {
+                    work.requeue(job.id, token, transition.attempts, transition.reason, now)
+                    retry = true
+                }
+                is JobTransition.Settle -> work.settle(
+                    job.id,
+                    token,
+                    transition.state,
+                    transition.snapshotId,
+                    transition.reason,
+                    now,
+                )
+            }
+        }
+        return retry
+    }
+
+    /** Ends one running job under its own claim. */
+    private suspend fun cancel(jobId: Long, token: String, reason: String): Boolean {
+        settle(jobId, token, CLASSIFICATION_WORK_CANCELLED, null, reason)
+        return false
+    }
+
+    /** Ends a draft's job outside an attempt, for decisions the worker must not override. */
+    private suspend fun cancelForDraft(draftId: Long, reason: String) {
+        try {
+            val changed = database.withTransaction {
+                work.cancelForDraft(draftId, reason, clock.nowEpochMillis())
+            }
+            if (changed > 0) {
+                Log.i(TAG, "classification cancelled: draft=$draftId reason=$reason")
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Log.w(TAG, "classification cancellation could not be stored for draft=$draftId")
+        }
+    }
+
+    private suspend fun settle(
+        jobId: Long,
+        token: String,
+        state: String,
+        snapshotId: Long?,
+        reason: String?,
+    ) {
+        try {
+            work.settle(jobId, token, state, snapshotId, reason, clock.nowEpochMillis())
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Log.w(TAG, "classification state could not be stored (${error.javaClass.simpleName})")
+        }
+    }
+
+    /**
+     * Returns the jobs an interrupted process left running to the durable queue.
+     *
+     * A running row belongs to an attempt that wrote it before asking the model, and only
+     * that attempt may finish it. When this queue starts, no such attempt exists in the
+     * process, so every running row is resumed before the worker claims anything, and the
+     * durable claim of the attempt that died is dropped so no request stays reserved by a
+     * process that is gone.
+     */
+    private suspend fun resumeInterruptedWork() {
+        try {
+            val interrupted = work.findInState(CLASSIFICATION_WORK_RUNNING, RESUME_PAGE)
+            for (job in interrupted) {
+                val question = job.executedQuestion ?: continue
+                commands.abandonInterruptedClassification(
+                    classificationRequestKey(job.draftId, question, job.attemptCount),
+                )
+            }
+            val resumed = work.resumeInterrupted(clock.nowEpochMillis())
+            if (resumed > 0) {
+                Log.i(TAG, "resumed $resumed interrupted classification job(s)")
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Log.w(TAG, "interrupted classification work could not be resumed")
+        }
+    }
+
+    /** One settled or requeued result of an attempt. */
+    private sealed interface JobTransition {
+        data class Settle(
+            val state: String,
+            val snapshotId: Long?,
+            val reason: String?,
+        ) : JobTransition
+
+        data class Requeue(val attempts: Int, val reason: String?) : JobTransition
     }
 
     private companion object {
@@ -173,35 +634,98 @@ class BankDraftClassificationQueue(
         /**
          * How many drafts may wait for classification at once.
          *
-         * A bound on admitted work, not on intake: a bank delivers a handful of notifications
-         * at human time, so this is far above any real burst, and one draft needs only eight
-         * bytes here. A queue that somehow filled would leave the drafts beyond it visible as
-         * unclassified — never guessed and never dropped from review.
+         * A bound on admitted work, not on intake: each job is one small row and the one
+         * worker drains them in order, so this is far above any real burst. A queue that
+         * somehow filled leaves the drafts beyond it visible as unclassified — never
+         * guessed and never dropped from review — and the next accepted change or a
+         * re-read delivery re-arms them.
          */
-        const val MAX_PENDING = 32
+        const val MAX_QUEUED = 64
+
+        /**
+         * How many times one question may be retried after a context change.
+         *
+         * A new question gets a fresh budget; this only bounds a draft whose context
+         * moves on under every attempt, so the model cannot be asked without end.
+         */
+        const val MAX_ATTEMPTS = 3
+
+        /** How many jobs one reconciliation page reads. */
+        const val RECONCILE_PAGE = 64
+
+        /** How many interrupted running jobs one start-up recovery reads. */
+        const val RESUME_PAGE = 64
+
+        /** How long the worker waits before retrying a question another attempt holds. */
+        const val RETRY_BACKOFF_MILLIS = 250L
+
+        /**
+         * How much of a question digest a log line names.
+         *
+         * The digest identifies the question for an operator comparing a scheduling line
+         * with the stored job; it is one-way and carries none of the text it was made
+         * from.
+         */
+        const val QUESTION_LOG_CHARS = 12
+
+        /** States a re-read delivery may re-arm: a recorded miss, not a queued or answered job. */
+        val RETRYABLE_STATES = listOf(CLASSIFICATION_WORK_FAILED, CLASSIFICATION_WORK_CANCELLED)
+
+        /** States reconciliation re-checks: waiting jobs already run whatever the newest state is. */
+        val RECONCILED_STATES = listOf(
+            CLASSIFICATION_WORK_RUNNING,
+            CLASSIFICATION_WORK_RESULT,
+            CLASSIFICATION_WORK_FAILED,
+            CLASSIFICATION_WORK_CANCELLED,
+        )
     }
 }
 
 /**
- * The idempotency key of one intake-scheduled classification.
+ * The idempotency key of one attempt at one classification question.
  *
- * The key names the question, not the answer: the same draft at the same context revision
- * under the same category catalog is the same question, so a repeated notification replays
- * the recorded request instead of asking the model again. Any change of the draft's review
- * state, its links, its stored readings, or the category catalog is a different question and
- * gets its own key. The prefix keeps these keys apart from the review screen's own requests.
+ * The key names the question and the attempt, not the answer. A newer question, or a
+ * retry after an interrupted attempt, is a different request and gets its own key — so a
+ * durable claim left behind by a process that ended is never mistaken for a live attempt,
+ * while a second request for the same attempt is still answered from the record.
  */
-internal fun intakeClassificationRequestKey(
+internal fun classificationRequestKey(
     draftId: Long,
-    dependencies: PredictionDependencies,
+    question: String,
+    attempt: Int,
 ): String = canonicalDependencyDigest(
     listOf(
         "INTAKE_CLASSIFICATION",
         draftId.toString(),
-        dependencies.contextRevision,
-        dependencies.categoryRevision,
+        question,
+        attempt.toString(),
     ),
 )
+
+/**
+ * Whether an accepted change can alter a classification question.
+ *
+ * A change that does not touch the description, the linked readings, the category
+ * catalog, or the remembered rules cannot change what the model would be asked, so it
+ * never schedules work. The list is deliberately explicit: a new accepted change has to
+ * be classified here before it may re-open a job.
+ */
+private fun WorkflowChange.affectsClassification(): Boolean = when (this) {
+    is WorkflowChange.CaptureRevised,
+    is WorkflowChange.CaptureDeleted,
+    is WorkflowChange.EventStored,
+    is WorkflowChange.EventRevised,
+    is WorkflowChange.LinkDecided,
+    is WorkflowChange.LinkUnlinked,
+    is WorkflowChange.CategoryAdded,
+    is WorkflowChange.CategoryRenamed,
+    is WorkflowChange.CategoryArchived,
+    is WorkflowChange.CategoryDeleted,
+    is WorkflowChange.CategoryRuleRemembered,
+    is WorkflowChange.CategoryRuleRemoved,
+    -> true
+    else -> false
+}
 
 /** The outcome's kind, without any of its payload, for a privacy-safe log line. */
 private fun WorkflowCommandOutcome.logName(): String = when (this) {

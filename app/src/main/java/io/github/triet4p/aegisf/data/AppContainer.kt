@@ -36,12 +36,13 @@ class AppContainer(context: Context) {
     }
 
     /**
-     * The process's bounded classification work for incoming bank drafts.
+     * The process's durable classification work for incoming bank drafts.
      *
      * It is the one path that turns a durably persisted draft into a review-only Laya
-     * prediction without the user opening the draft. It owns no state of its own: drafts,
-     * the recorded requests, and the predictions all live in the database through the
-     * command boundary, and the queue holds only the ids it has admitted.
+     * prediction without the user opening the draft. The jobs live in the database
+     * (`classification_work`), so the queue holds no work of its own: a process that ends
+     * mid-job resumes it on the next start, and a burst of notifications is coalesced per
+     * draft instead of piling up in memory.
      */
     private val classificationQueueDelegate = lazy {
         BankDraftClassificationQueue(
@@ -50,9 +51,21 @@ class AppContainer(context: Context) {
         )
     }
 
-    /** The bounded, process-owned work that classifies stored drafts as they arrive. */
+    /** The durable, process-owned work that classifies stored drafts as they arrive. */
     val bankDraftClassificationQueue: BankDraftClassificationQueue
         get() = classificationQueueDelegate.value
+
+    /**
+     * Starts the classification worker at process start.
+     *
+     * The worker resumes the jobs an earlier process left queued or running, so a
+     * draft's suggestion survives a restart even when no new notification arrives and no
+     * screen is opened. Accessing the queue is what starts it; the queue opens the
+     * database on its own worker, so this adds no disk work to the main thread.
+     */
+    fun startClassificationWork() {
+        classificationQueueDelegate.value
+    }
 
     private val databaseDelegate = lazy { LedgerDatabase.build(appContext) }
     private val database: LedgerDatabase by databaseDelegate
@@ -96,6 +109,10 @@ class AppContainer(context: Context) {
             database = database,
             engine = LayaClassificationEngine(layaInferenceLifecycle),
             findRememberedCategory = ledgerRepository::findRememberedCategoryForDescription,
+            // The queue is resolved when a command is applied, never while either object
+            // is being constructed: the queue needs the command boundary to ask the model,
+            // and the boundary needs the queue to reconsider derived work.
+            onAcceptedChange = { change -> bankDraftClassificationQueue.onAcceptedChange(change) },
         )
     }
 
@@ -103,13 +120,14 @@ class AppContainer(context: Context) {
      * Pending bank-notification drafts: reviewable intake, never ledger records.
      *
      * The stored draft is reported to [bankDraftClassificationQueue] after its transaction
-     * commits, so a supported notification schedules one bounded classification work item
-     * without making intake wait for the model.
+     * commits, so a supported notification records one durable classification job without
+     * making intake wait for the model. A re-read of the same delivery re-reports the same
+     * draft, which is the app's recovery signal for work a process did not finish.
      */
     val intakeRepository: IntakeRepository by lazy {
         IntakeRepository(
             database = database,
-            onDraftStored = bankDraftClassificationQueue::enqueue,
+            onDraftStored = bankDraftClassificationQueue::admit,
         )
     }
 

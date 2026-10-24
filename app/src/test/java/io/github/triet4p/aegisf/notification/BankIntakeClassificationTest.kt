@@ -190,7 +190,7 @@ class BankIntakeClassificationTest {
         queue = BankDraftClassificationQueue(database = database, commands = commands)
         repository = IntakeRepository(
             database = database,
-            onDraftStored = queue::enqueue,
+            onDraftStored = queue::admit,
         )
 
         listener = Robolectric.buildService(BankNotificationListener::class.java).create().get()
@@ -408,7 +408,7 @@ class BankIntakeClassificationTest {
         // Admit the resolved draft, then one fresh draft. Arrival order makes the first
         // item's skip observable: the second draft's prediction can only be stored after
         // the resolved draft's work item has been answered.
-        queue.enqueue(resolvedId)
+        queue.admit(resolvedId)
         BankNotificationListener.updateIntakeRepository(repository)
         listener.onNotificationPosted(supportedNotification(id = 111))
 

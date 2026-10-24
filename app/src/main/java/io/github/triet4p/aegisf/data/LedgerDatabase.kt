@@ -39,6 +39,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ContextLinkEntity::class,
         ClassificationSnapshotEntity::class,
         WorkflowOperationEntity::class,
+        ClassificationWorkEntity::class,
     ],
     version = LedgerDatabase.VERSION,
     exportSchema = true,
@@ -73,8 +74,11 @@ abstract class LedgerDatabase : RoomDatabase() {
     /** The durable record of the preparation commands and their idempotency keys. */
     abstract fun workflowOperationDao(): WorkflowOperationDao
 
+    /** The durable, coalescing classification jobs of the pending bank drafts. */
+    abstract fun classificationWorkDao(): ClassificationWorkDao
+
     companion object {
-        const val VERSION = 11
+        const val VERSION = 12
 
         /** File name of the on-device database. */
         const val NAME = "aegis-ledger.db"
@@ -580,6 +584,49 @@ abstract class LedgerDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Version 11 to 12: the durable classification jobs of the pending bank drafts.
+         *
+         * The new table starts empty. Version 11 scheduled classification work in process
+         * memory only, so there is no job to carry over: a draft that was stored under the
+         * old schema is still stored, still reviewable, and still classified when a
+         * supported delivery for it is re-read, when a relevant change re-opens it, or
+         * when the user asks for a suggestion. The migration invents no job and therefore
+         * starts no inference for drafts the user never touched.
+         *
+         * Nothing that version 11 already held is rewritten: the categories, ledger
+         * records, drafts, rules, captures, readings, links, stored predictions, and
+         * command records keep their rows, ids, and values, and the confirmed totals
+         * computed from them are unchanged by the upgrade.
+         */
+        val MIGRATION_11_12: Migration = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `classification_work` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`draftId` INTEGER NOT NULL, " +
+                        "`state` TEXT NOT NULL, " +
+                        "`requestedQuestion` TEXT NOT NULL, " +
+                        "`executedQuestion` TEXT, " +
+                        "`attemptCount` INTEGER NOT NULL, " +
+                        "`snapshotId` INTEGER, " +
+                        "`statusReason` TEXT, " +
+                        "`ownerToken` TEXT, " +
+                        "`createdAtEpochMillis` INTEGER NOT NULL, " +
+                        "`updatedAtEpochMillis` INTEGER NOT NULL)",
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_classification_work_draftId` " +
+                        "ON `classification_work` (`draftId`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS " +
+                        "`index_classification_work_state_updatedAtEpochMillis` " +
+                        "ON `classification_work` (`state`, `updatedAtEpochMillis`)",
+                )
+            }
+        }
+
         /** Builds the production database on the app's real file directory. */
         fun build(context: Context): LedgerDatabase =
             Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, NAME)
@@ -594,6 +641,7 @@ abstract class LedgerDatabase : RoomDatabase() {
                     MIGRATION_8_9,
                     MIGRATION_9_10,
                     MIGRATION_10_11,
+                    MIGRATION_11_12,
                 )
                 .build()
 

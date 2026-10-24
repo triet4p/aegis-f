@@ -1,5 +1,6 @@
 package io.github.triet4p.aegisf.data.laya
 
+import android.util.Log
 import io.github.triet4p.aegisf.data.CategoryEntity
 import java.io.Closeable
 import java.io.File
@@ -142,6 +143,7 @@ class LayaInferenceLifecycle internal constructor(
                     WorkerAction.Release -> {
                         session?.close()
                         session = null
+                        logInfo("inference session released after idle")
                     }
                     WorkerAction.Stop -> return
                     is WorkerAction.Run -> {
@@ -151,7 +153,10 @@ class LayaInferenceLifecycle internal constructor(
                             if (!request.isActive) continue
                             if (session == null) {
                                 when (val opened = runtimeFactory.open(modelDirectory)) {
-                                    is LayaInferenceRuntimeOpen.Opened -> session = opened.session
+                                    is LayaInferenceRuntimeOpen.Opened -> {
+                                        session = opened.session
+                                        logInfo("inference session opened for work")
+                                    }
                                     is LayaInferenceRuntimeOpen.Unavailable -> {
                                         request.finishUnavailable(opened.state)
                                         continue
@@ -271,6 +276,22 @@ class LayaInferenceLifecycle internal constructor(
         }
     }
 
+    /**
+     * Reports one lifecycle event without ever failing the work.
+     *
+     * The diagnostic is what lets an operator see that the model is opened for a request
+     * and released after the idle window. The host test of this class runs without the
+     * Android framework, where the log call is unavailable, so an unavailable diagnostic
+     * must not turn a successful session into an exception.
+     */
+    private fun logInfo(message: String) {
+        try {
+            Log.i(TAG, message)
+        } catch (_: RuntimeException) {
+            // The diagnostic is unavailable in this environment; the work continues.
+        }
+    }
+
     private sealed interface WorkerAction {
         data object Exit : WorkerAction
         data object Release : WorkerAction
@@ -279,6 +300,7 @@ class LayaInferenceLifecycle internal constructor(
     }
 
     companion object {
+        private const val TAG = "LayaInference"
         private const val SESSION_IDLE_TIMEOUT_MILLIS = 30_000L
 
         private fun openRuntime(directory: File): LayaInferenceRuntimeOpen =

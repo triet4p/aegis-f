@@ -53,6 +53,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Opening the app is one of the two ways a new process resumes the classification
+        // work an earlier process left queued or running (the other is the notification
+        // listener reconnecting, which reaches the same queue through intake).
+        (application as AegisApplication).container.startClassificationWork()
         enableEdgeToEdge()
         setContent {
             AegisTheme {

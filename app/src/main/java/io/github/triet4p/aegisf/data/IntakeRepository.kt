@@ -47,10 +47,12 @@ open class IntakeRepository(
     /**
      * What to do with a supported draft that is now durably stored.
      *
-     * The app schedules its bounded classification work through this seam
-     * ([BankDraftClassificationQueue.enqueue]), so the hand-off happens after the draft's
+     * The app admits its durable classification work through this seam
+     * ([BankDraftClassificationQueue.admit]), so the hand-off happens after the draft's
      * transaction has committed and on the caller's own background context — never inside
-     * the storage transaction and never before persistence. It is reported for the draft a
+     * the storage transaction and never before persistence. The hand-off only records the
+     * job; the model is asked later by the queue's own worker, so a missing, busy, or
+     * slow model cannot delay this call or intake. It is reported for the draft a
      * delivery resolves to, whether this call inserted it or found it already stored, so a
      * re-read after a reconnect can retry work a process did not finish.
      *
@@ -58,7 +60,7 @@ open class IntakeRepository(
      * stored draft, and a callback that fails is reported and swallowed rather than failing
      * the store, because a stored draft is the durable fact and scheduling is derived work.
      */
-    private val onDraftStored: (Long) -> Unit = {},
+    private val onDraftStored: suspend (Long) -> Unit = {},
 ) {
     private val draftDao = database.pendingBankDraftDao()
     private val captureMessageDao = database.captureMessageDao()
@@ -128,9 +130,11 @@ open class IntakeRepository(
      * scheduling step is derived work, so its failure is reported as the miss it is instead
      * of turning a stored draft into a failed intake.
      */
-    private fun notifyDraftStored(draftId: Long) {
+    private suspend fun notifyDraftStored(draftId: Long) {
         try {
             onDraftStored(draftId)
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
         } catch (error: Exception) {
             Log.w(
                 "IntakeRepository",

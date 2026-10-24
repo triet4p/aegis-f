@@ -1,6 +1,7 @@
 package io.github.triet4p.aegisf.data
 
 import android.database.sqlite.SQLiteConstraintException
+import android.util.Log
 import androidx.room.withTransaction
 import io.github.triet4p.aegisf.data.laya.LayaContextDecision
 import io.github.triet4p.aegisf.data.laya.LayaEffectiveContext
@@ -100,6 +101,17 @@ class WorkflowCommandService(
      * is never reserved forever.
      */
     private val claimLeaseMillis: Long = DEFAULT_CLAIM_LEASE_MILLIS,
+    /**
+     * What to tell the app after an accepted command changed stored context.
+     *
+     * The boundary calls this only after the change and the record of it are committed,
+     * and only for a change that was really applied: a redraw, a read, a replayed request,
+     * a refusal, and a no-change never reach it. The app uses it to reconsider its
+     * classification jobs, so the hook must not change what the command did, and a hook
+     * that fails is logged rather than turned into a failed command — the stored change is
+     * the durable fact, and derived work must not undo it.
+     */
+    private val onAcceptedChange: suspend (WorkflowChange) -> Unit = {},
 ) {
     /**
      * How often the claim of a running request is extended.
@@ -1332,7 +1344,7 @@ class WorkflowCommandService(
         val digest = canonicalDependencyDigest(payload)
         val recorded = operations.findByKey(idempotencyKey)
         if (recorded != null) return replayOf(recorded, scope, digest)
-        return try {
+        val outcome = try {
             database.withTransaction {
                 val outcome = block()
                 recordOperation(command, idempotencyKey, scope, digest, outcome)
@@ -1342,6 +1354,60 @@ class WorkflowCommandService(
             val winner = operations.findByKey(idempotencyKey)
             if (winner == null) throw error
             replayOf(winner, scope, digest)
+        }
+        notifyAcceptedChange(outcome)
+        return outcome
+    }
+
+    /**
+     * Reports an applied change to the app's classification work.
+     *
+     * Runs after the change's transaction committed, on the caller's own coroutine. Only
+     * an applied change is reported; a replayed request reports nothing because it changed
+     * nothing, and a refusal or a no-change never schedules derived work.
+     */
+    private suspend fun notifyAcceptedChange(outcome: WorkflowCommandOutcome) {
+        val change = (outcome as? WorkflowCommandOutcome.Applied)?.change ?: return
+        try {
+            onAcceptedChange(change)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            // The change is stored and recorded; only the derived re-check missed. Say so
+            // without naming the draft's text.
+            Log.w(
+                "WorkflowCommandService",
+                "could not reconsider classification after " +
+                    "${change.javaClass.simpleName} (${error.javaClass.simpleName})",
+            )
+        }
+    }
+
+    /**
+     * Drops the durable claim of an attempt whose process ended.
+     *
+     * A run's claim is written before the model is asked and released when the attempt
+     * finishes, fails, or is cancelled. A process that ends while the model works leaves
+     * the claim pending with an ended attempt behind it; nothing will ever finish it, and
+     * the request will never be repeated under that key because the queue names each
+     * attempt separately. The recovery therefore removes it, so no claim survives the
+     * process that made it.
+     *
+     * The in-process guard is checked first: while a live attempt in this process holds
+     * the key, the claim is real and is not removed. The queue calls this only from its
+     * worker's start-up, where no attempt of this process exists yet.
+     */
+    internal suspend fun abandonInterruptedClassification(idempotencyKey: String) {
+        if (WorkflowClaimGuard.isHeld(idempotencyKey)) return
+        database.withTransaction {
+            val recorded = operations.findByKey(idempotencyKey) ?: return@withTransaction
+            if (recorded.outcome != OPERATION_OUTCOME_PENDING) return@withTransaction
+            val owner = recorded.ownerToken ?: return@withTransaction
+            operations.releaseClaim(
+                id = recorded.id,
+                ownerToken = owner,
+                pendingOutcome = OPERATION_OUTCOME_PENDING,
+            )
         }
     }
 
