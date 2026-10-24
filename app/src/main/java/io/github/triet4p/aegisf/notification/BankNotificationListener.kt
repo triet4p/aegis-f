@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import io.github.triet4p.aegisf.AegisApplication
 import io.github.triet4p.aegisf.data.NotificationAccessStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -39,6 +40,12 @@ import kotlinx.coroutines.launch
  * [io.github.triet4p.aegisf.data.IntakeRepository], with every field the bank did not state
  * left explicitly unresolved. A persisted draft is reviewable evidence, never a ledger
  * record: it enters no summary and is never auto-confirmed.
+ *
+ * Scope (S7.2): the repository reports each supported draft it stored to the process's
+ * bounded classification queue, so review opens with Laya's suggestion without the user
+ * invoking the model. That scheduling happens after the draft's transaction commits, on
+ * the persistence dispatcher, and it never waits for the model: a missing, busy, or
+ * cancelled model leaves the draft stored and reviewable exactly as before.
  *
  * After a (re)connect the service also reconciles what is still active on the system side:
  * once the allowlist snapshot is loaded and [connection] is `Connected`, it reads the
@@ -355,27 +362,26 @@ class BankNotificationListener : NotificationListenerService() {
         /**
          * The intake repository the background persistence step writes through.
          *
-         * Production code builds the real Room-backed repository on first use; tests
-         * replace it with an in-memory recorder to assert the callback-to-persistence
-         * wiring without touching disk from the main thread.
+         * Production code uses the application's own repository, so the notification path
+         * shares the process's one database, its thread-safe claim guard, and the bounded
+         * classification work a stored draft is reported to. Tests replace it with their
+         * own repository to assert the callback-to-persistence wiring without touching the
+         * application container.
          */
         @Volatile
         var intakeRepository: io.github.triet4p.aegisf.data.IntakeRepository? = null
             private set
 
         /**
-         * Replaces the intake repository (tests only). Passing null restores the lazy
-         * production repository built from the given context.
+         * Replaces the intake repository (tests only). Passing null restores the application
+         * container's repository.
          */
         fun updateIntakeRepository(repository: io.github.triet4p.aegisf.data.IntakeRepository?) {
             intakeRepository = repository
         }
 
         private fun intakeRepositoryFor(context: android.content.Context) =
-            intakeRepository ?: io.github.triet4p.aegisf.data.IntakeRepository(
-                database = io.github.triet4p.aegisf.data.LedgerDatabase.build(
-                    context.applicationContext,
-                ),
-            )
+            intakeRepository ?: (context.applicationContext as AegisApplication)
+                .container.intakeRepository
     }
 }

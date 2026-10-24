@@ -219,6 +219,14 @@ arriving through the listener on a phone. What is actually verified today:
 The following capabilities are not available yet:
 
 - **Review-only suggestions are available for manual entry and notification drafts.**
+  Since Sprint 7, a supported bank notification is classified automatically: intake stores the
+  draft first, then hands it to one bounded background classification work item, so opening
+  Review does not require asking the model by hand. A missing, busy, cancelled, or failed model
+  leaves the draft exactly as stored — reviewable and manually categorisable with no suggestion —
+  and a repeated delivery of the same notification never asks the model twice. The automatic
+  request grows out of the permitted stored memo, honours an explicit remembered rule before
+  inference, is skipped once the draft already carries the user's own category, and never
+  selects a category, confirms a draft, or writes a ledger record.
   S4.4 supplies current-category planning with caller-supplied corrections, deterministic
   category-name matching, a token-budgeted shortlist, an explicit no-fit result, and
   omitted-candidate uncertainty. S4.5 runs decisions through a process-owned bounded lifecycle.
@@ -265,7 +273,9 @@ The following capabilities are not available yet:
   APK is built and installed privately by its owner.
 
 Planned work (real-bank device verification; the four-screen workflow and persistent quick
-capture; proactive Laya review; evidence-backed offline model/tool research; multi-event note
+capture; proactive Laya review — automatic intake classification is implemented, while the
+uncertainty-first queue, its controls and measured quality remain planned; evidence-backed
+offline model/tool research; multi-event note
 orchestration; recovery and personal daily-use delivery) is described in [docs/PLAN.md](docs/PLAN.md).
 
 The legacy Sprint 5 SLM benchmark remains partial, paused, and unapproved; no model was adopted.

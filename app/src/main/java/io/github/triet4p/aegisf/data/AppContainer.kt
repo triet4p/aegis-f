@@ -28,9 +28,31 @@ class AppContainer(context: Context) {
 
     /** Releases process-owned inference resources when the application is terminating. */
     fun close() {
+        if (classificationQueueDelegate.isInitialized()) {
+            classificationQueueDelegate.value.close()
+        }
         if (layaInferenceDelegate.isInitialized()) layaInferenceDelegate.value.close()
         if (databaseDelegate.isInitialized()) databaseDelegate.value.close()
     }
+
+    /**
+     * The process's bounded classification work for incoming bank drafts.
+     *
+     * It is the one path that turns a durably persisted draft into a review-only Laya
+     * prediction without the user opening the draft. It owns no state of its own: drafts,
+     * the recorded requests, and the predictions all live in the database through the
+     * command boundary, and the queue holds only the ids it has admitted.
+     */
+    private val classificationQueueDelegate = lazy {
+        BankDraftClassificationQueue(
+            database = database,
+            commands = workflowCommandService,
+        )
+    }
+
+    /** The bounded, process-owned work that classifies stored drafts as they arrive. */
+    val bankDraftClassificationQueue: BankDraftClassificationQueue
+        get() = classificationQueueDelegate.value
 
     private val databaseDelegate = lazy { LedgerDatabase.build(appContext) }
     private val database: LedgerDatabase by databaseDelegate
@@ -77,9 +99,18 @@ class AppContainer(context: Context) {
         )
     }
 
-    /** Pending bank-notification drafts: reviewable intake, never ledger records. */
+    /**
+     * Pending bank-notification drafts: reviewable intake, never ledger records.
+     *
+     * The stored draft is reported to [bankDraftClassificationQueue] after its transaction
+     * commits, so a supported notification schedules one bounded classification work item
+     * without making intake wait for the model.
+     */
     val intakeRepository: IntakeRepository by lazy {
-        IntakeRepository(database = database)
+        IntakeRepository(
+            database = database,
+            onDraftStored = bankDraftClassificationQueue::enqueue,
+        )
     }
 
     /**

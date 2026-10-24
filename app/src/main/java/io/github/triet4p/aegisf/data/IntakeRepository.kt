@@ -1,5 +1,6 @@
 package io.github.triet4p.aegisf.data
 
+import android.util.Log
 import androidx.room.withTransaction
 import io.github.triet4p.aegisf.notification.BankDirection
 import io.github.triet4p.aegisf.notification.BankNotificationParse
@@ -43,6 +44,21 @@ import io.github.triet4p.aegisf.notification.parseBankNotification
 open class IntakeRepository(
     private val database: LedgerDatabase,
     private val clock: LedgerClock = SystemLedgerClock,
+    /**
+     * What to do with a supported draft that is now durably stored.
+     *
+     * The app schedules its bounded classification work through this seam
+     * ([BankDraftClassificationQueue.enqueue]), so the hand-off happens after the draft's
+     * transaction has committed and on the caller's own background context — never inside
+     * the storage transaction and never before persistence. It is reported for the draft a
+     * delivery resolves to, whether this call inserted it or found it already stored, so a
+     * re-read after a reconnect can retry work a process did not finish.
+     *
+     * Intake does not depend on what the callback does: it is called once per supported
+     * stored draft, and a callback that fails is reported and swallowed rather than failing
+     * the store, because a stored draft is the durable fact and scheduling is derived work.
+     */
+    private val onDraftStored: (Long) -> Unit = {},
 ) {
     private val draftDao = database.pendingBankDraftDao()
     private val captureMessageDao = database.captureMessageDao()
@@ -92,12 +108,35 @@ open class IntakeRepository(
             memoUnresolvedReason = parsed.memoField().reasonName(),
             createdAtEpochMillis = clock.nowEpochMillis(),
         )
-        return database.withTransaction {
-            val draftId = draftDao.store(draft)
+        val draftId = database.withTransaction {
+            val storedDraftId = draftDao.store(draft)
             if (draft.parseStatus == IntakeParseStatus.PARSED) {
-                storeBankEvidenceReference(draftId, draft)
+                storeBankEvidenceReference(storedDraftId, draft)
             }
-            draftId
+            storedDraftId
+        }
+        if (draft.parseStatus == IntakeParseStatus.PARSED) {
+            notifyDraftStored(draftId)
+        }
+        return draftId
+    }
+
+    /**
+     * Reports one durably stored draft to [onDraftStored].
+     *
+     * The transaction has committed before this runs, and nothing here can undo it: the
+     * scheduling step is derived work, so its failure is reported as the miss it is instead
+     * of turning a stored draft into a failed intake.
+     */
+    private fun notifyDraftStored(draftId: Long) {
+        try {
+            onDraftStored(draftId)
+        } catch (error: Exception) {
+            Log.w(
+                "IntakeRepository",
+                "could not schedule classification for draft=$draftId " +
+                    "(${error.javaClass.simpleName})",
+            )
         }
     }
 

@@ -9,6 +9,18 @@ and no release has been tagged or published. Format follows
 
 ### Added
 
+- Added automatic Laya classification of bank drafts when they arrive. A supported notification
+  is still stored first — one draft per delivery, with duplicate deliveries writing nothing — and
+  the stored draft is then handed to one bounded background classification work item, so review
+  opens with a suggestion instead of requiring a manual model run. The request uses the same
+  command boundary as the review screen: a saved exact-description rule answers before inference,
+  a draft whose category the user already chose is not sent to the model, and a prediction is
+  never selected, confirmed, or written to the ledger. A missing, busy, cancelled, or failing
+  model leaves the draft stored and reviewable with no suggestion, intake never waits for
+  inference, and repeating the same delivery replays the recorded request instead of asking the
+  model again. Work that a process interruption leaves unclassified stays visible as
+  unclassified; resumable and coalesced queueing remains a later sprint task.
+
 - Added dashboard cards and a scoped dashboard view. The Dashboard now shows the exact whole-dong
   spending, income and internal-transfer figures of the calendar days and the category you choose,
   counts pending bank notifications and unconfirmed records apart from every figure, and states
