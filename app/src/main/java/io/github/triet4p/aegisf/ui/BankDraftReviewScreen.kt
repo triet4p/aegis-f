@@ -28,6 +28,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -66,8 +68,12 @@ import io.github.triet4p.aegisf.data.IntakeReviewStatus
 import io.github.triet4p.aegisf.data.CategoryQuery
 import io.github.triet4p.aegisf.data.CategoryState
 import io.github.triet4p.aegisf.data.ContextLinkState
-import io.github.triet4p.aegisf.data.DraftCandidateQuery
 import io.github.triet4p.aegisf.data.DraftContextLink
+import io.github.triet4p.aegisf.data.ReviewQueueConflict
+import io.github.triet4p.aegisf.data.ReviewQueueEntry
+import io.github.triet4p.aegisf.data.ReviewQueueGroup
+import io.github.triet4p.aegisf.data.ReviewQueueOrder
+import io.github.triet4p.aegisf.data.ReviewQueueSubkind
 import io.github.triet4p.aegisf.data.LIST_PAGE_SIZE
 import io.github.triet4p.aegisf.data.PreviewDraftConfirmationRequest
 import io.github.triet4p.aegisf.data.QueryPage
@@ -82,6 +88,7 @@ import io.github.triet4p.aegisf.data.SaveDraftReviewRequest
 import io.github.triet4p.aegisf.data.LedgerValidationException
 import io.github.triet4p.aegisf.data.PendingBankDraftEntity
 import io.github.triet4p.aegisf.data.PredictionSource
+import io.github.triet4p.aegisf.data.PredictionStaleReason
 import io.github.triet4p.aegisf.data.TransactionType
 import io.github.triet4p.aegisf.data.UnlinkLinkRequest
 import io.github.triet4p.aegisf.data.UnrecordedNoteEvent
@@ -91,6 +98,7 @@ import io.github.triet4p.aegisf.data.reviewClassificationRequestKey
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
+import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -121,37 +129,31 @@ fun BankDraftReviewScreen(
             BankNotificationListener.requestActiveReconciliation(context)
         }
     }
-    // The inbox lists the drafts that are still waiting for a decision. The read is bounded
-    // and states its own scope, and the screen pages through the drafts of that read, so
-    // every waiting draft is reachable and not only the first page of them.
-    var draftPageIndex by rememberSaveable { mutableIntStateOf(0) }
-    val draftQuery = remember(draftPageIndex) {
-        DraftCandidateQuery(
-            reviewStatus = IntakeReviewStatus.PENDING,
-            bounds = QueryPageRequest(LIST_PAGE_SIZE, offset = draftPageIndex * LIST_PAGE_SIZE),
-        )
+    val scope = rememberCoroutineScope()
+    // The inbox shows the review queue in the order the frozen policy sets: drafts whose link
+    // or bank data still needs a decision first, then drafts whose classification is missing,
+    // stale, unknown or otherwise not comparable, then comparable fresh suggestions from the
+    // least certain to the most. The chronological override orders the same drafts by arrival.
+    // The holder keeps the shown rows a snapshot, so a changed score cannot reorder the list
+    // while the user reads it; the explicit Refresh, order and next-work actions replace it.
+    val focus = rememberSaveable(queryService, saver = ReviewQueueFocus.saver(queryService)) {
+        ReviewQueueFocus(queryService)
     }
-    val draftsFlow = remember(queryService, draftQuery) {
-        queryService.observeDraftCandidates(draftQuery)
+    // The rows are read when the inbox is opened and when the user comes back from a draft
+    // (a navigation refresh), never because a score changed somewhere else.
+    LaunchedEffect(focus, draftId) {
+        if (draftId == null) focus.refresh()
     }
-    val draftPage by draftsFlow.collectAsState(initial = null)
-    val drafts = draftPage?.items.orEmpty()
     // How many drafts are waiting in all: the count describes the whole inbox, so the
     // inbox can say so whichever page it is showing.
     val waitingCount by remember(queryService) {
         queryService.observeDraftCandidateCount(IntakeReviewStatus.PENDING)
     }.collectAsState(initial = null)
-    // A page that lost its drafts steps back to the nearest page that still holds some,
-    // so the inbox never shows an empty page in the middle of the list.
-    ClampPageToRows(
-        pageIndex = draftPageIndex,
-        hasRows = draftPage?.items?.isNotEmpty(),
-        onClamp = { draftPageIndex = it },
-    )
+    val queueEntries = focus.page?.items.orEmpty()
     // The drafts that share their evidence with the listed ones: a possible duplicate is
     // kept and shown beside its partner, and the partner may already have been reviewed.
-    val relatedFlow = remember(queryService, drafts) {
-        queryService.observeRelatedDraftCandidates(drafts.map { it.id })
+    val relatedFlow = remember(queryService, queueEntries) {
+        queryService.observeRelatedDraftCandidates(queueEntries.map { it.draft.id })
     }
     val relatedDrafts by relatedFlow.collectAsState(initial = emptyList())
     // The opened draft is read on its own, so the detail view follows the draft's own
@@ -187,21 +189,43 @@ fun BankDraftReviewScreen(
                         TextButton(onClick = onNavigateUp) { Text("Back") }
                     }
                 },
+                actions = {
+                    val openDraftId = draftId
+                    if (openDraftId != null) {
+                        // Advancement is this explicit action, never an automatic jump: it
+                        // re-reads the queue and opens the first draft that still needs a
+                        // decision, so a changed score cannot move the open draft and the
+                        // user always chooses when to move on.
+                        TextButton(
+                            enabled = (waitingCount ?: 0) > 1,
+                            onClick = {
+                                scope.launch {
+                                    focus.nextWork(openDraftId)?.let(onSelectDraft)
+                                }
+                            },
+                        ) {
+                            Text("Next work")
+                        }
+                    }
+                },
             )
         },
     ) { innerPadding ->
         val openedDraft = selectedDraft
         if (draftId == null) {
             InboxContent(
-                drafts = drafts,
+                queue = focus.page,
+                reading = focus.reading || focus.page == null,
                 relatedDrafts = relatedDrafts,
                 waitingCount = waitingCount,
-                pageIndex = draftPageIndex,
-                hasMore = draftPage?.hasMore == true,
+                order = focus.order,
+                pageIndex = focus.pageIndex,
                 contentModifier = Modifier.padding(innerPadding),
+                onOrderChange = { next -> scope.launch { focus.setOrder(next) } },
+                onRefresh = { scope.launch { focus.refresh() } },
                 onSelectDraft = onSelectDraft,
-                onPreviousPage = { draftPageIndex -= 1 },
-                onNextPage = { draftPageIndex += 1 },
+                onPreviousPage = { scope.launch { focus.previousPage() } },
+                onNextPage = { scope.launch { focus.nextPage() } },
             )
         } else if (openedDraft == null) {
             Column(
@@ -230,19 +254,20 @@ fun BankDraftReviewScreen(
 
 @Composable
 private fun InboxContent(
-    drafts: List<PendingBankDraftEntity>,
+    queue: QueryPage<ReviewQueueEntry>?,
+    reading: Boolean,
     relatedDrafts: List<PendingBankDraftEntity>,
     waitingCount: Int?,
+    order: ReviewQueueOrder,
     pageIndex: Int,
-    hasMore: Boolean,
     contentModifier: Modifier,
+    onOrderChange: (ReviewQueueOrder) -> Unit,
+    onRefresh: () -> Unit,
     onSelectDraft: (Long) -> Unit,
     onPreviousPage: () -> Unit,
     onNextPage: () -> Unit,
 ) {
-    val pending = remember(drafts) {
-        drafts.filter { it.reviewStatus == IntakeReviewStatus.PENDING }
-    }
+    val entries = queue?.items.orEmpty()
     Column(
         modifier = contentModifier
             .fillMaxSize()
@@ -260,32 +285,96 @@ private fun InboxContent(
             text = when {
                 waitingCount == 0 -> "No drafts waiting for review."
                 waitingCount != null -> "${waitingCount} waiting"
-                pending.isEmpty() && !hasMore -> "No drafts waiting for review."
-                hasMore -> "${pending.size} waiting on this page — more drafts are stored."
-                else -> "${pending.size} waiting"
+                entries.isEmpty() && queue?.hasMore != true -> "No drafts waiting for review."
+                queue?.hasMore == true -> "${entries.size} on this page — more drafts are stored."
+                else -> "${entries.size} waiting"
             },
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
-        // The drafts after this page are one page further on in the same read, so every
+        // The two orders read the same drafts; the review order decides which ones come
+        // first, and the chronological order is the always-available override.
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            SegmentedButton(
+                selected = order == ReviewQueueOrder.UNCERTAINTY_FIRST,
+                onClick = { onOrderChange(ReviewQueueOrder.UNCERTAINTY_FIRST) },
+                shape = MaterialTheme.shapes.small,
+                label = { Text("Needs attention") },
+            )
+            SegmentedButton(
+                selected = order == ReviewQueueOrder.CHRONOLOGICAL,
+                onClick = { onOrderChange(ReviewQueueOrder.CHRONOLOGICAL) },
+                shape = MaterialTheme.shapes.small,
+                label = { Text("Oldest first") },
+            )
+        }
+        Text(
+            text = orderExplanation(order),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        // Reading is an explicit action: the list below stays as it was read, so a score
+        // that changed elsewhere cannot move a draft while the user reads it.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = if (reading) {
+                    "Reading the review queue…"
+                } else {
+                    "This order stays as read until you refresh."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onRefresh) { Text("Refresh") }
+        }
+        // The drafts after this page are one page further on in the same order, so every
         // waiting draft is reachable and the inbox says which page it is showing. The
         // controls sit above the drafts, so they are reachable without walking past a
         // whole page of them first.
         PageControls(
             pageIndex = pageIndex,
-            hasMore = hasMore,
+            hasMore = queue?.hasMore == true,
             onPrevious = onPreviousPage,
             onNext = onNextPage,
         )
-        pending.forEach { draft ->
-            DraftInboxCard(
-                draft = draft,
-                possibleDuplicate = draft.possibleDuplicateOfDraftId?.let { priorId ->
-                    relatedDrafts.firstOrNull { it.id == priorId }
-                },
-                onSelectDraft = { onSelectDraft(draft.id) },
-                onOpenDuplicate = { duplicateId -> onSelectDraft(duplicateId) },
-            )
+        if (entries.isEmpty()) {
+            if (!reading) {
+                Text(
+                    text = if (waitingCount == 0) {
+                        "No drafts waiting for review."
+                    } else {
+                        "No drafts on this page."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        } else {
+            entries.forEachIndexed { index, entry ->
+                val previous = entries.getOrNull(index - 1)
+                if (previous == null || !sameQueueSection(previous, entry)) {
+                    QueueSectionHeader(
+                        entry = entry,
+                        countOnPage = entries
+                            .drop(index)
+                            .takeWhile { candidate -> sameQueueSection(entry, candidate) }
+                            .size,
+                        continuesFromPreviousPage = previous == null && pageIndex > 0,
+                    )
+                }
+                DraftInboxCard(
+                    entry = entry,
+                    possibleDuplicate = entry.draft.possibleDuplicateOfDraftId?.let { priorId ->
+                        relatedDrafts.firstOrNull { it.id == priorId }
+                    },
+                    onSelectDraft = { onSelectDraft(entry.draft.id) },
+                    onOpenDuplicate = { duplicateId -> onSelectDraft(duplicateId) },
+                )
+            }
         }
         Text(
             text = "Confirmed and dismissed drafts are kept for replay protection and are not " +
@@ -296,13 +385,48 @@ private fun InboxContent(
     }
 }
 
+/**
+ * The heading of one visible queue section.
+ *
+ * The section is the group the policy puts the drafts in, or — inside the fresh-prediction
+ * group — one comparability group, because predictions of different evaluated sets are never
+ * compared. The heading states why the section is where it is and how many of its drafts this
+ * page holds, so a group longer than a page is never mistaken for the whole group.
+ */
+@Composable
+private fun QueueSectionHeader(
+    entry: ReviewQueueEntry,
+    countOnPage: Int,
+    continuesFromPreviousPage: Boolean,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = queueSectionTitle(entry),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            text = buildString {
+                append(queueSectionExplanation(entry))
+                append(" · ")
+                if (continuesFromPreviousPage) append("continued, ")
+                append("$countOnPage on this page")
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
 @Composable
 private fun DraftInboxCard(
-    draft: PendingBankDraftEntity,
+    entry: ReviewQueueEntry,
     possibleDuplicate: PendingBankDraftEntity?,
     onSelectDraft: () -> Unit,
     onOpenDuplicate: (Long) -> Unit,
 ) {
+    val draft = entry.draft
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -335,6 +459,17 @@ private fun DraftInboxCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            // Why this draft is where it is in the order: the group's own reason, never a
+            // new score and never a claim that a suggestion is right.
+            Text(
+                text = queueEntryLabel(entry),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (entry.group == ReviewQueueGroup.NEEDS_DECISION) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
             Text("Source: ${draft.sourcePackage}", style = MaterialTheme.typography.bodySmall)
             Text("Date and time: ${statedMomentLabel(draft)}", style = MaterialTheme.typography.bodyMedium)
             Text("Amount: ${amountLabel(draft)}", style = MaterialTheme.typography.bodyMedium)
@@ -355,6 +490,114 @@ private fun DraftInboxCard(
             TextButton(onClick = onSelectDraft) { Text("Review draft #${draft.id}") }
         }
     }
+}
+
+/**
+ * Whether two queue entries share one visible section of the page.
+ *
+ * A fresh-prediction section is one comparability group, so two drafts whose predictions
+ * were made over different evaluated sets are never shown as one section and their
+ * confidence values are never presented as comparable.
+ */
+private fun sameQueueSection(first: ReviewQueueEntry, second: ReviewQueueEntry): Boolean =
+    first.group == second.group &&
+        first.subkind == second.subkind &&
+        first.comparabilityKey == second.comparabilityKey
+
+/** The heading of one queue section, named by the reason the policy sorts it there. */
+private fun queueSectionTitle(entry: ReviewQueueEntry): String = when (entry.group) {
+    ReviewQueueGroup.NEEDS_DECISION -> "Needs your decision"
+    ReviewQueueGroup.NOT_COMPARABLE -> when (entry.subkind) {
+        ReviewQueueSubkind.MISSING -> "Not classified yet"
+        ReviewQueueSubkind.STALE -> "Suggestion no longer current"
+        ReviewQueueSubkind.UNKNOWN -> "No fit — choose a category"
+        ReviewQueueSubkind.DIRECT -> "Answered without a model score"
+        ReviewQueueSubkind.USER_RESOLVED -> "You chose the category"
+        null -> "Not comparable"
+    }
+    ReviewQueueGroup.SUGGESTION -> "Suggestions, least certain first"
+}
+
+/** Why one queue section is where it is in the order. */
+private fun queueSectionExplanation(entry: ReviewQueueEntry): String = when (entry.group) {
+    ReviewQueueGroup.NEEDS_DECISION ->
+        "Unresolved matches and bank data that needs attention come before every suggestion."
+    ReviewQueueGroup.NOT_COMPARABLE -> when (entry.subkind) {
+        ReviewQueueSubkind.MISSING ->
+            "No stored suggestion, so the oldest is first and none is ranked by a score."
+        ReviewQueueSubkind.STALE ->
+            "The stored suggestion no longer describes the current data, so its score orders nothing."
+        ReviewQueueSubkind.UNKNOWN ->
+            "The model chose the no-fit option; the category is still your choice."
+        ReviewQueueSubkind.DIRECT ->
+            "A saved rule or a category name answered, and there is no model score to compare."
+        ReviewQueueSubkind.USER_RESOLVED ->
+            "Your choice stands; these drafts wait for confirm or dismiss."
+        null -> "These drafts are not comparable with any suggestion."
+    }
+    ReviewQueueGroup.SUGGESTION -> {
+        val evaluated = entry.candidateIds.size
+        if (evaluated > 0) {
+            "Compared only within the same $evaluated evaluated options; lower confidence comes first."
+        } else {
+            "Compared only within the same evaluated options; lower confidence comes first."
+        }
+    }
+}
+
+/** The order control's explanation of what the current order does. */
+private fun orderExplanation(order: ReviewQueueOrder): String = when (order) {
+    ReviewQueueOrder.UNCERTAINTY_FIRST ->
+        "Needs your decision first, then drafts without a current suggestion, then the " +
+            "least certain suggestions. Within a section, the oldest comes first."
+    ReviewQueueOrder.CHRONOLOGICAL ->
+        "Every waiting draft by arrival, so older work and very confident suggestions " +
+            "stay reachable."
+}
+
+/** One draft's group and reason, as the inbox states it on the card. */
+private fun queueEntryLabel(entry: ReviewQueueEntry): String = when (entry.group) {
+    ReviewQueueGroup.NEEDS_DECISION -> if (entry.conflicts.isEmpty()) {
+        "Needs your decision"
+    } else {
+        "Needs attention: " + entry.conflicts.joinToString(", ") { conflictLabel(it) }
+    }
+    ReviewQueueGroup.NOT_COMPARABLE -> when (entry.subkind) {
+        ReviewQueueSubkind.MISSING -> "Not classified yet"
+        ReviewQueueSubkind.STALE -> "Suggestion no longer current" +
+            entry.staleReason?.let { reason -> " — ${staleReasonLabel(reason)}" }.orEmpty()
+        ReviewQueueSubkind.UNKNOWN -> "No fit — choose a category"
+        ReviewQueueSubkind.DIRECT -> "Saved rule or category name — no model score"
+        ReviewQueueSubkind.USER_RESOLVED -> "Your category choice — confirm or dismiss"
+        null -> "Not comparable"
+    }
+    ReviewQueueGroup.SUGGESTION -> buildString {
+        append("Suggestion")
+        entry.confidence?.let { sharpness ->
+            append(" · confidence ${String.format(Locale.US, "%.4f", sharpness)}")
+        }
+        if (entry.candidateIds.isNotEmpty()) {
+            append(" · ${entry.candidateIds.size} evaluated options")
+        }
+    }
+}
+
+/** The unresolved fact that put one draft in the first group. */
+private fun conflictLabel(conflict: ReviewQueueConflict): String = when (conflict) {
+    ReviewQueueConflict.POSSIBLE_DUPLICATE -> "possible duplicate"
+    ReviewQueueConflict.PROPOSED_LINK -> "note association not decided"
+    ReviewQueueConflict.UNRESOLVED_BANK_DATA -> "bank data needs attention"
+}
+
+/** The dependency that moved and left a stored suggestion no longer current. */
+private fun staleReasonLabel(reason: PredictionStaleReason): String = when (reason) {
+    PredictionStaleReason.CONTEXT_CHANGED -> "the context changed"
+    PredictionStaleReason.SOURCE_CHANGED -> "the note text changed"
+    PredictionStaleReason.CATEGORY_CHANGED -> "the categories changed"
+    PredictionStaleReason.RULE_CHANGED -> "the saved rules changed"
+    PredictionStaleReason.MODEL_CHANGED -> "the model changed"
+    PredictionStaleReason.CANDIDATE_SET_CHANGED -> "the candidate set changed"
+    PredictionStaleReason.USER_CATEGORY_CHOSEN -> "you chose a category"
 }
 
 @Composable

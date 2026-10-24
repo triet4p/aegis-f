@@ -249,6 +249,125 @@ data class DraftCandidateQuery(
     val bounds: QueryPageRequest,
 )
 
+/** Which order a review-queue read returns the pending drafts in. */
+enum class ReviewQueueOrder {
+    /**
+     * The uncertainty-first order: unresolved link and data conflicts first, then drafts whose
+     * classification is missing, stale, unknown or not comparable, then comparable fresh
+     * predictions by ascending sharpness. This is the review order the queue policy freezes.
+     */
+    UNCERTAINTY_FIRST,
+
+    /**
+     * The chronological override: every pending draft by creation instant, then id.
+     *
+     * It is the order the work arrived in, so a high-confidence draft that sorts late in the
+     * review order is still reachable here without walking the review order first. It is an
+     * order of the same rows, never a different filter: no draft is missing from either.
+     */
+    CHRONOLOGICAL,
+}
+
+/** The group a pending draft waits in, in the order the review queue sorts them. */
+enum class ReviewQueueGroup {
+    /**
+     * 0 — unresolved linking or bank-data conflicts: a possible duplicate, a link the user has
+     * not decided, or bank data that needs attention. This is the user's decision to make, so
+     * it comes before any classification.
+     */
+    NEEDS_DECISION,
+
+    /**
+     * 1 — the classification is missing, stale, unknown/no-fit, a direct answer that is not a
+     * model score, or a category the user already chose. Stored confidence never orders here.
+     */
+    NOT_COMPARABLE,
+
+    /**
+     * 2 — a fresh prediction from a stored distribution, comparable only with the predictions
+     * of its own comparability group, ordered by ascending sharpness.
+     */
+    SUGGESTION,
+}
+
+/** Why a pending draft waits in [ReviewQueueGroup.NEEDS_DECISION]. */
+enum class ReviewQueueConflict {
+    /** The draft is one of an uncertain duplicate family; identity is the user's decision. */
+    POSSIBLE_DUPLICATE,
+
+    /** A link to this draft is still proposed; the association must be accepted or refused. */
+    PROPOSED_LINK,
+
+    /** The bank's amount or moment is unresolved, or its format is unsupported. */
+    UNRESOLVED_BANK_DATA,
+}
+
+/**
+ * Why a pending draft waits in [ReviewQueueGroup.NOT_COMPARABLE], in the order §7.1 lists.
+ *
+ * Only one subkind is reported per draft, and the order of the checks is fixed: a missing
+ * prediction, then a category the user already chose, then a stale prediction, then an
+ * unknown/no-fit outcome, then the direct answers that are not model scores.
+ */
+enum class ReviewQueueSubkind {
+    /** No stored prediction: never classified, or nothing was recorded. */
+    MISSING,
+
+    /** The stored prediction no longer applies; its confidence orders nothing. */
+    STALE,
+
+    /** The stored prediction chose the no-fit option; its sharpness promotes nothing. */
+    UNKNOWN,
+
+    /** A saved rule, an explicit correction, or a category name answered; there is no score. */
+    DIRECT,
+
+    /** The user already chose the category; the draft waits for confirm or dismiss. */
+    USER_RESOLVED,
+}
+
+/**
+ * A bounded read of the review queue.
+ *
+ * [order] is the frozen uncertainty-first order or its always-available chronological
+ * override. [excludingDraftId] leaves one draft out so the next-work action can advance to
+ * the next draft instead of reopening the open one. [bounds] bounds the read like every other
+ * bounded read: there is no unbounded form.
+ */
+data class ReviewQueueQuery(
+    val order: ReviewQueueOrder = ReviewQueueOrder.UNCERTAINTY_FIRST,
+    val excludingDraftId: Long? = null,
+    val bounds: QueryPageRequest,
+)
+
+/**
+ * One pending draft in the review queue, with the group that placed it there.
+ *
+ * The entry carries the stored facts the ordering used, so the surface can show the group and
+ * the reason instead of only a position: [conflicts] names the unresolved-link/data reasons,
+ * [subkind] names the not-comparable reason, and [confidence] with [candidateIds] states the
+ * measured scope of a fresh prediction. Nothing here is a new score: every value is the one
+ * the app already stored, and no field can confirm, dismiss, or file anything by itself.
+ */
+data class ReviewQueueEntry(
+    val draft: PendingBankDraftEntity,
+    val group: ReviewQueueGroup,
+    val conflicts: List<ReviewQueueConflict>,
+    /** The not-comparable subkind, or null outside [ReviewQueueGroup.NOT_COMPARABLE]. */
+    val subkind: ReviewQueueSubkind?,
+    /** Why a stored prediction stopped applying, or null while it applies. */
+    val staleReason: PredictionStaleReason?,
+    /**
+     * The comparability group of a fresh prediction, or null outside
+     * [ReviewQueueGroup.SUGGESTION]. Two predictions of different groups are never compared.
+     */
+    val comparabilityKey: String?,
+    /** The stored sharpness that orders a fresh prediction, or null outside that group. */
+    val confidence: Double?,
+    /** The evaluated category ids of the stored prediction, empty when none was evaluated. */
+    val candidateIds: List<Long>,
+)
+
 /**
  * A bounded read of the stored ledger records.
  *

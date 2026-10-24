@@ -60,6 +60,7 @@ class WorkflowQueryService(
     private val noteEventDao = database.noteEventDao()
     private val contextLinkDao = database.contextLinkDao()
     private val classificationSnapshotDao = database.classificationSnapshotDao()
+    private val reviewQueueDao = database.reviewQueueDao()
     private val workflowOperationDao = database.workflowOperationDao()
 
     // --- Categories ---------------------------------------------------------
@@ -501,18 +502,48 @@ class WorkflowQueryService(
             bounds = query.bounds,
         )
 
-    /** The same bounded page as [draftCandidates], as a live stream. */
-    fun observeDraftCandidates(query: DraftCandidateQuery): Flow<QueryPage<PendingBankDraftEntity>> =
-        pendingBankDraftDao.observePage(
-            reviewStatus = query.reviewStatus?.name,
-            onlyDuplicates = if (query.onlyPossibleDuplicates) 1 else 0,
-            limit = query.bounds.limit + 1,
-            offset = query.bounds.offset,
-        ).map { rows -> pageOf(rows, query.bounds) }
-
     /** One stored draft as a live stream, so a review screen sees its own decisions. */
     fun observeDraftCandidate(draftId: Long): Flow<PendingBankDraftEntity?> =
         pendingBankDraftDao.observeById(draftId)
+
+    /**
+     * A bounded page of the uncertainty-first review queue.
+     *
+     * Every pending draft is in exactly one group and none is dropped: the read is the whole
+     * waiting inbox, ordered by the frozen policy rather than by the newest arrival. The
+     * chronological override returns the same drafts by creation instant and id, so the
+     * oldest unresolved work and every high-confidence draft stay reachable whichever order
+     * is asked for.
+     *
+     * The order is read first and the drafts of that page are read by their ids, so the
+     * statement that decides the order never carries a draft row. A draft that stopped
+     * being pending between the two reads is simply not on the page; it is never reported
+     * as a row the stored state does not hold.
+     */
+    suspend fun reviewQueue(query: ReviewQueueQuery): QueryPage<ReviewQueueEntry> {
+        val rows = pageOf(
+            rows = reviewQueueDao.findOrderPage(
+                chronological = if (query.order == ReviewQueueOrder.CHRONOLOGICAL) 1 else 0,
+                excludingDraftId = query.excludingDraftId,
+                limit = query.bounds.limit + 1,
+                offset = query.bounds.offset,
+            ),
+            bounds = query.bounds,
+        )
+        if (rows.items.isEmpty()) {
+            return QueryPage(emptyList(), rows.offset, rows.limit, hasMore = rows.hasMore)
+        }
+        val drafts = reviewQueueDao.findDrafts(rows.items.map { it.draftId })
+            .associateBy { it.id }
+        return QueryPage(
+            items = rows.items.mapNotNull { row ->
+                drafts[row.draftId]?.let { draft -> row.toQueueEntry(draft) }
+            },
+            offset = rows.offset,
+            limit = rows.limit,
+            hasMore = rows.hasMore,
+        )
+    }
 
     /**
      * How many stored bank drafts are in one review state, as a live count.
@@ -793,6 +824,57 @@ class WorkflowQueryService(
             )
         },
         bounds = query.bounds,
+    )
+}
+
+/**
+ * Turns one queue row and the draft it names into the entry a surface shows.
+ *
+ * The group, the subkind and the comparability group are the ones the ordering used; only
+ * the conflict list is assembled here from the flags the order reported, so the reason a
+ * draft is in the first group is named with the same facts that put it there.
+ */
+private fun ReviewQueueRow.toQueueEntry(draft: PendingBankDraftEntity): ReviewQueueEntry {
+    val group = when (queueRank) {
+        0 -> ReviewQueueGroup.NEEDS_DECISION
+        1 -> ReviewQueueGroup.NOT_COMPARABLE
+        2 -> ReviewQueueGroup.SUGGESTION
+        else -> error("A review-queue row has no rank $queueRank.")
+    }
+    val conflicts = if (group != ReviewQueueGroup.NEEDS_DECISION) {
+        emptyList()
+    } else {
+        buildList {
+            if (queuePossibleDuplicate == 1) add(ReviewQueueConflict.POSSIBLE_DUPLICATE)
+            if (queueProposedLink == 1) add(ReviewQueueConflict.PROPOSED_LINK)
+            val bankDataNeedsAttention =
+                draft.amountState == IntakeFieldState.UNRESOLVED ||
+                    draft.momentState == IntakeFieldState.UNRESOLVED ||
+                    draft.parseStatus == IntakeParseStatus.UNSUPPORTED_FORMAT
+            if (bankDataNeedsAttention) add(ReviewQueueConflict.UNRESOLVED_BANK_DATA)
+        }
+    }
+    val subkind = if (group == ReviewQueueGroup.NOT_COMPARABLE) {
+        when (queueSubkind) {
+            1 -> ReviewQueueSubkind.MISSING
+            2 -> ReviewQueueSubkind.STALE
+            3 -> ReviewQueueSubkind.UNKNOWN
+            4 -> ReviewQueueSubkind.DIRECT
+            5 -> ReviewQueueSubkind.USER_RESOLVED
+            else -> error("A not-comparable queue row has no subkind $queueSubkind.")
+        }
+    } else {
+        null
+    }
+    return ReviewQueueEntry(
+        draft = draft,
+        group = group,
+        conflicts = conflicts,
+        subkind = subkind,
+        staleReason = queueStaleReason?.let { PredictionStaleReason.valueOf(it) },
+        comparabilityKey = queueComparableGroup,
+        confidence = queueConfidence,
+        candidateIds = queueCandidateIds?.toIdList().orEmpty(),
     )
 }
 

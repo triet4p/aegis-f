@@ -9,6 +9,23 @@ and no release has been tagged or published. Format follows
 
 ### Added
 
+- Added an uncertainty-first ordering to the review inbox. Pending notifications are now
+  grouped by how much they need you: a possible duplicate, an undecided note match, or bank data
+  that needs attention comes first; then drafts whose suggestion is missing, no longer current,
+  a no-fit outcome, or an answer from a saved rule or a category name; then comparable
+  suggestions from the least certain to the most. A stored confidence now orders only inside its
+  own evaluated set — a sharper suggestion sorts later in its section and stays reachable
+  instead of being hidden, and a very confident category on an undecided note match stays in the
+  unresolved group. Each group is headed and states why it is there, each card states its own
+  confidence and evaluated scope, every waiting draft is reachable page by page, and an
+  always-available arrival order shows them all oldest first.
+
+- Added focus-preserving refresh and a next-work action to the review inbox. The inbox now keeps
+  the list exactly as it was read, so a suggestion that changes in the background cannot reorder
+  the drafts while you read them or move one under your finger. **Refresh**, switching the order,
+  and coming back from a draft apply the current data; **Next work** opens the oldest draft that
+  still needs a decision, leaving the open one alone.
+
 - Added automatic Laya classification of bank drafts when they arrive. A supported notification
   is still stored first — one draft per delivery, with duplicate deliveries writing nothing — and
   the stored draft is then handed to one bounded background classification work item, so review

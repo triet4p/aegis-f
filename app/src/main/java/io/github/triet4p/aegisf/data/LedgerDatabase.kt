@@ -56,6 +56,9 @@ abstract class LedgerDatabase : RoomDatabase() {
     /** Atomic draft-review transitions across the pending and ledger tables. */
     abstract fun bankDraftReviewDao(): BankDraftReviewDao
 
+    /** The uncertainty-first review order of the pending drafts and their predictions. */
+    abstract fun reviewQueueDao(): ReviewQueueDao
+
     /** Explicit description-scoped category rules for manual expense entry. */
     abstract fun rememberedCategoryRuleDao(): RememberedCategoryRuleDao
 

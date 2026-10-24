@@ -8,10 +8,11 @@ import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 /**
- * The one statement every bounded draft read uses.
+ * The one statement the bounded draft read uses.
  *
- * The paged read and the live paged read share it, so the rows a page holds and the rows
- * the live stream holds can never be read by two different filters.
+ * It is the read of stored intake rows in the order they arrived (newest first); the review
+ * queue's uncertainty-first order is a separate read over the same drafts
+ * ([ReviewQueueDao]), because only one of the two orders may drive review priority.
  */
 private const val DRAFT_PAGE_SQL =
     "SELECT * FROM pending_bank_drafts WHERE " +
@@ -125,18 +126,6 @@ abstract class PendingBankDraftDao {
         limit: Int,
         offset: Int,
     ): List<PendingBankDraftEntity>
-
-    /**
-     * The same bounded page as [findPage], as a live stream: every insert or review
-     * transition re-emits the current page in the same order.
-     */
-    @Query(DRAFT_PAGE_SQL)
-    abstract fun observePage(
-        reviewStatus: String?,
-        onlyDuplicates: Int,
-        limit: Int,
-        offset: Int,
-    ): Flow<List<PendingBankDraftEntity>>
 
     /** One stored draft, as a live stream, so a review screen sees its own edits. */
     @Query("SELECT * FROM pending_bank_drafts WHERE id = :id")

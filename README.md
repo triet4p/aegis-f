@@ -144,7 +144,17 @@ opt-in notification review inbox — every bank-derived record still requires th
   reopening the database and are recovered for review; they enter
   no summary and are never confirmed automatically. The **Review** destination
   opens the pending inbox, where the bank/source, stated date, amount, direction, memo, and any
-  unresolved reason are visible. You can correct amount, date, time, or optional description,
+  unresolved reason are visible. The inbox is ordered by how much attention a draft needs: a
+  possible duplicate, an undecided note match, or bank data that needs you comes first, then the
+  drafts without a current suggestion (never classified, stale, no-fit, or answered by a saved
+  rule or a category name), then comparable suggestions from the least certain to the most. Each
+  group is headed and states why it is there, a card states its own confidence and evaluated
+  scope where a suggestion applies, and very confident suggestions sort later instead of being
+  hidden or confirmed. Every pending draft is reachable page by page, an always-available
+  arrival order shows the same drafts oldest first, and the list stays exactly as read until you
+  tap Refresh, change the order, or return from a draft — so a suggestion that changes in the
+  background can never reorder the inbox or move a draft under your finger. **Next work** opens
+  the oldest draft that still needs you. You can correct amount, date, time, or optional description,
   explicitly choose Expense, Income, or Internal transfer, and choose a category or explicitly
   choose No category. A debit or credit never selects the ledger type. Missing or invalid amount,
   date, time, type, and applicable category choices must be resolved before confirmation; an
@@ -283,9 +293,10 @@ The following capabilities are not available yet:
   APK is built and installed privately by its owner.
 
 Planned work (real-bank device verification; the four-screen workflow and persistent quick
-capture; proactive Laya review — automatic intake classification with durable, coalesced work is
-implemented, while the uncertainty-first queue, its controls and measured quality remain planned;
-evidence-backed offline model/tool research; multi-event note
+capture; proactive Laya review — automatic intake classification with durable, coalesced work
+and the uncertainty-first review queue with its focus controls are implemented, while measured
+classification quality, the inference status/cancel/retry controls and the effort comparison
+remain planned; evidence-backed offline model/tool research; multi-event note
 orchestration; recovery and personal daily-use delivery) is described in [docs/PLAN.md](docs/PLAN.md).
 
 The legacy Sprint 5 SLM benchmark remains partial, paused, and unapproved; no model was adopted.
