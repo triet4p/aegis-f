@@ -4,10 +4,14 @@ import android.util.Log
 import androidx.room.withTransaction
 import java.io.Closeable
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -45,7 +49,10 @@ import kotlinx.coroutines.launch
  *   a recorded state and never touches intake.
  * - **The user's decisions stand.** A draft the user resolved, confirmed, or dismissed is
  *   cancelled before the model is asked; a late result is refused by the command boundary
- *   and by the job's own conditional transitions.
+ *   and by the job's own conditional transitions. A user may also cancel a waiting or
+ *   running check explicitly ([cancel]) and ask for it again ([retry]); a cancellation
+ *   abandons the in-flight attempt, whose native answer is then discarded, and a duplicate
+ *   re-report never re-arms a cancelled job behind the user's back.
  *
  * The queue never selects a category, confirms a draft, or writes a ledger record. The
  * notification listener only reports a stored draft id; it never constructs this queue,
@@ -65,6 +72,19 @@ class BankDraftClassificationQueue(
 
     /** Wakes the worker; an empty signal is enough because the jobs are in the database. */
     private val wake = Channel<Unit>(Channel.CONFLATED)
+
+    /**
+     * The attempt the one worker is currently running, or null.
+     *
+     * The attempt is a child of this queue's scope, not of the worker coroutine, so the user
+     * can cancel exactly that attempt without stopping the worker. Cancelling the attempt
+     * withdraws the request that holds the model's claim; the native call may still finish,
+     * and its answer is discarded by the boundary instead of being stored.
+     */
+    private val runningAttempt = AtomicReference<RunningAttempt?>(null)
+
+    /** One attempt, named by the draft it checks so a cancel can find its own draft. */
+    private data class RunningAttempt(val draftId: Long, val attempt: Deferred<Boolean>)
 
     @Volatile
     private var closed = false
@@ -92,7 +112,24 @@ class BankDraftClassificationQueue(
                 wake.receive()
                 continue
             }
-            if (runAttempt(job)) delay(retryBackoffMillis)
+            // The attempt is created lazily so its cancellable handle is published before it
+            // can reach the model: a cancel that arrives the moment the job starts finds the
+            // attempt it must withdraw, not a job that has not been registered yet.
+            val attempt = scope.async(start = CoroutineStart.LAZY) { runAttempt(job) }
+            val running = RunningAttempt(job.draftId, attempt)
+            runningAttempt.set(running)
+            attempt.start()
+            val retry = try {
+                attempt.await()
+            } catch (cancelled: CancellationException) {
+                // A user cancellation ends this one attempt, not the worker. The queue's own
+                // cancellation still propagates.
+                if (!isActive) throw cancelled
+                false
+            } finally {
+                runningAttempt.compareAndSet(running, null)
+            }
+            if (retry) delay(retryBackoffMillis)
         }
     }
 
@@ -110,6 +147,72 @@ class BankDraftClassificationQueue(
     suspend fun admit(draftId: Long) {
         if (draftId <= 0L || closed) return
         admitCurrentQuestion(draftId, rearmSameQuestion = true)
+    }
+
+    /**
+     * Stops one draft's waiting or running check because the user asked to.
+     *
+     * The job is ended durably before the in-flight attempt is withdrawn, so a completion
+     * racing the tap cannot move the row back to a result. The native call may still finish
+     * (it cannot be interrupted), but the boundary discards its answer once the request no
+     * longer owns its claim. A draft with no waiting or running job, or one that already
+     * stored a result, is left exactly as it is.
+     *
+     * @return true when a waiting or running job was cancelled.
+     */
+    suspend fun cancel(draftId: Long): Boolean {
+        if (draftId <= 0L || closed) return false
+        val job = try {
+            work.findForDraft(draftId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Log.w(TAG, "classification job could not be read for cancel")
+            return false
+        } ?: return false
+        if (job.state != CLASSIFICATION_WORK_PENDING && job.state != CLASSIFICATION_WORK_RUNNING) {
+            return false
+        }
+        val changed = try {
+            database.withTransaction {
+                work.cancelActiveForDraft(
+                    draftId,
+                    ClassificationWorkReason.USER_CANCELLED,
+                    clock.nowEpochMillis(),
+                )
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Log.w(TAG, "classification cancellation could not be stored for draft=$draftId")
+            return false
+        }
+        if (changed == 0) return false
+        runningAttempt.get()
+            ?.takeIf { running -> running.draftId == draftId }
+            ?.attempt
+            ?.cancel()
+        Log.i(TAG, "classification cancelled by user: draft=$draftId")
+        return true
+    }
+
+    /**
+     * Asks for one draft's current question again because the user asked to.
+     *
+     * The request is the same durable admission every other path uses: a failed or cancelled
+     * question is re-armed, a recorded result for the same question is left alone, a changed
+     * question is queued, and a draft with no job is admitted. A user cancellation is not a
+     * permanent opt-out, so an explicit retry re-arms it.
+     *
+     * @return true when a waiting job was recorded.
+     */
+    suspend fun retry(draftId: Long): Boolean {
+        if (draftId <= 0L || closed) return false
+        return admitCurrentQuestion(
+            draftId = draftId,
+            rearmSameQuestion = true,
+            respectUserCancel = false,
+        )
     }
 
     /**
@@ -156,23 +259,31 @@ class BankDraftClassificationQueue(
      * model is asked, so a resolved draft is never queued and a later resolution cancels
      * the queued job.
      */
-    private suspend fun admitCurrentQuestion(draftId: Long, rearmSameQuestion: Boolean) {
+    private suspend fun admitCurrentQuestion(
+        draftId: Long,
+        rearmSameQuestion: Boolean,
+        respectUserCancel: Boolean = true,
+    ): Boolean {
         val draft = try {
             drafts.findById(draftId)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
             Log.w(TAG, "classification admission could not read draft=$draftId")
-            return
+            return false
         } ?: run {
             cancelForDraft(draftId, ClassificationWorkReason.DRAFT_MISSING)
-            return
+            return false
         }
-        when {
-            draft.reviewStatus != IntakeReviewStatus.PENDING ->
+        return when {
+            draft.reviewStatus != IntakeReviewStatus.PENDING -> {
                 cancelForDraft(draftId, ClassificationWorkReason.DRAFT_REVIEWED)
-            draft.reviewCategoryResolved ->
+                false
+            }
+            draft.reviewCategoryResolved -> {
                 cancelForDraft(draftId, ClassificationWorkReason.DRAFT_RESOLVED)
+                false
+            }
             else -> {
                 val description = draft.classificationDescription()
                 val effective = try {
@@ -182,7 +293,7 @@ class BankDraftClassificationQueue(
                 } catch (error: Exception) {
                     Log.w(TAG, "classification admission could not read context for draft=$draftId")
                     null
-                } ?: return
+                } ?: return false
                 admitQuestion(
                     draftId = draftId,
                     question = classificationQuestionDigest(
@@ -191,6 +302,7 @@ class BankDraftClassificationQueue(
                         dependencies = effective.dependencies,
                     ),
                     rearmSameQuestion = rearmSameQuestion,
+                    respectUserCancel = respectUserCancel,
                     freshSnapshotId = freshSnapshotId(draftId),
                 )
             }
@@ -228,8 +340,9 @@ class BankDraftClassificationQueue(
         draftId: Long,
         question: String,
         rearmSameQuestion: Boolean,
+        respectUserCancel: Boolean = true,
         freshSnapshotId: Long? = null,
-    ) {
+    ): Boolean {
         val now = clock.nowEpochMillis()
         var queued = false
         database.withTransaction {
@@ -279,8 +392,12 @@ class BankDraftClassificationQueue(
             when {
                 job.requestedQuestion == question -> {
                     // The same question is already queued, running, or answered. Only a
-                    // recorded miss is retried by an explicit re-report of the delivery.
-                    if (rearmSameQuestion && job.state in RETRYABLE_STATES) {
+                    // recorded miss is retried by a re-report or an explicit retry; a
+                    // cancellation the user asked for is not re-armed by a duplicate
+                    // delivery, and only the explicit retry path can re-open it.
+                    val cancelledByUser = respectUserCancel &&
+                        job.statusReason == ClassificationWorkReason.USER_CANCELLED
+                    if (rearmSameQuestion && job.state in RETRYABLE_STATES && !cancelledByUser) {
                         queued = work.arm(job.id, question, now) == 1
                     }
                 }
@@ -296,6 +413,7 @@ class BankDraftClassificationQueue(
             }
         }
         if (queued) wake.trySend(Unit)
+        return queued
     }
 
     /** A bounded number of waiting jobs is the admission limit, not a limit on intake. */

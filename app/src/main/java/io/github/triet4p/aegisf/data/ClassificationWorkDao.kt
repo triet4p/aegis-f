@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 
 /**
  * Reads and writes the durable classification jobs.
@@ -23,6 +24,27 @@ abstract class ClassificationWorkDao {
     /** The job of one draft, or null when the draft was never admitted. */
     @Query("SELECT * FROM `classification_work` WHERE `draftId` = :draftId LIMIT 1")
     abstract suspend fun findForDraft(draftId: Long): ClassificationWorkEntity?
+
+    /**
+     * The job of one draft as a live stream.
+     *
+     * The review detail follows its own draft's job, so a queued job becomes busy and a busy
+     * one becomes a result without the screen polling or re-reading an unrelated draft.
+     */
+    @Query("SELECT * FROM `classification_work` WHERE `draftId` = :draftId LIMIT 1")
+    abstract fun observeForDraft(draftId: Long): Flow<ClassificationWorkEntity?>
+
+    /**
+     * The jobs of a bounded set of drafts as a live stream.
+     *
+     * The inbox reads exactly the drafts on its shown page, so the status of a card follows
+     * the stored job while the page's ordering stays the snapshot the user read.
+     */
+    @Query(
+        "SELECT * FROM `classification_work` WHERE `draftId` IN (:draftIds) " +
+            "ORDER BY `draftId` ASC",
+    )
+    abstract fun observeForDrafts(draftIds: List<Long>): Flow<List<ClassificationWorkEntity>>
 
     /** One job by its stored id. */
     @Query("SELECT * FROM `classification_work` WHERE `id` = :id")
@@ -204,4 +226,20 @@ abstract class ClassificationWorkDao {
             "WHERE `draftId` = :draftId",
     )
     abstract suspend fun cancelForDraft(draftId: Long, reason: String, now: Long): Int
+
+    /**
+     * Ends a draft's waiting or running job because the user cancelled it.
+     *
+     * Only a job that is still waiting or running is moved: a stored result and an already
+     * settled miss are not "cancelled" by a late tap, so the recorded outcome keeps its own
+     * meaning. The owner token is cleared, so a late attempt under the old token cannot write
+     * its state over the cancellation.
+     */
+    @Query(
+        "UPDATE `classification_work` SET `state` = '$CLASSIFICATION_WORK_CANCELLED', " +
+            "`statusReason` = :reason, `ownerToken` = NULL, `updatedAtEpochMillis` = :now " +
+            "WHERE `draftId` = :draftId " +
+            "AND `state` IN ('$CLASSIFICATION_WORK_PENDING', '$CLASSIFICATION_WORK_RUNNING')",
+    )
+    abstract suspend fun cancelActiveForDraft(draftId: Long, reason: String, now: Long): Int
 }

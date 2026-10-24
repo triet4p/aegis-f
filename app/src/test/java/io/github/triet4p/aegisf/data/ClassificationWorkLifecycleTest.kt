@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -731,6 +732,53 @@ class ClassificationWorkLifecycleTest {
         assertEquals(effective.dependencies.contextRevision, restored.contextRevision)
         assertEquals(0, database.transactionDao().findAll().size)
     }
+
+    @Test
+    fun `user cancel discards a running answer and an explicit retry asks again`() =
+        runBlocking<Unit> {
+            val draftId = storeDraft("cancel memo", "cancel-1")
+            engine.gateCall(1)
+            queue.admit(draftId)
+            engine.awaitGateEntered()
+
+            val live = WorkflowQueryService(database)
+            assertEquals(
+                ClassificationWorkState.RUNNING,
+                live.observeClassificationWorkStatus(draftId).first()!!.state,
+            )
+            assertTrue(queue.cancel(draftId))
+            engine.releaseGate()
+            // Let the abandoned native work end and give its durable claim back.
+            delay(300L)
+
+            val cancelled = workOf(draftId)!!
+            assertEquals(CLASSIFICATION_WORK_CANCELLED, cancelled.state)
+            assertEquals(ClassificationWorkReason.USER_CANCELLED, cancelled.statusReason)
+            assertEquals("the check ran once and was not re-asked", 1, engine.calls)
+            assertNull("a cancelled running answer is discarded", snapshotOf(draftId))
+            val status = live.observeClassificationWorkStatus(draftId).first()!!
+            assertEquals(ClassificationWorkState.CANCELLED, status.state)
+            assertEquals(ClassificationWorkStatusReason.USER_CANCELLED, status.reason)
+            assertTrue(database.transactionDao().findAll().isEmpty())
+
+            // A duplicate delivery never quietly restarts a check the user cancelled.
+            queue.admit(draftId)
+            delay(200L)
+            assertEquals(CLASSIFICATION_WORK_CANCELLED, workOf(draftId)!!.state)
+            assertEquals(1, engine.calls)
+
+            // The explicit retry re-arms the same question and stores a suggestion.
+            assertTrue(queue.retry(draftId))
+            val result = awaitWork(draftId) { it.state == CLASSIFICATION_WORK_RESULT }
+            assertNull(result.statusReason)
+            assertEquals("the retry asked the model once more", 2, engine.calls)
+            assertNotNull(snapshotOf(draftId))
+            assertEquals(
+                ClassificationWorkState.RESULT,
+                live.observeClassificationWorkStatus(draftId).first()!!.state,
+            )
+            assertTrue(database.transactionDao().findAll().isEmpty())
+        }
 
     // --- Fixtures and observation -----------------------------------------
 

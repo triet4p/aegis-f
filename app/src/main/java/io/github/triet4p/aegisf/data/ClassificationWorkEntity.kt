@@ -131,6 +131,9 @@ internal object ClassificationWorkReason {
 
     /** The command recorded a classification without a stored prediction. */
     const val NOT_RECORDED = "NOT_RECORDED"
+
+    /** The user explicitly cancelled this draft's waiting or running check. */
+    const val USER_CANCELLED = "USER_CANCELLED"
 }
 
 /**

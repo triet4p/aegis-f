@@ -35,7 +35,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
 import io.github.triet4p.aegisf.notification.BankNotificationListener
 import io.github.triet4p.aegisf.notification.isNotificationAccessGranted
@@ -54,10 +53,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.triet4p.aegisf.data.BankDraftClassificationQueue
 import io.github.triet4p.aegisf.data.BankDraftReviewEdits
 import io.github.triet4p.aegisf.data.BankDraftReviewField
 import io.github.triet4p.aegisf.data.CategoryEntity
-import io.github.triet4p.aegisf.data.ClassificationRequest
+import io.github.triet4p.aegisf.data.ClassificationWorkState
+import io.github.triet4p.aegisf.data.ClassificationWorkStatus
+import io.github.triet4p.aegisf.data.ClassificationWorkStatusReason
 import io.github.triet4p.aegisf.data.ConfirmDraftRequest
 import io.github.triet4p.aegisf.data.DismissDraftRequest
 import io.github.triet4p.aegisf.data.DraftConfirmationPreview
@@ -87,18 +89,14 @@ import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.data.SaveDraftReviewRequest
 import io.github.triet4p.aegisf.data.LedgerValidationException
 import io.github.triet4p.aegisf.data.PendingBankDraftEntity
-import io.github.triet4p.aegisf.data.PredictionSource
 import io.github.triet4p.aegisf.data.PredictionStaleReason
 import io.github.triet4p.aegisf.data.TransactionType
 import io.github.triet4p.aegisf.data.UnlinkLinkRequest
 import io.github.triet4p.aegisf.data.UnrecordedNoteEvent
 import io.github.triet4p.aegisf.data.VndMoney
-import io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner
-import io.github.triet4p.aegisf.data.reviewClassificationRequestKey
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
-import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -112,9 +110,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 fun BankDraftReviewScreen(
     queryService: WorkflowQueryService,
     commandService: WorkflowCommandService,
+    classificationQueue: BankDraftClassificationQueue,
     draftId: Long?,
     onSelectDraft: (Long) -> Unit,
     onNavigateUp: () -> Unit,
+    /** Opens the model setup screen when a failed check needs the model installed. */
+    onOpenModelSetup: () -> Unit = {},
     /**
      * False when the inbox is a primary destination's root: there is no previous screen,
      * so the screen must not draw a Back control or consume the system back gesture. The
@@ -214,6 +215,8 @@ fun BankDraftReviewScreen(
         val openedDraft = selectedDraft
         if (draftId == null) {
             InboxContent(
+                queryService = queryService,
+                classificationQueue = classificationQueue,
                 queue = focus.page,
                 reading = focus.reading || focus.page == null,
                 relatedDrafts = relatedDrafts,
@@ -244,9 +247,11 @@ fun BankDraftReviewScreen(
                 allDrafts = selectedRelatedDrafts,
                 queryService = queryService,
                 commandService = commandService,
+                classificationQueue = classificationQueue,
                 contentModifier = Modifier.padding(innerPadding),
                 onSelectDraft = onSelectDraft,
                 onNavigateUp = onNavigateUp,
+                onOpenModelSetup = onOpenModelSetup,
             )
         }
     }
@@ -254,6 +259,8 @@ fun BankDraftReviewScreen(
 
 @Composable
 private fun InboxContent(
+    queryService: WorkflowQueryService,
+    classificationQueue: BankDraftClassificationQueue,
     queue: QueryPage<ReviewQueueEntry>?,
     reading: Boolean,
     relatedDrafts: List<PendingBankDraftEntity>,
@@ -268,6 +275,21 @@ private fun InboxContent(
     onNextPage: () -> Unit,
 ) {
     val entries = queue?.items.orEmpty()
+    // The ordering below is the snapshot the user read; only the classification status of
+    // each shown card is live, so "queued" can become "checking" without the list moving.
+    val workStatuses by remember(queryService, entries) {
+        queryService.observeClassificationWorkStatuses(entries.map { it.draft.id })
+    }.collectAsState(initial = emptyList())
+    val statusByDraft = remember(workStatuses) {
+        workStatuses.associateBy { it.draftId }
+    }
+    val catalog by remember(queryService) {
+        queryService.observeCategoryCatalog()
+    }.collectAsState(initial = null)
+    val activeCategories = remember(catalog) {
+        catalog.orEmpty().filterNot { it.archived }.associateBy { it.id }
+    }
+    val scope = rememberCoroutineScope()
     Column(
         modifier = contentModifier
             .fillMaxSize()
@@ -371,8 +393,13 @@ private fun InboxContent(
                     possibleDuplicate = entry.draft.possibleDuplicateOfDraftId?.let { priorId ->
                         relatedDrafts.firstOrNull { it.id == priorId }
                     },
+                    workStatus = statusByDraft[entry.draft.id],
+                    activeCategories = activeCategories,
                     onSelectDraft = { onSelectDraft(entry.draft.id) },
                     onOpenDuplicate = { duplicateId -> onSelectDraft(duplicateId) },
+                    onRetry = {
+                        scope.launch { classificationQueue.retry(entry.draft.id) }
+                    },
                 )
             }
         }
@@ -423,8 +450,11 @@ private fun QueueSectionHeader(
 private fun DraftInboxCard(
     entry: ReviewQueueEntry,
     possibleDuplicate: PendingBankDraftEntity?,
+    workStatus: ClassificationWorkStatus?,
+    activeCategories: Map<Long, CategoryEntity>,
     onSelectDraft: () -> Unit,
     onOpenDuplicate: (Long) -> Unit,
+    onRetry: () -> Unit,
 ) {
     val draft = entry.draft
     Surface(
@@ -462,7 +492,7 @@ private fun DraftInboxCard(
             // Why this draft is where it is in the order: the group's own reason, never a
             // new score and never a claim that a suggestion is right.
             Text(
-                text = queueEntryLabel(entry),
+                text = queueEntryLabel(entry, activeCategories),
                 style = MaterialTheme.typography.bodySmall,
                 color = if (entry.group == ReviewQueueGroup.NEEDS_DECISION) {
                     MaterialTheme.colorScheme.error
@@ -470,6 +500,36 @@ private fun DraftInboxCard(
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
             )
+            if (entry.group == ReviewQueueGroup.SUGGESTION && entry.relativeConfidence != null) {
+                Text(
+                    text = "A suggestion among the evaluated options; it is not a guarantee " +
+                        "of accuracy and nothing is confirmed automatically.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            // The live work state is shown beside the stored group, so a queued check, a
+            // running model, or a recorded miss is visible without reopening the draft.
+            val statusText = inboxWorkStatusLabel(entry, workStatus)
+            if (statusText != null) {
+                Text(
+                    text = statusText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = when (workStatus?.state) {
+                        ClassificationWorkState.FAILED -> MaterialTheme.colorScheme.error
+                        ClassificationWorkState.RUNNING,
+                        ClassificationWorkState.QUEUED,
+                        -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
+            if (workStatus?.state == ClassificationWorkState.FAILED ||
+                (workStatus?.state == ClassificationWorkState.CANCELLED &&
+                    workStatus.reason == ClassificationWorkStatusReason.USER_CANCELLED)
+            ) {
+                TextButton(onClick = onRetry) { Text("Retry suggestion") }
+            }
             Text("Source: ${draft.sourcePackage}", style = MaterialTheme.typography.bodySmall)
             Text("Date and time: ${statedMomentLabel(draft)}", style = MaterialTheme.typography.bodyMedium)
             Text("Amount: ${amountLabel(draft)}", style = MaterialTheme.typography.bodyMedium)
@@ -537,11 +597,13 @@ private fun queueSectionExplanation(entry: ReviewQueueEntry): String = when (ent
     }
     ReviewQueueGroup.SUGGESTION -> {
         val evaluated = entry.candidateIds.size
-        if (evaluated > 0) {
-            "Compared only within the same $evaluated evaluated options; lower confidence comes first."
+        val scope = if (evaluated > 0) {
+            "Compared only within the same $evaluated evaluated options"
         } else {
-            "Compared only within the same evaluated options; lower confidence comes first."
+            "Compared only within the same evaluated options"
         }
+        "$scope; the flattest distribution comes first and a sharper one sorts later. " +
+            "A suggestion is not a guarantee and is never confirmed for you."
     }
 }
 
@@ -556,7 +618,10 @@ private fun orderExplanation(order: ReviewQueueOrder): String = when (order) {
 }
 
 /** One draft's group and reason, as the inbox states it on the card. */
-private fun queueEntryLabel(entry: ReviewQueueEntry): String = when (entry.group) {
+private fun queueEntryLabel(
+    entry: ReviewQueueEntry,
+    activeCategories: Map<Long, CategoryEntity>,
+): String = when (entry.group) {
     ReviewQueueGroup.NEEDS_DECISION -> if (entry.conflicts.isEmpty()) {
         "Needs your decision"
     } else {
@@ -571,15 +636,89 @@ private fun queueEntryLabel(entry: ReviewQueueEntry): String = when (entry.group
         ReviewQueueSubkind.USER_RESOLVED -> "Your category choice — confirm or dismiss"
         null -> "Not comparable"
     }
-    ReviewQueueGroup.SUGGESTION -> buildString {
-        append("Suggestion")
-        entry.confidence?.let { sharpness ->
-            append(" · confidence ${String.format(Locale.US, "%.4f", sharpness)}")
+    ReviewQueueGroup.SUGGESTION -> {
+        val name = entry.suggestedCategoryId?.let { id ->
+            activeCategories[id]?.name ?: "category #$id"
         }
-        if (entry.candidateIds.isNotEmpty()) {
-            append(" · ${entry.candidateIds.size} evaluated options")
+        val relative = entry.relativeConfidence
+        if (relative != null) {
+            buildString {
+                append("Relatively confident suggestion")
+                name?.let { append(" · $it ${formatProbability(relative.topShare)}") }
+                append(" · unknown ${formatProbability(relative.unknownShare)}")
+                append(" · sharpness ${formatProbability(relative.sharpness)}")
+                append(" · ${relative.evaluatedCount} of ${relative.activeCategoryCount} " +
+                    "active options evaluated")
+            }
+        } else {
+            buildString {
+                append("Suggestion")
+                name?.let { append(" · $it") }
+                entry.confidence?.let { sharpness ->
+                    append(" · sharpness ${formatProbability(sharpness)}")
+                }
+                if (entry.candidateIds.isNotEmpty()) {
+                    append(" · ${entry.candidateIds.size} evaluated options")
+                }
+            }
         }
     }
+}
+
+/**
+ * The live work state of one card, or null when the stored group already says everything.
+ *
+ * A queued or running check is the useful news the group cannot carry, and a failed or
+ * cancelled check is the actionable reason no suggestion is stored. A result that the frozen
+ * page has not placed yet is announced without reordering the list.
+ */
+private fun inboxWorkStatusLabel(
+    entry: ReviewQueueEntry,
+    status: ClassificationWorkStatus?,
+): String? {
+    // A user-resolved draft already has a clear group of its own; repeating a cancelled
+    // classification reason beside it would be noise.
+    if (entry.subkind == ReviewQueueSubkind.USER_RESOLVED) return null
+    return when (status?.state) {
+    ClassificationWorkState.QUEUED ->
+        "Suggestion queued — the app will check it in the background."
+    ClassificationWorkState.RUNNING ->
+        "Checking a suggestion now…"
+    ClassificationWorkState.FAILED ->
+        "Suggestion unavailable — ${workStatusReasonLabel(status.reason)}. " +
+            "Open this draft to retry, choose a category, or check model setup."
+    ClassificationWorkState.CANCELLED ->
+        if (status.reason == ClassificationWorkStatusReason.USER_CANCELLED) {
+            "Suggestion cancelled. Retry or open this draft."
+        } else {
+            "No suggestion: ${workStatusReasonLabel(status.reason)}."
+        }
+    ClassificationWorkState.RESULT ->
+        if (entry.group == ReviewQueueGroup.NOT_COMPARABLE &&
+            entry.subkind == ReviewQueueSubkind.MISSING
+        ) {
+            "A suggestion is stored — refresh to update the order."
+        } else {
+            null
+        }
+        null -> null
+    }
+}
+
+/** The privacy-safe reason of a cancelled or failed classification check. */
+private fun workStatusReasonLabel(reason: ClassificationWorkStatusReason?): String = when (reason) {
+    ClassificationWorkStatusReason.DESCRIPTION_MISSING -> "there is no description to classify"
+    ClassificationWorkStatusReason.DRAFT_RESOLVED -> "you already chose a category"
+    ClassificationWorkStatusReason.DRAFT_REVIEWED -> "the draft was already reviewed"
+    ClassificationWorkStatusReason.DRAFT_MISSING -> "the draft no longer exists"
+    ClassificationWorkStatusReason.DENIED -> "the request was refused"
+    ClassificationWorkStatusReason.SUPERSEDED -> "another check is running"
+    ClassificationWorkStatusReason.CONTEXT_CHANGED -> "the context changed"
+    ClassificationWorkStatusReason.MODEL_OR_INFERENCE_FAILED ->
+        "the local model is missing or the check failed"
+    ClassificationWorkStatusReason.NOT_RECORDED -> "no prediction was stored"
+    ClassificationWorkStatusReason.USER_CANCELLED -> "you cancelled the check"
+    null -> "the check did not finish"
 }
 
 /** The unresolved fact that put one draft in the first group. */
@@ -606,9 +745,11 @@ private fun DraftDetailContent(
     allDrafts: List<PendingBankDraftEntity>,
     queryService: WorkflowQueryService,
     commandService: WorkflowCommandService,
+    classificationQueue: BankDraftClassificationQueue,
     contentModifier: Modifier,
     onSelectDraft: (Long) -> Unit,
     onNavigateUp: () -> Unit,
+    onOpenModelSetup: () -> Unit,
 ) {
     var amountText by rememberSaveable(draft.id) {
         mutableStateOf(draft.reviewAmountText ?: draft.amountVnd?.toString().orEmpty())
@@ -622,9 +763,6 @@ private fun DraftDetailContent(
     var memoText by rememberSaveable(draft.id) {
         mutableStateOf(if (draft.reviewMemoEdited) draft.reviewMemo.orEmpty() else draft.memo.orEmpty())
     }
-    // Optional English hint for the suggestion gate only. Starts empty on every draft,
-    // is never prepopulated from the bank memo, and never becomes the saved description.
-    var suggestionNote by rememberSaveable(draft.id) { mutableStateOf("") }
     var selectedTypeName by rememberSaveable(draft.id) {
         mutableStateOf(draft.reviewType?.name)
     }
@@ -665,25 +803,33 @@ private fun DraftDetailContent(
     val scope = rememberCoroutineScope()
     val writeInFlight = remember(draft.id) { AtomicBoolean(false) }
     val contextWriteInFlight = remember(draft.id) { AtomicBoolean(false) }
-    // Review-only suggestion identity: one draft's memo text plus the current category
-    // snapshot. Any change invalidates the pending result; nothing here writes a record
-    // or changes the category field itself. The memo and the optional note stay strictly
-    // separate: the note is evaluated alone and never concatenated with the bank memo.
-    val draftFormIdentity = remember(draft.id) { Any() }
-    val suggestionMachine = remember(draftFormIdentity) { ManualCategorySuggestionMachine() }
-    var suggestionRevision by remember(draftFormIdentity) { mutableStateOf(0) }
-    val suggestionIntent = remember(draftFormIdentity, memoText, suggestionNote) {
-        val effective = draftSuggestionInput(draft, memoText, suggestionNote)
-        ManualSuggestionIntent(draftFormIdentity, effective.orEmpty(), TransactionType.EXPENSE)
-    }
-    val latestSuggestionIntent by rememberUpdatedState(suggestionIntent)
-    // The whole catalog, live and read in bounded chunks: the model's candidate ranking
-    // needs every active category, and an archive or a rename of any of them has to
-    // invalidate a suggestion that was made against the catalog.
+    // The stored suggestion of this draft, read through the queue's own entry. The entry is
+    // read when the draft is opened and on an explicit refresh, never because a background
+    // check changed a score, so the values on screen stay the values the user is reviewing.
+    var suggestionEntry by remember(draft.id) { mutableStateOf<ReviewQueueEntry?>(null) }
+    var suggestionReading by remember(draft.id) { mutableStateOf(true) }
+    var suggestionReadFailed by remember(draft.id) { mutableStateOf(false) }
+    var suggestionReload by rememberSaveable(draft.id) { mutableIntStateOf(0) }
+    // A stored check finished or the context moved on: the stored entry is offered for an
+    // explicit refresh instead of being swapped under the user's hands.
+    var suggestionOutdated by rememberSaveable(draft.id) { mutableStateOf(false) }
+    var suggestionActionBusy by remember { mutableStateOf(false) }
+    var suggestionFeedback by rememberSaveable(draft.id) { mutableStateOf<String?>(null) }
+    var suggestionFeedbackIsError by rememberSaveable(draft.id) { mutableStateOf(false) }
+    // The whole catalog, live and read in bounded chunks: the stored options are resolved by
+    // stable id against fresh rows, and an archive or a rename must be visible at once.
     val catalog: List<CategoryEntity>? by remember(queryService) {
         queryService.observeCategoryCatalog()
     }.collectAsState(initial = null)
-    val latestObservedCategories by rememberUpdatedState(catalog)
+    val activeCategoriesById = remember(catalog) {
+        catalog.orEmpty().filterNot { it.archived }.associateBy { it.id }
+    }
+    // The durable job's state, live: queued becomes busy and busy becomes a result without
+    // the screen polling. Only the status changes live; the stored scores apply on refresh.
+    val workStatusFlow = remember(queryService, draft.id) {
+        queryService.observeClassificationWorkStatus(draft.id)
+    }
+    val workStatus by workStatusFlow.collectAsState(initial = null)
     // The choice list reads the catalog page by page, so every stored category can be
     // chosen and not only the ones on the first page.
     var categoryPageIndex by rememberSaveable(draft.id) { mutableIntStateOf(0) }
@@ -714,133 +860,37 @@ private fun DraftDetailContent(
         hasRows = categoryPage?.items?.isNotEmpty(),
         onClamp = { categoryPageIndex = it },
     )
-    LaunchedEffect(
-        commandService,
-        draftFormIdentity,
-        memoText,
-        suggestionNote,
-        catalog,
-        suggestionRevision,
-    ) {
-        if (!active) {
-            suggestionMachine.reset()
-            return@LaunchedEffect
-        }
-        val trimmed = memoText.trim()
-        val noteTrimmed = suggestionNote.trim()
-        val effectiveInput = draftSuggestionInput(draft, memoText, suggestionNote)
-        if (effectiveInput == null) {
-            // A present but safety-blocked note yields null on purpose rather than
-            // falling back to the memo: a code/OTP in the note field must not silently
-            // reuse the bank text. Only a truly empty note defers to the memo state.
-            if (noteTrimmed.isEmpty() && trimmed.isEmpty()) {
-                suggestionMachine.waitForDescription()
-            } else {
-                suggestionMachine.ignore(latestSuggestionIntent)
-            }
-            return@LaunchedEffect
-        }
-        val requestCategories = catalog ?: return@LaunchedEffect
-        if (requestCategories.any { it.id <= 0L || it.name.trim().isEmpty() }) {
-            suggestionMachine.ignore(latestSuggestionIntent)
-            return@LaunchedEffect
-        }
-        if (requestCategories.none { !it.archived }) {
-            suggestionMachine.noActiveCategories()
-            return@LaunchedEffect
-        }
-        val description = checkNotNull(effectiveInput)
-        val token = suggestionMachine.begin(
-            ManualSuggestionRequest(suggestionIntent, requestCategories),
-        ) ?: return@LaunchedEffect
-        // The classification is asked for through the application's one command boundary.
-        // The boundary decides whether the model is asked at all, composes the effective
-        // context of THIS draft, and stores the prediction against the state it was made
-        // in. The screen only shows what came back.
-        val outcome = try {
-            commandService.requestClassification(
-                scope = WorkflowCallerScope.User,
-                request = ClassificationRequest(
-                    idempotencyKey = reviewClassificationRequestKey(
-                        draftId = draft.id,
-                        formIdentity = System.identityHashCode(draftFormIdentity),
-                        revision = suggestionRevision,
-                        description = description,
-                        categories = requestCategories,
-                    ),
-                    draftId = draft.id,
-                    description = description,
-                    expectedReviewRevision = draft.reviewRevision,
-                ),
-            )
+    // The stored suggestion is read through the queue's own single-entry read. It is a
+    // snapshot: a finished background check or a context change is announced as an explicit
+    // refresh, never applied under the values the user is reading.
+    LaunchedEffect(queryService, draft.id, suggestionReload) {
+        suggestionReading = true
+        suggestionReadFailed = false
+        try {
+            suggestionEntry = queryService.reviewQueueEntry(draft.id)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            suggestionMachine.unavailable(
-                token = token,
-                currentIntent = latestSuggestionIntent,
-                currentCategories = queryService.categoryCatalog(),
-                observedCategories = latestObservedCategories,
-                reason = UnavailableReason.FAILED,
-            )
-            return@LaunchedEffect
+            suggestionReadFailed = true
+        } finally {
+            suggestionReading = false
         }
-        val currentCategories = queryService.categoryCatalog()
-        val observedCategories = latestObservedCategories
-        val change = when (outcome) {
-            is WorkflowCommandOutcome.Applied -> outcome.change
-            is WorkflowCommandOutcome.NoChange -> outcome.change
-            else -> null
+    }
+    // A result that arrived while the draft was open is offered for refresh (F1: changed
+    // scores apply on an explicit action, never mid-interaction).
+    var previousWorkState by remember(draft.id) {
+        mutableStateOf<ClassificationWorkState?>(null)
+    }
+    LaunchedEffect(workStatus) {
+        val status = workStatus ?: return@LaunchedEffect
+        val previous = previousWorkState
+        previousWorkState = status.state
+        if (previous != null &&
+            previous != status.state &&
+            status.state == ClassificationWorkState.RESULT
+        ) {
+            suggestionOutdated = true
         }
-        if (change !is WorkflowChange.Classified) {
-            suggestionMachine.unavailable(
-                token = token,
-                currentIntent = latestSuggestionIntent,
-                currentCategories = currentCategories,
-                observedCategories = observedCategories,
-                reason = when (outcome) {
-                    is WorkflowCommandOutcome.Cancelled -> UnavailableReason.SUPERSEDED
-                    else -> UnavailableReason.FAILED
-                },
-            )
-            return@LaunchedEffect
-        }
-        if (change.source == PredictionSource.REMEMBERED_RULE) {
-            // A saved exact-description rule answered; the model was never asked.
-            val remembered = currentCategories.firstOrNull { it.id == change.suggestedCategoryId }
-            if (remembered == null) {
-                suggestionMachine.unavailable(
-                    token = token,
-                    currentIntent = latestSuggestionIntent,
-                    currentCategories = currentCategories,
-                    observedCategories = observedCategories,
-                    reason = UnavailableReason.FAILED,
-                )
-                return@LaunchedEffect
-            }
-            suggestionMachine.completeRemembered(
-                token = token,
-                currentIntent = latestSuggestionIntent,
-                currentCategories = currentCategories,
-                observedCategories = observedCategories,
-                category = remembered,
-            )
-            return@LaunchedEffect
-        }
-        val decision = change.decision
-        if (decision == null) {
-            // The request was already made under this key, so its stored prediction is the
-            // answer and no new decision was produced to show.
-            suggestionMachine.reset()
-            return@LaunchedEffect
-        }
-        suggestionMachine.complete(
-            token = token,
-            currentIntent = latestSuggestionIntent,
-            currentCategories = currentCategories,
-            observedCategories = observedCategories,
-            resolution = LayaCandidatePlanner.resolveCurrent(decision.decision, currentCategories),
-        )
     }
     LaunchedEffect(queryService, draft.id, contextReload, contextPageIndex) {
         contextLoading = true
@@ -897,6 +947,7 @@ private fun DraftDetailContent(
                 if (change is WorkflowChange.DraftReviewSaved) {
                     expectedRevision = change.revision
                     feedback = "Corrections saved."
+                    suggestionOutdated = true
                 } else {
                     onNavigateUp()
                 }
@@ -906,6 +957,7 @@ private fun DraftDetailContent(
                 if (change is WorkflowChange.DraftReviewSaved) {
                     expectedRevision = change.revision
                     feedback = "Corrections saved."
+                    suggestionOutdated = true
                 } else {
                     feedback = outcome.detail
                         ?: "This draft was already confirmed or dismissed. No additional " +
@@ -1088,6 +1140,9 @@ private fun DraftDetailContent(
                 contextFeedback = if (applied) successMessage else outcome.linkFailureMessage()
                 contextFeedbackIsError = !applied
                 contextReload += 1
+                // The linked readings are part of the model's input: a stored suggestion may
+                // no longer answer the context, so it is offered for an explicit re-read.
+                if (applied) suggestionOutdated = true
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -1142,6 +1197,66 @@ private fun DraftDetailContent(
                 attach = false,
                 overrideNote = "User explicitly refused note context in Review.",
             )
+        }
+    }
+
+    /** Re-reads the stored suggestion after an explicit user action. */
+    fun refreshSuggestion() {
+        suggestionOutdated = false
+        suggestionFeedback = null
+        suggestionFeedbackIsError = false
+        suggestionReload += 1
+    }
+
+    /** Asks the durable queue for the current question again. */
+    fun retrySuggestion() {
+        if (suggestionActionBusy) return
+        suggestionActionBusy = true
+        suggestionFeedback = null
+        suggestionFeedbackIsError = false
+        scope.launch {
+            try {
+                val queued = classificationQueue.retry(draft.id)
+                suggestionFeedback = if (queued) {
+                    "Suggestion check queued. Nothing is confirmed or saved."
+                } else {
+                    "No new check was queued; the stored suggestion is already current."
+                }
+                suggestionFeedbackIsError = !queued
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                suggestionFeedback = "The check could not be queued. Nothing was changed."
+                suggestionFeedbackIsError = true
+            } finally {
+                suggestionActionBusy = false
+            }
+        }
+    }
+
+    /** Stops the waiting or running check; no financial field is touched. */
+    fun cancelSuggestion() {
+        if (suggestionActionBusy) return
+        suggestionActionBusy = true
+        suggestionFeedback = null
+        suggestionFeedbackIsError = false
+        scope.launch {
+            try {
+                val stopped = classificationQueue.cancel(draft.id)
+                suggestionFeedback = if (stopped) {
+                    "Suggestion check cancelled. A late answer is discarded; nothing is confirmed or saved."
+                } else {
+                    "There was no waiting or running check to cancel."
+                }
+                suggestionFeedbackIsError = !stopped
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                suggestionFeedback = "The check could not be cancelled. Nothing was changed."
+                suggestionFeedbackIsError = true
+            } finally {
+                suggestionActionBusy = false
+            }
         }
     }
 
@@ -1318,9 +1433,6 @@ private fun DraftDetailContent(
             OutlinedTextField(
                 value = memoText,
                 onValueChange = {
-                    if (memoText != it) {
-                        suggestionMachine.clearSuppression()
-                    }
                     memoText = it
                     feedback = null
                 },
@@ -1336,72 +1448,38 @@ private fun DraftDetailContent(
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
-            // Optional suggestion-only hint: English works best because the pinned model
-            // is English-first, but any language is tried. Kept in its own field so typed
-            // text can never concatenate with the stored bank memo: the gate evaluates
-            // this note alone, the keyboard autocomplete inside it cannot poison bank
-            // text, and the note is never written to the draft or the confirmed
-            // description. Only OTP/security-like text and reference codes stay manual.
-            OutlinedTextField(
-                value = suggestionNote,
-                onValueChange = {
-                    if (suggestionNote != it) {
-                        suggestionMachine.clearSuppression()
-                    }
-                    suggestionNote = it
-                    feedback = null
-                },
-                label = { Text("Suggestion note (optional, English works best)") },
-                placeholder = { Text("For example Monthly rent") },
-                singleLine = true,
-                supportingText = {
-                    Text("Hint only, any language is tried. It never changes the bank memo or the saved description.")
-                },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            DraftSuggestionPanel(
-                draft = draft,
-                state = suggestionMachine.state,
-                enabled = !busy,
-                memoText = memoText,
-                suggestionNote = suggestionNote,
-                onUseSuggestion = {
-                    suggestionMachine.acceptSuggestion()?.let { category ->
-                        selectedCategoryId = category.id
+            if (selectedType == TransactionType.TRANSFER) {
+                Text(
+                    "An internal transfer carries no category, so a stored category suggestion " +
+                        "is not applied here.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else if (!categoryResolved) {
+                // The suggestion is the app's own stored work, read back through the queue.
+                // It never selects a category: every option is an explicit staging action,
+                // and confirmation still requires its own preview.
+                StoredSuggestionPanel(
+                    entry = suggestionEntry,
+                    workStatus = workStatus,
+                    reading = suggestionReading,
+                    readFailed = suggestionReadFailed,
+                    outdated = suggestionOutdated,
+                    busy = busy || suggestionActionBusy || !active,
+                    activeCategories = activeCategoriesById,
+                    feedback = suggestionFeedback,
+                    feedbackIsError = suggestionFeedbackIsError,
+                    onRefresh = ::refreshSuggestion,
+                    onRetry = ::retrySuggestion,
+                    onCancel = ::cancelSuggestion,
+                    onOpenModelSetup = onOpenModelSetup,
+                    onChooseCategory = { categoryId ->
+                        selectedCategoryId = categoryId
                         categoryResolved = true
                         feedback = null
-                    }
-                },
-                onUseRememberedRule = {
-                    suggestionMachine.acceptRememberedRule()?.let { remembered ->
-                        selectedCategoryId = remembered.id
-                        categoryResolved = true
-                        feedback = null
-                    }
-                },
-                onIgnoreSuggestion = {
-                    suggestionMachine.ignore(suggestionIntent)
-                    suggestionRevision += 1
-                },
-                onChooseManually = {
-                    suggestionMachine.chooseManually(suggestionIntent)
-                    suggestionRevision += 1
-                },
-                onChooseDistributionOption = { categoryId ->
-                    suggestionMachine.chooseDistributionOption(categoryId)?.let { category ->
-                        selectedCategoryId = category.id
-                        categoryResolved = true
-                        feedback = null
-                    }
-                },
-                onChooseNoCategory = {
-                    if (suggestionMachine.chooseNoCategoryOption()) {
-                        selectedCategoryId = null
-                        categoryResolved = true
-                        feedback = null
-                    }
-                },
-            )
+                    },
+                )
+            }
             if (selectedType == TransactionType.TRANSFER) {
                 Text(
                     "An internal transfer moves money between your own holdings and carries no category.",
@@ -1419,8 +1497,6 @@ private fun DraftDetailContent(
                     name = "No category",
                     selected = categoryResolved && selectedCategoryId == null,
                 ) {
-                    suggestionMachine.chooseManually(suggestionIntent)
-                    suggestionRevision += 1
                     selectedCategoryId = null
                     categoryResolved = true
                     feedback = null
@@ -1443,8 +1519,6 @@ private fun DraftDetailContent(
                         archived = chosen.archived,
                         selected = true,
                     ) {
-                        suggestionMachine.chooseManually(suggestionIntent)
-                        suggestionRevision += 1
                         selectedCategoryId = chosen.id
                         categoryResolved = true
                         feedback = null
@@ -1457,8 +1531,6 @@ private fun DraftDetailContent(
                         archived = category.archived,
                         selected = category.id == selectedCategoryId,
                     ) {
-                        suggestionMachine.chooseManually(suggestionIntent)
-                        suggestionRevision += 1
                         selectedCategoryId = category.id
                         categoryResolved = true
                         feedback = null
@@ -2051,197 +2123,302 @@ private fun AddNoteContextDialog(
 }
 
 /**
- * Bank review keeps the suggestion header visible for every settled machine state.
- * Only the transient Idle (no request yet, effect still to run) renders nothing.
- * Inference runs for any non-blank note/memo except narrow OTP/security/reference-code
- * blocks, and never receives codes/OTP.
+ * The stored classification work of one draft, shown beside its review fields.
+ *
+ * The panel never runs the model by itself: the durable queue owns that work, and this
+ * surface reads its state and the stored entry back. It keeps the header visible for every
+ * state — queued, checking, stored, stale, no-fit, direct, failed, or cancelled — because a
+ * hidden panel looks exactly like a missing feature (S4.10-A2). Every option is staged only
+ * on an explicit tap; nothing selects, saves, confirms, or files anything here.
  */
-internal fun isBankDraftSuggestionPanelVisible(state: ManualCategorySuggestionState): Boolean =
-    state != ManualCategorySuggestionState.Idle
-
 @Composable
-private fun DraftSuggestionPanel(
-    draft: PendingBankDraftEntity,
-    state: ManualCategorySuggestionState,
-    enabled: Boolean,
-    memoText: String,
-    suggestionNote: String,
-    onUseSuggestion: () -> Unit,
-    onUseRememberedRule: () -> Unit,
-    onIgnoreSuggestion: () -> Unit,
-    onChooseManually: () -> Unit,
-    onChooseDistributionOption: (Long) -> Unit = {},
-    onChooseNoCategory: () -> Unit = {},
+private fun StoredSuggestionPanel(
+    entry: ReviewQueueEntry?,
+    workStatus: ClassificationWorkStatus?,
+    reading: Boolean,
+    readFailed: Boolean,
+    outdated: Boolean,
+    busy: Boolean,
+    activeCategories: Map<Long, CategoryEntity>,
+    feedback: String?,
+    feedbackIsError: Boolean,
+    onRefresh: () -> Unit,
+    onRetry: () -> Unit,
+    onCancel: () -> Unit,
+    onOpenModelSetup: () -> Unit,
+    onChooseCategory: (Long?) -> Unit,
 ) {
-    if (!isBankDraftSuggestionPanelVisible(state)) return
-    // The ordinary bank memo is usually opaque or coded, so the gate may yield null
-    // and the machine rests in Ignored/Waiting. Hiding the panel there looks exactly
-    // like a missing feature (S4.10-A2 user finding). Keep the header and a truthful
-    // reason visible instead. Loading states below show indeterminate progress while
-    // the lifecycle opens/verifies the model or runs inference.
-    val effectiveInput = draftSuggestionInput(draft, memoText, suggestionNote)
-    val noteBlank = suggestionNote.trim().isEmpty()
-    val status = when (state) {
-        ManualCategorySuggestionState.Idle -> return
-        ManualCategorySuggestionState.WaitingForDescription ->
-            "No description to check yet. Enter the description or add a suggestion " +
-                "note (English works best; any language is tried) to request ranked " +
-                "probabilities. The bank memo stays unchanged. " +
-                "Manual choice and confirmation stay available."
-        ManualCategorySuggestionState.ManuallySelected ->
-            "Your category choice stays selected. The suggestion will not replace it " +
-                "for this input. Edit the description or note to request again."
-        ManualCategorySuggestionState.Ignored ->
-            if (effectiveInput == null) {
-                if (!noteBlank) {
-                    "That note was held back for safety (possible code or security " +
-                        "text), so nothing was sent. The bank memo stays unchanged. " +
-                        "Edit the note, or choose a category manually. Nothing " +
-                        "is confirmed or saved."
-                } else {
-                    "That text was held back for safety (possible code or security " +
-                        "text), so nothing was sent. The memo and saved description stay " +
-                        "unchanged. Nothing is confirmed or saved."
-                }
-            } else {
-                "Suggestion ignored. The selected category and other fields are unchanged. " +
-                    "Edit the description or note to request again."
-            }
-        ManualCategorySuggestionState.LoadingCategories ->
-            "Loading current categories. Choosing a category or confirming stays available."
-        ManualCategorySuggestionState.Loading ->
-            "Working: checking saved rules, then running the local model if needed. " +
-                "Choosing a category or confirming stays available."
-        ManualCategorySuggestionState.NoActiveCategories ->
-            "No active categories are available. Choose No category explicitly to confirm."
-        ManualCategorySuggestionState.NotApplicableToKind ->
-            "Suggestions follow the description text; manual choice stays available."
-        is ManualCategorySuggestionState.Suggested ->
-            if (state.distribution != null) {
-                "The model ranked your current categories below from the note or memo text " +
-                    "(English works best; any language is tried). Pick one to fill the " +
-                    "category field, or leave the field unchanged. Nothing is confirmed or saved."
-            } else {
-                "The model suggests a current category. It will not change the selected " +
-                    "category unless you accept it."
-            }
-        is ManualCategorySuggestionState.Remembered ->
-            if (state.accepted) {
-                "The saved exact-description rule was accepted. The category field changed " +
-                    "only at your request; nothing has been saved. This is a saved rule, not " +
-                    "a model score."
-            } else {
-                "A saved exact-description rule matches. It does not change the category " +
-                    "field until you accept it. This is a saved rule, not a model score."
-            }
-        ManualCategorySuggestionState.RuleRemoved ->
-            "The saved rule was removed."
-        is ManualCategorySuggestionState.Accepted ->
-            "The suggestion is selected at your request. Review it before confirming; " +
-                "nothing has been saved."
-        is ManualCategorySuggestionState.NoFit ->
-            if (state.reason == LayaCandidatePlanner.ManualReason.EFFECTIVE_INPUT_OVER_BUDGET) {
-                effectiveInputOverBudgetMessage()
-            } else if (state.distribution != null) {
-                "Unknown scored highest, so nothing was preselected. The ranked " +
-                    "categories below stay selectable. Nothing is confirmed or saved."
-            } else {
-                "No category suggestion is available for this description. Choose one manually " +
-                    "or choose No category explicitly."
-            }
-        is ManualCategorySuggestionState.Stale ->
-            "Category data changed while this suggestion was checked. It was not applied; " +
-                "choose from current categories instead."
-        is ManualCategorySuggestionState.Unavailable ->
-            "A suggestion is unavailable right now. Manual choice and confirmation still work."
-        ManualCategorySuggestionState.NoCategory ->
-            "Unknown / no fit is selected: no category will be filed unless you pick " +
-                "one. Nothing is confirmed or saved."
+    val state = workStatus?.state
+    val failed = state == ClassificationWorkState.FAILED
+    val cancelled = state == ClassificationWorkState.CANCELLED
+    val running = state == ClassificationWorkState.RUNNING
+    val queued = state == ClassificationWorkState.QUEUED
+    val canCancel = queued || running
+    val hasStoredDecision = entry?.predictionTimeEpochMillis != null
+    val stale = entry?.staleReason != null
+    val noJob = workStatus == null
+    val noStoredSuggestion = entry == null || !hasStoredDecision
+    val canRetry = failed || cancelled || stale || readFailed || (noJob && noStoredSuggestion)
+    val suggested = entry?.suggestedCategoryId
+    val suggestedName = suggested?.let { id ->
+        activeCategories[id]?.name ?: "category #$id"
     }
+    val relative = entry?.relativeConfidence
+    val options = entry?.candidateIds.orEmpty()
+    val shares = entry?.probabilities.orEmpty()
+
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = "Category suggestion",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        val busy = state == ManualCategorySuggestionState.LoadingCategories ||
-            state == ManualCategorySuggestionState.Loading
-        if (busy) {
+        if (reading) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            Text("Reading the stored suggestion…", style = MaterialTheme.typography.bodyMedium)
+        }
+        if (running) {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
-        Text(
-            text = status,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-        )
-        val uncertainty = when (state) {
-            is ManualCategorySuggestionState.Suggested -> state.uncertainty
-            is ManualCategorySuggestionState.Accepted -> state.uncertainty
-            is ManualCategorySuggestionState.NoFit -> state.uncertainty
+        val statusText = when {
+            readFailed ->
+                "The stored suggestion could not be read. The bank evidence and review " +
+                    "fields are unchanged; refresh to try again."
+            queued ->
+                "Suggestion queued. The app will check the stored description in the " +
+                    "background; manual choice and confirmation stay available."
+            running ->
+                "Checking a suggestion now. The local model is reading the stored " +
+                    "description and linked context; this screen stays usable."
+            failed ->
+                "No suggestion was stored: ${workStatusReasonLabel(workStatus?.reason)}. " +
+                    "Retry, choose a category manually, or check model setup."
+            cancelled ->
+                if (workStatus?.reason == ClassificationWorkStatusReason.USER_CANCELLED) {
+                    "You cancelled this check. Retry to ask again, or add note context " +
+                        "below and refresh. Nothing is confirmed or saved."
+                } else {
+                    "No suggestion is queued: " +
+                        "${workStatusReasonLabel(workStatus?.reason)}. " +
+                        "Choose a category manually or retry."
+                }
+            noJob && noStoredSuggestion ->
+                "No suggestion is stored for this draft yet. Retry to ask the durable " +
+                    "queue, or choose a category manually."
             else -> null
         }
-        if (uncertainty != null && uncertainty.omittedCategoryCount > 0) {
+        if (statusText != null) {
             Text(
-                text = "Offered ${uncertainty.offeredCategoryCount} of " +
-                    "${uncertainty.activeCategoryCount} active categories; " +
-                    "${uncertainty.omittedCategoryCount} were omitted, so a better fit " +
-                    "may be missing.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = statusText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (failed) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             )
         }
-        when (state) {
-            is ManualCategorySuggestionState.Suggested -> {
-                val distribution = state.distribution
-                if (distribution != null) {
-                    ManualDistributionList(
-                        distribution = distribution,
-                        enabled = enabled,
-                        onChooseDistributionOption = onChooseDistributionOption,
-                        onChooseNoCategory = onChooseNoCategory,
+
+        if (entry != null && !outdated) {
+            when {
+                entry.group == ReviewQueueGroup.NOT_COMPARABLE &&
+                    entry.subkind == ReviewQueueSubkind.USER_RESOLVED ->
+                    Text(
+                        "You already chose this draft's category. The stored suggestion is " +
+                            "not offered again while your choice stands.",
+                        style = MaterialTheme.typography.bodyMedium,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onIgnoreSuggestion, enabled = enabled) { Text("Ignore") }
+                stale -> {
+                    Text(
+                        text = "The stored suggestion no longer applies: " +
+                            "${entry.staleReason?.let(::staleReasonLabel)}. Its scores are not " +
+                            "shown as a current suggestion and order nothing. Retry to check " +
+                            "the current draft.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                entry.group == ReviewQueueGroup.NEEDS_DECISION -> {
+                    if (hasStoredDecision) {
+                        Text(
+                            "A suggestion is stored, but it is not labelled confident while " +
+                                "this draft's match or bank data needs your decision. The " +
+                                "evaluated options are below; resolve the context first.",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                     }
+                }
+                entry.group == ReviewQueueGroup.SUGGESTION && relative != null -> {
+                    Text(
+                        text = "Relatively confident suggestion: " +
+                            "${suggestedName ?: "an evaluated category"} " +
+                            "${formatProbability(relative.topShare)} · no-fit " +
+                            "${formatProbability(relative.unknownShare)} · sharpness " +
+                            "${formatProbability(relative.sharpness)} over " +
+                            "${relative.evaluatedCount} of ${relative.activeCategoryCount} " +
+                            "active categories.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        "This compares only the options the model evaluated. It is a " +
+                            "suggestion, not a guarantee of accuracy, and it never confirms " +
+                            "or files the draft.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                entry.group == ReviewQueueGroup.SUGGESTION -> {
+                    Text(
+                        "Model suggestion: ${suggestedName ?: "an evaluated category"}. " +
+                            "The stored values are shown below; a suggestion is not a guarantee.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                entry.subkind == ReviewQueueSubkind.UNKNOWN -> {
+                    Text(
+                        "The model chose the unknown / no-fit option, so no category is " +
+                            "selected. The ranked options below stay selectable, and the " +
+                            "draft stays reviewable.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                entry.subkind == ReviewQueueSubkind.DIRECT -> {
+                    Text(
+                        "A saved exact-description rule or a category name answered: " +
+                            "${suggestedName ?: "an unavailable category"}. There is no model " +
+                            "score to compare, and nothing is selected for you.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+
+            if (!stale && entry.subkind != ReviewQueueSubkind.USER_RESOLVED) {
+                // Directly below the explanation: the evaluated rows and the no-fit row are
+                // the actual stored distribution, never recomputed here.
+                if (options.isNotEmpty() && shares.size == options.size) {
+                    options.forEachIndexed { index, categoryId ->
+                        val name = activeCategories[categoryId]?.name
+                            ?: "Unavailable category #$categoryId"
+                        OutlinedButton(
+                            shape = MaterialTheme.shapes.small,
+                            onClick = { onChooseCategory(categoryId) },
+                            enabled = !busy && activeCategories[categoryId] != null,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                CategorySwatch(categoryId = categoryId, directory = true)
+                                Text("$name — ${formatProbability(shares[index])}")
+                            }
+                        }
+                    }
+                }
+                entry.unknownShare?.let { unknown ->
+                    OutlinedButton(
+                        shape = MaterialTheme.shapes.small,
+                        onClick = { onChooseCategory(null) },
+                        enabled = !busy,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Unknown / no fit — ${formatProbability(unknown)}")
+                    }
+                }
+            }
+
+            if (options.isNotEmpty() && entry.activeCategoryCount > 0) {
+                val omitted = (entry.activeCategoryCount - options.size).coerceAtLeast(0)
+                Text(
+                    text = buildString {
+                        append(
+                            "Evaluated ${options.size} of ${entry.activeCategoryCount} " +
+                                "active categories",
+                        )
+                        if (omitted > 0) append("; $omitted were not offered")
+                        append(".")
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            val recorded = entry.predictionTimeEpochMillis?.let(ManualDateTime::formatMoment)
+            if (recorded != null) {
+                Text(
+                    text = buildString {
+                        append("Recorded $recorded")
+                        entry.modelRevision?.let { append(" · model ${it.take(12)}") }
+                        entry.candidateSetVersion?.let { append(" · candidate set $it") }
+                        if (entry.eventIds.isNotEmpty()) {
+                            append(" · ${entry.eventIds.size} linked reading(s)")
+                        }
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        if (outdated && !reading) {
+            Text(
+                text = "A newer stored state or a changed context is available. Refresh to " +
+                    "read it; the values above stay as they were until you do.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (canCancel) {
+                OutlinedButton(
+                    shape = MaterialTheme.shapes.small,
+                    onClick = onCancel,
+                    enabled = !busy,
+                ) { Text("Cancel check") }
+            } else if (canRetry) {
+                OutlinedButton(
+                    shape = MaterialTheme.shapes.small,
+                    onClick = onRetry,
+                    enabled = !busy,
+                ) { Text(if (stale) "Retry stale suggestion" else "Retry check") }
+            }
+            TextButton(
+                onClick = onRefresh,
+                enabled = !busy && !running,
+            ) { Text(if (outdated) "Refresh suggestion" else "Re-read stored suggestion") }
+        }
+        if (failed && workStatus?.reason == ClassificationWorkStatusReason.MODEL_OR_INFERENCE_FAILED) {
+            OutlinedButton(
+                shape = MaterialTheme.shapes.small,
+                onClick = onOpenModelSetup,
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Open model setup") }
+        }
+        if (suggested != null && activeCategories[suggested] != null &&
+            entry?.group == ReviewQueueGroup.SUGGESTION
+        ) {
+            Button(
+                shape = MaterialTheme.shapes.small,
+                onClick = { onChooseCategory(suggested) },
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Use suggested category") }
+        }
+        if (feedback != null) {
+            Text(
+                text = feedback,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (feedbackIsError) {
+                    MaterialTheme.colorScheme.error
                 } else {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(shape = MaterialTheme.shapes.small, onClick = onUseSuggestion, enabled = enabled) { Text("Use suggestion") }
-                        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onIgnoreSuggestion, enabled = enabled) { Text("Ignore") }
-                    }
-                }
-            }
-            is ManualCategorySuggestionState.NoFit -> {
-                val distribution = state.distribution
-                if (distribution != null) {
-                    ManualDistributionList(
-                        distribution = distribution,
-                        enabled = enabled,
-                        onChooseDistributionOption = onChooseDistributionOption,
-                        onChooseNoCategory = onChooseNoCategory,
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onIgnoreSuggestion, enabled = enabled) { Text("Ignore") }
-                    }
-                }
-            }
-            is ManualCategorySuggestionState.Remembered -> {
-                if (!state.accepted) {
-                    Button(shape = MaterialTheme.shapes.small, onClick = onUseRememberedRule,
-                    enabled = enabled,
-                    modifier = Modifier.fillMaxWidth(),) { Text("Use remembered category") }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onIgnoreSuggestion, enabled = enabled) { Text("Ignore") }
-                }
-            }
-            is ManualCategorySuggestionState.Accepted -> {
-                OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onChooseManually, enabled = enabled) { Text("Keep manual choice") }
-            }
-            is ManualCategorySuggestionState.NoCategory -> {
-                OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onChooseManually, enabled = enabled) { Text("Keep manual choice") }
-            }
-            else -> Unit
+                    MaterialTheme.colorScheme.primary
+                },
+            )
         }
     }
 }

@@ -266,6 +266,48 @@ class ReviewQueueTest {
             assertEquals(fixture.proposedLink, afterOpen.draft.id)
         }
 
+    @Test
+    fun `a fresh suggestion carries its options and a scoped relative label`() = runTest {
+        val fixture = seedQueue()
+        val entries = pageOfAll(
+            ReviewQueueQuery(bounds = QueryPageRequest(LIST_PAGE_SIZE)),
+        ).associateBy { it.draft.id }
+
+        val clean = entries.getValue(fixture.suggestionLow)
+        assertEquals(ReviewQueueGroup.SUGGESTION, clean.group)
+        val relative = clean.relativeConfidence!!
+        assertEquals(clean.suggestedCategoryId, relative.topCategoryId)
+        assertEquals(0.1, relative.topShare, 0.0)
+        assertEquals(0.2, relative.unknownShare, 0.0)
+        assertEquals(0.5638, relative.sharpness, 0.0)
+        assertEquals(5, relative.evaluatedCount)
+        assertEquals(16, relative.activeCategoryCount)
+        assertEquals(List(5) { 0.1 }, clean.probabilities)
+        assertEquals(MODEL_REVISION, clean.modelRevision)
+        assertEquals(CANDIDATE_SET_VERSION, clean.candidateSetVersion)
+        assertEquals(BASE_INSTANT, clean.predictionTimeEpochMillis)
+        assertEquals(16, clean.activeCategoryCount)
+
+        // The single-entry read is the same policy view the inbox shows.
+        assertEquals(clean, query.reviewQueueEntry(fixture.suggestionLow))
+
+        // Every unresolved, stale, unknown, direct or user-resolved draft withholds the
+        // label, however sharp its stored number is.
+        assertNull(entries.getValue(fixture.duplicateMember).relativeConfidence)
+        assertNull(entries.getValue(fixture.proposedLink).relativeConfidence)
+        assertNull(entries.getValue(fixture.unresolvedAmount).relativeConfidence)
+        assertNull(entries.getValue(fixture.stale).relativeConfidence)
+        assertNull(entries.getValue(fixture.unknown).relativeConfidence)
+        assertNull(entries.getValue(fixture.direct).relativeConfidence)
+        assertNull(entries.getValue(fixture.userResolved).relativeConfidence)
+        assertNull(entries.getValue(fixture.missing).relativeConfidence)
+
+        // A different evaluated set states its own scope, not the first set's.
+        val other = entries.getValue(fixture.otherGroupHigh).relativeConfidence!!
+        assertEquals(11, other.evaluatedCount)
+        assertEquals(16, other.activeCategoryCount)
+    }
+
     /**
      * The policy's boundary fixture, stored through the app's own draft and link paths.
      *

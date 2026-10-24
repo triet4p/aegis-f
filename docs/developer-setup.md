@@ -476,6 +476,12 @@ isolated `Taxi`/`Transport` keystrokes into diacritic text; such a note stays ma
 design and the bank memo is unaffected. Sanitized details are in
 [`S4.8-A4`](../artifacts/sprint-4/workers/S4.8-A4.md).
 
+S7.6 retired that transient suggestion field and the review screen's own per-edit model
+request. A bank draft's suggestion is now stored by the durable intake/context queue, and
+Review shows the stored queued/checking/stored/stale/no-fit/direct/failed/cancelled state with
+its evaluated options and provenance; **Retry**, **Cancel**, and **Open model setup** are the
+explicit controls. The account above remains the historical S4.8-A4 device observation.
+
 The normal model setup path is in the app, not a shell transfer or a network
 downloader. It is **user-only** to inspect or operate the phone. The selected
 artifact is the pinned English `receptron/laya-onnx` export listed in

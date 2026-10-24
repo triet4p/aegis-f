@@ -9,6 +9,21 @@ and no release has been tagged or published. Format follows
 
 ### Added
 
+- Added visible classification status and review controls to the notification review inbox.
+  Each draft now says whether its stored suggestion is queued, being checked by the local model,
+  stored, stale, answered by a saved rule or category name, no-fit, failed, or cancelled, and it
+  shows the stored evaluated options and shares, the no-fit share and overall sharpness, how
+  many active categories were evaluated and how many were not offered, when it was recorded,
+  the model and candidate-set revisions, and how many linked readings it used. A failed or
+  cancelled check offers **Retry**, a waiting or running one offers **Cancel** (the late native
+  answer is then discarded), a stored suggestion can be re-read explicitly, and a missing model
+  links to model setup. A fresh dominant category is called relatively confident only with its
+  own evaluated scope and numbers — never as a guarantee of accuracy, never auto-confirmed, and
+  always overridable; adding note context or saving a corrected description can be followed by
+  **Refresh** without leaving review. The separate transient suggestion note and the review
+  screen's own per-edit model request were retired: intake and accepted context changes schedule
+  classification through the durable queue, and review reads that stored work back.
+
 - Added an uncertainty-first ordering to the review inbox. Pending notifications are now
   grouped by how much they need you: a possible duplicate, an undecided note match, or bank data
   that needs attention comes first; then drafts whose suggestion is missing, no longer current,

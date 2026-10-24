@@ -49,6 +49,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.triet4p.aegisf.data.BankDraftClassificationQueue
 import io.github.triet4p.aegisf.data.IntakeReviewStatus
 import io.github.triet4p.aegisf.data.NotificationAccessStore
 import io.github.triet4p.aegisf.data.WorkflowCommandService
@@ -129,6 +130,7 @@ private sealed interface ManualRoute : Serializable {
 internal fun AegisAppShell(
     queryService: WorkflowQueryService,
     commandService: WorkflowCommandService,
+    classificationQueue: BankDraftClassificationQueue,
     layaInferenceLifecycle: LayaInferenceLifecycle,
     notificationAccessStore: NotificationAccessStore,
     modifier: Modifier = Modifier,
@@ -177,6 +179,12 @@ internal fun AegisAppShell(
         if (manualStack.lastOrNull() != route) {
             manualStack = manualStack + route
         }
+    }
+
+    /** Opens model setup from a review whose check failed because no usable model is installed. */
+    fun openModelSetup() {
+        dashboardStack = listOf(DashboardRoute.ModelSetup)
+        destination = PrimaryDestination.DASHBOARD
     }
 
     val backEnabled = when (destination) {
@@ -275,11 +283,13 @@ internal fun AegisAppShell(
                     PrimaryDestination.REVIEW -> ReviewDestination(
                         queryService = queryService,
                         commandService = commandService,
+                        classificationQueue = classificationQueue,
                         stack = reviewStack,
                         onOpenDraft = { draftId ->
                             reviewStack = reviewStack + ReviewRoute.Draft(draftId)
                         },
                         onPop = { reviewStack = reviewStack.dropLast(1) },
+                        onOpenModelSetup = ::openModelSetup,
                     )
 
                     PrimaryDestination.MANUAL -> ManualDestination(
@@ -541,17 +551,21 @@ private fun DashboardRoute.routeKey(): String = when (this) {
 private fun ReviewDestination(
     queryService: WorkflowQueryService,
     commandService: WorkflowCommandService,
+    classificationQueue: BankDraftClassificationQueue,
     stack: List<ReviewRoute>,
     onOpenDraft: (Long) -> Unit,
     onPop: () -> Unit,
+    onOpenModelSetup: () -> Unit,
 ) {
     when (val route = stack.lastOrNull()) {
         null -> BankDraftReviewScreen(
             queryService = queryService,
             commandService = commandService,
+            classificationQueue = classificationQueue,
             draftId = null,
             onSelectDraft = onOpenDraft,
             onNavigateUp = {},
+            onOpenModelSetup = onOpenModelSetup,
             // The inbox is this destination's root: there is no previous screen to go back
             // to, so it must not offer a Back control of its own.
             showBack = false,
@@ -560,9 +574,11 @@ private fun ReviewDestination(
         is ReviewRoute.Draft -> BankDraftReviewScreen(
             queryService = queryService,
             commandService = commandService,
+            classificationQueue = classificationQueue,
             draftId = route.draftId,
             onSelectDraft = onOpenDraft,
             onNavigateUp = onPop,
+            onOpenModelSetup = onOpenModelSetup,
             showBack = true,
         )
     }

@@ -148,13 +148,23 @@ opt-in notification review inbox — every bank-derived record still requires th
   possible duplicate, an undecided note match, or bank data that needs you comes first, then the
   drafts without a current suggestion (never classified, stale, no-fit, or answered by a saved
   rule or a category name), then comparable suggestions from the least certain to the most. Each
-  group is headed and states why it is there, a card states its own confidence and evaluated
+  group is headed and states why it is there, a card states its own status and evaluated
   scope where a suggestion applies, and very confident suggestions sort later instead of being
-  hidden or confirmed. Every pending draft is reachable page by page, an always-available
-  arrival order shows the same drafts oldest first, and the list stays exactly as read until you
-  tap Refresh, change the order, or return from a draft — so a suggestion that changes in the
-  background can never reorder the inbox or move a draft under your finger. **Next work** opens
-  the oldest draft that still needs you. You can correct amount, date, time, or optional description,
+  hidden or confirmed. A card also says whether the stored check is queued, running, failed, or
+  cancelled, while the list order stays exactly as read. Opening a draft shows the stored
+  suggestion with its evaluated options and shares, the no-fit share and overall sharpness, how
+  many active categories were evaluated and how many were not offered, when it was recorded and
+  by which model revision and candidate set, and which linked readings it used. A fresh dominant
+  category is called relatively confident only with those numbers and only among the evaluated
+  options; it is never a guarantee of accuracy, it is never auto-confirmed, and every option
+  remains an explicit choice. A failed or cancelled check offers **Retry**, a waiting or running
+  one offers **Cancel** (a late native answer is discarded), and a missing model links to model
+  setup. Adding note context or saving a corrected description and then tapping **Refresh**
+  reads the improved stored suggestion without leaving review. Every pending draft is reachable
+  page by page, an always-available arrival order shows the same drafts oldest first, and the
+  list stays exactly as read until you tap Refresh, change the order, or return from a draft —
+  so a suggestion that changes in the background can never reorder the inbox or move a draft
+  under your finger. **Next work** opens the oldest draft that still needs you. You can correct amount, date, time, or optional description,
   explicitly choose Expense, Income, or Internal transfer, and choose a category or explicitly
   choose No category. A debit or credit never selects the ledger type. Missing or invalid amount,
   date, time, type, and applicable category choices must be resolved before confirmation; an
@@ -258,20 +268,19 @@ The following capabilities are not available yet:
   changes the category field without an explicit **Use suggestion** or **Use remembered category**
   action, or writes a transaction. Income, transfers, and corrections remain manual.
   Description/type edits, manual category selection, category metadata changes, and leaving the
-  form invalidate pending results. S4.8 connects the same review-only path to notification
-  drafts: any non-blank memo or explicit note typed in the separate suggestion field is
-  offered to the saved-rule lookup and bounded model inference (English works best because
-  the pinned model is English-first; any language is tried and no multilingual quality is
-  claimed), while blank text stays manual and only OTP/security-like text and bank
-  reference codes stay manual. Only the effective input (the note
-  alone when present, otherwise the visible memo text) is ever offered; the note and the bank
-  memo are never concatenated and the stored memo is never rewritten. The draft category field
-  changes only on explicit acceptance; confirmation still requires a separate action. Draft
-  review always shows the Category suggestion header once its check settles, with an
-  indeterminate progress bar plus truthful busy text while rules/model work runs; manual
-  entry shows the same visible busy state. A safety-blocked
-  memo or note explains nothing was sent, so the ordinary bank path no longer looks like
-  a missing feature. S4.10
+  form invalidate pending results. S4.8 first connected the review-only path to notification
+  drafts; S7.6 retired that screen's transient suggestion note and its own per-edit model
+  request, so a corrected description or accepted note context now schedules the durable queue
+  and review reads the stored suggestion back. Non-blank permitted text (English works best
+  because the pinned model is English-first; any language is tried and no multilingual quality
+  is claimed) reaches the saved-rule lookup and bounded inference, while blank text stays
+  manual and only OTP/security-like text and bank reference codes stay manual. The stored memo
+  is never rewritten, and the draft category field changes only on explicit acceptance;
+  confirmation still requires a separate action. Draft review keeps the Category suggestion
+  header visible for every stored state, with an indeterminate progress bar plus truthful
+  busy text while rules or the model work; manual entry keeps the same visible busy state. A
+  safety-blocked description explains nothing was sent, so the ordinary bank path no longer
+  looks like a missing feature. S4.10
   replaces the single-winner display with the model-returned ranked per-category probability
   distribution plus the same-softmax unknown share in both manual entry and draft
   review: every evaluated active category is listed in descending calibrated probability with
@@ -293,10 +302,10 @@ The following capabilities are not available yet:
   APK is built and installed privately by its owner.
 
 Planned work (real-bank device verification; the four-screen workflow and persistent quick
-capture; proactive Laya review — automatic intake classification with durable, coalesced work
-and the uncertainty-first review queue with its focus controls are implemented, while measured
-classification quality, the inference status/cancel/retry controls and the effort comparison
-remain planned; evidence-backed offline model/tool research; multi-event note
+capture; proactive Laya review — automatic intake classification with durable, coalesced work,
+the uncertainty-first review queue with its focus controls, and the stored status/cancel/retry
+review controls are implemented, while measured classification quality and the effort
+comparison remain planned; evidence-backed offline model/tool research; multi-event note
 orchestration; recovery and personal daily-use delivery) is described in [docs/PLAN.md](docs/PLAN.md).
 
 The legacy Sprint 5 SLM benchmark remains partial, paused, and unapproved; no model was adopted.

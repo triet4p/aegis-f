@@ -44,6 +44,11 @@ class MainActivity : ComponentActivity() {
         (application as AegisApplication).container.workflowCommandService
     }
 
+    /** The same durable queue the process starts; review reads its state and controls it. */
+    private val classificationQueue by lazy {
+        (application as AegisApplication).container.bankDraftClassificationQueue
+    }
+
     override fun onResume() {
         super.onResume()
         if (isNotificationAccessGranted(this)) {
@@ -63,6 +68,7 @@ class MainActivity : ComponentActivity() {
                 AegisAppShell(
                     queryService = workflowQueryService,
                     commandService = workflowCommandService,
+                    classificationQueue = classificationQueue,
                     layaInferenceLifecycle = layaInferenceLifecycle,
                     notificationAccessStore = notificationAccessStore,
                 )

@@ -60,6 +60,7 @@ class WorkflowQueryService(
     private val noteEventDao = database.noteEventDao()
     private val contextLinkDao = database.contextLinkDao()
     private val classificationSnapshotDao = database.classificationSnapshotDao()
+    private val classificationWorkDao = database.classificationWorkDao()
     private val reviewQueueDao = database.reviewQueueDao()
     private val workflowOperationDao = database.workflowOperationDao()
 
@@ -535,15 +536,63 @@ class WorkflowQueryService(
         }
         val drafts = reviewQueueDao.findDrafts(rows.items.map { it.draftId })
             .associateBy { it.id }
+        val activeCategories = activeCategoryById()
         return QueryPage(
             items = rows.items.mapNotNull { row ->
-                drafts[row.draftId]?.let { draft -> row.toQueueEntry(draft) }
+                drafts[row.draftId]?.let { draft -> row.toQueueEntry(draft, activeCategories) }
             },
             offset = rows.offset,
             limit = rows.limit,
             hasMore = rows.hasMore,
         )
     }
+
+    /**
+     * One pending draft's queue entry by stable id, or null when it is no longer waiting.
+     *
+     * The detail surface reads this instead of rebuilding the policy: the group, the reason,
+     * the stored options and provenance, and the policy-gated relative statement are exactly
+     * the ones the inbox would show for the same draft.
+     */
+    suspend fun reviewQueueEntry(draftId: Long): ReviewQueueEntry? {
+        val row = reviewQueueDao.findOrderRow(draftId) ?: return null
+        val draft = pendingBankDraftDao.findById(draftId) ?: return null
+        return row.toQueueEntry(draft, activeCategoryById())
+    }
+
+    /**
+     * The active catalog keyed by stable id.
+     *
+     * A relative-confidence statement must name a category that still exists, so the queue
+     * reads the same active rows the review surface can offer. The catalog is read once per
+     * page rather than once per draft.
+     */
+    private suspend fun activeCategoryById(): Map<Long, CategoryEntity> =
+        categoryCatalog().filterNot { it.archived }.associateBy { it.id }
+
+    /**
+     * One draft's durable classification work as a live stream, or null when it has no job.
+     *
+     * The state is the stored job's own truth, so a review surface can show queued, busy,
+     * failed, or cancelled instead of inferring it from the absence of a prediction.
+     */
+    fun observeClassificationWorkStatus(draftId: Long): Flow<ClassificationWorkStatus?> =
+        classificationWorkDao.observeForDraft(draftId).map { work -> work?.toWorkStatus() }
+
+    /**
+     * The durable classification work of a bounded set of drafts, as a live stream.
+     *
+     * The inbox asks only about the drafts on its shown page, so the flow stays bounded by
+     * the same page size as the queue read.
+     */
+    fun observeClassificationWorkStatuses(draftIds: List<Long>): Flow<List<ClassificationWorkStatus>> =
+        if (draftIds.isEmpty()) {
+            flowOf(emptyList())
+        } else {
+            classificationWorkDao.observeForDrafts(draftIds).map { jobs ->
+                jobs.map { it.toWorkStatus() }
+            }
+        }
 
     /**
      * How many stored bank drafts are in one review state, as a live count.
@@ -834,7 +883,10 @@ class WorkflowQueryService(
  * the conflict list is assembled here from the flags the order reported, so the reason a
  * draft is in the first group is named with the same facts that put it there.
  */
-private fun ReviewQueueRow.toQueueEntry(draft: PendingBankDraftEntity): ReviewQueueEntry {
+private fun ReviewQueueRow.toQueueEntry(
+    draft: PendingBankDraftEntity,
+    activeCategories: Map<Long, CategoryEntity>,
+): ReviewQueueEntry {
     val group = when (queueRank) {
         0 -> ReviewQueueGroup.NEEDS_DECISION
         1 -> ReviewQueueGroup.NOT_COMPARABLE
@@ -866,6 +918,8 @@ private fun ReviewQueueRow.toQueueEntry(draft: PendingBankDraftEntity): ReviewQu
     } else {
         null
     }
+    val candidateIds = queueCandidateIds?.toIdList().orEmpty()
+    val probabilities = queueProbabilities?.toDoubleList().orEmpty()
     return ReviewQueueEntry(
         draft = draft,
         group = group,
@@ -874,9 +928,91 @@ private fun ReviewQueueRow.toQueueEntry(draft: PendingBankDraftEntity): ReviewQu
         staleReason = queueStaleReason?.let { PredictionStaleReason.valueOf(it) },
         comparabilityKey = queueComparableGroup,
         confidence = queueConfidence,
-        candidateIds = queueCandidateIds?.toIdList().orEmpty(),
+        candidateIds = candidateIds,
+        suggestedCategoryId = queueSuggestedCategoryId,
+        probabilities = probabilities,
+        unknownShare = queueUnknownShare,
+        predictionTimeEpochMillis = queuePredictionTime,
+        modelRevision = queueModelRevision,
+        candidateSetVersion = queueCandidateSetVersion,
+        eventIds = queueEventIds?.toIdList().orEmpty(),
+        activeCategoryCount = activeCategories.size,
+        relativeConfidence = relativeConfidence(
+            group = group,
+            draft = draft,
+            candidateIds = candidateIds,
+            probabilities = probabilities,
+            activeCategories = activeCategories,
+        ),
     )
 }
+
+/**
+ * The S7.1 L1–L6 relative-confidence statement of one queue row, or null when the policy
+ * withholds the label.
+ *
+ * Being in [ReviewQueueGroup.SUGGESTION] already means a fresh [PredictionSource.MODEL]
+ * decision with no duplicate family, no proposed link, and no unresolved bank data; the
+ * checks here restate the conditions at the point the numbers are read, so a malformed or
+ * later-changed row cannot acquire a label it did not earn. No threshold is invented: the
+ * statement reports the top share, the no-fit share, and the sharpness of one distribution,
+ * and the surface states the evaluated scope beside it.
+ */
+private fun ReviewQueueRow.relativeConfidence(
+    group: ReviewQueueGroup,
+    draft: PendingBankDraftEntity,
+    candidateIds: List<Long>,
+    probabilities: List<Double>,
+    activeCategories: Map<Long, CategoryEntity>,
+): RelativeConfidence? {
+    if (group != ReviewQueueGroup.SUGGESTION) return null
+    if (queueDecisionSource != PredictionSource.MODEL.name) return null
+    if (queueStaleReason != null || draft.reviewCategoryResolved) return null
+    if (draft.amountState == IntakeFieldState.UNRESOLVED ||
+        draft.momentState == IntakeFieldState.UNRESOLVED
+    ) {
+        return null
+    }
+    if (draft.parseStatus != IntakeParseStatus.PARSED) return null
+    val suggested = queueSuggestedCategoryId ?: return null
+    if (activeCategories[suggested] == null) return null
+    if (candidateIds.isEmpty() || candidateIds.size != probabilities.size) return null
+    val topIndex = candidateIds.indexOf(suggested)
+    if (topIndex < 0) return null
+    val unknown = queueUnknownShare ?: return null
+    val sharpness = queueConfidence ?: return null
+    return RelativeConfidence(
+        topCategoryId = suggested,
+        topShare = probabilities[topIndex],
+        unknownShare = unknown,
+        sharpness = sharpness,
+        evaluatedCount = candidateIds.size,
+        activeCategoryCount = activeCategories.size,
+    )
+}
+
+/**
+ * The stored job read back as the review surface's own status.
+ *
+ * A status reason that this build does not name is reported as no reason rather than as an
+ * invented one; the state itself is still the stored state.
+ */
+private fun ClassificationWorkEntity.toWorkStatus(): ClassificationWorkStatus =
+    ClassificationWorkStatus(
+        draftId = draftId,
+        state = when (state) {
+            CLASSIFICATION_WORK_PENDING -> ClassificationWorkState.QUEUED
+            CLASSIFICATION_WORK_RUNNING -> ClassificationWorkState.RUNNING
+            CLASSIFICATION_WORK_RESULT -> ClassificationWorkState.RESULT
+            CLASSIFICATION_WORK_CANCELLED -> ClassificationWorkState.CANCELLED
+            CLASSIFICATION_WORK_FAILED -> ClassificationWorkState.FAILED
+            else -> error("A classification job has no state $state.")
+        },
+        reason = statusReason?.let { code ->
+            ClassificationWorkStatusReason.entries.firstOrNull { it.name == code }
+        },
+        updatedAtEpochMillis = updatedAtEpochMillis,
+    )
 
 /**
  * Turns the rows a read fetched into one bounded page.

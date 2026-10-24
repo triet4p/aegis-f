@@ -341,13 +341,89 @@ data class ReviewQueueQuery(
 )
 
 /**
+ * The lifecycle state of one draft's durable classification work, as the review surface sees
+ * it.
+ *
+ * [QUEUED] and [RUNNING] are the truthful "waiting" and "busy" states of the stored job;
+ * [RESULT] means a prediction was stored, [CANCELLED] means nothing further is asked until a
+ * relevant change or an explicit retry, and [FAILED] records a check that ended without a
+ * prediction. The state is a fact about the app's own work, never a claim about a category.
+ */
+enum class ClassificationWorkState {
+    QUEUED,
+    RUNNING,
+    RESULT,
+    CANCELLED,
+    FAILED,
+}
+
+/**
+ * The privacy-safe reason a classification job ended as it did.
+ *
+ * A reason says which rule ended the job and never what the draft or the model said. It is
+ * the stored code read back as a named value, so a surface can explain a cancelled or failed
+ * job without displaying an internal string.
+ */
+enum class ClassificationWorkStatusReason {
+    DESCRIPTION_MISSING,
+    DRAFT_RESOLVED,
+    DRAFT_REVIEWED,
+    DRAFT_MISSING,
+    DENIED,
+    SUPERSEDED,
+    CONTEXT_CHANGED,
+    MODEL_OR_INFERENCE_FAILED,
+    NOT_RECORDED,
+    USER_CANCELLED,
+}
+
+/**
+ * The stored classification work of one draft: its lifecycle state, why it ended, and when
+ * that state was last written.
+ *
+ * This is the durable job's own truth, so review can show that a suggestion is queued, being
+ * checked, failed, or cancelled instead of only showing that no prediction exists. It carries
+ * no draft text and no model output.
+ */
+data class ClassificationWorkStatus(
+    val draftId: Long,
+    val state: ClassificationWorkState,
+    /** Why the job is cancelled or failed, or null while it waits, runs, or has a result. */
+    val reason: ClassificationWorkStatusReason?,
+    val updatedAtEpochMillis: Long,
+)
+
+/**
+ * The measured relative-confidence statement of one fresh model suggestion.
+ *
+ * Every number is read from the same stored distribution: the top category's own share, the
+ * no-fit share, and the one sharpness value. [evaluatedCount] is how many categories were
+ * evaluated (the unknown slot is separate) and [activeCategoryCount] is the active catalog at
+ * read time, so a surface can state the scope instead of implying a full-catalog or accuracy
+ * claim. It exists only under the S7.1 L1–L6 policy; a stale, unresolved, conflicting, direct,
+ * unknown, or user-resolved draft never carries one.
+ */
+data class RelativeConfidence(
+    val topCategoryId: Long,
+    val topShare: Double,
+    val unknownShare: Double,
+    val sharpness: Double,
+    val evaluatedCount: Int,
+    val activeCategoryCount: Int,
+)
+
+/**
  * One pending draft in the review queue, with the group that placed it there.
  *
  * The entry carries the stored facts the ordering used, so the surface can show the group and
  * the reason instead of only a position: [conflicts] names the unresolved-link/data reasons,
  * [subkind] names the not-comparable reason, and [confidence] with [candidateIds] states the
- * measured scope of a fresh prediction. Nothing here is a new score: every value is the one
- * the app already stored, and no field can confirm, dismiss, or file anything by itself.
+ * measured scope of a fresh prediction. The evaluated shares, no-fit share, prediction time,
+ * model revision, candidate-set version, and linked readings are the stored provenance the
+ * surface shows with the suggestion; [relativeConfidence] is present only when the frozen
+ * policy lets a dominant category be called relatively confident, and it always carries its
+ * scope. Nothing here is a new score: every value is the one the app already stored, and no
+ * field can confirm, dismiss, or file anything by itself.
  */
 data class ReviewQueueEntry(
     val draft: PendingBankDraftEntity,
@@ -366,6 +442,24 @@ data class ReviewQueueEntry(
     val confidence: Double?,
     /** The evaluated category ids of the stored prediction, empty when none was evaluated. */
     val candidateIds: List<Long>,
+    /** The category the stored decision pointed at, or null when it pointed at none. */
+    val suggestedCategoryId: Long? = null,
+    /** The evaluated shares, in the same order as [candidateIds]. */
+    val probabilities: List<Double> = emptyList(),
+    /** The calibrated no-fit share of the same distribution, or null when none was produced. */
+    val unknownShare: Double? = null,
+    /** When the stored prediction was recorded, or null when none is stored. */
+    val predictionTimeEpochMillis: Long? = null,
+    /** The model revision that produced the stored prediction, or null. */
+    val modelRevision: String? = null,
+    /** The candidate-set construction that produced the stored prediction, or null. */
+    val candidateSetVersion: String? = null,
+    /** The stored linked readings the prediction's input was composed from. */
+    val eventIds: List<Long> = emptyList(),
+    /** The active category count at read time, stated with a suggestion's scope. */
+    val activeCategoryCount: Int = 0,
+    /** The policy-gated relative statement, or null when no label is allowed. */
+    val relativeConfidence: RelativeConfidence? = null,
 )
 
 /**

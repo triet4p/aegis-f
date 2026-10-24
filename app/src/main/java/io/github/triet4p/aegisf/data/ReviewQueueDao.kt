@@ -37,6 +37,20 @@ data class ReviewQueueRow(
     val queueStaleReason: String?,
     /** The evaluated category ids of the stored prediction, or null when there are none. */
     val queueCandidateIds: String?,
+    /** The category the stored decision pointed at, or null when it pointed at none. */
+    val queueSuggestedCategoryId: Long?,
+    /** The evaluated shares in evaluated order, or null when no distribution was produced. */
+    val queueProbabilities: String?,
+    /** The no-fit share of the same distribution, or null when none was produced. */
+    val queueUnknownShare: Double?,
+    /** When the stored prediction was recorded, or null when none is stored. */
+    val queuePredictionTime: Long?,
+    /** The model revision that produced the stored prediction, or null. */
+    val queueModelRevision: String?,
+    /** The candidate-set construction that produced the stored prediction, or null. */
+    val queueCandidateSetVersion: String?,
+    /** The stored linked readings the prediction was composed from, or null. */
+    val queueEventIds: String?,
 )
 
 /**
@@ -76,6 +90,19 @@ abstract class ReviewQueueDao {
         offset: Int,
     ): List<ReviewQueueRow>
 
+    /**
+     * One pending draft's queue facts by stable id.
+     *
+     * It reads the same computed row the page reads, so the detail surface states exactly the
+     * group, reason, options, and policy-gated label the inbox would, without assembling a
+     * second ordering rule.
+     */
+    @Query(REVIEW_QUEUE_ENTRY_SQL)
+    abstract suspend fun findOrderRow(
+        draftId: Long,
+        excludingDraftId: Long? = null,
+    ): ReviewQueueRow?
+
     /** The stored drafts named by one queue page, in any order. */
     @Query("SELECT * FROM pending_bank_drafts WHERE id IN (:draftIds)")
     abstract suspend fun findDrafts(draftIds: List<Long>): List<PendingBankDraftEntity>
@@ -97,6 +124,13 @@ private const val REVIEW_QUEUE_FACTS_SQL =
         "s.decisionSource AS queueDecisionSource, " +
         "s.staleReason AS queueStaleReason, " +
         "s.candidateIds AS queueCandidateIds, " +
+        "s.suggestedCategoryId AS queueSuggestedCategoryId, " +
+        "s.probabilities AS queueProbabilities, " +
+        "s.unknownShare AS queueUnknownShare, " +
+        "s.predictionTime AS queuePredictionTime, " +
+        "s.modelRevision AS queueModelRevision, " +
+        "s.candidateSetVersion AS queueCandidateSetVersion, " +
+        "s.eventIds AS queueEventIds, " +
         "s.confidence AS queueConfidence, " +
         "CASE WHEN s.draftId IS NOT NULL " +
         "AND s.decisionSource = 'MODEL' " +
@@ -164,6 +198,13 @@ private const val REVIEW_QUEUE_ORDERED_SQL =
         "f.queueDecisionSource AS queueDecisionSource, " +
         "f.queueStaleReason AS queueStaleReason, " +
         "f.queueCandidateIds AS queueCandidateIds, " +
+        "f.queueSuggestedCategoryId AS queueSuggestedCategoryId, " +
+        "f.queueProbabilities AS queueProbabilities, " +
+        "f.queueUnknownShare AS queueUnknownShare, " +
+        "f.queuePredictionTime AS queuePredictionTime, " +
+        "f.queueModelRevision AS queueModelRevision, " +
+        "f.queueCandidateSetVersion AS queueCandidateSetVersion, " +
+        "f.queueEventIds AS queueEventIds, " +
         "f.queueCreatedAt AS queueCreatedAt " +
         "FROM (" + REVIEW_QUEUE_FACTS_SQL + ") f"
 
@@ -175,9 +216,8 @@ private const val REVIEW_QUEUE_ORDERED_SQL =
  * the policy keeps always available. The last two terms are unconditional, so both orders are
  * total and a page boundary never splits a tie.
  */
-private const val REVIEW_QUEUE_PAGE_SQL =
-    "SELECT " +
-        "q.draftId AS draftId, " +
+private const val REVIEW_QUEUE_SELECT_COLUMNS =
+    "q.draftId AS draftId, " +
         "q.queueRank AS queueRank, " +
         "q.queueSubkind AS queueSubkind, " +
         "q.queueComparableGroup AS queueComparableGroup, " +
@@ -186,7 +226,23 @@ private const val REVIEW_QUEUE_PAGE_SQL =
         "q.queueProposedLink AS queueProposedLink, " +
         "q.queueDecisionSource AS queueDecisionSource, " +
         "q.queueStaleReason AS queueStaleReason, " +
-        "q.queueCandidateIds AS queueCandidateIds " +
+        "q.queueCandidateIds AS queueCandidateIds, " +
+        "q.queueSuggestedCategoryId AS queueSuggestedCategoryId, " +
+        "q.queueProbabilities AS queueProbabilities, " +
+        "q.queueUnknownShare AS queueUnknownShare, " +
+        "q.queuePredictionTime AS queuePredictionTime, " +
+        "q.queueModelRevision AS queueModelRevision, " +
+        "q.queueCandidateSetVersion AS queueCandidateSetVersion, " +
+        "q.queueEventIds AS queueEventIds"
+
+/** One pending draft's computed queue row, read by its stable id. */
+private const val REVIEW_QUEUE_ENTRY_SQL =
+    "SELECT " + REVIEW_QUEUE_SELECT_COLUMNS + " " +
+        "FROM (" + REVIEW_QUEUE_ORDERED_SQL + ") q " +
+        "WHERE q.draftId = :draftId"
+
+private const val REVIEW_QUEUE_PAGE_SQL =
+    "SELECT " + REVIEW_QUEUE_SELECT_COLUMNS + " " +
         "FROM (" + REVIEW_QUEUE_ORDERED_SQL + ") q " +
         "ORDER BY " +
         "CASE WHEN :chronological = 0 THEN q.queueRank END ASC, " +

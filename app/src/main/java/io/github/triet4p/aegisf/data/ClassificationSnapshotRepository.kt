@@ -518,7 +518,7 @@ internal fun String.toIdList(): List<Long> =
     if (isEmpty()) emptyList() else split(",").map { it.toLong() }
 
 /** The comma-separated shares of a stored list. */
-private fun String.toDoubleList(): List<Double> =
+internal fun String.toDoubleList(): List<Double> =
     if (isEmpty()) emptyList() else split(",").map { it.toDouble() }
 
 /**
