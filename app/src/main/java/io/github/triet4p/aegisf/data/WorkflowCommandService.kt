@@ -1740,9 +1740,20 @@ class WorkflowCommandService(
             )
         }
         when (val result = reviewDao.saveReview(request.draftId, request.expectedRevision, request.edits)) {
-            is BankDraftReviewResult.Saved -> WorkflowCommandOutcome.Applied(
-                WorkflowChange.DraftReviewSaved(request.draftId, result.revision),
-            )
+            is BankDraftReviewResult.Saved -> {
+                // The stored prediction is invalidated by the same transaction that stored
+                // the review: the user's own category choice is the first reason, and a
+                // changed working description is the context reason. An amount or moment
+                // correction changes no model input and leaves the prediction alone.
+                if (request.edits.categoryResolved) {
+                    snapshots.markUserCategoryChosen(request.draftId)
+                } else if (draft.classificationDescription() != request.edits.memoText) {
+                    snapshots.markDescriptionChanged(request.draftId)
+                }
+                WorkflowCommandOutcome.Applied(
+                    WorkflowChange.DraftReviewSaved(request.draftId, result.revision),
+                )
+            }
             BankDraftReviewResult.AlreadyReviewed -> {
                 // The draft became terminal under this request: the answer names the state
                 // it is really in, not the state the request asked for.
@@ -2015,6 +2026,7 @@ class WorkflowCommandService(
             )
         }
         val categoryId = ledger.addCategory(name)
+        snapshots.markCategoryCatalogChanged()
         WorkflowCommandOutcome.Applied(WorkflowChange.CategoryAdded(categoryId, name))
     }
 
@@ -2052,6 +2064,7 @@ class WorkflowCommandService(
             )
         }
         ledger.renameCategory(category.id, name)
+        snapshots.markCategoryCatalogChanged()
         WorkflowCommandOutcome.Applied(WorkflowChange.CategoryRenamed(category.id, name))
     }
 
@@ -2082,6 +2095,7 @@ class WorkflowCommandService(
             )
         }
         ledger.archiveCategory(category.id)
+        snapshots.markCategoryCatalogChanged()
         WorkflowCommandOutcome.Applied(WorkflowChange.CategoryArchived(category.id))
     }
 
@@ -2107,6 +2121,7 @@ class WorkflowCommandService(
         val category = categoryDao.findById(request.categoryId)
             ?: return@runCommand WorkflowCommandOutcome.NotFound
         val impact = ledger.deleteCategory(category.id)
+        snapshots.markCategoryCatalogChanged()
         WorkflowCommandOutcome.Applied(
             WorkflowChange.CategoryDeleted(category.id, impact),
         )
@@ -2150,6 +2165,7 @@ class WorkflowCommandService(
         val remembered = ledger.rememberCategoryForDescription(request.description, category.id)
         val change = WorkflowChange.CategoryRuleRemembered(patternKey, category.id)
         if (remembered) {
+            snapshots.markRememberedRulesChanged()
             WorkflowCommandOutcome.Applied(change)
         } else {
             WorkflowCommandOutcome.NoChange(
@@ -2182,6 +2198,7 @@ class WorkflowCommandService(
             )
         val removed = ledger.removeRememberedCategoryRule(request.description)
         if (removed) {
+            snapshots.markRememberedRulesChanged()
             WorkflowCommandOutcome.Applied(WorkflowChange.CategoryRuleRemoved(patternKey))
         } else {
             WorkflowCommandOutcome.NoChange(

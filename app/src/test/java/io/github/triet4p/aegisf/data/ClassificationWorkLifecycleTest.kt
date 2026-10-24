@@ -57,12 +57,24 @@ class ClassificationWorkLifecycleTest {
         private val asked = AtomicInteger(0)
         private val active = AtomicInteger(0)
         private val peak = AtomicInteger(0)
-        private val entered = CountDownLatch(1)
-        private val release = CountDownLatch(1)
         private val texts = Collections.synchronizedList(mutableListOf<String>())
+        private val gateLock = Object()
+        private var gatedCall = 0
+        private var entered = CountDownLatch(0)
+        private var release = CountDownLatch(0)
 
-        @Volatile
-        var gateFirstCall: Boolean = false
+        /**
+         * Holds one chosen call so the test can change stored state while that question is
+         * in flight. Every call before it runs and returns, so a test can let one answer be
+         * stored first and hold the next one.
+         */
+        fun gateCall(number: Int) {
+            synchronized(gateLock) {
+                gatedCall = number
+                entered = CountDownLatch(1)
+                release = CountDownLatch(1)
+            }
+        }
 
         @Volatile
         var unavailable: LayaRuntimeContract.State? = null
@@ -80,11 +92,11 @@ class ClassificationWorkLifecycleTest {
         /** The description of each question, in the order the model was asked. */
         val questions: List<String> get() = synchronized(texts) { texts.toList() }
 
-        fun awaitFirstCallEntered() {
-            assertTrue("the model was never asked", entered.await(5, TimeUnit.SECONDS))
+        fun awaitGateEntered() {
+            assertTrue("the model never reached the gated call", entered.await(5, TimeUnit.SECONDS))
         }
 
-        fun releaseFirstCall() {
+        fun releaseGate() {
             release.countDown()
         }
 
@@ -94,19 +106,38 @@ class ClassificationWorkLifecycleTest {
         ): ClassificationEngineResult {
             val call = asked.incrementAndGet()
             texts += context.primaryText
+            val held = synchronized(gateLock) {
+                if (call == gatedCall) entered to release else null
+            }
             val now = active.incrementAndGet()
             peak.updateAndGet { previous -> maxOf(previous, now) }
             try {
-                if (gateFirstCall && call == 1) {
-                    entered.countDown()
-                    release.await(10, TimeUnit.SECONDS)
+                if (held != null) {
+                    held.first.countDown()
+                    held.second.await(10, TimeUnit.SECONDS)
                 }
                 if (supersedeFirstCall && call == 1) {
                     return ClassificationEngineResult.Superseded
                 }
                 unavailable?.let { return ClassificationEngineResult.Unavailable(it) }
                 val category = categories.firstOrNull { it.id == categoryId }
-                    ?: categories.first()
+                    ?: categories.firstOrNull()
+                    ?: return ClassificationEngineResult.Decided(
+                        LayaContextDecision(
+                            decision = LayaCandidatePlanner.Decision.Unknown(
+                                LayaCandidatePlanner.ManualReason.NO_ACTIVE_CATEGORIES,
+                            ),
+                            effectiveInput = LayaEffectiveInput(
+                                text = context.primaryText,
+                                digest = "digest-of-${context.primaryText}",
+                                includedReadings = context.eventReadings,
+                                droppedReadings = emptyList(),
+                                tokenCount = 4,
+                                roomTokens = 128,
+                            ),
+                            evaluation = null,
+                        ),
+                    )
                 return ClassificationEngineResult.Decided(
                     LayaContextDecision(
                         decision = LayaCandidatePlanner.Decision.Category(
@@ -168,7 +199,7 @@ class ClassificationWorkLifecycleTest {
 
     @After
     fun tearDown() {
-        engine.releaseFirstCall()
+        engine.releaseGate()
         queue.close()
         queueHolder = null
         runBlocking { delay(50L) }
@@ -189,16 +220,16 @@ class ClassificationWorkLifecycleTest {
     fun `rapid edits keep the newest question and ask the model once per revision`() =
         runBlocking<Unit> {
             val draftId = storeDraft("coffee one", "coalesce-1")
-            engine.gateFirstCall = true
+            engine.gateCall(1)
             queue.admit(draftId)
-            engine.awaitFirstCallEntered()
+            engine.awaitGateEntered()
 
             // Two accepted edits while the first question is being answered. The user's
             // newest wording is the only one that may reach the model after this.
             assertTrue(saveMemo(draftId, 0, "coffee two", "coalesce-2") is WorkflowCommandOutcome.Applied)
             assertTrue(saveMemo(draftId, 1, "coffee three", "coalesce-3") is WorkflowCommandOutcome.Applied)
 
-            engine.releaseFirstCall()
+            engine.releaseGate()
             awaitSnapshot(draftId)
             val job = awaitWork(draftId) { it.state == CLASSIFICATION_WORK_RESULT }
 
@@ -327,9 +358,9 @@ class ClassificationWorkLifecycleTest {
         runBlocking<Unit> {
             val busy = storeDraft("busy memo", "cancel-1")
             val resolved = storeDraft("resolved memo", "cancel-2")
-            engine.gateFirstCall = true
+            engine.gateCall(1)
             queue.admit(busy)
-            engine.awaitFirstCallEntered()
+            engine.awaitGateEntered()
             queue.admit(resolved)
 
             val saved = commands.saveDraftReview(
@@ -350,7 +381,7 @@ class ClassificationWorkLifecycleTest {
             assertEquals(CLASSIFICATION_WORK_CANCELLED, cancelled?.state)
             assertEquals(ClassificationWorkReason.DRAFT_RESOLVED, cancelled?.statusReason)
 
-            engine.releaseFirstCall()
+            engine.releaseGate()
             awaitSnapshot(busy)
             delay(200L)
             assertEquals("only the busy draft reached the model", listOf("busy memo"), engine.questions)
@@ -365,9 +396,9 @@ class ClassificationWorkLifecycleTest {
     fun `a burst keeps one durable job per draft and classifies one at a time`() =
         runBlocking<Unit> {
             val drafts = (1..8).map { index -> storeDraft("burst $index", "burst-$index") }
-            engine.gateFirstCall = true
+            engine.gateCall(1)
             for (draftId in drafts) queue.admit(draftId)
-            engine.awaitFirstCallEntered()
+            engine.awaitGateEntered()
 
             // Every admitted draft has its own job while one question is in flight: the
             // waiting work is durable, not an in-memory channel that a burst can fill.
@@ -375,7 +406,7 @@ class ClassificationWorkLifecycleTest {
             assertEquals(1L, database.classificationWorkDao().countInState(CLASSIFICATION_WORK_RUNNING))
             assertEquals(8, database.pendingBankDraftDao().findAll().size)
 
-            engine.releaseFirstCall()
+            engine.releaseGate()
             for (draftId in drafts) awaitSnapshot(draftId)
             assertEquals(8, engine.calls)
             assertEquals("one inference at a time", 1, engine.peakOverlap)
@@ -394,6 +425,311 @@ class ClassificationWorkLifecycleTest {
         assertEquals("the superseded question was asked again", 2, engine.calls)
         assertEquals(2, job.attemptCount)
         assertNull(job.statusReason)
+    }
+
+    // --- A delayed result never lands on a moved-on draft -------------------
+
+    @Test
+    fun `a delayed result cannot overwrite the user's own category choice`() = runBlocking<Unit> {
+        val draftId = storeDraft("correction memo", "correction-1")
+        queue.admit(draftId)
+        awaitSnapshot(draftId)
+        awaitWork(draftId) { it.state == CLASSIFICATION_WORK_RESULT }
+        val first = snapshotOf(draftId)!!
+
+        // A new wording re-arms the job; its question is held while the user resolves the
+        // draft through the same command boundary.
+        engine.gateCall(2)
+        assertTrue(saveMemo(draftId, 0, "correction memo two", "correction-2") is WorkflowCommandOutcome.Applied)
+        engine.awaitGateEntered()
+        val resolved = commands.saveDraftReview(
+            WorkflowCallerScope.User,
+            SaveDraftReviewRequest(
+                idempotencyKey = "correction-resolve",
+                draftId = draftId,
+                expectedRevision = 1,
+                edits = reviewEdits(
+                    memoText = "correction memo two",
+                    categoryId = foodCategoryId,
+                    categoryResolved = true,
+                ),
+            ),
+        )
+        assertTrue("the user's choice was refused: $resolved", resolved is WorkflowCommandOutcome.Applied)
+
+        engine.releaseGate()
+        awaitWork(draftId) { it.state == CLASSIFICATION_WORK_CANCELLED }
+
+        // The stored prediction is still the first one, marked stale; the delayed answer
+        // never replaced its values and never touched the user's choice.
+        val stored = snapshotOf(draftId)!!
+        assertEquals(first.suggestedCategoryId, stored.suggestedCategoryId)
+        assertEquals(first.predictionTime, stored.predictionTime)
+        assertNotNull("the moved-on prediction is not left looking fresh", stored.staleReason)
+        val reviewed = database.pendingBankDraftDao().findById(draftId)!!
+        assertEquals(foodCategoryId, reviewed.reviewCategoryId)
+        assertTrue(reviewed.reviewCategoryResolved)
+        assertEquals(0, database.transactionDao().findAll().size)
+    }
+
+    @Test
+    fun `a delayed result cannot survive a source unlink`() = runBlocking<Unit> {
+        val noteText = "Fuel 50,000 at 15:00"
+        val captureId = CaptureMessageRepository(
+            database = database,
+            clock = SystemLedgerClock,
+            timezoneId = { "Asia/Ho_Chi_Minh" },
+        ).saveQuickCapture(noteText)
+        val eventId = (
+            EventContextRepository(database, SystemLedgerClock).recordEvent(
+                captureId = captureId,
+                expectedCaptureRevision = 0,
+                interpretation = NoteEventInterpretation(
+                    spanStart = 0,
+                    spanEnd = noteText.length,
+                    normalizedText = noteText,
+                    amountVnd = 50_000L,
+                    merchant = "Petrol",
+                ),
+                extractionVersion = "extract-v1",
+            ) as NoteEventWriteResult.Stored
+            ).eventId
+        val draftId = storeDraft("unlink memo", "unlink-race")
+        assertTrue(
+            commands.proposeLink(
+                WorkflowCallerScope.User,
+                ProposeLinkRequest(
+                    idempotencyKey = "unlink-race-propose",
+                    eventId = eventId,
+                    draftId = draftId,
+                ),
+            ) is WorkflowCommandOutcome.Applied,
+        )
+        val proposed = database.contextLinkDao().findByPair(eventId, draftId)!!
+        assertTrue(
+            commands.attachLink(
+                WorkflowCallerScope.User,
+                AttachLinkRequest(
+                    idempotencyKey = "unlink-race-attach",
+                    eventId = eventId,
+                    draftId = draftId,
+                    expectedRevision = proposed.revision,
+                ),
+            ) is WorkflowCommandOutcome.Applied,
+        )
+        val attached = database.contextLinkDao().findByPair(eventId, draftId)!!
+
+        engine.gateCall(1)
+        queue.admit(draftId)
+        engine.awaitGateEntered()
+        val unlinked = commands.unlinkLink(
+            WorkflowCallerScope.User,
+            UnlinkLinkRequest(
+                idempotencyKey = "unlink-race-unlink",
+                eventId = eventId,
+                draftId = draftId,
+                expectedRevision = attached.revision,
+            ),
+        )
+        assertTrue("the unlink was refused: $unlinked", unlinked is WorkflowCommandOutcome.Applied)
+        engine.releaseGate()
+
+        val job = awaitWork(draftId) { it.state == CLASSIFICATION_WORK_RESULT }
+        assertNull(job.statusReason)
+        assertEquals("the stale answer was asked again", 2, engine.calls)
+        val stored = snapshotOf(draftId)!!
+        val postUnlink = ClassificationSnapshotRepository(database)
+            .effectiveContextFor(draftId, "unlink memo")!!
+        assertEquals(postUnlink.dependencies.contextRevision, stored.contextRevision)
+        assertEquals("the unlinked reading is not part of the stored answer", "", stored.eventIds)
+        assertNull(
+            ClassificationSnapshotRepository(database).snapshotFor(draftId)!!.staleReason,
+        )
+        assertEquals(0, database.transactionDao().findAll().size)
+    }
+
+    @Test
+    fun `a delayed result cannot survive an interpretation text edit`() = runBlocking<Unit> {
+        val noteText = "Fuel 50,000 at 15:00"
+        val captureId = CaptureMessageRepository(
+            database = database,
+            clock = SystemLedgerClock,
+            timezoneId = { "Asia/Ho_Chi_Minh" },
+        ).saveQuickCapture(noteText)
+        val eventId = (
+            EventContextRepository(database, SystemLedgerClock).recordEvent(
+                captureId = captureId,
+                expectedCaptureRevision = 0,
+                interpretation = NoteEventInterpretation(
+                    spanStart = 0,
+                    spanEnd = noteText.length,
+                    normalizedText = noteText,
+                    amountVnd = 50_000L,
+                    merchant = "Petrol",
+                ),
+                extractionVersion = "extract-v1",
+            ) as NoteEventWriteResult.Stored
+            ).eventId
+        val draftId = storeDraft("reading memo", "reading-race")
+        assertTrue(
+            commands.proposeLink(
+                WorkflowCallerScope.User,
+                ProposeLinkRequest(
+                    idempotencyKey = "reading-race-propose",
+                    eventId = eventId,
+                    draftId = draftId,
+                ),
+            ) is WorkflowCommandOutcome.Applied,
+        )
+
+        engine.gateCall(1)
+        queue.admit(draftId)
+        engine.awaitGateEntered()
+        // Only the interpretation text changes: the provenance card's reading is what the
+        // stored snapshots must follow.
+        val revised = commands.updateEventInterpretation(
+            WorkflowCallerScope.User,
+            UpdateEventRequest(
+                idempotencyKey = "reading-race-revise",
+                captureId = captureId,
+                expectedCaptureRevision = 0,
+                interpretation = NoteEventInterpretation(
+                    spanStart = 0,
+                    spanEnd = noteText.length,
+                    normalizedText = "Fuel 55,000 at 15:05",
+                    amountVnd = 55_000L,
+                    merchant = "Petrol",
+                ),
+                extractionVersion = "extract-v1",
+            ),
+        )
+        assertTrue("the interpretation edit was refused: $revised", revised is WorkflowCommandOutcome.Applied)
+        engine.releaseGate()
+
+        val job = awaitWork(draftId) { it.state == CLASSIFICATION_WORK_RESULT }
+        assertNull(job.statusReason)
+        assertEquals("the stale answer was asked again", 2, engine.calls)
+        val stored = snapshotOf(draftId)!!
+        val postEdit = ClassificationSnapshotRepository(database)
+            .effectiveContextFor(draftId, "reading memo")!!
+        assertEquals(postEdit.dependencies.contextRevision, stored.contextRevision)
+        assertEquals(listOf(eventId), stored.eventIds.toIdList())
+        assertNull(
+            ClassificationSnapshotRepository(database).snapshotFor(draftId)!!.staleReason,
+        )
+    }
+
+    @Test
+    fun `a delayed result cannot store the category it was archived against`() = runBlocking<Unit> {
+        val transportId = database.categoryDao().insert(
+            CategoryEntity(
+                name = "Transport",
+                createdAtEpochMillis = POSTED_AT,
+                updatedAtEpochMillis = POSTED_AT,
+            ),
+        )
+        val draftId = storeDraft("category memo", "archive-race")
+        engine.categoryId = foodCategoryId
+        engine.gateCall(1)
+        queue.admit(draftId)
+        engine.awaitGateEntered()
+
+        val archived = commands.archiveCategory(
+            WorkflowCallerScope.User,
+            ArchiveCategoryRequest(
+                idempotencyKey = "archive-race-archive",
+                categoryId = foodCategoryId,
+            ),
+        )
+        assertTrue("the archive was refused: $archived", archived is WorkflowCommandOutcome.Applied)
+        engine.releaseGate()
+
+        val job = awaitWork(draftId) { it.state == CLASSIFICATION_WORK_RESULT }
+        assertNull(job.statusReason)
+        assertEquals("the stale answer was asked again", 2, engine.calls)
+        val stored = snapshotOf(draftId)!!
+        assertEquals("only the still-active category may be stored", transportId, stored.suggestedCategoryId)
+        assertEquals(listOf(transportId), stored.candidateIds.toIdList())
+        assertNull(
+            ClassificationSnapshotRepository(database).snapshotFor(draftId)!!.staleReason,
+        )
+        assertTrue(database.transactionDao().findAll().isEmpty())
+    }
+
+    @Test
+    fun `a question restored by an unlink is asked and stored again`() = runBlocking<Unit> {
+        val noteText = "Fuel 50,000 at 15:00"
+        val captureId = CaptureMessageRepository(
+            database = database,
+            clock = SystemLedgerClock,
+            timezoneId = { "Asia/Ho_Chi_Minh" },
+        ).saveQuickCapture(noteText)
+        val eventId = (
+            EventContextRepository(database, SystemLedgerClock).recordEvent(
+                captureId = captureId,
+                expectedCaptureRevision = 0,
+                interpretation = NoteEventInterpretation(
+                    spanStart = 0,
+                    spanEnd = noteText.length,
+                    normalizedText = noteText,
+                    amountVnd = 50_000L,
+                    merchant = "Petrol",
+                ),
+                extractionVersion = "extract-v1",
+            ) as NoteEventWriteResult.Stored
+            ).eventId
+        val draftId = storeDraft("restore memo", "restore-1")
+        queue.admit(draftId)
+        awaitSnapshot(draftId)
+        assertEquals(emptyList<Long>(), snapshotOf(draftId)!!.eventIds.toIdList())
+
+        // The reading joins the context: the question changes and its answer is stored.
+        assertTrue(
+            commands.proposeLink(
+                WorkflowCallerScope.User,
+                ProposeLinkRequest(
+                    idempotencyKey = "restore-propose",
+                    eventId = eventId,
+                    draftId = draftId,
+                ),
+            ) is WorkflowCommandOutcome.Applied,
+        )
+        val proposed = database.contextLinkDao().findByPair(eventId, draftId)!!
+        assertTrue(
+            commands.attachLink(
+                WorkflowCallerScope.User,
+                AttachLinkRequest(
+                    idempotencyKey = "restore-attach",
+                    eventId = eventId,
+                    draftId = draftId,
+                    expectedRevision = proposed.revision,
+                ),
+            ) is WorkflowCommandOutcome.Applied,
+        )
+        awaitSnapshotEventIds(draftId, listOf(eventId))
+
+        // The source is unlinked, so the original question is posed again. It is a new
+        // attempt, not a replay of the answer written before the reading existed.
+        val attached = database.contextLinkDao().findByPair(eventId, draftId)!!
+        assertTrue(
+            commands.unlinkLink(
+                WorkflowCallerScope.User,
+                UnlinkLinkRequest(
+                    idempotencyKey = "restore-unlink",
+                    eventId = eventId,
+                    draftId = draftId,
+                    expectedRevision = attached.revision,
+                ),
+            ) is WorkflowCommandOutcome.Applied,
+        )
+        awaitSnapshotEventIds(draftId, emptyList())
+
+        val restored = snapshotOf(draftId)!!
+        assertNull(restored.staleReason)
+        val effective = ClassificationSnapshotRepository(database)
+            .effectiveContextFor(draftId, "restore memo")!!
+        assertEquals(effective.dependencies.contextRevision, restored.contextRevision)
+        assertEquals(0, database.transactionDao().findAll().size)
     }
 
     // --- Fixtures and observation -----------------------------------------
@@ -489,6 +825,21 @@ class ClassificationWorkLifecycleTest {
             checkNotNull(snapshot)
         }
     }
+
+    private suspend fun awaitSnapshotEventIds(draftId: Long, eventIds: List<Long>) =
+        withContext(Dispatchers.IO) {
+            withTimeout(10_000L) {
+                var snapshot = snapshotOf(draftId)
+                while (snapshot == null ||
+                    snapshot.staleReason != null ||
+                    snapshot.eventIds.toIdList() != eventIds
+                ) {
+                    delay(10L)
+                    snapshot = snapshotOf(draftId)
+                }
+                checkNotNull(snapshot)
+            }
+        }
 
     private suspend fun awaitSnapshotText(draftId: Long, digest: String) =
         withContext(Dispatchers.IO) {

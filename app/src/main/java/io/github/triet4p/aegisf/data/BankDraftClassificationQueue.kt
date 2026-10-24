@@ -391,14 +391,16 @@ class BankDraftClassificationQueue(
             dependencies = effective.dependencies,
         )
         if (work.markExecuting(jobId, token, question) != 1) return false
-        // A fresh key per attempt: an attempt that ended with the process can never be
-        // taken over inside its own lease, because nothing is left to take over. The key
-        // still names the exact question and attempt, so a changed question or a changed
-        // retry is never answered as the interrupted attempt's request.
+        // A fresh key per attempt: the attempt's own token distinguishes it from an
+        // earlier attempt at the same question, even when a link, a wording, or a catalog
+        // change moved the question away and back again. An attempt that ended with the
+        // process is still cleaned up with the token its row carries, so nothing stays
+        // reserved and a reverted question is never answered from an older record.
         val key = classificationRequestKey(
             draftId = draft.id,
             question = question,
             attempt = job.attemptCount,
+            ownerToken = token,
         )
         Log.i(
             TAG,
@@ -602,8 +604,14 @@ class BankDraftClassificationQueue(
             val interrupted = work.findInState(CLASSIFICATION_WORK_RUNNING, RESUME_PAGE)
             for (job in interrupted) {
                 val question = job.executedQuestion ?: continue
+                val ownerToken = job.ownerToken ?: continue
                 commands.abandonInterruptedClassification(
-                    classificationRequestKey(job.draftId, question, job.attemptCount),
+                    classificationRequestKey(
+                        draftId = job.draftId,
+                        question = question,
+                        attempt = job.attemptCount,
+                        ownerToken = ownerToken,
+                    ),
                 )
             }
             val resumed = work.resumeInterrupted(clock.nowEpochMillis())
@@ -684,21 +692,25 @@ class BankDraftClassificationQueue(
 /**
  * The idempotency key of one attempt at one classification question.
  *
- * The key names the question and the attempt, not the answer. A newer question, or a
- * retry after an interrupted attempt, is a different request and gets its own key — so a
- * durable claim left behind by a process that ended is never mistaken for a live attempt,
- * while a second request for the same attempt is still answered from the record.
+ * The key names the question, the attempt, and the attempt's own owner token. The token is
+ * what makes it per attempt rather than per question count: a question that moves away and
+ * back again (a link proposed and then unlinked, for example) is a new attempt with a new
+ * key, so a later answer is never answered from a record an earlier, different state wrote.
+ * An attempt whose process ended still leaves its token on the running row, so the next
+ * process can name and release exactly that claim.
  */
 internal fun classificationRequestKey(
     draftId: Long,
     question: String,
     attempt: Int,
+    ownerToken: String,
 ): String = canonicalDependencyDigest(
     listOf(
         "INTAKE_CLASSIFICATION",
         draftId.toString(),
         question,
         attempt.toString(),
+        ownerToken,
     ),
 )
 

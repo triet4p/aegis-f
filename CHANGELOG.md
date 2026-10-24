@@ -88,6 +88,18 @@ and no release has been tagged or published. Format follows
 
 ### Fixed
 
+- Fixed a stored category suggestion outliving the draft state it was made for. The suggestion
+  is now invalidated by the same accepted action that changes its input: the user's own category
+  choice, a renamed, archived or removed category, a saved or removed remembered rule, a changed
+  wording, or an edited or unlinked note reading. A result that arrives after one of those
+  changes is refused instead of replacing the stored one, a suggestion whose category has
+  since been archived or removed can never read back as current or be offered, and a note
+  excerpt that is unlinked re-asks the question for the remaining context instead of leaving
+  the old suggestion marked stale. Correcting only the amount, date or time no longer discards
+  a suggestion, because none of them changes what the model was asked; the stored
+  probabilities, unknown share and evaluated category ids are kept with the suggestion that
+  produced them.
+
 - Fixed the Manual saved-transaction date filter to compare accepted From/Through values by
   local calendar-day boundaries instead of text, so non-zero-padded dates are ordered
   chronologically and reversed ranges are refused.

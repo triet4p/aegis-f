@@ -158,10 +158,12 @@ class ClassificationSnapshotTest {
             events(database).proposeLink(snackEvent.id, snackDraft)
 
             val repository = snapshots(database)
+            val categoryId = ledger(database).addCategory("Food")
             repository.recordPrediction(
                 draftId = fuelDraft,
                 prediction = modelPrediction(
                     repository.effectiveContextFor(fuelDraft, BANK_MEMO)!!.dependencies,
+                    categoryId,
                 ),
                 expected = repository.effectiveContextFor(fuelDraft, BANK_MEMO)!!.dependencies,
             )
@@ -169,6 +171,7 @@ class ClassificationSnapshotTest {
                 draftId = snackDraft,
                 prediction = modelPrediction(
                     repository.effectiveContextFor(snackDraft, BANK_MEMO)!!.dependencies,
+                    categoryId,
                 ),
                 expected = repository.effectiveContextFor(snackDraft, BANK_MEMO)!!.dependencies,
             )
@@ -292,10 +295,11 @@ class ClassificationSnapshotTest {
         try {
             val draftId = storeDraft(database, "fuel-key", 50_000L)
             val repository = snapshots(database)
+            val categoryId = ledger(database).addCategory("Food")
             val effective = repository.effectiveContextFor(draftId, BANK_MEMO)!!
             repository.recordPrediction(
                 draftId = draftId,
-                prediction = modelPrediction(effective.dependencies),
+                prediction = modelPrediction(effective.dependencies, categoryId),
                 expected = effective.dependencies,
             )
             assertNull(repository.snapshotFor(draftId)!!.staleReason)
@@ -315,10 +319,11 @@ class ClassificationSnapshotTest {
             database.close()
         }
 
-        // A changed rule set.
+        // A changed rule set. The same file is opened again, so the category added above
+        // is still stored: it is read by name instead of being added twice.
         val ruleDatabase = open()
         try {
-            val categoryId = ledger(ruleDatabase).addCategory("Food")
+            val categoryId = checkNotNull(ruleDatabase.categoryDao().findActiveIdByName("Food"))
             val draftId = storeDraft(ruleDatabase, "fuel-key", 50_000L)
             val repository = snapshots(ruleDatabase)
             val effective = repository.effectiveContextFor(draftId, BANK_MEMO)!!
@@ -345,10 +350,11 @@ class ClassificationSnapshotTest {
         try {
             val draftId = storeDraft(modelDatabase, "fuel-key", 50_000L)
             val stored = snapshots(modelDatabase)
+            val categoryId = checkNotNull(modelDatabase.categoryDao().findActiveIdByName("Food"))
             val effective = stored.effectiveContextFor(draftId, BANK_MEMO)!!
             stored.recordPrediction(
                 draftId = draftId,
-                prediction = modelPrediction(effective.dependencies),
+                prediction = modelPrediction(effective.dependencies, categoryId),
                 expected = effective.dependencies,
             )
             val other = snapshots(modelDatabase, modelRevision = "other-model-revision")
@@ -372,10 +378,11 @@ class ClassificationSnapshotTest {
 
             val before = database.pendingBankDraftDao().findById(fuelDraft)!!
             val repository = snapshots(database)
+            val categoryId = ledger(database).addCategory("Food")
             val effective = repository.effectiveContextFor(fuelDraft, BANK_MEMO)!!
             repository.recordPrediction(
                 draftId = fuelDraft,
-                prediction = modelPrediction(effective.dependencies),
+                prediction = modelPrediction(effective.dependencies, categoryId),
                 expected = effective.dependencies,
             )
             events(database).recordEvent(
@@ -412,10 +419,11 @@ class ClassificationSnapshotTest {
         val fuelEvent = storeEvent(database, captureId, "Fuel 50,000 at 15:00", "Fuel")
         events(database).proposeLink(fuelEvent.id, draftId)
         val repository = snapshots(database)
+        val categoryId = ledger(database).addCategory("Food")
         val effective = repository.effectiveContextFor(draftId, BANK_MEMO)!!
         repository.recordPrediction(
             draftId = draftId,
-            prediction = modelPrediction(effective.dependencies),
+            prediction = modelPrediction(effective.dependencies, categoryId),
             expected = effective.dependencies,
         )
         events(database).recordEvent(
@@ -441,6 +449,119 @@ class ClassificationSnapshotTest {
             assertNotNull(snapshots(reopened).storedSnapshot(draftId))
         } finally {
             reopened.close()
+        }
+    }
+
+    @Test
+    fun `a refused late result marks the stored prediction with the reason it stopped applying`() =
+        runTest {
+            val database = open()
+            try {
+                val draftId = storeDraft(database, "fuel-key", 50_000L)
+                val repository = snapshots(database)
+                val categoryId = ledger(database).addCategory("Food")
+                val effective = repository.effectiveContextFor(draftId, BANK_MEMO)!!
+                assertTrue(
+                    repository.recordPrediction(
+                        draftId = draftId,
+                        prediction = modelPrediction(effective.dependencies, categoryId),
+                        expected = effective.dependencies,
+                    ) is SnapshotWriteResult.Stored,
+                )
+
+                // The catalog moves on while a result is on its way. The late result is
+                // refused, and the prediction already stored is marked in the same
+                // transaction: a later raw read cannot mistake it for a fresh answer.
+                ledger(database).addCategory("Transport")
+                val late = repository.recordPrediction(
+                    draftId = draftId,
+                    prediction = modelPrediction(effective.dependencies, categoryId),
+                    expected = effective.dependencies,
+                )
+                assertEquals(SnapshotWriteResult.Stale, late)
+                assertEquals(
+                    PredictionStaleReason.CATEGORY_CHANGED.name,
+                    repository.storedSnapshot(draftId)!!.staleReason,
+                )
+            } finally {
+                database.close()
+            }
+        }
+
+    @Test
+    fun `a suggestion that names a category the review cannot offer is never stored`() = runTest {
+        val database = open()
+        try {
+            val draftId = storeDraft(database, "fuel-key", 50_000L)
+            val repository = snapshots(database)
+            val categoryId = ledger(database).addCategory("Food")
+            ledger(database).archiveCategory(categoryId)
+
+            // The dependencies are read after the archive, so they describe the catalog the
+            // answer would be checked against. Only the named category itself is invalid.
+            val archived = repository.effectiveContextFor(draftId, BANK_MEMO)!!
+            assertEquals(
+                SnapshotWriteResult.Stale,
+                repository.recordPrediction(
+                    draftId = draftId,
+                    prediction = modelPrediction(archived.dependencies, categoryId),
+                    expected = archived.dependencies,
+                ),
+            )
+            assertEquals(
+                SnapshotWriteResult.Stale,
+                repository.recordPrediction(
+                    draftId = draftId,
+                    prediction = modelPrediction(archived.dependencies, 9_999L),
+                    expected = archived.dependencies,
+                ),
+            )
+            assertNull("neither answer may be stored", repository.snapshotFor(draftId))
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun `a stored suggestion whose category is gone never reads back as current`() = runTest {
+        val database = open()
+        try {
+            val draftId = storeDraft(database, "fuel-key", 50_000L)
+            ledger(database).addCategory("Food")
+            val repository = snapshots(database)
+            val effective = repository.effectiveContextFor(draftId, BANK_MEMO)!!
+            // A row whose stored digests match the live state, but whose suggested id no
+            // longer names a category: the read still refuses to call it current.
+            database.classificationSnapshotDao().insert(
+                ClassificationSnapshotEntity(
+                    draftId = draftId,
+                    contextRevision = effective.dependencies.contextRevision,
+                    categoryRevision = effective.dependencies.categoryRevision,
+                    ruleRevision = effective.dependencies.ruleRevision,
+                    modelRevision = effective.dependencies.modelRevision,
+                    candidateSetVersion = effective.dependencies.candidateSetVersion,
+                    decisionSource = PredictionSource.MODEL.name,
+                    suggestedCategoryId = 9_999L,
+                    candidateIds = "9999",
+                    probabilities = "0.75",
+                    unknownShare = 0.25,
+                    confidence = 0.5,
+                    effectiveInputDigest = "digest-of-the-old-answer",
+                    eventIds = "",
+                    predictionTime = clock.now,
+                    staleReason = null,
+                ),
+            )
+            assertEquals(
+                PredictionStaleReason.CATEGORY_CHANGED,
+                repository.snapshotFor(draftId)!!.staleReason,
+            )
+            assertEquals(
+                PredictionStaleReason.CATEGORY_CHANGED.name,
+                repository.storedSnapshot(draftId)!!.staleReason,
+            )
+        } finally {
+            database.close()
         }
     }
 

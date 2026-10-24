@@ -108,7 +108,11 @@ data class ClassificationSnapshotEntity(
     val id: Long = 0L,
     /** The draft this prediction is about. */
     val draftId: Long,
-    /** Digest of the context the prediction was made against: the linked events, the links, and the draft's own review state. */
+    /**
+     * Digest of the model input identity the prediction was made against: the draft's
+     * working description plus the readings of the events linked to it. An amount or
+     * moment correction changes no model input and so does not change this digest.
+     */
     val contextRevision: String,
     /** Digest of the category catalog the prediction was made against. */
     val categoryRevision: String,

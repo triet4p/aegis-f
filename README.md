@@ -225,14 +225,18 @@ The following capabilities are not available yet:
   draft exactly as stored — reviewable and manually categorisable with no suggestion — and a
   repeated delivery of the same notification never asks the model twice. The job is durable and
   coalesced: a newer description, linked note reading, category catalog or remembered rule
-  replaces the waiting question instead of adding another one, so rapid edits are answered about
+  replaced instead of adding another one, so rapid edits are answered about
   the newest wording only and an edit that does not change the model's input (such as correcting
   an amount) asks nothing; a process that ends mid-inference resumes the job on its next start,
   and a draft the user resolves, confirms or dismisses has its job cancelled before the model is
-  asked. Intake never waits for inference, one inference runs at a time, and the automatic
-  request grows out of the permitted stored memo, honours an explicit remembered rule before
-  inference, is skipped once the draft already carries the user's own category, and never
-  rewrites the stored memo or the parsed bank fields.
+  asked. The stored suggestion follows the same rule: choosing a category yourself, editing the
+  wording or a linked reading, and renaming, archiving or deleting a category mark it stale with
+  that change, and a result that arrives afterwards — or after a note excerpt is unlinked — is
+  refused instead of replacing the newer state. A suggestion is never offered for a category that
+  has since been archived or removed. Intake never waits for inference, one inference runs at a
+  time, and the automatic request grows out of the permitted stored memo, honours an explicit
+  remembered rule before inference, is skipped once the draft already carries the user's own
+  category, and never rewrites the stored memo or the parsed bank fields.
   S4.4 supplies current-category planning with caller-supplied corrections, deterministic
   category-name matching, a token-budgeted shortlist, an explicit no-fit result, and
   omitted-candidate uncertainty. S4.5 runs decisions through a process-owned bounded lifecycle.

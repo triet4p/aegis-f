@@ -117,4 +117,29 @@ abstract class ClassificationSnapshotDao {
             "WHERE note_events.captureId = :captureId)",
     )
     abstract suspend fun markStaleForCapture(captureId: Long, reason: String): Int
+
+    /**
+     * Records that every stored prediction made against another category catalog is no
+     * longer current.
+     *
+     * The comparison is against the revision the stored prediction carries, not against a
+     * blanket update: a prediction recorded after the change holds the new revision already
+     * and stays fresh, while every prediction made against the catalog as it was before the
+     * change is marked with the first reason it stopped applying.
+     */
+    @Query(
+        "UPDATE classification_snapshots SET staleReason = :reason " +
+            "WHERE staleReason IS NULL AND categoryRevision != :currentRevision",
+    )
+    abstract suspend fun markStaleForCategoryRevision(
+        reason: String,
+        currentRevision: String,
+    ): Int
+
+    /** The same targeted invalidation for a change of the remembered category rules. */
+    @Query(
+        "UPDATE classification_snapshots SET staleReason = :reason " +
+            "WHERE staleReason IS NULL AND ruleRevision != :currentRevision",
+    )
+    abstract suspend fun markStaleForRuleRevision(reason: String, currentRevision: String): Int
 }

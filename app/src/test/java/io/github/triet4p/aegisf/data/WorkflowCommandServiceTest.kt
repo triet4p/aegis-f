@@ -98,24 +98,39 @@ class WorkflowCommandServiceTest {
             failure?.let { reason ->
                 return ClassificationEngineResult.Failed(reason)
             }
+            val input = LayaEffectiveInput(
+                text = context.primaryText,
+                digest = "digest-of-${context.primaryText}",
+                includedReadings = context.eventReadings,
+                droppedReadings = emptyList(),
+                tokenCount = 4,
+                roomTokens = 128,
+            )
+            // The answer names a category the caller actually offered, exactly as the
+            // planner's own decision would. With no active category there is nothing to
+            // choose, which is the same no-fit outcome the real planner reports.
+            val category = categories.firstOrNull { it.id == categoryId }
+                ?: categories.firstOrNull()
+                ?: return ClassificationEngineResult.Decided(
+                    LayaContextDecision(
+                        decision = LayaCandidatePlanner.Decision.Unknown(
+                            LayaCandidatePlanner.ManualReason.NO_ACTIVE_CATEGORIES,
+                        ),
+                        effectiveInput = input,
+                        evaluation = null,
+                    ),
+                )
             return ClassificationEngineResult.Decided(
                 LayaContextDecision(
                     decision = LayaCandidatePlanner.Decision.Category(
-                        categoryId = categoryId,
-                        snapshotName = "Food",
+                        categoryId = category.id,
+                        snapshotName = category.name,
                         source = LayaCandidatePlanner.SuggestionSource.MODEL,
                         confidence = 0.5,
                     ),
-                    effectiveInput = LayaEffectiveInput(
-                        text = context.primaryText,
-                        digest = "digest-of-${context.primaryText}",
-                        includedReadings = context.eventReadings,
-                        droppedReadings = emptyList(),
-                        tokenCount = 4,
-                        roomTokens = 128,
-                    ),
+                    effectiveInput = input,
                     evaluation = LayaEvaluation(
-                        categoryIds = listOf(categoryId),
+                        categoryIds = listOf(category.id),
                         probabilities = listOf(0.75),
                         unknownShare = 0.25,
                         confidence = 0.5,
@@ -1314,6 +1329,15 @@ class WorkflowCommandServiceTest {
         val database = open()
         try {
             val commands = commands(database)
+            // A real active category: the stored model answer must name a category the
+            // review can actually offer.
+            database.categoryDao().insert(
+                CategoryEntity(
+                    name = "Food",
+                    createdAtEpochMillis = clock.now,
+                    updatedAtEpochMillis = clock.now,
+                ),
+            )
             val draftId = storeDraft(database, "fuel-key", 50_000L)
             val request = ClassificationRequest(
                 idempotencyKey = "classify-1",
@@ -2520,6 +2544,236 @@ class WorkflowCommandServiceTest {
             val reviewed = database.pendingBankDraftDao().findById(draftId)!!
             assertEquals(categoryId, reviewed.reviewCategoryId)
             assertTrue(reviewed.reviewCategoryResolved)
+        } finally {
+            database.close()
+        }
+    }
+
+    // --- Stored prediction freshness at the command boundary ----------------
+
+    @Test
+    fun `an amount correction leaves a stored prediction fresh while a wording change invalidates it`() =
+        runTest {
+            val database = open()
+            try {
+                val commands = commands(database)
+                val added = commands.addCategory(
+                    WorkflowCallerScope.User,
+                    AddCategoryRequest(idempotencyKey = "cat-food", name = "Food"),
+                )
+                assertTrue("the category was refused: $added", added is WorkflowCommandOutcome.Applied)
+                val foodId = ((added as WorkflowCommandOutcome.Applied).change as
+                    WorkflowChange.CategoryAdded).categoryId
+                engine.categoryId = foodId
+                val draftId = storeDraft(database, "fuel-key", 50_000L)
+                val classified = commands.requestClassification(
+                    WorkflowCallerScope.User,
+                    ClassificationRequest(
+                        idempotencyKey = "classify-1",
+                        draftId = draftId,
+                        description = BANK_MEMO,
+                    ),
+                )
+                assertTrue(
+                    "the classification was refused: $classified",
+                    classified is WorkflowCommandOutcome.Applied,
+                )
+                val draft = database.pendingBankDraftDao().findById(draftId)!!
+
+                // The amount is not part of the model input: the stored prediction stays
+                // the answer to the question the draft still poses.
+                val amountSaved = commands.saveDraftReview(
+                    WorkflowCallerScope.User,
+                    SaveDraftReviewRequest(
+                        idempotencyKey = "amount-1",
+                        draftId = draftId,
+                        expectedRevision = draft.reviewRevision,
+                        edits = BankDraftReviewEdits(
+                            amountText = "60,000",
+                            dateText = draft.statedDate.orEmpty(),
+                            timeText = draft.statedTime.orEmpty(),
+                            memoText = BANK_MEMO,
+                            type = null,
+                            categoryId = null,
+                            categoryResolved = false,
+                        ),
+                    ),
+                )
+                assertTrue("the amount correction was refused: $amountSaved", amountSaved is WorkflowCommandOutcome.Applied)
+                assertNull(
+                    "an amount correction must not invalidate the prediction",
+                    database.classificationSnapshotDao().findForDraft(draftId)!!.staleReason,
+                )
+
+                // The wording is the model's input: the stored prediction no longer applies.
+                val memoSaved = commands.saveDraftReview(
+                    WorkflowCallerScope.User,
+                    SaveDraftReviewRequest(
+                        idempotencyKey = "memo-1",
+                        draftId = draftId,
+                        expectedRevision = 1,
+                        edits = BankDraftReviewEdits(
+                            amountText = "60,000",
+                            dateText = draft.statedDate.orEmpty(),
+                            timeText = draft.statedTime.orEmpty(),
+                            memoText = "coffee beans",
+                            type = null,
+                            categoryId = null,
+                            categoryResolved = false,
+                        ),
+                    ),
+                )
+                assertTrue("the wording correction was refused: $memoSaved", memoSaved is WorkflowCommandOutcome.Applied)
+                assertEquals(
+                    PredictionStaleReason.CONTEXT_CHANGED.name,
+                    database.classificationSnapshotDao().findForDraft(draftId)!!.staleReason,
+                )
+                assertTrue(database.transactionDao().findAll().isEmpty())
+            } finally {
+                database.close()
+            }
+        }
+
+    @Test
+    fun `archiving a category invalidates a stored prediction at once`() = runTest {
+        val database = open()
+        try {
+            val commands = commands(database)
+            val added = commands.addCategory(
+                WorkflowCallerScope.User,
+                AddCategoryRequest(idempotencyKey = "cat-food", name = "Food"),
+            )
+            val foodId = ((added as WorkflowCommandOutcome.Applied).change as
+                WorkflowChange.CategoryAdded).categoryId
+            engine.categoryId = foodId
+            val draftId = storeDraft(database, "fuel-key", 50_000L)
+            val classified = commands.requestClassification(
+                WorkflowCallerScope.User,
+                ClassificationRequest(
+                    idempotencyKey = "classify-1",
+                    draftId = draftId,
+                    description = BANK_MEMO,
+                ),
+            )
+            assertTrue(
+                "the classification was refused: $classified",
+                classified is WorkflowCommandOutcome.Applied,
+            )
+            assertNull(database.classificationSnapshotDao().findForDraft(draftId)!!.staleReason)
+
+            val archived = commands.archiveCategory(
+                WorkflowCallerScope.User,
+                ArchiveCategoryRequest(idempotencyKey = "archive-food", categoryId = foodId),
+            )
+            assertTrue("the archive was refused: $archived", archived is WorkflowCommandOutcome.Applied)
+
+            // No reader has recomputed anything: the marker was stored with the change.
+            assertEquals(
+                PredictionStaleReason.CATEGORY_CHANGED.name,
+                database.classificationSnapshotDao().findForDraft(draftId)!!.staleReason,
+            )
+            assertTrue(database.transactionDao().findAll().isEmpty())
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun `the user's own category resolution marks a stored prediction stale`() = runTest {
+        val database = open()
+        try {
+            val commands = commands(database)
+            val added = commands.addCategory(
+                WorkflowCallerScope.User,
+                AddCategoryRequest(idempotencyKey = "cat-food", name = "Food"),
+            )
+            val foodId = ((added as WorkflowCommandOutcome.Applied).change as
+                WorkflowChange.CategoryAdded).categoryId
+            engine.categoryId = foodId
+            val draftId = storeDraft(database, "fuel-key", 50_000L)
+            val classified = commands.requestClassification(
+                WorkflowCallerScope.User,
+                ClassificationRequest(
+                    idempotencyKey = "classify-1",
+                    draftId = draftId,
+                    description = BANK_MEMO,
+                ),
+            )
+            assertTrue(
+                "the classification was refused: $classified",
+                classified is WorkflowCommandOutcome.Applied,
+            )
+            val draft = database.pendingBankDraftDao().findById(draftId)!!
+
+            val saved = commands.saveDraftReview(
+                WorkflowCallerScope.User,
+                SaveDraftReviewRequest(
+                    idempotencyKey = "resolve-1",
+                    draftId = draftId,
+                    expectedRevision = draft.reviewRevision,
+                    edits = BankDraftReviewEdits(
+                        amountText = draft.amountVnd.toString(),
+                        dateText = draft.statedDate.orEmpty(),
+                        timeText = draft.statedTime.orEmpty(),
+                        memoText = BANK_MEMO,
+                        type = null,
+                        categoryId = foodId,
+                        categoryResolved = true,
+                    ),
+                ),
+            )
+            assertTrue("the user's choice was refused: $saved", saved is WorkflowCommandOutcome.Applied)
+            assertEquals(
+                PredictionStaleReason.USER_CATEGORY_CHOSEN.name,
+                database.classificationSnapshotDao().findForDraft(draftId)!!.staleReason,
+            )
+            val reviewed = database.pendingBankDraftDao().findById(draftId)!!
+            assertEquals(foodId, reviewed.reviewCategoryId)
+            assertTrue(reviewed.reviewCategoryResolved)
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun `a remembered rule invalidates a stored prediction at once`() = runTest {
+        val database = open()
+        try {
+            val commands = commands(database)
+            val added = commands.addCategory(
+                WorkflowCallerScope.User,
+                AddCategoryRequest(idempotencyKey = "cat-food", name = "Food"),
+            )
+            val foodId = ((added as WorkflowCommandOutcome.Applied).change as
+                WorkflowChange.CategoryAdded).categoryId
+            engine.categoryId = foodId
+            val draftId = storeDraft(database, "fuel-key", 50_000L)
+            val classified = commands.requestClassification(
+                WorkflowCallerScope.User,
+                ClassificationRequest(
+                    idempotencyKey = "classify-1",
+                    draftId = draftId,
+                    description = BANK_MEMO,
+                ),
+            )
+            assertTrue(
+                "the classification was refused: $classified",
+                classified is WorkflowCommandOutcome.Applied,
+            )
+
+            val remembered = commands.rememberCategoryRule(
+                WorkflowCallerScope.User,
+                RememberCategoryRuleRequest(
+                    idempotencyKey = "rule-1",
+                    description = BANK_MEMO,
+                    categoryId = foodId,
+                ),
+            )
+            assertTrue("the rule was refused: $remembered", remembered is WorkflowCommandOutcome.Applied)
+            assertEquals(
+                PredictionStaleReason.RULE_CHANGED.name,
+                database.classificationSnapshotDao().findForDraft(draftId)!!.staleReason,
+            )
         } finally {
             database.close()
         }
