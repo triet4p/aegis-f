@@ -76,3 +76,10 @@
 **Root cause:** `adb exec-out screencap` captures whichever surface is foreground, so a crashed app exposes whatever screen is underneath.
 **Fix / workaround:** Confirm the isolated package remains foreground before capturing and stop capture immediately if its process or activity exits.
 **Watch out for:** Never retain a screenshot merely because the target package was launched earlier; screen contents can change between the launch and capture.
+
+## [2026-10-25] A claim-time question alignment can erase a concurrent retarget
+
+**Symptom:** A running classification attempt settled its older result and left the newer accepted context unclassified.
+**Root cause:** `markExecuting` unconditionally aligned `requestedQuestion` to the attempt's recomputed question, even when `retarget` had updated the row after the attempt's initial read.
+**Fix / workaround:** Pass the request observed before context recomputation to `markExecuting`; align only if the stored request still matches that observed value, while always recording the executed question under the existing state and owner-token guard.
+**Watch out for:** Keep both legacy/stale-row normalization and the compare-before-align behavior; removing alignment causes endless requeue of stale rows, but unconditional alignment loses a concurrent newer request.

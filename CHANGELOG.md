@@ -132,6 +132,9 @@ and no release has been tagged or published. Format follows
   probabilities, unknown share and evaluated category ids are kept with the suggestion that
   produced them.
 
+- Fixed a classification attempt resetting a newer question that was coalesced while the
+  attempt was preparing; the newer context now remains queued and is classified next.
+
 - Fixed the Manual saved-transaction date filter to compare accepted From/Through values by
   local calendar-day boundaries instead of text, so non-zero-padded dates are ordered
   chronologically and reversed ranges are refused.

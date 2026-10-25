@@ -508,7 +508,7 @@ class BankDraftClassificationQueue(
             context = effective.context,
             dependencies = effective.dependencies,
         )
-        if (work.markExecuting(jobId, token, question) != 1) return false
+        if (work.markExecuting(jobId, token, job.requestedQuestion, question) != 1) return false
         // A fresh key per attempt: the attempt's own token distinguishes it from an
         // earlier attempt at the same question, even when a link, a wording, or a catalog
         // change moved the question away and back again. An attempt that ended with the

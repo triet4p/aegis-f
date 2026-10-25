@@ -143,20 +143,23 @@ abstract class ClassificationWorkDao {
     /**
      * Records the question this attempt is really asking, once it is known.
      *
-     * The attempt reads the current state, so its question is by construction the newest
-     * one it could ask; the requested question is aligned with it in the same statement.
-     * Without that alignment a job admitted under an older state (or carried over from a
-     * previous build) would look permanently out of date to its own completion and requeue
-     * itself without end. A newer change that arrives from now on updates only the
-     * requested question, and the attempt's own dependency check refuses its stale answer.
+     * The attempt aligns an unchanged or stale request with its recomputed question so
+     * legacy rows do not requeue forever. If a retarget lands after the attempt read the
+     * row, the conditional assignment preserves that newer request instead.
      */
     @Query(
         "UPDATE `classification_work` SET `executedQuestion` = :question, " +
-            "`requestedQuestion` = :question " +
+            "`requestedQuestion` = CASE WHEN `requestedQuestion` = :requestedQuestionBeforeAttempt " +
+            "THEN :question ELSE `requestedQuestion` END " +
             "WHERE `id` = :id AND `state` = '$CLASSIFICATION_WORK_RUNNING' " +
             "AND `ownerToken` = :token",
     )
-    abstract suspend fun markExecuting(id: Long, token: String, question: String): Int
+    abstract suspend fun markExecuting(
+        id: Long,
+        token: String,
+        requestedQuestionBeforeAttempt: String,
+        question: String,
+    ): Int
 
     /**
      * Finishes the attempt with a terminal state.

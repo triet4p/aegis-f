@@ -218,6 +218,87 @@ class ClassificationWorkLifecycleTest {
     // --- Cases -------------------------------------------------------------
 
     @Test
+    fun `marking an older attempt preserves and runs a concurrently retargeted question`() =
+        runBlocking<Unit> {
+            queue.close()
+            queueHolder = null
+            WorkflowClaimGuard.reset()
+
+            val draftId = storeDraft("older memo", "mark-executing-race")
+            val snapshots = ClassificationSnapshotRepository(database)
+            val oldEffective = snapshots.effectiveContextFor(draftId, "older memo")!!
+            val oldQuestion = classificationQuestionDigest(
+                description = "older memo",
+                context = oldEffective.context,
+                dependencies = oldEffective.dependencies,
+            )
+            assertTrue(
+                saveMemo(draftId, 0, "newest memo", "mark-executing-newer") is
+                    WorkflowCommandOutcome.Applied,
+            )
+            val newestEffective = snapshots.effectiveContextFor(draftId, "newest memo")!!
+            val newestQuestion = classificationQuestionDigest(
+                description = "newest memo",
+                context = newestEffective.context,
+                dependencies = newestEffective.dependencies,
+            )
+
+            val now = System.currentTimeMillis()
+            val dao = database.classificationWorkDao()
+            val jobId = dao.insert(
+                ClassificationWorkEntity(
+                    draftId = draftId,
+                    state = CLASSIFICATION_WORK_PENDING,
+                    requestedQuestion = oldQuestion,
+                    executedQuestion = null,
+                    attemptCount = 0,
+                    snapshotId = null,
+                    statusReason = null,
+                    ownerToken = null,
+                    createdAtEpochMillis = now,
+                    updatedAtEpochMillis = now,
+                ),
+            )
+            assertEquals(1, dao.claim(jobId, "older-attempt", now))
+            assertEquals(
+                1,
+                dao.retarget(
+                    jobId,
+                    CLASSIFICATION_WORK_RUNNING,
+                    newestQuestion,
+                    now + 1,
+                ),
+            )
+            assertEquals(
+                1,
+                dao.markExecuting(jobId, "older-attempt", oldQuestion, oldQuestion),
+            )
+
+            val job = dao.findById(jobId)!!
+            assertEquals(oldQuestion, job.executedQuestion)
+            assertEquals(newestQuestion, job.requestedQuestion)
+            assertTrue("settlement must see the newer request", job.requestedQuestion != oldQuestion)
+            assertEquals(
+                1,
+                dao.requeue(
+                    jobId,
+                    "older-attempt",
+                    attempts = 0,
+                    reason = ClassificationWorkReason.CONTEXT_CHANGED,
+                    now = now + 2,
+                ),
+            )
+
+            queue = newQueue()
+            val result = awaitWork(draftId) { it.state == CLASSIFICATION_WORK_RESULT }
+            assertEquals("the newer question owns the resumed result", newestQuestion, result.executedQuestion)
+            assertEquals(listOf("newest memo"), engine.questions)
+            assertEquals(1, engine.calls)
+            assertEquals("digest-of-newest memo", snapshotOf(draftId)?.effectiveInputDigest)
+            assertEquals(0, database.transactionDao().findAll().size)
+        }
+
+    @Test
     fun `rapid edits keep the newest question and ask the model once per revision`() =
         runBlocking<Unit> {
             val draftId = storeDraft("coffee one", "coalesce-1")
