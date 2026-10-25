@@ -280,3 +280,33 @@ python tools/slm/regrade_reports.py --raw-root artifacts/sprint-5/workers/S5.1-a
   --output-dir artifacts/sprint-5/workers/S5.1-a4-qwen35-r2.1-regraded/heldout `
   artifacts/sprint-5/workers/S5.1-a3-qwen35-08b-q4km-heldout.json
 ```
+
+## Sprint 8 workflow evaluation contract
+
+The S8.2 contract is frozen separately from the legacy S5.1 benchmark:
+[`docs/sprint-8-evaluation-contract.md`](../../docs/sprint-8-evaluation-contract.md).
+Its source-backed tools, synthetic fixture, frozen and held-out case sets, system
+prompt, profile declarations, and validator/scorer are:
+
+- `s8_workflow_tools.json`
+- `s8_workflow_fixture.json`
+- `s8_workflow_cases.json`
+- `s8_workflow_heldout.json`
+- `s8_workflow_system_prompt.txt`
+- `s8_lfm_restricted_prompt.txt`
+- `s8_workflow_profiles.json`
+- `s8_contract.py`
+
+Validate the contract and native-family renderer/parser fixtures with:
+
+```powershell
+uv run python tools/slm/s8_contract.py validate
+uv run python tools/slm/s8_contract.py selftest
+```
+
+Score a future saved candidate observation with
+`uv run python tools/slm/s8_contract.py score <candidate-results.json>`. Missing
+outputs, parser failures, and failed cases remain in the denominator. Self-test
+records are synthetic contract-tooling probes only: they are not model or app
+evidence. The proposed profile metrics are not owner-approved gates, and this
+tooling does not qualify a model or implement an app adapter.
