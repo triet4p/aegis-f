@@ -1,0 +1,455 @@
+{
+  "status": "PASS",
+  "scoring_versions": [
+    "v1",
+    "v2"
+  ],
+  "verification": {
+    "validate": {
+      "exit_code": 0,
+      "status": "PASS"
+    },
+    "selftest": {
+      "exit_code": 0,
+      "status": "PASS"
+    }
+  },
+  "rows": [
+    {
+      "input": "inputs/semantic-variant.json",
+      "scoring": "v1",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "call_intent_or_arguments_mismatch"
+      ],
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/semantic-variant.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": true,
+      "reasons": [],
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/semantic-variant-alt-producer.json",
+      "scoring": "v1",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "call_intent_or_arguments_mismatch"
+      ],
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/semantic-variant-alt-producer.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": true,
+      "reasons": [],
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/exact-literal-control.json",
+      "scoring": "v1",
+      "case_id": "s8-time-01",
+      "case_passed": true,
+      "reasons": [],
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/exact-literal-control.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": true,
+      "reasons": [],
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/empty-results.json",
+      "scoring": "v1",
+      "case_id": null,
+      "case_passed": null,
+      "reasons": [
+        "missing_result"
+      ],
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/empty-results.json",
+      "scoring": "v2",
+      "case_id": null,
+      "case_passed": null,
+      "reasons": [
+        "missing_result"
+      ],
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-empty-key.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "call_schema_invalid",
+        "idempotency_key_invalid"
+      ],
+      "expected_reason": "idempotency_key_invalid",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-whitespace-key.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "idempotency_key_invalid"
+      ],
+      "expected_reason": "idempotency_key_invalid",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-changed-scope.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "normalized_text_not_source_backed",
+        "call_intent_or_arguments_mismatch",
+        "stored_reading_mismatch"
+      ],
+      "expected_reason": "call_intent_or_arguments_mismatch",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-changed-revision.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "call_intent_or_arguments_mismatch"
+      ],
+      "expected_reason": "call_intent_or_arguments_mismatch",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-changed-amount.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "call_intent_or_arguments_mismatch",
+        "stored_reading_mismatch"
+      ],
+      "expected_reason": "call_intent_or_arguments_mismatch",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-changed-date.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "call_intent_or_arguments_mismatch",
+        "stored_reading_mismatch"
+      ],
+      "expected_reason": "call_intent_or_arguments_mismatch",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-changed-time.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "call_intent_or_arguments_mismatch",
+        "stored_reading_mismatch"
+      ],
+      "expected_reason": "call_intent_or_arguments_mismatch",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-changed-intent.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "call_intent_or_arguments_mismatch"
+      ],
+      "expected_reason": "call_intent_or_arguments_mismatch",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-extra-call.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "call_intent_or_arguments_mismatch"
+      ],
+      "expected_reason": "call_intent_or_arguments_mismatch",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-missing-effects.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "observed_effect_mismatch"
+      ],
+      "expected_reason": "observed_effect_mismatch",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-uninstrumented.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "application_effect_trace_missing"
+      ],
+      "expected_reason": "application_effect_trace_missing",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-nonsense-text.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "normalized_text_not_source_backed"
+      ],
+      "expected_reason": "normalized_text_not_source_backed",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-fabricated-numbers.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "normalized_text_not_source_backed",
+        "normalized_text_fabricated_facts"
+      ],
+      "expected_reason": "normalized_text_fabricated_facts",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-text-not-stored.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "normalized_text_effect_mismatch"
+      ],
+      "expected_reason": "normalized_text_effect_mismatch",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-missing-stored-reading.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "stored_reading_evidence_missing"
+      ],
+      "expected_reason": "stored_reading_evidence_missing",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-extra-argument.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "call_schema_invalid",
+        "call_intent_or_arguments_mismatch"
+      ],
+      "expected_reason": "call_schema_invalid",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-unbound.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "contract_binding_missing"
+      ],
+      "expected_reason": "contract_binding_missing",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-foreign-binding.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "contract_binding_mismatch"
+      ],
+      "expected_reason": "contract_binding_mismatch",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-contradicted-reason.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "unresolved_reason_decision_mismatch"
+      ],
+      "expected_reason": "unresolved_reason_decision_mismatch",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-long-reason.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "unresolved_reason_decision_mismatch",
+        "unresolved_reason_label_invalid"
+      ],
+      "expected_reason": "unresolved_reason_label_invalid",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-long-extraction-version.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "extraction_version_invalid"
+      ],
+      "expected_reason": "extraction_version_invalid",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    },
+    {
+      "input": "inputs/probes/mut-parse-error.json",
+      "scoring": "v2",
+      "case_id": "s8-time-01",
+      "case_passed": false,
+      "reasons": [
+        "parse_error"
+      ],
+      "expected_reason": "parse_error",
+      "expected_reason_observed": true,
+      "denominators": {
+        "frozen": 10,
+        "heldout": 6
+      }
+    }
+  ],
+  "failures": []
+}

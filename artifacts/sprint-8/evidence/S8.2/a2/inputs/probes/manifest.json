@@ -1,0 +1,94 @@
+{
+  "derivation": "each probe starts from inputs/semantic-variant.json and applies one mutation",
+  "diagnostic_only": "scorer mutation probes; effects are the preserved S8.3-a2 diagnostic values",
+  "probes": [
+    {
+      "input": "probes/mut-empty-key.json",
+      "expected_reason": "idempotency_key_invalid"
+    },
+    {
+      "input": "probes/mut-whitespace-key.json",
+      "expected_reason": "idempotency_key_invalid"
+    },
+    {
+      "input": "probes/mut-changed-scope.json",
+      "expected_reason": "call_intent_or_arguments_mismatch"
+    },
+    {
+      "input": "probes/mut-changed-revision.json",
+      "expected_reason": "call_intent_or_arguments_mismatch"
+    },
+    {
+      "input": "probes/mut-changed-amount.json",
+      "expected_reason": "call_intent_or_arguments_mismatch"
+    },
+    {
+      "input": "probes/mut-changed-date.json",
+      "expected_reason": "call_intent_or_arguments_mismatch"
+    },
+    {
+      "input": "probes/mut-changed-time.json",
+      "expected_reason": "call_intent_or_arguments_mismatch"
+    },
+    {
+      "input": "probes/mut-changed-intent.json",
+      "expected_reason": "call_intent_or_arguments_mismatch"
+    },
+    {
+      "input": "probes/mut-extra-call.json",
+      "expected_reason": "call_intent_or_arguments_mismatch"
+    },
+    {
+      "input": "probes/mut-missing-effects.json",
+      "expected_reason": "observed_effect_mismatch"
+    },
+    {
+      "input": "probes/mut-uninstrumented.json",
+      "expected_reason": "application_effect_trace_missing"
+    },
+    {
+      "input": "probes/mut-nonsense-text.json",
+      "expected_reason": "normalized_text_not_source_backed"
+    },
+    {
+      "input": "probes/mut-fabricated-numbers.json",
+      "expected_reason": "normalized_text_fabricated_facts"
+    },
+    {
+      "input": "probes/mut-text-not-stored.json",
+      "expected_reason": "normalized_text_effect_mismatch"
+    },
+    {
+      "input": "probes/mut-missing-stored-reading.json",
+      "expected_reason": "stored_reading_evidence_missing"
+    },
+    {
+      "input": "probes/mut-extra-argument.json",
+      "expected_reason": "call_schema_invalid"
+    },
+    {
+      "input": "probes/mut-unbound.json",
+      "expected_reason": "contract_binding_missing"
+    },
+    {
+      "input": "probes/mut-foreign-binding.json",
+      "expected_reason": "contract_binding_mismatch"
+    },
+    {
+      "input": "probes/mut-contradicted-reason.json",
+      "expected_reason": "unresolved_reason_decision_mismatch"
+    },
+    {
+      "input": "probes/mut-long-reason.json",
+      "expected_reason": "unresolved_reason_label_invalid"
+    },
+    {
+      "input": "probes/mut-long-extraction-version.json",
+      "expected_reason": "extraction_version_invalid"
+    },
+    {
+      "input": "probes/mut-parse-error.json",
+      "expected_reason": "parse_error"
+    }
+  ]
+}

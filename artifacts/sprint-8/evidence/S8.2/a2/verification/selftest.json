@@ -1,0 +1,44 @@
+{
+  "status": "PASS",
+  "synthetic_contract_probes": {
+    "max_page_500": "accepted",
+    "invalid_pages_rejected": 3,
+    "valid_scoped_clarification": "scored pass with effect trace",
+    "invalid_clarification_target": "failed",
+    "missing_case_denominators": {
+      "frozen": 10,
+      "heldout": 6
+    },
+    "unknown_tool": "rejected",
+    "partial_call": "rejected"
+  },
+  "semantic_scoring_probes": {
+    "v1_exact_control": "accepted",
+    "v1_semantic_variant": "rejected as at checkpoint b26148e",
+    "v2_exact_control": "accepted",
+    "v2_semantic_variant": "accepted with the real stored reading",
+    "valid_alternate_unresolved_label": "accepted",
+    "blank_or_whitespace_key": "rejected",
+    "changed_scope_amount_time_intent": "rejected",
+    "out_of_bounds_span": "rejected",
+    "nonsense_text": "rejected",
+    "fabricated_numbers": "rejected",
+    "text_not_stored": "rejected",
+    "stored_reading_missing": "rejected",
+    "key_collision": "rejected",
+    "mixed_producer_versions": "rejected",
+    "replay_consistent": "accepted",
+    "retry_duplication": "rejected",
+    "replay_marker_only": "rejected",
+    "replay_state_changed": "rejected",
+    "extra_argument": "rejected",
+    "unknown_tool_call": "rejected",
+    "binding_missing_or_mismatched": "rejected",
+    "v2_denominators": {
+      "frozen": 10,
+      "heldout": 6
+    },
+    "replay_probe_absent": "reported missing, never inferred"
+  },
+  "evidence_boundary": "tooling validation only; synthetic records are not model or application effects"
+}

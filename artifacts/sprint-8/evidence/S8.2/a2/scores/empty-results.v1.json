@@ -1,0 +1,159 @@
+{
+  "profile": "s8.2-rubric-v2-diagnostic",
+  "suite_scores": {
+    "frozen": {
+      "passed": 0,
+      "denominator": 10
+    },
+    "heldout": {
+      "passed": 0,
+      "denominator": 6
+    }
+  },
+  "cases": [
+    {
+      "case_id": "s8-multi-01",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ]
+    },
+    {
+      "case_id": "s8-time-01",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ]
+    },
+    {
+      "case_id": "s8-time-02",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ]
+    },
+    {
+      "case_id": "s8-search-01",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ]
+    },
+    {
+      "case_id": "s8-link-01",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ]
+    },
+    {
+      "case_id": "s8-laya-01",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ]
+    },
+    {
+      "case_id": "s8-match-01",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ]
+    },
+    {
+      "case_id": "s8-match-02",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ]
+    },
+    {
+      "case_id": "s8-unknown-01",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ]
+    },
+    {
+      "case_id": "s8-injection-01",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ]
+    },
+    {
+      "case_id": "s8h-multi-01",
+      "suite": "heldout",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ]
+    },
+    {
+      "case_id": "s8h-time-01",
+      "suite": "heldout",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ]
+    },
+    {
+      "case_id": "s8h-search-01",
+      "suite": "heldout",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ]
+    },
+    {
+      "case_id": "s8h-ambiguity-01",
+      "suite": "heldout",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ]
+    },
+    {
+      "case_id": "s8h-laya-01",
+      "suite": "heldout",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ]
+    },
+    {
+      "case_id": "s8h-injection-01",
+      "suite": "heldout",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ]
+    }
+  ],
+  "candidate_metrics": {},
+  "missing_metric_fields": [
+    "first_result_seconds",
+    "cold_start_seconds",
+    "prefill_tokens",
+    "prefill_seconds",
+    "decode_tokens",
+    "decode_seconds",
+    "process_peak_rss_mib",
+    "process_peak_pss_mib",
+    "device_mem_available_baseline_kib",
+    "device_mem_available_min_kib",
+    "cancellation_wall_seconds",
+    "cancellation_effects"
+  ],
+  "metric_targets_status": "proposed targets reported only; no automatic hard gate"
+}

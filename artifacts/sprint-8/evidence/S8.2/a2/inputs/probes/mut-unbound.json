@@ -1,0 +1,83 @@
+{
+  "profile": "s8.3-contract-discriminator",
+  "sample_provenance": {
+    "origin": "host_constructed_diagnostic",
+    "not_model_output": true,
+    "not_a_new_device_run": true,
+    "label": "legitimate different key and reading, same observed effect",
+    "source_results": "artifacts/sprint-8/evidence/S8.3/a2/contract-discriminator/results-semantic-variant.json",
+    "source_trace": "artifacts/sprint-8/evidence/S8.3/a2/contract-discriminator/trace-semantic-variant.json",
+    "source_sha256": {
+      "results-semantic-variant.json": "20de94c6e7af13a7891d8a1977590d28fb2b1188bedaeb4e974a9d71e5aef788",
+      "trace-semantic-variant.json": "79095854987a4d845620a82a3f44963fcf9ec3470ba1b86cd8c829f07c812652"
+    },
+    "note": "The calls were constructed by the S8.3-a2 contract discriminator and dispatched through the real WorkflowCommandService; this document is a scoring diagnostic, not a candidate score, and cannot qualify a profile."
+  },
+  "results": [
+    {
+      "case_id": "s8-time-01",
+      "calls": [
+        {
+          "name": "update_event_interpretation",
+          "args": {
+            "idempotencyKey": "host-minted-7f3a",
+            "captureId": 102,
+            "expectedCaptureRevision": 0,
+            "interpretation": {
+              "spanStart": 0,
+              "spanEnd": 35,
+              "normalizedText": "Bought a book yesterday at 09:30",
+              "amountVnd": 70000,
+              "merchant": null,
+              "timeAnchor": {
+                "date": "2026-10-24",
+                "time": "09:30",
+                "timezoneId": "Asia/Ho_Chi_Minh"
+              },
+              "unresolvedReason": null
+            },
+            "extractionVersion": "s8-contract-v1",
+            "expectedEventRevision": null
+          }
+        }
+      ],
+      "effects": {
+        "ledgerWrites": 0,
+        "noLedgerWrites": true,
+        "financialWrites": 0,
+        "applicationCalls": 1,
+        "deleteCalls": 0,
+        "attachCalls": 0,
+        "callerScope": "trusted_host_only",
+        "eventCount": 1,
+        "amountsVnd": [
+          70000
+        ],
+        "eventStatus": "INTERPRETED",
+        "amountVnd": 70000,
+        "date": "2026-10-24",
+        "noInventedTime": false,
+        "time": "2026-10-24T09:30+07:00",
+        "activeLinksForEvent": 0
+      },
+      "effect_source": "instrumented_application",
+      "call_effects": [
+        {
+          "call_index": 0,
+          "stored_reading": {
+            "capture_id": 102,
+            "span_start": 0,
+            "span_end": 35,
+            "normalized_text": "Bought a book yesterday at 09:30",
+            "amount_vnd": 70000,
+            "anchor_date": "2026-10-24",
+            "anchor_time": "09:30",
+            "unresolved_reason": null,
+            "status": "INTERPRETED"
+          }
+        }
+      ]
+    }
+  ],
+  "metrics": {}
+}

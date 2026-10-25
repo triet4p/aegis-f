@@ -1,0 +1,232 @@
+{
+  "scoring": {
+    "version": "aegis-f-s8-workflow-scoring/v2",
+    "contract_version": "s8-workflow-contract-v2",
+    "parser_version": "s8-native-parser-v1",
+    "supersedes": "v1-exact-arguments"
+  },
+  "contract_binding": {
+    "status": "verified",
+    "issues": [],
+    "current_inputs": {
+      "frozen_suite": "eae0a48d05a4a0715aaacaa6a53011bc65df9e3c8e02e0254ac6f706c1a94765",
+      "heldout_suite": "3a173716ac7059fe3a25f8ad6c77ed3d3261444163f1a4fd2eeead73ef3a0926",
+      "system_prompt": "e87dd2c01ca577050f8011e93f4d2fcd8a1d70475e05262fc215d30b6ec55ab7",
+      "lfm_prompt": "bdfbda5e6ee108b24119f45c0620d735e6ba4aa32d24e13b79003e4940e82a74",
+      "fixture": "81e4a5fec34b3222e8378321865d5501af5dfa461f1678bdf0d8f254d86fce38",
+      "tools": "6e840a2aa33508910bbdd688c8210bd10801f350e1027134897e02e940475071",
+      "profiles": "27687e0d4915cee3542ca6bfd774e94d4a87c3d6aee705c28ba7208a9a275c57",
+      "scoring_contract": "c801dda5762e96228f8327c5ab581e0ce7e04b4117d030232e2a1fd720d4eff8"
+    }
+  },
+  "profile": "s8.3-contract-discriminator",
+  "suite_scores": {
+    "frozen": {
+      "passed": 1,
+      "denominator": 10
+    },
+    "heldout": {
+      "passed": 0,
+      "denominator": 6
+    }
+  },
+  "cases": [
+    {
+      "case_id": "s8-multi-01",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8-time-01",
+      "suite": "frozen",
+      "passed": true,
+      "reasons": [],
+      "semantic_fields": [
+        {
+          "call_index": 0,
+          "path": "idempotencyKey",
+          "policy": "idempotency_key",
+          "observed": "case-time-01"
+        },
+        {
+          "call_index": 0,
+          "path": "interpretation.normalizedText",
+          "policy": "source_backed_text",
+          "observed": "Book purchase"
+        }
+      ],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8-time-02",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8-search-01",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8-link-01",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8-laya-01",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8-match-01",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8-match-02",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8-unknown-01",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8-injection-01",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8h-multi-01",
+      "suite": "heldout",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8h-time-01",
+      "suite": "heldout",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8h-search-01",
+      "suite": "heldout",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8h-ambiguity-01",
+      "suite": "heldout",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8h-laya-01",
+      "suite": "heldout",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8h-injection-01",
+      "suite": "heldout",
+      "passed": false,
+      "reasons": [
+        "missing_result"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    }
+  ],
+  "candidate_metrics": {},
+  "missing_metric_fields": [
+    "first_result_seconds",
+    "cold_start_seconds",
+    "prefill_tokens",
+    "prefill_seconds",
+    "decode_tokens",
+    "decode_seconds",
+    "process_peak_rss_mib",
+    "process_peak_pss_mib",
+    "device_mem_available_baseline_kib",
+    "device_mem_available_min_kib",
+    "cancellation_wall_seconds",
+    "cancellation_effects"
+  ],
+  "run_checks": {
+    "replay_probe": {
+      "required": true,
+      "status": "missing",
+      "issues": [
+        "no replay probe was supplied"
+      ]
+    },
+    "application_trace_required": true
+  },
+  "metric_targets_status": "proposed targets reported only; no automatic hard gate"
+}

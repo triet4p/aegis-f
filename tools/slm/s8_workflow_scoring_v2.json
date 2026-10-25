@@ -1,0 +1,136 @@
+{
+  "schema": "aegis-f-s8-workflow-scoring/v2",
+  "scoring_version": "aegis-f-s8-workflow-scoring/v2",
+  "contract_version": "s8-workflow-contract-v2",
+  "parser_version": "s8-native-parser-v1",
+  "status": "Frozen scoring revision for future S8.3 samples. Exact-argument scoring v1 and every v1 result remain preserved and runnable; nothing is re-labelled or retroactively passed.",
+  "owner_approved_change": "Semantic rubric: idempotency key non-empty/uniqueness/replay, normalized text meaningful source-backed content/effects; exact tool intent, scoped ids/revisions, financial/time/amount constraints and authority boundaries preserved; cases, denominators, prompts, fixture and tool schema immutable; versioned contract frozen before new trials; no retroactive PASS; proposed numeric targets unchanged.",
+  "supersedes": {
+    "scoring": "v1 exact dict/list equality of calls in tools/slm/s8_contract.py, still available as `score <results> --scoring v1`",
+    "reason": "the S8.3-a2 discriminator showed one functionally correct call failing only because the frozen expectation required a literal idempotency key (9/11 call-bearing cases), a free-form normalized text (6 cases), and producer-only labels no supplied input states",
+    "prior_contract_commit": "b26148ed663a0922f02b11f54e26e9860b2fc9cf",
+    "prior_contract_inputs": {
+      "frozen_suite": "eae0a48d05a4a0715aaacaa6a53011bc65df9e3c8e02e0254ac6f706c1a94765",
+      "heldout_suite": "3a173716ac7059fe3a25f8ad6c77ed3d3261444163f1a4fd2eeead73ef3a0926",
+      "system_prompt": "e87dd2c01ca577050f8011e93f4d2fcd8a1d70475e05262fc215d30b6ec55ab7",
+      "lfm_prompt": "bdfbda5e6ee108b24119f45c0620d735e6ba4aa32d24e13b79003e4940e82a74",
+      "fixture": "81e4a5fec34b3222e8378321865d5501af5dfa461f1678bdf0d8f254d86fce38",
+      "tools": "6e840a2aa33508910bbdd688c8210bd10801f350e1027134897e02e940475071",
+      "profiles": "d9661e7cccb6bda9b8aea6b915fd1ce235e704471d3665f3e127d21b4bffb0c2"
+    },
+    "prior_review": "artifacts/sprint-8/reviews/S8.2-review-01.md",
+    "prior_checkpoint": "artifacts/sprint-8/checkpoints/S8.2-checkpoint-01.md"
+  },
+  "immutable_inputs": {
+    "frozen_suite": "eae0a48d05a4a0715aaacaa6a53011bc65df9e3c8e02e0254ac6f706c1a94765",
+    "heldout_suite": "3a173716ac7059fe3a25f8ad6c77ed3d3261444163f1a4fd2eeead73ef3a0926",
+    "system_prompt": "e87dd2c01ca577050f8011e93f4d2fcd8a1d70475e05262fc215d30b6ec55ab7",
+    "lfm_prompt": "bdfbda5e6ee108b24119f45c0620d735e6ba4aa32d24e13b79003e4940e82a74",
+    "fixture": "81e4a5fec34b3222e8378321865d5501af5dfa461f1678bdf0d8f254d86fce38",
+    "tools": "6e840a2aa33508910bbdd688c8210bd10801f350e1027134897e02e940475071"
+  },
+  "bound_inputs": {
+    "frozen_suite": "eae0a48d05a4a0715aaacaa6a53011bc65df9e3c8e02e0254ac6f706c1a94765",
+    "heldout_suite": "3a173716ac7059fe3a25f8ad6c77ed3d3261444163f1a4fd2eeead73ef3a0926",
+    "system_prompt": "e87dd2c01ca577050f8011e93f4d2fcd8a1d70475e05262fc215d30b6ec55ab7",
+    "lfm_prompt": "bdfbda5e6ee108b24119f45c0620d735e6ba4aa32d24e13b79003e4940e82a74",
+    "fixture": "81e4a5fec34b3222e8378321865d5501af5dfa461f1678bdf0d8f254d86fce38",
+    "tools": "6e840a2aa33508910bbdd688c8210bd10801f350e1027134897e02e940475071",
+    "profiles": "27687e0d4915cee3542ca6bfd774e94d4a87c3d6aee705c28ba7208a9a275c57"
+  },
+  "changed_with_reason": {
+    "profiles": "the descriptive scoring block now declares this v2 rubric; every numeric target, symbol and denominator is unchanged",
+    "added": "this scoring contract file"
+  },
+  "operation_commands": {
+    "update_event_interpretation": "UPDATE_EVENT",
+    "propose_link": "PROPOSE_LINK",
+    "attach_link": "ATTACH_LINK",
+    "request_laya_classification": "REQUEST_CLASSIFICATION"
+  },
+  "argument_policies": [
+    {"tool": "update_event_interpretation", "path": "idempotencyKey", "policy": "idempotency_key"},
+    {"tool": "update_event_interpretation", "path": "interpretation.normalizedText", "policy": "source_backed_text"},
+    {"tool": "update_event_interpretation", "path": "interpretation.unresolvedReason", "policy": "unresolved_reason_label"},
+    {"tool": "update_event_interpretation", "path": "extractionVersion", "policy": "declared_extraction_version"},
+    {"tool": "propose_link", "path": "idempotencyKey", "policy": "idempotency_key"},
+    {"tool": "attach_link", "path": "idempotencyKey", "policy": "idempotency_key"},
+    {"tool": "request_laya_classification", "path": "idempotencyKey", "policy": "idempotency_key"}
+  ],
+  "idempotency_key": {
+    "max_length": 128,
+    "forbid_control_characters": true,
+    "unique_within_case": true,
+    "note": "The application refuses a blank key and stores one durable operation per key; the same key with a different caller or payload is a conflict. The contract enforces only that application rule plus size and per-case uniqueness: a non-blank key with surrounding whitespace is a distinct valid key, exactly as the application stores it. Cross-case uniqueness is the harness's per-case isolated-database responsibility."
+  },
+  "source_backed_text": {
+    "max_length": 200,
+    "min_prefix_match": 4,
+    "neutral_tokens": ["and", "at", "bought", "buy", "expense", "for", "of", "paid", "pay", "payment", "purchase", "record", "recorded", "spend", "spent", "the", "transaction", "vnd"],
+    "note": "Deterministic checks only: non-empty, no control characters, at least one non-neutral content token shared with the source span or stated merchant (exact or >=4-character prefix), and every stated number explained by the source span, the amount, or a stated date/time component. A paraphrase that satisfies those checks is accepted."
+  },
+  "unresolved_reason_label": {
+    "max_length": 120,
+    "forbid_control_characters": true,
+    "note": "The application accepts any non-blank reason string and no product vocabulary exists, so only the unresolved decision, non-emptiness, bounded size and absence of control characters are graded."
+  },
+  "extraction_version": {
+    "max_length": 64,
+    "forbid_control_characters": true,
+    "consistent_within_case": true,
+    "note": "Producer-supplied provenance, never compared to a literal. The score output records the declared value so mixed producers stay visible; verifying which extractor produced a reading is a future adapter responsibility, not a claim of this scorer."
+  },
+  "provenance": {
+    "required_binding_fields": ["scoring_version", "contract_version", "parser_version", "inputs"],
+    "required_input_hashes": ["frozen_suite", "heldout_suite", "system_prompt", "tools", "fixture"],
+    "note": "A results document that omits its binding or declares another version/hash fails every case instead of qualifying silently. The report itself records the exact bound inputs and its own scoring-contract digest."
+  },
+  "evidence_fields": {
+    "stored_reading": "required for every update_event_interpretation call: the app-stored note_events row derived from the real instrumented trace",
+    "replay": "required whenever a replay is claimed: repeated dispatch outcomes, the single durable operation row and equal before/after state digests",
+    "replay_probe": "required once per profile before a score report is complete for qualification; reported as missing, valid or invalid and never inferred from a boolean"
+  },
+  "boundaries": {
+    "semantic_paraphrase_quality": "Whether a source-backed reading is the best paraphrase is human judgement. The machine checks non-emptiness, source tokens, numeric facts and the stored effect; it does not rank paraphrases.",
+    "unresolved_reason_label": "The label vocabulary is deliberately not fixed: the application accepts any non-blank reason, so only the unresolved decision, non-emptiness, bounded size and control characters are graded.",
+    "extraction_version_label": "The producer version is not compared to a literal because no prompt-visible value exists; it is recorded and required to be consistent within a case.",
+    "merchant_label": "The frozen multi-event expectations label the source word 'fuel' as the merchant. That authored choice is kept exactly; a defensible null merchant would still fail. Disclosed, not silently changed.",
+    "expected_link_revision": "attach_link.expectedRevision 0 is the initial revision of a freshly proposed link, derived from application revision semantics rather than prose. It stays exact.",
+    "replay_evidence": "The scorer verifies the structure and internal consistency of replay evidence, not that an unobserved device run happened; raw trace review remains required.",
+    "cross_case_key_uniqueness": "The application key table is unique per database and each case runs in a fresh isolated database, so key uniqueness is enforced within a case; per-case isolation is the harness's responsibility."
+  },
+  "reason_codes": [
+    "missing_result",
+    "parse_error",
+    "application_effect_trace_missing",
+    "contract_binding_missing",
+    "contract_binding_mismatch",
+    "call_schema_invalid",
+    "unknown_tool_call",
+    "call_intent_or_arguments_mismatch",
+    "idempotency_key_invalid",
+    "idempotency_key_collision",
+    "idempotency_replay_evidence_missing",
+    "idempotency_replay_not_observed",
+    "idempotency_replay_state_changed",
+    "normalized_text_invalid",
+    "normalized_text_not_source_backed",
+    "normalized_text_fabricated_facts",
+    "normalized_text_effect_mismatch",
+    "stored_reading_evidence_missing",
+    "stored_reading_mismatch",
+    "unresolved_reason_decision_mismatch",
+    "unresolved_reason_label_invalid",
+    "unresolved_reason_effect_mismatch",
+    "extraction_version_invalid",
+    "extraction_version_inconsistent",
+    "source_span_out_of_bounds",
+    "observed_effect_mismatch",
+    "clarification_scope_mismatch",
+    "clarification_semantics_unreviewed_or_invalid",
+    "refusal_scope_mismatch",
+    "refusal_semantics_unreviewed_or_invalid",
+    "no_match_intent_mismatch",
+    "no_match_semantics_unreviewed_or_invalid"
+  ]
+}

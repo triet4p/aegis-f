@@ -286,7 +286,7 @@ python tools/slm/regrade_reports.py --raw-root artifacts/sprint-5/workers/S5.1-a
 The S8.2 contract is frozen separately from the legacy S5.1 benchmark:
 [`docs/sprint-8-evaluation-contract.md`](../../docs/sprint-8-evaluation-contract.md).
 Its source-backed tools, synthetic fixture, frozen and held-out case sets, system
-prompt, profile declarations, and validator/scorer are:
+prompt, profile declarations, scoring contract and validator/scorer are:
 
 - `s8_workflow_tools.json`
 - `s8_workflow_fixture.json`
@@ -295,18 +295,35 @@ prompt, profile declarations, and validator/scorer are:
 - `s8_workflow_system_prompt.txt`
 - `s8_lfm_restricted_prompt.txt`
 - `s8_workflow_profiles.json`
+- `s8_workflow_scoring_v2.json`
 - `s8_contract.py`
 
-Validate the contract and native-family renderer/parser fixtures with:
+Validate the contract, its bound input digests and the native-family renderer/parser
+fixtures with:
 
 ```powershell
 uv run python tools/slm/s8_contract.py validate
 uv run python tools/slm/s8_contract.py selftest
 ```
 
+`validate` re-hashes every bound input, confirms the suites, prompts, fixture and tool
+schema are unchanged from checkpoint `b26148e`, and checks that every frozen expected
+value satisfies the v2 policy applied to it.
+
 Score a future saved candidate observation with
-`uv run python tools/slm/s8_contract.py score <candidate-results.json>`. Missing
-outputs, parser failures, and failed cases remain in the denominator. Self-test
-records are synthetic contract-tooling probes only: they are not model or app
-evidence. The proposed profile metrics are not owner-approved gates, and this
-tooling does not qualify a model or implement an app adapter.
+`uv run python tools/slm/s8_contract.py score <candidate-results.json>`. That applies
+the frozen v2 rubric: tool intent, scope, revisions, spans, amounts, dates, times,
+bounds and nullness stay exact; the declared idempotency-key, normalized-text,
+unresolved-reason and extraction-version policies are judged semantically against the
+real app-stored reading and observed effect. Add `--scoring v1` to reproduce the
+preserved exact-argument scoring that was assessed at checkpoint `b26148e`; v1 and v2
+scores are never mixed.
+
+A v2 results document must carry a `binding` block (scoring/contract/parser versions
+plus the suite, prompt, tool-schema and fixture hashes) and a stored reading for every
+`update_event_interpretation` call. Missing outputs, parser failures, missing stored
+readings, binding mismatches and failed cases remain in the denominator, and the report
+states whether the required per-profile replay probe was supplied. Self-test records
+are synthetic contract-tooling probes only: they are not model or app evidence. The
+proposed profile metrics are not owner-approved gates, and this tooling does not
+qualify a model or implement an app adapter.

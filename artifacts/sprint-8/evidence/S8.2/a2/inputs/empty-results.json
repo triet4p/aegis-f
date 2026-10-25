@@ -1,0 +1,21 @@
+{
+  "profile": "s8.2-rubric-v2-diagnostic",
+  "sample_provenance": {
+    "origin": "host_constructed_diagnostic",
+    "not_model_output": true
+  },
+  "binding": {
+    "scoring_version": "aegis-f-s8-workflow-scoring/v2",
+    "contract_version": "s8-workflow-contract-v2",
+    "parser_version": "s8-native-parser-v1",
+    "inputs": {
+      "frozen_suite": "eae0a48d05a4a0715aaacaa6a53011bc65df9e3c8e02e0254ac6f706c1a94765",
+      "heldout_suite": "3a173716ac7059fe3a25f8ad6c77ed3d3261444163f1a4fd2eeead73ef3a0926",
+      "system_prompt": "e87dd2c01ca577050f8011e93f4d2fcd8a1d70475e05262fc215d30b6ec55ab7",
+      "tools": "6e840a2aa33508910bbdd688c8210bd10801f350e1027134897e02e940475071",
+      "fixture": "81e4a5fec34b3222e8378321865d5501af5dfa461f1678bdf0d8f254d86fce38"
+    }
+  },
+  "results": [],
+  "metrics": {}
+}

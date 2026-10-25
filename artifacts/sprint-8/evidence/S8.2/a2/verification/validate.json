@@ -1,0 +1,76 @@
+{
+  "status": "PASS",
+  "frozen_cases": 10,
+  "heldout_cases": 6,
+  "tools": 5,
+  "profiles": 4,
+  "native_parity": {
+    "qwen": "rendered complete frozen schema and system prompt; complete bounded-object call parsed exactly",
+    "minicpm": "rendered complete frozen schema and system prompt; complete bounded-object call parsed exactly",
+    "gemma": "rendered complete frozen schema and system prompt; complete bounded-object call parsed exactly",
+    "lfm": "rendered restricted no-tool profile"
+  },
+  "scoring_versions": [
+    "v1-exact-arguments",
+    "aegis-f-s8-workflow-scoring/v2"
+  ],
+  "active_scoring_version": "aegis-f-s8-workflow-scoring/v2",
+  "contract_version": "s8-workflow-contract-v2",
+  "parser_version": "s8-native-parser-v1",
+  "semantic_policies": [
+    {
+      "tool": "update_event_interpretation",
+      "path": "idempotencyKey",
+      "policy": "idempotency_key"
+    },
+    {
+      "tool": "update_event_interpretation",
+      "path": "interpretation.normalizedText",
+      "policy": "source_backed_text"
+    },
+    {
+      "tool": "update_event_interpretation",
+      "path": "interpretation.unresolvedReason",
+      "policy": "unresolved_reason_label"
+    },
+    {
+      "tool": "update_event_interpretation",
+      "path": "extractionVersion",
+      "policy": "declared_extraction_version"
+    },
+    {
+      "tool": "propose_link",
+      "path": "idempotencyKey",
+      "policy": "idempotency_key"
+    },
+    {
+      "tool": "attach_link",
+      "path": "idempotencyKey",
+      "policy": "idempotency_key"
+    },
+    {
+      "tool": "request_laya_classification",
+      "path": "idempotencyKey",
+      "policy": "idempotency_key"
+    }
+  ],
+  "immutable_inputs_verified": [
+    "fixture",
+    "frozen_suite",
+    "heldout_suite",
+    "lfm_prompt",
+    "system_prompt",
+    "tools"
+  ],
+  "bound_inputs_verified": [
+    "fixture",
+    "frozen_suite",
+    "heldout_suite",
+    "lfm_prompt",
+    "profiles",
+    "system_prompt",
+    "tools"
+  ],
+  "scoring_contract_sha256": "c801dda5762e96228f8327c5ab581e0ce7e04b4117d030232e2a1fd720d4eff8",
+  "expected_value_policy_check": "every frozen expected value satisfies the v2 policy applied to it"
+}
