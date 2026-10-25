@@ -1,0 +1,92 @@
+{
+  "schema": "omp-reviewed-snapshot/v1",
+  "task_id": "S7.8",
+  "attempt_id": "S7.8-review-01",
+  "agent_id": "S78EvidenceReview",
+  "worker_attempt_id": "S7.8-impl-02",
+  "worker_artifact_path": "artifacts/sprint-7/workers/S7.8-impl-02.md",
+  "report_path": "artifacts/sprint-7/reviews/S7.8-review-01.md",
+  "manifest_path": "artifacts/sprint-7/reviews/S7.8-review-01.manifest.json",
+  "snapshot": {
+    "base_commit_sha": "12d0b550dc4fbc3ac91865de9feaadf24c6664b2",
+    "git_c_root": "F:/ai-ml/aegis-f",
+    "repository": "F:/ai-ml/aegis-f/.git",
+    "scope": [
+      {
+        "base_blob_oid": "c2429fd6b26824188dab10c6639517decff45725",
+        "base_mode": "100644",
+        "path": "README.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "8a5abd7f20101b335ad5700f0475444125913be2adbd6645d1d9e711841173cc"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-7/evidence/s78/baseline.json",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "b1683681bd3728c57bedaa97380c37c828ac5cb2189e88274f7759cf1e7ef4e7"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-7/evidence/s78/current-part1.json",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "2c59c129edb967be5201709853ae178e76bd4c4e8951b55f464f18eb0fe14931"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-7/evidence/s78/current.json",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "cf63acdd38e465210dcb5990da3f92bc7e0a87bffdcedc1e5d43c36a04c63aea"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-7/evidence/s78/device-observations.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "b2020e25247ac296b56594ebe8ebf9bcd540d8d4b3b8b918eb1f5253f8dd51fd"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-7/evidence/s78/drive_s78.py",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "9c8096ae6ceb35600cbdc2dd85428ea8db11fa6573f7135e7519088b1093b37d"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-7/evidence/s78/final-ledger-comparison.json",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "3f19e44d8aea5e52bee4452278c998f8af97fe2fe84a44823ce4aa8794adabd8"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-7/evidence/s78/queue-sequence.json",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "c2ce9ad8a897359689b57828101e2c266052036f0ff8907027d3deacfaf4aa30"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "docs/sprint-7-review-effort.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "7fe6dd8a29442e893ae50568b0a94bf1f306289352af879944bd72e46ccd9256"
+      }
+    ],
+    "target_ref": "refs/heads/main",
+    "worktree": "F:/ai-ml/aegis-f"
+  },
+  "snapshot_sha256": "f2f7d1981e81cc9afcdbb5ccb3e96273209fa009070a0e903e57559c80283a40"
+}

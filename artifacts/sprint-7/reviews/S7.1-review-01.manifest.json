@@ -1,0 +1,28 @@
+{
+  "schema": "omp-reviewed-snapshot/v1",
+  "task_id": "S7.1",
+  "attempt_id": "S7.1-review-01",
+  "agent_id": "S71EvidenceReview",
+  "worker_attempt_id": "S7.1-impl-01",
+  "worker_artifact_path": "artifacts/sprint-7/workers/S7.1-impl-01.md",
+  "report_path": "artifacts/sprint-7/reviews/S7.1-review-01.md",
+  "manifest_path": "artifacts/sprint-7/reviews/S7.1-review-01.manifest.json",
+  "snapshot": {
+    "repository": "F:/ai-ml/aegis-f/.git",
+    "worktree": "F:/ai-ml/aegis-f",
+    "git_c_root": "F:/ai-ml/aegis-f",
+    "target_ref": "refs/heads/main",
+    "base_commit_sha": "fd3eceb44c4606bd69cba647d2b28556f34fde99",
+    "scope": [
+      {
+        "path": "docs/sprint-7-confidence-queue-policy.md",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "8e26bab8ad282e4edbbc69e556bc438c13152bfd44051c865f2610cefe975b4c"
+      }
+    ]
+  },
+  "snapshot_sha256": "e367f3b242a88db6e5f071e2d037f4088defac5dc7c1849959c35419450f1036"
+}

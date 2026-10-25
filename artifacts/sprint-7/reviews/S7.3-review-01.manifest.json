@@ -1,0 +1,140 @@
+{
+  "schema": "omp-reviewed-snapshot/v1",
+  "task_id": "S7.3",
+  "attempt_id": "S7.3-review-01",
+  "agent_id": "S73EvidenceReview",
+  "worker_attempt_id": "S7.3-impl-01",
+  "worker_artifact_path": "artifacts/sprint-7/workers/S7.3-impl-01.md",
+  "report_path": "artifacts/sprint-7/reviews/S7.3-review-01.md",
+  "manifest_path": "artifacts/sprint-7/reviews/S7.3-review-01.manifest.json",
+  "snapshot": {
+    "repository": "F:/ai-ml/aegis-f/.git",
+    "worktree": "F:/ai-ml/aegis-f",
+    "git_c_root": "F:/ai-ml/aegis-f",
+    "target_ref": "refs/heads/main",
+    "base_commit_sha": "1896d2d18c2d4634a400ee15eac65f4f5c75a9e7",
+    "scope": [
+      {
+        "path": "CHANGELOG.md",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "13cda586fa3591c162afa60dc7248d1c23cffbd4",
+        "worktree_raw_sha256": "08f8e1cc072926eb92faceffa68585a1e62f7c164ebc29f4ee6861ab7d64e48e"
+      },
+      {
+        "path": "README.md",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "d84926e76974fa97d769247c427353ab1b77ce34",
+        "worktree_raw_sha256": "616602b1835a6cec9420b47625999f28faabe4ad435364ae515f1a58b1af80b5"
+      },
+      {
+        "path": "app/schemas/io.github.triet4p.aegisf.data.LedgerDatabase/12.json",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "93dc3f650a8194c342a131f71f0c39e48014c94f254508e1ac5836d4cedf8250"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/MainActivity.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "54e2385854f3cd7bfa2abf7920783b408b992918",
+        "worktree_raw_sha256": "75aa8705a0996170afada31f51082489f7d0d9520aa440f6a915df8d59e2a574"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/AppContainer.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "e64e43a9757b7169dbbb5e920a5fc9a122cee61e",
+        "worktree_raw_sha256": "fa8bd71718124df9b9a42f83cce57372bb72fcc16ba1e5c58f7fe49be1b036fd"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/BankDraftClassificationQueue.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "bae5e1f94955d2d68649ed4b66970fec9d95efc4",
+        "worktree_raw_sha256": "0a3bdd57b4daaa3fd4c78e9e6595062811091c28d7e88e7b98fc751c40b07c01"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/ClassificationWorkDao.kt",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "4a915d230e4d1fb4149e1340afae8ce33c4a7e69085264bdf31b19aae4121cf8"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/ClassificationWorkEntity.kt",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "0a44f1dbf7021b02c1d26c17232f6700af1eb38393ff8fa2fd20c78717066953"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/IntakeRepository.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "757ba16d0ee9da29f5063a0c53d9ec7f8a96786b",
+        "worktree_raw_sha256": "c87df2e86fce31f5eab5b62b7c9e7ffa47acd2e066a4ebb4d718d0448448d187"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/LedgerDatabase.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "2b475a9a24b9932a97142f4db00e2ae1f88c907b",
+        "worktree_raw_sha256": "f56d5dec97577d0a799f9bd57a5a309af90d1a1df42dcfdf342c211b36f95723"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/WorkflowCommandService.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "3574a104020cfcb846930dbd5200f65b7e3331a9",
+        "worktree_raw_sha256": "91de2ba9c1de69cfb08dba5d84b6cbf4aaf01c6b1591972bcd43e0e91f8d4397"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/laya/LayaInferenceLifecycle.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "5a81134ada5dde3fb4c0565e911b33550bc9e176",
+        "worktree_raw_sha256": "35523cc906269df81b0cae166ccb77906550fce5f915f09c961594fffef5d059"
+      },
+      {
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/ClassificationWorkLifecycleTest.kt",
+        "status": "added",
+        "base_mode": null,
+        "worktree_mode": "100644",
+        "base_blob_oid": null,
+        "worktree_raw_sha256": "8c1d8837b6cedd886a61d8230804d231da8cb8bf00138bb0dd4c6b4b2c4d6c6d"
+      },
+      {
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/MigrationChainTest.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "74e035b66fd55e8b444f5db20d346c352dd400bb",
+        "worktree_raw_sha256": "32fce9d8c3af83cf4a534e357dc424fd216fa84d068169834610748749d71ff2"
+      },
+      {
+        "path": "app/src/test/java/io/github/triet4p/aegisf/notification/BankIntakeClassificationTest.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "bd33687d9bdaf82a86257efc779f602f2c120762",
+        "worktree_raw_sha256": "1768451113277a43bb45923066b469a9c6fcc5159405436bb860c72dbbeb3f8d"
+      }
+    ]
+  },
+  "snapshot_sha256": "bf304017e9d7b4bc846cae1406784b04f167ab6618af06fbbd73cfde00677c54"
+}

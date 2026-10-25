@@ -1,0 +1,8 @@
+# Sprint 7 closed — user accepted
+
+- Owner confirmed “Ổn r” in response to the final normal-phone install and request for consolidated experience acceptance. This is explicit user acceptance, not a timeout/default or worker inference.
+- S7.1–S7.8 required independent evidence and separate Bronze checkpoints PASS. S7.3 reopened by final differential and corrected with deterministic failure-before/pass-after, real Android latest-question smoke, 418 tests/build PASS, targetSdk37 retained; correction checkpoint b841406277b7053fe12e97a5e57ee6bbc04acbac. Final differential artifacts/sprint-7/reviews/S7-final-review-02.md PASS, no actionable findings.
+- Verified normal APK SHA256 f2221ea6b6a30d378a71f875082ca59aeead0006b2e79355cf1724e3aae8ed3c installed via adb install-r Success; MainActivity launch Statusok and topResumedActivity visible. Installation details artifacts/sprint-7/state/S7-installed-main.md. No uninstall/data-clear/signing bypass performed.
+- Main updated docs/sprint-plans/sprint-7.md complete/user-accepted, docs/PLAN.md Sprints1–7complete and M7 checked. These Main status/closure edits are not an additional Git commit. No push. No active workers/timers/requests.
+- Preserve disclosed limits: descriptive one-phone fixtures, MODEL_CHANGED host-covered, native admission serial (not measured concurrent contention), inherited large-catalog retrieval/quality limitations. User acceptance does not imply new calibration/accuracy claims or extra tests.
+- Sprint8 next, not started; existing Sprint7 role/checkpoint authority does not automatically authorize Sprint8. Relevant records remain under artifacts/sprint-7/ with pointers in sprint plan.

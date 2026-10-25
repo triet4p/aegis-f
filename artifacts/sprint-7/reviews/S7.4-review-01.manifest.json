@@ -1,0 +1,100 @@
+{
+  "schema": "omp-reviewed-snapshot/v1",
+  "task_id": "S7.4",
+  "attempt_id": "S7.4-review-01",
+  "agent_id": "S74EvidenceReview",
+  "worker_attempt_id": "S7.4-impl-01",
+  "worker_artifact_path": "artifacts/sprint-7/workers/S7.4-impl-01.md",
+  "report_path": "artifacts/sprint-7/reviews/S7.4-review-01.md",
+  "manifest_path": "artifacts/sprint-7/reviews/S7.4-review-01.manifest.json",
+  "snapshot": {
+    "repository": "F:/ai-ml/aegis-f/.git",
+    "worktree": "F:/ai-ml/aegis-f",
+    "git_c_root": "F:/ai-ml/aegis-f",
+    "target_ref": "refs/heads/main",
+    "base_commit_sha": "abd9142ac4ba81a53e9e9df190feb4bdf58cd89d",
+    "scope": [
+      {
+        "path": "CHANGELOG.md",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "a32665df8b5b75ba8421a88152dd08a1ce38ed62",
+        "worktree_raw_sha256": "5edce73e59ad71073acdf934b4db12ee4d584d3a5fc44539ebb1234aa28d2ff9"
+      },
+      {
+        "path": "README.md",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "76eb154338842f3b95f5b15a76683d4485b69b35",
+        "worktree_raw_sha256": "96c36a5a2460f8a160dc0f445b25620cd1796199987c8324e2874bf4bf69932e"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/BankDraftClassificationQueue.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "010fbf40265585e559d5fff718b7371300e1026d",
+        "worktree_raw_sha256": "08c1b42120ad8863dc3031e7886c3c6d7d8de88d73cd84e43a20103daf9f5931"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/ClassificationSnapshotDao.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "984d108009e17cbd0537fa43c5089418fe9e4d68",
+        "worktree_raw_sha256": "04f1bf9636746e88164f8cb67881bbf4af529dd9565e7683c5063ba7c6be8c52"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/ClassificationSnapshotEntity.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "53e56d999b2d5bf529c6c721f2c696a77107ea1e",
+        "worktree_raw_sha256": "ff274eef42f1369d4e32c023e7177b7ed8f75c2340e44685a963bbeecfbf11ec"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/ClassificationSnapshotRepository.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "c5bbc54a53efb635991abab269de92efbec28c73",
+        "worktree_raw_sha256": "304802fc52f82554c4034a60a0e1557d17df8d49be4d92461687a326103d48dc"
+      },
+      {
+        "path": "app/src/main/java/io/github/triet4p/aegisf/data/WorkflowCommandService.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "c44c3e607fe4db3006ddf54474008650f90df8ac",
+        "worktree_raw_sha256": "016f2d0a519853768c88c46a8ac500a950f25e5b3b50ed2cdb6675d3c887eafa"
+      },
+      {
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/ClassificationSnapshotTest.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "2dff04ccb1190ac4caf29bc9bbd7f1c46dca47d1",
+        "worktree_raw_sha256": "33bf0da8be287543ef445d446a3cf94bc7f00480160aeac8454634de2ece5a02"
+      },
+      {
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/ClassificationWorkLifecycleTest.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "ffbab473b67048fc6218bcdac66fbdc3c7958edf",
+        "worktree_raw_sha256": "81eac597dff48900ff39ae6481776beb46f67d82010d6d5ff367e2d3de320446"
+      },
+      {
+        "path": "app/src/test/java/io/github/triet4p/aegisf/data/WorkflowCommandServiceTest.kt",
+        "status": "modified",
+        "base_mode": "100644",
+        "worktree_mode": "100644",
+        "base_blob_oid": "3b8c0ad9f202913f27abcb4c2e17ef7c2c1f0933",
+        "worktree_raw_sha256": "89f48c027b5e7cff8c9d640b4da828e012c475f58b40c7502f11e5b067881ace"
+      }
+    ]
+  },
+  "snapshot_sha256": "6d07a430217425f34ae252fb13b0659de2c240abb37e4117160635ca2d849a19"
+}

@@ -1,0 +1,7 @@
+# Sprint 7 normal-phone installation
+
+- User explicitly requested final install after reconnecting phone. Main performed only app-scoped verified update/launch, no worker dispatch or source changes.
+- ADB devices: AAAJBB4930914141 device. APK app/build/outputs/apk/debug/app-debug.apk SHA256 verified by certutil: f2221ea6b6a30d378a71f875082ca59aeead0006b2e79355cf1724e3aae8ed3c, exact accepted S7.3 correction final build (418 tests PASS, targetSdk37 established by completed evidence review). Final product checkpoint b841406277b7053fe12e97a5e57ee6bbc04acbac; final differential artifacts/sprint-7/reviews/S7-final-review-02.md PASS.
+- adb -s AAAJBB4930914141 install -r app/build/outputs/apk/debug/app-debug.apk: Performing Streamed Install / Success. Normal package io.github.triet4p.aegisf updated in place, no uninstall/pm clear/credential or signing bypass. App data preservation is install-r semantics; no financial database contents inspected or exported during this installation.
+- adb shell am start -W -n io.github.triet4p.aegisf/.MainActivity: Status ok, LaunchState WARM, Activity io.github.triet4p.aegisf/.MainActivity, TotalTime1794ms, Complete. Subsequent dumpsys activity activities: topResumedActivity normal package MainActivity mVisible=true, fullscreen.
+- This proves successful update and resumed Activity, not complete actual-phone UX acceptance. No new full tests or benchmarks rerun. User consolidated acceptance pending. No push or Git changes performed by Main; only plan/status records updated. No active jobs/timers.
