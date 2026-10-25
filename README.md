@@ -293,7 +293,12 @@ The following capabilities are not available yet:
   select, and saving the removed id is refused, so a late decision cannot resurrect it.
   The S4.9 phone evaluation recorded 7/8 labeled top choices and only 1/6 expected-category
   shortlist recall with 206 active categories; keep the model review-only with manual fallback
-  ([evaluation](artifacts/sprint-4/workers/S4.9-A1.md)).
+  ([evaluation](artifacts/sprint-4/workers/S4.9-A1.md)). S7.8 then measured the review effort both
+  paths actually cost on a paired seven-draft phone fixture: automatic intake stored all seven
+  suggestions before review opened, removed the four typed description entries and the review-time
+  model waiting, while type, category and the explicit confirmation dialog stayed manual on both
+  builds; the dashboard totals reconciled exactly on each build
+  ([review effort](docs/sprint-7-review-effort.md)).
 - **No bank account connection.** The review inbox uses only permitted notification drafts; the app
   does not log in to a bank or request SMS, accessibility, or notification-posting permissions.
 - **No cloud service, sync, or account.** There is no login, no server, and no network use at all.
@@ -304,9 +309,10 @@ The following capabilities are not available yet:
 Planned work (real-bank device verification; the four-screen workflow and persistent quick
 capture; proactive Laya review — automatic intake classification with durable, coalesced work,
 the uncertainty-first review queue with its focus controls, and the stored status/cancel/retry
-review controls are implemented, while measured classification quality and the effort
-comparison remain planned; evidence-backed offline model/tool research; multi-event note
-orchestration; recovery and personal daily-use delivery) is described in [docs/PLAN.md](docs/PLAN.md).
+review controls are implemented and measured on the phone (S7.7 quality bounds and S7.8 paired
+review effort, [review effort](docs/sprint-7-review-effort.md)); evidence-backed offline
+model/tool research; multi-event note orchestration; recovery and personal daily-use delivery) is
+described in [docs/PLAN.md](docs/PLAN.md).
 
 The legacy Sprint 5 SLM benchmark remains partial, paused, and unapproved; no model was adopted.
 Its generated run reports and raw device outputs are preserved locally but are not versioned.

@@ -1,0 +1,199 @@
+[
+  {
+    "build": "baseline",
+    "snapshots": [
+      {
+        "draftId": 1,
+        "decisionSource": "MODEL",
+        "suggestedCategoryId": 2,
+        "confidence": 0.7273,
+        "unknownShare": 0.0025,
+        "staleReason": null
+      },
+      {
+        "draftId": 2,
+        "decisionSource": "NO_FIT",
+        "suggestedCategoryId": null,
+        "confidence": 0.5229,
+        "unknownShare": 0.7694,
+        "staleReason": null
+      },
+      {
+        "draftId": 3,
+        "decisionSource": "MODEL",
+        "suggestedCategoryId": 4,
+        "confidence": 0.8587,
+        "unknownShare": 0.0551,
+        "staleReason": null
+      },
+      {
+        "draftId": 4,
+        "decisionSource": "NO_FIT",
+        "suggestedCategoryId": null,
+        "confidence": 0.6042,
+        "unknownShare": 0.8107,
+        "staleReason": null
+      },
+      {
+        "draftId": 5,
+        "decisionSource": "MODEL",
+        "suggestedCategoryId": 1,
+        "confidence": 0.3248,
+        "unknownShare": 0.3412,
+        "staleReason": null
+      },
+      {
+        "draftId": 6,
+        "decisionSource": "NO_FIT",
+        "suggestedCategoryId": null,
+        "confidence": 0.4307,
+        "unknownShare": 0.5688,
+        "staleReason": null
+      },
+      {
+        "draftId": 7,
+        "decisionSource": "MODEL",
+        "suggestedCategoryId": 6,
+        "confidence": 0.8655,
+        "unknownShare": 0.06,
+        "staleReason": null
+      }
+    ],
+    "transactions": [
+      {
+        "type": "EXPENSE",
+        "c": 6,
+        "s": 9847000
+      }
+    ],
+    "pending": 0,
+    "draft_status": [
+      {
+        "reviewStatus": "CONFIRMED",
+        "c": 6
+      },
+      {
+        "reviewStatus": "DISMISSED",
+        "c": 1
+      }
+    ],
+    "operations": [
+      {
+        "command": "CONFIRM_DRAFT",
+        "outcome": "APPLIED",
+        "c": 6
+      },
+      {
+        "command": "DISMISS_DRAFT",
+        "outcome": "APPLIED",
+        "c": 1
+      },
+      {
+        "command": "REQUEST_CLASSIFICATION",
+        "outcome": "APPLIED",
+        "c": 10
+      },
+      {
+        "command": "REQUEST_CLASSIFICATION",
+        "outcome": "PENDING",
+        "c": 10
+      }
+    ]
+  },
+  {
+    "build": "current",
+    "snapshots": [
+      {
+        "draftId": 1,
+        "decisionSource": "MODEL",
+        "suggestedCategoryId": 2,
+        "confidence": 0.7273,
+        "unknownShare": 0.0025,
+        "staleReason": null
+      },
+      {
+        "draftId": 2,
+        "decisionSource": "NO_FIT",
+        "suggestedCategoryId": null,
+        "confidence": 0.4971,
+        "unknownShare": 0.5412,
+        "staleReason": null
+      },
+      {
+        "draftId": 3,
+        "decisionSource": "NO_FIT",
+        "suggestedCategoryId": null,
+        "confidence": 0.5124,
+        "unknownShare": 0.7174,
+        "staleReason": null
+      },
+      {
+        "draftId": 4,
+        "decisionSource": "NO_FIT",
+        "suggestedCategoryId": null,
+        "confidence": 0.6042,
+        "unknownShare": 0.8107,
+        "staleReason": null
+      },
+      {
+        "draftId": 5,
+        "decisionSource": "NO_FIT",
+        "suggestedCategoryId": null,
+        "confidence": 0.4307,
+        "unknownShare": 0.5688,
+        "staleReason": null
+      },
+      {
+        "draftId": 6,
+        "decisionSource": "NO_FIT",
+        "suggestedCategoryId": null,
+        "confidence": 0.4307,
+        "unknownShare": 0.5688,
+        "staleReason": null
+      },
+      {
+        "draftId": 7,
+        "decisionSource": "MODEL",
+        "suggestedCategoryId": 6,
+        "confidence": 0.8655,
+        "unknownShare": 0.06,
+        "staleReason": null
+      }
+    ],
+    "transactions": [
+      {
+        "type": "EXPENSE",
+        "c": 6,
+        "s": 9847000
+      }
+    ],
+    "pending": 0,
+    "draft_status": [
+      {
+        "reviewStatus": "CONFIRMED",
+        "c": 6
+      },
+      {
+        "reviewStatus": "DISMISSED",
+        "c": 1
+      }
+    ],
+    "operations": [
+      {
+        "command": "CONFIRM_DRAFT",
+        "outcome": "APPLIED",
+        "c": 6
+      },
+      {
+        "command": "DISMISS_DRAFT",
+        "outcome": "APPLIED",
+        "c": 1
+      },
+      {
+        "command": "REQUEST_CLASSIFICATION",
+        "outcome": "APPLIED",
+        "c": 7
+      }
+    ]
+  }
+]

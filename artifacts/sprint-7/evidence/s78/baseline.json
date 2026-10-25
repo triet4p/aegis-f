@@ -1,0 +1,1214 @@
+{
+  "kind": "review",
+  "label": "baseline",
+  "package": "io.github.triet4p.aegisf.s78baseline",
+  "apk_sha256": "5f29f11c678f4bd56961a2a43523203adb34311e3347f9eea7d6a66b7de22b92",
+  "apk_bytes": 88794713,
+  "actions": [
+    {
+      "t": 7.468,
+      "kind": "tap",
+      "label": "nav Review",
+      "driver_s": 1.287
+    },
+    {
+      "t": 20.269,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.912
+    },
+    {
+      "t": 21.181,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.901
+    },
+    {
+      "t": 22.082,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.886
+    },
+    {
+      "t": 22.969,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.885
+    },
+    {
+      "t": 23.854,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.885
+    },
+    {
+      "t": 24.739,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.885
+    },
+    {
+      "t": 30.83,
+      "kind": "swipe",
+      "label": "find draft 5",
+      "driver_s": 1.063
+    },
+    {
+      "t": 37.134,
+      "kind": "swipe",
+      "label": "find draft 5",
+      "driver_s": 1.056
+    },
+    {
+      "t": 40.81,
+      "kind": "tap",
+      "label": "open draft 5",
+      "driver_s": 1.263
+    },
+    {
+      "t": 50.305,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.919
+    },
+    {
+      "t": 56.556,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.916
+    },
+    {
+      "t": 63.089,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.895
+    },
+    {
+      "t": 69.014,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.917
+    },
+    {
+      "t": 74.975,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 1.071
+    },
+    {
+      "t": 81.112,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 1.082
+    },
+    {
+      "t": 84.792,
+      "kind": "tap",
+      "label": "type Expense",
+      "driver_s": 1.263
+    },
+    {
+      "t": 90.012,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.937
+    },
+    {
+      "t": 90.949,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.883
+    },
+    {
+      "t": 91.832,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.886
+    },
+    {
+      "t": 92.718,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.887
+    },
+    {
+      "t": 93.605,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.884
+    },
+    {
+      "t": 94.489,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.885
+    },
+    {
+      "t": 95.374,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.885
+    },
+    {
+      "t": 96.259,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.886
+    },
+    {
+      "t": 102.251,
+      "kind": "swipe",
+      "label": "find suggestion note",
+      "driver_s": 1.06
+    },
+    {
+      "t": 108.412,
+      "kind": "swipe",
+      "label": "find suggestion note",
+      "driver_s": 1.065
+    },
+    {
+      "t": 112.056,
+      "kind": "tap",
+      "label": "Suggestion note field",
+      "driver_s": 1.315
+    },
+    {
+      "t": 113.37,
+      "kind": "text",
+      "label": "entry 'lunch' in Suggestion note",
+      "driver_s": 1.2
+    },
+    {
+      "t": 140.552,
+      "kind": "swipe",
+      "label": "find category row Food",
+      "driver_s": 1.064
+    },
+    {
+      "t": 146.723,
+      "kind": "swipe",
+      "label": "find category row Food",
+      "driver_s": 1.077
+    },
+    {
+      "t": 150.419,
+      "kind": "tap",
+      "label": "category row Food",
+      "driver_s": 1.286
+    },
+    {
+      "t": 154.27,
+      "kind": "tap",
+      "label": "Confirm transaction",
+      "driver_s": 1.259
+    },
+    {
+      "t": 160.418,
+      "kind": "tap",
+      "label": "dialog Confirm",
+      "driver_s": 1.249
+    },
+    {
+      "t": 169.999,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.952
+    },
+    {
+      "t": 170.952,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.902
+    },
+    {
+      "t": 171.853,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.885
+    },
+    {
+      "t": 172.738,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.903
+    },
+    {
+      "t": 173.641,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.904
+    },
+    {
+      "t": 174.546,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.914
+    },
+    {
+      "t": 180.455,
+      "kind": "swipe",
+      "label": "find draft 6",
+      "driver_s": 1.089
+    },
+    {
+      "t": 184.053,
+      "kind": "tap",
+      "label": "open draft 6",
+      "driver_s": 1.269
+    },
+    {
+      "t": 193.177,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.932
+    },
+    {
+      "t": 199.803,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.921
+    },
+    {
+      "t": 205.606,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.913
+    },
+    {
+      "t": 211.439,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.911
+    },
+    {
+      "t": 217.235,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 1.048
+    },
+    {
+      "t": 223.318,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 1.065
+    },
+    {
+      "t": 226.894,
+      "kind": "tap",
+      "label": "type Expense",
+      "driver_s": 1.264
+    },
+    {
+      "t": 237.156,
+      "kind": "swipe",
+      "label": "find Dismiss draft",
+      "driver_s": 1.056
+    },
+    {
+      "t": 243.301,
+      "kind": "swipe",
+      "label": "find Dismiss draft",
+      "driver_s": 1.082
+    },
+    {
+      "t": 249.481,
+      "kind": "swipe",
+      "label": "find Dismiss draft",
+      "driver_s": 1.079
+    },
+    {
+      "t": 253.118,
+      "kind": "tap",
+      "label": "Dismiss draft",
+      "driver_s": 1.279
+    },
+    {
+      "t": 259.21,
+      "kind": "tap",
+      "label": "dialog Dismiss draft",
+      "driver_s": 1.267
+    },
+    {
+      "t": 268.416,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.906
+    },
+    {
+      "t": 269.322,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.884
+    },
+    {
+      "t": 270.206,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.884
+    },
+    {
+      "t": 271.09,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.888
+    },
+    {
+      "t": 271.978,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.884
+    },
+    {
+      "t": 272.862,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.887
+    },
+    {
+      "t": 278.832,
+      "kind": "swipe",
+      "label": "find draft 2",
+      "driver_s": 1.033
+    },
+    {
+      "t": 284.838,
+      "kind": "swipe",
+      "label": "find draft 2",
+      "driver_s": 1.055
+    },
+    {
+      "t": 288.398,
+      "kind": "tap",
+      "label": "open draft 2",
+      "driver_s": 1.277
+    },
+    {
+      "t": 297.473,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.902
+    },
+    {
+      "t": 303.743,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.928
+    },
+    {
+      "t": 309.637,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.932
+    },
+    {
+      "t": 315.476,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.924
+    },
+    {
+      "t": 321.375,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 1.039
+    },
+    {
+      "t": 324.922,
+      "kind": "tap",
+      "label": "type Expense",
+      "driver_s": 1.276
+    },
+    {
+      "t": 330.075,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.927
+    },
+    {
+      "t": 331.001,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.889
+    },
+    {
+      "t": 331.89,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.884
+    },
+    {
+      "t": 332.774,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.884
+    },
+    {
+      "t": 333.658,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.901
+    },
+    {
+      "t": 334.559,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.888
+    },
+    {
+      "t": 335.448,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.884
+    },
+    {
+      "t": 336.332,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.883
+    },
+    {
+      "t": 342.178,
+      "kind": "swipe",
+      "label": "find suggestion note",
+      "driver_s": 1.057
+    },
+    {
+      "t": 348.296,
+      "kind": "swipe",
+      "label": "find suggestion note",
+      "driver_s": 1.067
+    },
+    {
+      "t": 351.936,
+      "kind": "tap",
+      "label": "Suggestion note field",
+      "driver_s": 1.276
+    },
+    {
+      "t": 353.213,
+      "kind": "text",
+      "label": "entry 'coffee' in Suggestion note",
+      "driver_s": 1.224
+    },
+    {
+      "t": 379.58,
+      "kind": "swipe",
+      "label": "find category row Food",
+      "driver_s": 1.087
+    },
+    {
+      "t": 385.764,
+      "kind": "swipe",
+      "label": "find category row Food",
+      "driver_s": 1.085
+    },
+    {
+      "t": 389.439,
+      "kind": "tap",
+      "label": "category row Food",
+      "driver_s": 1.271
+    },
+    {
+      "t": 393.284,
+      "kind": "tap",
+      "label": "Confirm transaction",
+      "driver_s": 1.281
+    },
+    {
+      "t": 399.442,
+      "kind": "tap",
+      "label": "dialog Confirm",
+      "driver_s": 1.235
+    },
+    {
+      "t": 408.778,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.925
+    },
+    {
+      "t": 409.704,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.882
+    },
+    {
+      "t": 410.586,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.887
+    },
+    {
+      "t": 411.473,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.886
+    },
+    {
+      "t": 412.359,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.883
+    },
+    {
+      "t": 413.243,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.89
+    },
+    {
+      "t": 419.062,
+      "kind": "swipe",
+      "label": "find draft 3",
+      "driver_s": 1.07
+    },
+    {
+      "t": 422.659,
+      "kind": "tap",
+      "label": "open draft 3",
+      "driver_s": 1.267
+    },
+    {
+      "t": 431.654,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.905
+    },
+    {
+      "t": 438.298,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.925
+    },
+    {
+      "t": 444.222,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.93
+    },
+    {
+      "t": 450.146,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.921
+    },
+    {
+      "t": 456.003,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 1.083
+    },
+    {
+      "t": 459.642,
+      "kind": "tap",
+      "label": "type Expense",
+      "driver_s": 1.275
+    },
+    {
+      "t": 464.829,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.925
+    },
+    {
+      "t": 465.755,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.884
+    },
+    {
+      "t": 466.639,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.883
+    },
+    {
+      "t": 467.522,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.888
+    },
+    {
+      "t": 468.41,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.887
+    },
+    {
+      "t": 469.297,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.888
+    },
+    {
+      "t": 470.185,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.899
+    },
+    {
+      "t": 471.085,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.902
+    },
+    {
+      "t": 476.958,
+      "kind": "swipe",
+      "label": "find suggestion note",
+      "driver_s": 1.058
+    },
+    {
+      "t": 483.041,
+      "kind": "swipe",
+      "label": "find suggestion note",
+      "driver_s": 1.057
+    },
+    {
+      "t": 486.6,
+      "kind": "tap",
+      "label": "Suggestion note field",
+      "driver_s": 1.282
+    },
+    {
+      "t": 487.882,
+      "kind": "text",
+      "label": "entry 'electricity bill' in Suggestion note",
+      "driver_s": 1.74
+    },
+    {
+      "t": 517.037,
+      "kind": "swipe",
+      "label": "find category row Bills",
+      "driver_s": 1.067
+    },
+    {
+      "t": 523.277,
+      "kind": "swipe",
+      "label": "find category row Bills",
+      "driver_s": 1.041
+    },
+    {
+      "t": 526.893,
+      "kind": "tap",
+      "label": "category row Bills",
+      "driver_s": 1.272
+    },
+    {
+      "t": 530.758,
+      "kind": "tap",
+      "label": "Confirm transaction",
+      "driver_s": 1.277
+    },
+    {
+      "t": 536.881,
+      "kind": "tap",
+      "label": "dialog Confirm",
+      "driver_s": 1.273
+    },
+    {
+      "t": 546.198,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.923
+    },
+    {
+      "t": 547.12,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.889
+    },
+    {
+      "t": 548.009,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.885
+    },
+    {
+      "t": 548.894,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.901
+    },
+    {
+      "t": 549.796,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.882
+    },
+    {
+      "t": 550.677,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.887
+    },
+    {
+      "t": 556.517,
+      "kind": "swipe",
+      "label": "find draft 4",
+      "driver_s": 1.063
+    },
+    {
+      "t": 560.135,
+      "kind": "tap",
+      "label": "open draft 4",
+      "driver_s": 1.263
+    },
+    {
+      "t": 569.22,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.927
+    },
+    {
+      "t": 575.72,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.921
+    },
+    {
+      "t": 581.593,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.915
+    },
+    {
+      "t": 587.396,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.927
+    },
+    {
+      "t": 593.318,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 1.071
+    },
+    {
+      "t": 596.845,
+      "kind": "tap",
+      "label": "type Expense",
+      "driver_s": 1.276
+    },
+    {
+      "t": 602.079,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.93
+    },
+    {
+      "t": 603.009,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.881
+    },
+    {
+      "t": 603.891,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.886
+    },
+    {
+      "t": 604.777,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.886
+    },
+    {
+      "t": 605.663,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.902
+    },
+    {
+      "t": 606.565,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.887
+    },
+    {
+      "t": 607.452,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.884
+    },
+    {
+      "t": 608.336,
+      "kind": "swipe",
+      "label": "note search top",
+      "driver_s": 0.887
+    },
+    {
+      "t": 614.194,
+      "kind": "swipe",
+      "label": "find suggestion note",
+      "driver_s": 1.057
+    },
+    {
+      "t": 620.256,
+      "kind": "swipe",
+      "label": "find suggestion note",
+      "driver_s": 1.083
+    },
+    {
+      "t": 623.854,
+      "kind": "tap",
+      "label": "Suggestion note field",
+      "driver_s": 1.304
+    },
+    {
+      "t": 625.158,
+      "kind": "text",
+      "label": "entry 'clothes shopping' in Suggestion note",
+      "driver_s": 1.687
+    },
+    {
+      "t": 669.948,
+      "kind": "swipe",
+      "label": "find category row Shopping",
+      "driver_s": 1.061
+    },
+    {
+      "t": 673.491,
+      "kind": "tap",
+      "label": "category row Shopping",
+      "driver_s": 1.279
+    },
+    {
+      "t": 677.386,
+      "kind": "tap",
+      "label": "Confirm transaction",
+      "driver_s": 1.275
+    },
+    {
+      "t": 683.469,
+      "kind": "tap",
+      "label": "dialog Confirm",
+      "driver_s": 1.253
+    },
+    {
+      "t": 692.805,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.925
+    },
+    {
+      "t": 693.73,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.902
+    },
+    {
+      "t": 694.631,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.902
+    },
+    {
+      "t": 695.533,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.887
+    },
+    {
+      "t": 696.42,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.886
+    },
+    {
+      "t": 697.306,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.886
+    },
+    {
+      "t": 703.208,
+      "kind": "swipe",
+      "label": "find draft 1",
+      "driver_s": 1.065
+    },
+    {
+      "t": 706.77,
+      "kind": "tap",
+      "label": "open draft 1",
+      "driver_s": 1.276
+    },
+    {
+      "t": 715.773,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.914
+    },
+    {
+      "t": 722.262,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.938
+    },
+    {
+      "t": 728.097,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.957
+    },
+    {
+      "t": 734.064,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.881
+    },
+    {
+      "t": 739.944,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 1.067
+    },
+    {
+      "t": 743.509,
+      "kind": "tap",
+      "label": "type Expense",
+      "driver_s": 1.275
+    },
+    {
+      "t": 753.767,
+      "kind": "swipe",
+      "label": "find category row Housing",
+      "driver_s": 1.078
+    },
+    {
+      "t": 759.828,
+      "kind": "swipe",
+      "label": "find category row Housing",
+      "driver_s": 1.065
+    },
+    {
+      "t": 765.927,
+      "kind": "swipe",
+      "label": "find category row Housing",
+      "driver_s": 1.078
+    },
+    {
+      "t": 769.547,
+      "kind": "tap",
+      "label": "category row Housing",
+      "driver_s": 1.28
+    },
+    {
+      "t": 773.387,
+      "kind": "tap",
+      "label": "Confirm transaction",
+      "driver_s": 1.258
+    },
+    {
+      "t": 779.482,
+      "kind": "tap",
+      "label": "dialog Confirm",
+      "driver_s": 1.256
+    },
+    {
+      "t": 788.731,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.93
+    },
+    {
+      "t": 789.661,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.885
+    },
+    {
+      "t": 790.546,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.887
+    },
+    {
+      "t": 791.432,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.902
+    },
+    {
+      "t": 792.334,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.901
+    },
+    {
+      "t": 793.235,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.885
+    },
+    {
+      "t": 796.606,
+      "kind": "tap",
+      "label": "open draft 7",
+      "driver_s": 1.28
+    },
+    {
+      "t": 805.773,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.93
+    },
+    {
+      "t": 812.31,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.939
+    },
+    {
+      "t": 818.206,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.907
+    },
+    {
+      "t": 824.048,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.932
+    },
+    {
+      "t": 830.014,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 1.064
+    },
+    {
+      "t": 833.61,
+      "kind": "tap",
+      "label": "type Expense",
+      "driver_s": 1.279
+    },
+    {
+      "t": 843.808,
+      "kind": "swipe",
+      "label": "find category row Food",
+      "driver_s": 1.054
+    },
+    {
+      "t": 849.826,
+      "kind": "swipe",
+      "label": "find category row Food",
+      "driver_s": 1.049
+    },
+    {
+      "t": 855.869,
+      "kind": "swipe",
+      "label": "find category row Food",
+      "driver_s": 1.07
+    },
+    {
+      "t": 859.488,
+      "kind": "tap",
+      "label": "category row Food",
+      "driver_s": 1.272
+    },
+    {
+      "t": 863.327,
+      "kind": "tap",
+      "label": "Confirm transaction",
+      "driver_s": 1.244
+    },
+    {
+      "t": 869.463,
+      "kind": "tap",
+      "label": "dialog Confirm",
+      "driver_s": 1.285
+    }
+  ],
+  "waits": [
+    {
+      "label": "inference draft 5",
+      "s": 0.463
+    },
+    {
+      "label": "inference change draft 5",
+      "s": 12.451
+    },
+    {
+      "label": "inference draft 6",
+      "s": 0.487
+    },
+    {
+      "label": "inference draft 2",
+      "s": 0.424
+    },
+    {
+      "label": "inference change draft 2",
+      "s": 12.293
+    },
+    {
+      "label": "inference draft 3",
+      "s": 0.512
+    },
+    {
+      "label": "inference change draft 3",
+      "s": 14.405
+    },
+    {
+      "label": "inference draft 4",
+      "s": 0.483
+    },
+    {
+      "label": "inference draft 1",
+      "s": 0.487
+    },
+    {
+      "label": "inference draft 7",
+      "s": 0.525
+    }
+  ],
+  "wall_seconds": 863.28,
+  "driver_seconds": 191.146,
+  "inference_waits_seconds": 42.53,
+  "tap_count": 39,
+  "swipe_count": 143,
+  "text_entries": [
+    {
+      "field": "Suggestion note",
+      "text": "lunch"
+    },
+    {
+      "field": "Suggestion note",
+      "text": "coffee"
+    },
+    {
+      "field": "Suggestion note",
+      "text": "electricity bill"
+    },
+    {
+      "field": "Suggestion note",
+      "text": "clothes shopping"
+    }
+  ],
+  "note_results": [
+    {
+      "draft": 5,
+      "changed": true,
+      "seconds": 12.451
+    },
+    {
+      "draft": 2,
+      "changed": true,
+      "seconds": 12.293
+    },
+    {
+      "draft": 3,
+      "changed": true,
+      "seconds": 14.405
+    },
+    {
+      "draft": 4,
+      "changed": false,
+      "seconds": 30
+    }
+  ],
+  "pre_review_snapshots": 0,
+  "pre_review_transactions": 0
+}

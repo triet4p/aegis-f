@@ -1,0 +1,86 @@
+{
+  "uncertainty_first": [
+    {
+      "type": "section",
+      "text": "Needs your decision"
+    },
+    {
+      "type": "draft",
+      "draft": 5
+    },
+    {
+      "type": "draft",
+      "draft": 6
+    },
+    {
+      "type": "section",
+      "text": "No fit \u2014 choose a category"
+    },
+    {
+      "type": "draft",
+      "draft": 2
+    },
+    {
+      "type": "draft",
+      "draft": 3
+    },
+    {
+      "type": "draft",
+      "draft": 4
+    },
+    {
+      "type": "section",
+      "text": "Suggestions, least certain first"
+    },
+    {
+      "type": "draft",
+      "draft": 1
+    },
+    {
+      "type": "draft",
+      "draft": 7
+    }
+  ],
+  "oldest_first": [
+    {
+      "type": "section",
+      "text": "Suggestions, least certain first"
+    },
+    {
+      "type": "draft",
+      "draft": 1
+    },
+    {
+      "type": "section",
+      "text": "No fit \u2014 choose a category"
+    },
+    {
+      "type": "draft",
+      "draft": 2
+    },
+    {
+      "type": "draft",
+      "draft": 3
+    },
+    {
+      "type": "draft",
+      "draft": 4
+    },
+    {
+      "type": "section",
+      "text": "Needs your decision"
+    },
+    {
+      "type": "draft",
+      "draft": 5
+    },
+    {
+      "type": "draft",
+      "draft": 6
+    },
+    {
+      "type": "draft",
+      "draft": 7
+    }
+  ]
+}

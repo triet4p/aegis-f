@@ -1,0 +1,268 @@
+{
+  "kind": "review-partial",
+  "label": "current",
+  "package": "io.github.triet4p.aegisf.s78current",
+  "apk_sha256": "05fa7f7d4bc4cea60613918759f449e013371cff40ddbed8eb3c1efa36e0d387",
+  "apk_bytes": 88893017,
+  "actions": [
+    {
+      "t": 7.047,
+      "kind": "tap",
+      "label": "nav Review",
+      "driver_s": 1.281
+    },
+    {
+      "t": 19.91,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.942
+    },
+    {
+      "t": 20.851,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.886
+    },
+    {
+      "t": 21.737,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.9
+    },
+    {
+      "t": 22.638,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.902
+    },
+    {
+      "t": 23.54,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.885
+    },
+    {
+      "t": 24.425,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.887
+    },
+    {
+      "t": 30.492,
+      "kind": "swipe",
+      "label": "find draft 5",
+      "driver_s": 1.09
+    },
+    {
+      "t": 34.21,
+      "kind": "tap",
+      "label": "open draft 5",
+      "driver_s": 1.289
+    },
+    {
+      "t": 43.208,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.918
+    },
+    {
+      "t": 49.233,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.906
+    },
+    {
+      "t": 55.233,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.918
+    },
+    {
+      "t": 61.191,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.908
+    },
+    {
+      "t": 67.194,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 1.074
+    },
+    {
+      "t": 73.409,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 1.072
+    },
+    {
+      "t": 77.049,
+      "kind": "tap",
+      "label": "type Expense",
+      "driver_s": 1.267
+    },
+    {
+      "t": 89.527,
+      "kind": "swipe",
+      "label": "find category row Food",
+      "driver_s": 1.075
+    },
+    {
+      "t": 95.814,
+      "kind": "swipe",
+      "label": "find category row Food",
+      "driver_s": 1.071
+    },
+    {
+      "t": 99.517,
+      "kind": "tap",
+      "label": "category row Food",
+      "driver_s": 1.247
+    },
+    {
+      "t": 103.379,
+      "kind": "tap",
+      "label": "Confirm transaction",
+      "driver_s": 1.273
+    },
+    {
+      "t": 109.487,
+      "kind": "tap",
+      "label": "dialog Confirm",
+      "driver_s": 1.267
+    },
+    {
+      "t": 118.971,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.916
+    },
+    {
+      "t": 119.887,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.889
+    },
+    {
+      "t": 120.776,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.885
+    },
+    {
+      "t": 121.66,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.902
+    },
+    {
+      "t": 122.562,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.886
+    },
+    {
+      "t": 123.448,
+      "kind": "swipe",
+      "label": "reset to top",
+      "driver_s": 0.881
+    },
+    {
+      "t": 129.37,
+      "kind": "swipe",
+      "label": "find draft 6",
+      "driver_s": 1.064
+    },
+    {
+      "t": 132.95,
+      "kind": "tap",
+      "label": "open draft 6",
+      "driver_s": 1.278
+    },
+    {
+      "t": 141.651,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.925
+    },
+    {
+      "t": 147.515,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.953
+    },
+    {
+      "t": 153.413,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.906
+    },
+    {
+      "t": 159.253,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 0.913
+    },
+    {
+      "t": 165.062,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 1.073
+    },
+    {
+      "t": 171.186,
+      "kind": "swipe",
+      "label": "find type Expense",
+      "driver_s": 1.064
+    },
+    {
+      "t": 174.794,
+      "kind": "tap",
+      "label": "type Expense",
+      "driver_s": 1.274
+    },
+    {
+      "t": 187.092,
+      "kind": "swipe",
+      "label": "find Dismiss draft",
+      "driver_s": 1.076
+    },
+    {
+      "t": 193.26,
+      "kind": "swipe",
+      "label": "find Dismiss draft",
+      "driver_s": 1.075
+    },
+    {
+      "t": 199.467,
+      "kind": "swipe",
+      "label": "find Dismiss draft",
+      "driver_s": 1.062
+    },
+    {
+      "t": 203.076,
+      "kind": "tap",
+      "label": "Dismiss draft",
+      "driver_s": 1.271
+    },
+    {
+      "t": 209.143,
+      "kind": "tap",
+      "label": "dialog Dismiss draft",
+      "driver_s": 1.262
+    }
+  ],
+  "waits": [],
+  "wall_seconds": 203.358,
+  "driver_seconds": 42.613,
+  "inference_waits_seconds": 0,
+  "tap_count": 10,
+  "swipe_count": 31,
+  "text_entries": [],
+  "note_results": [],
+  "done": [
+    "E",
+    "F"
+  ],
+  "skipped": []
+}
