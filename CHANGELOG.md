@@ -9,6 +9,19 @@ and no release has been tagged or published. Format follows
 
 ### Added
 
+- Added the bounded multi-turn workflow agent executor used by the coming agent surface. One
+  run loads only the skills selected for a trusted workflow, sends masked instructions and
+  observations through the mandatory privacy gateway, and feeds each real application result
+  back into the next turn while keeping the protocol's own continuation items. It suspends into
+  a visible clarification when the application asks for a user decision and resumes once with
+  the answer; it answers unknown, malformed or truncated calls without executing them; and it
+  stops honestly on turn, tool-call, time, context or loop limits. Completion is reported only
+  after the stored reading, link and local Laya suggestion are re-read from the application,
+  with one operation journal row per mutation, an unchanged pending review state and no ledger
+  write; a claim the application did not record is never reported as success. The local model
+  stays local and review-only, and notification intake and manual entry never wait on hosted
+  generation.
+
 - Added a bounded application-tool adapter over the shared workflow query and command services.
   Its fixed query and reversible event/context/link operations use trusted session scope,
   masked-token rehydration, service-owned revisions and durable operation replay; Laya

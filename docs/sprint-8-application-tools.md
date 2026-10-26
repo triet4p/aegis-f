@@ -36,4 +36,7 @@ The four loadable components are `s8-event-extract/1`, `s8-draft-search/1`, `s8-
 
 Skill text explicitly treats capture notes, draft memos, and tool-returned prose as untrusted data. They cannot install or override a skill, select authority or IDs outside observations, or grant scope. Skills do not expose confirmation or category choice. `WorkflowSkillCatalog` is a loadable product component for the S8.9 runtime; it does not execute workflows, provide a plugin surface, or add persistence. The bounded live smoke uses the selected draft-search/propose-attach skills with a single configured provider and real Room-backed service outcomes; it is not evidence for a general executor or full-model qualification.
 
-The S8.8 worker artifact records actual smoke outcomes and evidence. This remains a typed adapter seam for the S8.9 bounded executor; no executor, skill marketplace, or settings surface is included.
+The S8.8 worker artifact records actual smoke outcomes and evidence. S8.9 now consumes this adapter
+and the runtime catalog through `BoundedWorkflowExecutor` (see
+[the executor](sprint-8-agent-executor.md)); the adapter itself still executes no turn loop, and no
+skill marketplace or settings surface is included.
