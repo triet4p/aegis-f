@@ -16,6 +16,12 @@ and no release has been tagged or published. Format follows
   The masked runtime declarations are versioned separately so historical raw-value evaluation
   fixtures and their v1 schema remain unchanged.
 
+- Added four versioned, bundled workflow skills for event interpretation, bounded draft search,
+  safe propose-to-attach, and local Laya review preparation. The app loads only skills selected
+  for trusted workflow intent; the separate runtime bundle preserves the frozen evaluation asset
+  and its schema. Instructions preserve clarification, privacy, scope, revision, and user-decision
+  boundaries without adding persistence or a plugin system.
+
 - Added the mandatory local pre-egress masking boundary used before any hosted model
   request. User input, selected context, history and tool results are masked on-device
   through deterministic detection of grouped/unit amounts, calendar dates, wall-clock

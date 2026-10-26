@@ -6,10 +6,13 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
-val s8AgentToolAssetDir = layout.buildDirectory.dir("generated/s8-agent-tools/assets")
-val copyS8AgentToolDeclarations by tasks.registering(Copy::class) {
-    from(rootProject.file("tools/slm/s8_agent_tools_v2.json"))
-    into(s8AgentToolAssetDir)
+val s8AgentRuntimeAssetDir = layout.buildDirectory.dir("generated/s8-agent-runtime/assets")
+val copyS8AgentRuntimeAssets by tasks.registering(Copy::class) {
+    from(
+        rootProject.file("tools/slm/s8_agent_tools_v2.json"),
+        rootProject.file("tools/slm/s8_agent_runtime_skills.json"),
+    )
+    into(s8AgentRuntimeAssetDir)
 }
 
 
@@ -42,9 +45,9 @@ android {
     }
 }
 
-android.sourceSets.getByName("main").assets.srcDir(s8AgentToolAssetDir.get().asFile)
+android.sourceSets.getByName("main").assets.srcDir(s8AgentRuntimeAssetDir.get().asFile)
 tasks.named("preBuild").configure {
-    dependsOn(copyS8AgentToolDeclarations)
+    dependsOn(copyS8AgentRuntimeAssets)
 }
 
 kotlin {
