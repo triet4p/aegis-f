@@ -9,6 +9,19 @@ and no release has been tagged or published. Format follows
 
 ### Added
 
+- Added durable agent run history with safe retry, cancel, and restart. Each caller session
+  keeps a user-visible conversation (request, status, and answer lines) separate from the
+  run/attempt journal (run identity, bounded attempts, allowed event/link/draft effect
+  references, pending/completed/unknown states, and privacy-safe observations), while business
+  captures and the operation journal stay untouched by history writes, cancellation, or
+  deletion. A repeated send replays the same durable run instead of duplicating an effect;
+  transport, rate-limit, server, stale-revision, schema-repair, and uncertain-write failures
+  reconcile the journal and the live rows before any bounded retry (at most three attempts),
+  and terminal budget, truncation, filtering, masking, scope, user-decision, and loop stops
+  never retry. Cancellation never claims rollback: stored effects stay stored. Retention keeps
+  the newest runs only, and the safe export carries conversation lines plus run states with no
+  keys, digests, mappings, credentials, reasoning, or wire detail.
+
 - Added the bounded multi-turn workflow agent executor used by the coming agent surface. One
   run loads only the skills selected for a trusted workflow, sends masked instructions and
   observations through the mandatory privacy gateway, and feeds each real application result

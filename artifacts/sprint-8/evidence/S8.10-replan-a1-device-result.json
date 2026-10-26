@@ -1,0 +1,27 @@
+{
+  "attempt": "S8.10-replan-a1",
+  "device": {
+    "model": "ALT-LX2",
+    "android": 14,
+    "serial": "AAAJBB4930914141",
+    "package": "io.github.triet4p.aegisf.s810evidence"
+  },
+  "instrumentation": "OK (2 tests)",
+  "logcat_tracked": "turns=6 toolCalls=5 source=NO_FIT heartbeatDispatches=20 historyRuns=1",
+  "logcat_cancel": "cancel_verified attempts=1",
+  "hashes": {
+    "laya.onnx": "a874eb254b58b0fcb1e7ad56fbb188c29d64e08c9a46b689433e1f52c66dba1e",
+    "laya.onnx.data": "487746363a8da57bcadb4345352997d22a0fb90d70aa22c6856668d023242aba",
+    "laya_config.json": "5049005dc6ae3ca5e82cc7d85c421357d5c543817300c8e8c5281ddbc69bb561",
+    "laya_tokenizer.bin": "09b371ce4b613716bdad862985c37774dfd3ea6373919c8312f9a6cf8bb9ad1b"
+  },
+  "provider_seam": "scripted at adapter seam (no INTERNET permission, no credential, no socket)",
+  "ledger_rows": 0,
+  "draft_review_status": "PENDING",
+  "operation_rows_per_mutation": {
+    "UPDATE_EVENT": 1,
+    "PROPOSE_LINK": 1,
+    "ATTACH_LINK": 1,
+    "REQUEST_CLASSIFICATION": 1
+  }
+}

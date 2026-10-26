@@ -151,10 +151,13 @@ class WorkflowRunHost(
     }
 
     internal fun toolAdapter(operationKey: String): BoundedWorkflowToolAdapter =
+        toolAdapter(operationKey, fixedOperationKey = false)
+
+    internal fun toolAdapter(operationKey: String, fixedOperationKey: Boolean): BoundedWorkflowToolAdapter =
         BoundedWorkflowToolAdapter(
             commands = commands,
             queries = queries,
-            session = WorkflowToolSession(scope, boundary, operationKey),
+            session = WorkflowToolSession(scope, boundary, operationKey, fixedOperationKey),
             declarations = declarations,
         )
 
@@ -276,8 +279,107 @@ class WorkflowRunContinuation internal constructor(
 class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
     private val identity = Any()
 
+    /**
+     * Starts one durable tracked run: admits (or replays) the run identity in [history],
+     * claims it for execution, runs the bounded turn loop, reconciles an uncertain write
+     * before any bounded retry, and records the durable attempt outcome.
+     *
+     * The [attemptKey] binds every mutation of this attempt to a per-command trusted
+     * operation identity, so a repeated send, a reopen after process death, and a
+     * cancelled-then-retried run replay the same attempt instead of writing twice. A retry reconciles
+     * the journal and the live rows first and runs at most
+     * [CanonicalAgentRetryPolicy.MAX_ATTEMPTS] attempts; a terminal classification never
+     * retries. Cancelling between turns ends the run as cancelled and never claims that
+     * a stored effect was rolled back. Retry/backoff sleeps use [retryDelay] so tests and
+     * the device smoke stay fast and deterministic.
+     */
+    suspend fun startTracked(
+        request: WorkflowRunRequest,
+        history: AgentRunHistory,
+        attemptKey: String,
+        maxOutputTokens: Int? = null,
+        retryDelay: suspend (Long) -> Unit = { kotlinx.coroutines.delay(it) },
+    ): WorkflowRunOutcome {
+        val admitted = history.admitRun(host.scope, request, host.boundary, maxOutputTokens)
+        val attempt = admitted.attempt
+        if (!history.claimForExecution(admitted.runId, attempt)) {
+            return WorkflowRunOutcome.Incomplete(
+                reason = WorkflowRunStopReason.TOOL_FAILURE,
+                detail = "another opener holds run ${admitted.runId}",
+                answer = null,
+                turns = 0,
+                toolCalls = 0,
+                trace = listOf(WorkflowRunStep(WorkflowRunState.READY)),
+            )
+        }
+        var outcome = startWithAttemptKey(request, attemptKey, maxOutputTokens)
+        history.recordAttemptOutcome(admitted.runId, attempt, outcome, host.boundary)
+        var retried = false
+        var current = outcome as? WorkflowRunOutcome.Incomplete
+        var settledAttempt = attempt
+        while (current != null &&
+            AgentRunFailure.ofStop(current.reason, current.detail)?.retryable == true &&
+            settledAttempt < io.github.triet4p.aegisf.data.CanonicalAgentRetryPolicy.MAX_ATTEMPTS) {
+            val verdict = history.reconcileUncertainWrite(admitted.runId, settledAttempt)
+            if (verdict is UncertainWriteVerdict.Applied) break
+            if (verdict is UncertainWriteVerdict.Unknown) break
+            // Only an unknown-or-missing journal write reaches here: reconcile said replay
+            // is unsafe to repeat under the same key, so the bounded retry opens the next
+            // attempt under a fresh key with revalidated revisions from fresh observations.
+            val nowAttempt = history.reopenForRetry(host.scope, admitted.runId) ?: break
+            retryDelay(io.github.triet4p.aegisf.data.CanonicalAgentRetryPolicy.retryDelayMillis(nowAttempt.attempt))
+            val retryOutcome = startWithAttemptKey(request, nowAttempt.attemptKey, maxOutputTokens)
+            history.recordAttemptOutcome(admitted.runId, nowAttempt.attempt, retryOutcome, host.boundary)
+            settledAttempt = nowAttempt.attempt
+            outcome = retryOutcome
+            retried = true
+            current = retryOutcome as? WorkflowRunOutcome.Incomplete
+        }
+        if (retried) {
+            history.appendRetrySummary(admitted.runId)
+        }
+        return outcome
+    }
+
+    /**
+     * Runs the bounded turn loop with every mutation bound to a per-command slice of
+     * [attemptKey] (durable attempt replay): the same mutation replays from the journal
+     * as no-change instead of duplicating, and a stale revision surfaces as a conflict
+     * for a corrected next attempt.
+     */
+    suspend fun startWithAttemptKey(
+        request: WorkflowRunRequest,
+        attemptKey: String,
+        maxOutputTokens: Int? = null,
+    ): WorkflowRunOutcome {
+        // One trusted key per command of this attempt: the same key + the same request
+        // replays from the journal (idempotent no-change); a different command under one
+        // key would be a same-key/different-request conflict, never a second effect.
+        val perCommand = mapOf(
+            BoundedWorkflowToolAdapter.UPDATE_EVENT_INTERPRETATION to attemptKey + ":update",
+            BoundedWorkflowToolAdapter.PROPOSE_LINK to attemptKey + ":propose",
+            BoundedWorkflowToolAdapter.ATTACH_LINK to attemptKey + ":attach",
+            BoundedWorkflowToolAdapter.REQUEST_LAYA_CLASSIFICATION to attemptKey + ":classify",
+        )
+        return startInternal(request, perCommand)
+    }
+
+    /**
+     * Cancels one tracked run: settles the durable attempt and marks the run cancelled.
+     * Stored effects stay stored; cancellation never claims rollback.
+     */
+    suspend fun cancelTracked(history: AgentRunHistory, runId: String, reason: String): Boolean =
+        history.cancelRun(runId, reason)
+
+
     /** Starts a run: trusted observations, the selected skills, then the bounded turn loop. */
-    suspend fun start(request: WorkflowRunRequest): WorkflowRunOutcome {
+    suspend fun start(request: WorkflowRunRequest): WorkflowRunOutcome =
+        startInternal(request, emptyMap())
+
+    private suspend fun startInternal(
+        request: WorkflowRunRequest,
+        fixedKeys: Map<String, String>,
+    ): WorkflowRunOutcome {
         val trace = mutableListOf<WorkflowRunStep>()
         trace += WorkflowRunStep(WorkflowRunState.READY)
         val startedAt = host.clock.nowMillis()
@@ -323,6 +425,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             startedAtMillis = startedAt,
             trace = trace,
         )
+        run.fixedOperationKeys.putAll(fixedKeys)
         run.conversation = conversation
         run.contextCharacters = contextCharacters
         return drive(run)
@@ -662,7 +765,10 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             )
         }
         val signature = callSignature(call)
-        val operationKey = if (call.name == BoundedWorkflowToolAdapter.QUERY_DRAFT_CANDIDATES) {
+        val fixedKey = run.fixedOperationKeys[call.name] ?: run.fixedOperationKeys[signature]
+        val operationKey = if (fixedKey != null) {
+            fixedKey
+        } else if (call.name == BoundedWorkflowToolAdapter.QUERY_DRAFT_CANDIDATES) {
             host.operationKeys.nextKey()
         } else {
             run.operationKeys.getOrPut(signature) { host.operationKeys.nextKey() }
@@ -674,7 +780,11 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         } else {
             null
         }
-        val adapter = host.toolAdapter(operationKey)
+        val adapter = if (fixedKey != null) {
+            host.toolAdapter(operationKey, fixedOperationKey = true)
+        } else {
+            host.toolAdapter(operationKey)
+        }
         val observed = adapter.execute(call.name, arguments)
         val status = observed.optString("status")
         transition(
@@ -1198,6 +1308,8 @@ internal class ActiveRun(
     var contextCharacters: Int = 0
     val dispatches: MutableList<DispatchRecord> = mutableListOf()
     val operationKeys: MutableMap<String, String> = mutableMapOf()
+    /** Trusted attempt keys bound to one call signature for durable retry. */
+    val fixedOperationKeys: MutableMap<String, String> = mutableMapOf()
     val callCounts: MutableMap<String, Int> = mutableMapOf()
 
     fun hasAttached(eventId: Long, draftId: Long): Boolean = dispatches.any { record ->

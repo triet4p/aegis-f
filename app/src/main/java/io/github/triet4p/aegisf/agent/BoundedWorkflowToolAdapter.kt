@@ -34,6 +34,8 @@ data class WorkflowToolSession(
     val scope: WorkflowCallerScope.AgentSession,
     val boundary: MaskedPromptBoundary,
     val operationKey: String,
+    /** When true, mutations use the caller-supplied key verbatim (durable attempt replay). */
+    val fixedOperationKey: Boolean = false,
 )
 
 /** Closed adapter for the five S8.4 typed tools, over the application's existing services. */
@@ -69,7 +71,7 @@ class BoundedWorkflowToolAdapter(
             io.github.triet4p.aegisf.provider.ToolArgumentAssessment.Complete
         ) return refusal("schema_invalid")
         return try {
-            if (name != QUERY_DRAFT_CANDIDATES &&
+            if (!session.fixedOperationKey && name != QUERY_DRAFT_CANDIDATES &&
                 queries.workflowOperation(session.operationKey) != null
             ) {
                 replayOrConflict(name, arguments)

@@ -124,10 +124,11 @@ executor remains the phone proof recorded in the S8.9 handoff; no substitute cla
 
 ## Deliberate seams for later tasks
 
-- S8.10: the run trace, outcomes and operation keys are the recording surface; run state is
-  in-memory, so retry/cancel/restart, durable conversation retention and uncertain-write
-  reconciliation are not implemented here. An operation key already remains safe to replay through
-  the application journal.
+- S8.10: durable run history, bounded classified retry, cancel/restart, and uncertain-write
+  reconciliation are implemented in `AgentRunHistory` + `startTracked`/`startWithAttemptKey`
+  (see `docs/sprint-8-agent-history.md`); the in-memory trace remains the per-turn record
+  while the run/attempt/conversation tables are the durable one. An operation key already
+  remains safe to replay through the application journal.
 - S8.11: context is only bounded, never compacted or cached; the system/skill prefix is stable and
   versioned so a later cache key can include it.
 - S8.12: the host supplies the provider configuration; no settings storage or key handling is added.
@@ -169,3 +170,23 @@ stayed honest `Incomplete(EFFECT_NOT_VERIFIED)` with no snapshot. Raw logs:
 `artifacts/sprint-8/evidence/S8.9-replan-a3-device-result.json`. The provider turns on this
 device path are scripted at the adapter seam (no `INTERNET` permission, no credential);
 the actual hosted-exchange slice remains the separate a1 live evidence.
+
+## S8.10 durable history (summary)
+
+Full contract in `docs/sprint-8-agent-history.md`. One `AgentRunHistory` per session owns
+three separate stores: the user-visible conversation (`agent_conversation`), the
+run/attempt journal (`agent_runs` / `agent_run_attempts` with allowed effect refs and
+pending/completed/unknown states), and — untouched — the business captures and the
+`workflow_operations` effect journal. `startTracked` admits (or replays) the durable run,
+claims it for execution, records the attempt outcome, reconciles an uncertain write
+before any bounded retry (max 3 attempts), and never claims rollback on cancel. The
+safe export is conversation lines plus run states only: no keys, digests, mappings,
+credentials, reasoning, or wire detail.
+
+Proven 2026-10-27 (`S8.10-replan-a1`): 6/6 `S810DurableRunHistoryTest` + 2/2
+`AgentRunMigrationTest` on the host; a real Go Chat Completions run
+(`deepseek-v4.1-flash`, 6 turns / 5 tool calls, reading + `ACCEPTED` link verified,
+reconciliation `Applied`, repeated send replayed, zero raw literals outbound);
+`OK (2 tests)` on ALT-LX2 / Android 14 through the production Laya runtime
+(`NO_FIT`, 6 turns / 5 tool calls, one journal row per mutation, draft `PENDING`,
+zero ledger rows, heartbeat 20/20) plus the cancel/late-reply branch.

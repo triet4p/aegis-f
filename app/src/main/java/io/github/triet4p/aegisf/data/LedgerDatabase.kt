@@ -40,6 +40,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ClassificationSnapshotEntity::class,
         WorkflowOperationEntity::class,
         ClassificationWorkEntity::class,
+        AgentRunEntity::class,
+        AgentRunAttemptEntity::class,
+        AgentConversationEntity::class,
     ],
     version = LedgerDatabase.VERSION,
     exportSchema = true,
@@ -80,8 +83,17 @@ abstract class LedgerDatabase : RoomDatabase() {
     /** The durable, coalescing classification jobs of the pending bank drafts. */
     abstract fun classificationWorkDao(): ClassificationWorkDao
 
+    /** The durable identity and lifecycle of one agent run; user-visible history. */
+    abstract fun agentRunDao(): AgentRunDao
+
+    /** The durable per-attempt records of agent runs; allowed effect refs only. */
+    abstract fun agentRunAttemptDao(): AgentRunAttemptDao
+
+    /** The user-visible conversation lines of agent runs; safe export source. */
+    abstract fun agentConversationDao(): AgentConversationDao
+
     companion object {
-        const val VERSION = 12
+        const val VERSION = 13
 
         /** File name of the on-device database. */
         const val NAME = "aegis-ledger.db"
@@ -630,6 +642,113 @@ abstract class LedgerDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Version 12 to 13: the durable S8.10 agent run history.
+         *
+         * Three new tables start empty, because version 12 kept no agent run state: the
+         * run's durable identity and lifecycle (`agent_runs`), its per-attempt records
+         * with allowed effect references and privacy-safe observations
+         * (`agent_run_attempts`), and the user-visible conversation lines
+         * (`agent_conversation`). Nothing that version 12 already held is rewritten.
+         */
+        val MIGRATION_12_13: Migration = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `agent_runs` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`runId` TEXT NOT NULL, " +
+                        "`scopeId` TEXT NOT NULL, " +
+                        "`intentNames` TEXT NOT NULL, " +
+                        "`requestFingerprint` TEXT NOT NULL, " +
+                        "`attempt` INTEGER NOT NULL, " +
+                        "`state` TEXT NOT NULL, " +
+                        "`stopReason` TEXT, " +
+                        "`maxOutputTokens` INTEGER, " +
+                        "`answerDigest` TEXT, " +
+                        "`requestText` TEXT NOT NULL, " +
+                        "`answerText` TEXT, " +
+                        "`revisionEpochMillis` INTEGER, " +
+                        "`createdAtEpochMillis` INTEGER NOT NULL, " +
+                        "`updatedAtEpochMillis` INTEGER NOT NULL)",
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_agent_runs_runId` " +
+                        "ON `agent_runs` (`runId`)",
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                        "`index_agent_runs_requestFingerprint_scopeId` " +
+                        "ON `agent_runs` (`requestFingerprint`, `scopeId`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_agent_runs_scopeId_createdAtEpochMillis` " +
+                        "ON `agent_runs` (`scopeId`, `createdAtEpochMillis`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_agent_runs_state` " +
+                        "ON `agent_runs` (`state`)",
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `agent_run_attempts` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`runId` TEXT NOT NULL, " +
+                        "`attempt` INTEGER NOT NULL, " +
+                        "`idempotencyKey` TEXT NOT NULL, " +
+                        "`state` TEXT NOT NULL, " +
+                        "`stopReason` TEXT, " +
+                        "`effectKind` TEXT, " +
+                        "`eventId` INTEGER, " +
+                        "`eventRevision` INTEGER, " +
+                        "`linkId` INTEGER, " +
+                        "`linkState` TEXT, " +
+                        "`linkRevision` INTEGER, " +
+                        "`draftId` INTEGER, " +
+                        "`decisionSource` TEXT, " +
+                        "`observationJson` TEXT NOT NULL, " +
+                        "`ownerToken` TEXT, " +
+                        "`createdAtEpochMillis` INTEGER NOT NULL, " +
+                        "`updatedAtEpochMillis` INTEGER NOT NULL, " +
+                        "FOREIGN KEY(`runId`) REFERENCES `agent_runs`(`runId`) " +
+                        "ON UPDATE CASCADE ON DELETE CASCADE)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_agent_run_attempts_runId_attempt` " +
+                        "ON `agent_run_attempts` (`runId`, `attempt`)",
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_agent_run_attempts_idempotencyKey` " +
+                        "ON `agent_run_attempts` (`idempotencyKey`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_agent_run_attempts_state` " +
+                        "ON `agent_run_attempts` (`state`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_agent_run_attempts_createdAtEpochMillis` " +
+                        "ON `agent_run_attempts` (`createdAtEpochMillis`)",
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `agent_conversation` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`runId` TEXT NOT NULL, " +
+                        "`sequence` INTEGER NOT NULL, " +
+                        "`role` TEXT NOT NULL, " +
+                        "`text` TEXT NOT NULL, " +
+                        "`createdAtEpochMillis` INTEGER NOT NULL, " +
+                        "FOREIGN KEY(`runId`) REFERENCES `agent_runs`(`runId`) " +
+                        "ON UPDATE CASCADE ON DELETE CASCADE)",
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_agent_conversation_runId_sequence` " +
+                        "ON `agent_conversation` (`runId`, `sequence`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_agent_conversation_runId` " +
+                        "ON `agent_conversation` (`runId`)",
+                )
+            }
+        }
+
         /** Builds the production database on the app's real file directory. */
         fun build(context: Context): LedgerDatabase =
             Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, NAME)
@@ -645,6 +764,7 @@ abstract class LedgerDatabase : RoomDatabase() {
                     MIGRATION_9_10,
                     MIGRATION_10_11,
                     MIGRATION_11_12,
+                    MIGRATION_12_13,
                 )
                 .build()
 

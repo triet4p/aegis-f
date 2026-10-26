@@ -1,0 +1,6 @@
+10-27 00:09:51.335 10275 10398 I S810DurableDevice: cancel_verified run=run-4539796d attempts=1
+10-27 00:09:51.339 10275 10398 I TestRunner: finished: durableCancelOnDeviceNeverClaimsRollbackAndLateReplyCannotSettle(io.github.triet4p.aegisf.agent.S810DurableDeviceInstrumentedTest)
+10-27 00:09:51.344 10275 10398 I TestRunner: started: durableTrackedRunThroughProductionLayaVerifiesReadingLinkAndClassification(io.github.triet4p.aegisf.agent.S810DurableDeviceInstrumentedTest)
+10-27 00:10:17.624 10275 10398 I S810DurableDevice: turns=6 toolCalls=5 source=NO_FIT heartbeatDispatches=20 historyRuns=1
+10-27 00:10:17.631 10275 10398 I TestRunner: finished: durableTrackedRunThroughProductionLayaVerifiesReadingLinkAndClassification(io.github.triet4p.aegisf.agent.S810DurableDeviceInstrumentedTest)
+09b371ce4b613716bdad862985c37774dfd3ea6373919c8312f9a6cf8bb9ad1b  files/laya/model/tokenizer/laya_tokenizer.bin

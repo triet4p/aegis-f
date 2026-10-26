@@ -1,0 +1,3 @@
+--------- beginning of main
+10-27 00:09:51.335 10275 10398 I S810DurableDevice: cancel_verified run=run-4539796d attempts=1
+10-27 00:10:17.624 10275 10398 I S810DurableDevice: turns=6 toolCalls=5 source=NO_FIT heartbeatDispatches=20 historyRuns=1
