@@ -394,3 +394,47 @@ single bounded HTTP request has no model-load or generation phase to signal, and
 absence is recorded rather than reported as a measurement. There is no hosted equivalent
 of llama.cpp's repeat penalty, and RSS/PSS are not measurable because no model process
 runs locally; these gaps are labelled instead of imputed.
+
+## S8.4 agent contract and task-level evaluation
+
+The S8.4 contract is frozen separately from v2:
+[`docs/sprint-8-agent-contract.md`](../../docs/sprint-8-agent-contract.md).
+It maps the real application API, provider conversation events, run states and the
+local/remote boundary, and versions a new task-level evaluation for the multi-turn
+agent loop alongside immutable v2. Frozen v2 inputs are never edited or rescored by
+this revision. New files only:
+
+- `s8_agent_tools.json`
+- `s8_agent_fixture.json`
+- `s8_agent_dev.json`
+- `s8_agent_heldout.json`
+- `s8_agent_skills.json`
+- `s8_agent_scoring.json`
+- `s8_agent_contract.py`
+- `s8_agent_masking_probe.py`
+
+The dev suite holds 16 cases and the held-out suite 8, with separate IDs and
+denominators: multi-event extraction, bounded search, link sequencing, Laya,
+clarification/no-match, adversarial (scope injection, unknown SQL, confirm/delete),
+retry/recovery, and privacy (account masking with exact integer-VND rehydration).
+Single-turn v2 baseline and multi-turn agent metrics are never mixed.
+
+```powershell
+uv run python tools/slm/s8_agent_contract.py validate
+uv run python tools/slm/s8_agent_contract.py selftest
+uv run python tools/slm/s8_agent_masking_probe.py
+```
+
+`validate` checks schemas, suite sizes, fixture achievability (every expected
+ID/revision seeded, spans in bounds, amounts/dates/times well formed), skill shape,
+the masking-boundary probe, and bound input digests. `selftest` exercises scorer
+probes (valid multi-event pass, untraced/changed/unknown/masking-leak/continuation
+rejections, binding requirement, 16+8 denominators). Score a saved observation with
+`uv run python tools/slm/s8_agent_contract.py score <results.json>`: it applies the
+frozen v1 agent rubric over real `instrumented_application` traces, stored readings,
+replay and masking evidence, with human adjudication for clarification/no-match/refusal
+cases. Missing outputs, parse failures, masking leaks and failed cases stay counted
+failures. Proposed numeric targets are not owner-approved gates; exact
+authority/financial correctness and the masking boundary are mandatory constraints.
+The app-side boundary is pinned by
+`app/src/test/.../S84AgentContractTest.kt` against the real Room services.
