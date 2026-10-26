@@ -128,9 +128,15 @@ missing Responses prerequisite for this task.
 
 - No streaming, no retry/backoff and no prompt caching: those belong to S8.9/S8.11. A rate-limited
   or transport-failed turn is returned classified and is not retried here.
-- No masking boundary (S8.6), no application tool adapter (S8.7), no executor policy (S8.9) and no
-  settings persistence/validation UI (S8.12). The adapters therefore carry whatever content their
-  caller supplies; the outbound path is not yet privacy-safe.
+- Masking boundary (S8.6) is the only supported production caller: `MaskedHostedGateway` masks
+  system/user instructions and tool-result JSON before `begin`/`continueWithToolResults`, keeps the
+  protocol's required continuation items byte-identical, and returns an
+  `Incomplete("masking_blocked")` turn with no dispatchable calls when inbound model text carries
+  raw literals or foreign tokens. Raw adapter calls remain for tests; production must not bypass
+  the gateway.
+- No application tool adapter (S8.7), no executor policy (S8.9) and no settings
+  persistence/validation UI (S8.12). Those callers do not exist yet; nothing else may supply
+  raw content to the adapters on the production path.
 - The live smoke proves protocol behavior with synthetic text. It is not model qualification, not
   a reliability sample and not Android-runtime evidence.
 - The frozen S8.4 contract's Gemini `tool` role wording is contradicted by the live API; it is

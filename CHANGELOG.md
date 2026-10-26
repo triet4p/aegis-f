@@ -9,6 +9,17 @@ and no release has been tagged or published. Format follows
 
 ### Added
 
+- Added the mandatory local pre-egress masking boundary used before any hosted model
+  request. User input, selected context, history and tool results are masked on-device
+  through deterministic detection of grouped/unit amounts, calendar dates, wall-clock
+  times, account digit runs and bank reference codes; equal values mask equally within a
+  session, ordering and relative-time stay decidable locally, and mappings never leave
+  memory or enter logs. Inbound token references are validated for scope, type and
+  freshness before exact local rehydration, so unknown, cross-session or swapped tokens
+  are refused and masking failure sends no request. Masking is data minimization, not
+  anonymity: model-visible context (structure, approximate length, non-sensitive words)
+  remains inferable around the tokens.
+
 - Added the hosted provider adapter layer used by the coming workflow agent. Gemini
   `generateContent`, OpenAI-compatible Chat Completions and OpenAI Responses now share one
   provider-neutral generation contract with an explicitly configured HTTPS endpoint, model id,
