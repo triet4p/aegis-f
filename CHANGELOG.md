@@ -9,6 +9,16 @@ and no release has been tagged or published. Format follows
 
 ### Added
 
+- Added the hosted provider adapter layer used by the coming workflow agent. Gemini
+  `generateContent`, OpenAI-compatible Chat Completions and OpenAI Responses now share one
+  provider-neutral generation contract with an explicitly configured HTTPS endpoint, model id,
+  credential and discovered capabilities. Each model gets its own output and reasoning budget
+  instead of a shared token cap; native function calls and their results are carried across several
+  turns with the protocol's own required continuation items; a call is only executable after its
+  arguments are a complete object that satisfies the declared schema; and transport, credential,
+  account, rate-limit, server, redirect, provider-state, model-identity and invalid-response
+  failures are reported distinctly. It is not yet exposed in the app.
+
 - Added visible classification status and review controls to the notification review inbox.
   Each draft now says whether its stored suggestion is queued, being checked by the local model,
   stored, stale, answered by a saved rule or category name, no-fit, failed, or cancelled, and it

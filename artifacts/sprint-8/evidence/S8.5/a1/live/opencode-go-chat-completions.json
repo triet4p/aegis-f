@@ -1,0 +1,274 @@
+{
+  "protocol": "OPENAI_CHAT_COMPLETIONS",
+  "label": "OpenCode Go chat completions",
+  "endpoint": "https:\/\/opencode.ai\/zen\/go\/v1\/chat\/completions",
+  "configured_model": "deepseek-v4.1-flash",
+  "max_output_tokens": 8192,
+  "reasoning_effort": null,
+  "configured_capabilities": {
+    "tool_calls": true,
+    "parallel_tool_calls": true,
+    "reasoning_budget": false,
+    "temperature": true
+  },
+  "turn_1": {
+    "finish": "tool_calls",
+    "requested_model": "deepseek-v4.1-flash",
+    "reported_model": "deepseek-v4.1-flash",
+    "text": null,
+    "calls": [
+      {
+        "call_id": "call_74c32e5fa9b74c2a89c119c1",
+        "name": "probe_echo",
+        "arguments": "{\"value\":\"ALPHA-17\"}",
+        "disposition": "READY",
+        "dispatchable": true
+      }
+    ],
+    "pending_call_ids": [
+      "call_74c32e5fa9b74c2a89c119c1"
+    ],
+    "usage": {
+      "input_tokens": 368,
+      "output_tokens": 85,
+      "reasoning_tokens": 40,
+      "cached_input_tokens": 0
+    }
+  },
+  "turn_2": {
+    "finish": "complete",
+    "requested_model": "deepseek-v4.1-flash",
+    "reported_model": "deepseek-v4.1-flash",
+    "text": "ALPHA-17 DONE",
+    "calls": [],
+    "pending_call_ids": [],
+    "usage": {
+      "input_tokens": 434,
+      "output_tokens": 9,
+      "reasoning_tokens": 0,
+      "cached_input_tokens": 256
+    }
+  },
+  "final_text": "ALPHA-17 DONE",
+  "continuation_call_ids": [
+    "call_74c32e5fa9b74c2a89c119c1"
+  ],
+  "echo_value": "ALPHA-17",
+  "wire": [
+    {
+      "url": "https:\/\/opencode.ai\/zen\/go\/v1\/chat\/completions",
+      "url_host": "opencode.ai",
+      "header_names": [
+        "Accept",
+        "Authorization",
+        "Content-Type",
+        "User-Agent",
+        "x-opencode-session"
+      ],
+      "request": {
+        "model": "deepseek-v4.1-flash",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a bounded protocol probe. Use the declared tool when asked; do not claim any value the tool did not return."
+          },
+          {
+            "role": "user",
+            "content": "Call probe_echo with value exactly ALPHA-17 now. After the tool result returns, reply with the echoed value followed by the word DONE, and make no further tool calls."
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "probe_echo",
+              "description": "Echo a probe value back to the caller.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "value"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        ],
+        "tool_choice": "auto",
+        "max_completion_tokens": 8192,
+        "parallel_tool_calls": true
+      },
+      "status": 200,
+      "response": {
+        "id": "gw-358d23a27ae4-b0483d",
+        "object": "chat.completion",
+        "created": 1792981827,
+        "model": "deepseek-v4.1-flash",
+        "choices": [
+          {
+            "index": 0,
+            "finish_reason": "tool_calls",
+            "message": {
+              "role": "assistant",
+              "content": null,
+              "reasoning_content": "The user asks to call probe_echo with value exactly \"ALPHA-17\", then reply with echoed value followed by DONE, no further tool calls.\n\nI should make the tool call.",
+              "tool_calls": [
+                {
+                  "id": "call_74c32e5fa9b74c2a89c119c1",
+                  "type": "function",
+                  "function": {
+                    "name": "probe_echo",
+                    "arguments": "{\"value\":\"ALPHA-17\"}"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 368,
+          "completion_tokens": 85,
+          "total_tokens": 453,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 40
+          },
+          "cost": 0,
+          "opencode": {
+            "billing_source": "go",
+            "list_cost": 2.124E-4,
+            "allowance": 1.593E-4,
+            "tokens": {
+              "input": 368,
+              "output": 85,
+              "reasoning": 40,
+              "cache_read": 0,
+              "cache_write_5m": 0,
+              "cache_write_1h": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "url": "https:\/\/opencode.ai\/zen\/go\/v1\/chat\/completions",
+      "url_host": "opencode.ai",
+      "header_names": [
+        "Accept",
+        "Authorization",
+        "Content-Type",
+        "User-Agent",
+        "x-opencode-session"
+      ],
+      "request": {
+        "model": "deepseek-v4.1-flash",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a bounded protocol probe. Use the declared tool when asked; do not claim any value the tool did not return."
+          },
+          {
+            "role": "user",
+            "content": "Call probe_echo with value exactly ALPHA-17 now. After the tool result returns, reply with the echoed value followed by the word DONE, and make no further tool calls."
+          },
+          {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [
+              {
+                "id": "call_74c32e5fa9b74c2a89c119c1",
+                "type": "function",
+                "function": {
+                  "name": "probe_echo",
+                  "arguments": "{\"value\":\"ALPHA-17\"}"
+                }
+              }
+            ]
+          },
+          {
+            "role": "tool",
+            "tool_call_id": "call_74c32e5fa9b74c2a89c119c1",
+            "content": "{\"echoed\":\"ALPHA-17\"}"
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "probe_echo",
+              "description": "Echo a probe value back to the caller.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "value"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        ],
+        "tool_choice": "auto",
+        "max_completion_tokens": 8192,
+        "parallel_tool_calls": true
+      },
+      "status": 200,
+      "response": {
+        "id": "gw-358d23a27ae4-b04891",
+        "object": "chat.completion",
+        "created": 1792981829,
+        "model": "deepseek-v4.1-flash",
+        "choices": [
+          {
+            "index": 0,
+            "finish_reason": "stop",
+            "message": {
+              "role": "assistant",
+              "content": "ALPHA-17 DONE"
+            }
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 434,
+          "completion_tokens": 9,
+          "total_tokens": 443,
+          "prompt_tokens_details": {
+            "cached_tokens": 256
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "cost": 0,
+          "opencode": {
+            "billing_source": "go",
+            "list_cost": 6.574E-5,
+            "allowance": 4.93E-5,
+            "tokens": {
+              "input": 178,
+              "output": 9,
+              "reasoning": 0,
+              "cache_read": 256,
+              "cache_write_5m": 0,
+              "cache_write_1h": 0
+            }
+          }
+        }
+      }
+    }
+  ],
+  "synthetic_inputs_only": true,
+  "credential_recorded": false,
+  "captured_at": "2026-10-26T02:30:31.272068Z"
+}

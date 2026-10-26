@@ -1,0 +1,374 @@
+{
+  "protocol": "OPENAI_RESPONSES",
+  "label": "OpenCode Go Responses",
+  "endpoint": "https:\/\/opencode.ai\/zen\/go\/v1\/responses",
+  "configured_model": "gpt-6-luna",
+  "max_output_tokens": 4096,
+  "reasoning_effort": "medium",
+  "configured_capabilities": {
+    "tool_calls": true,
+    "parallel_tool_calls": true,
+    "reasoning_budget": true,
+    "temperature": false
+  },
+  "turn_1": {
+    "finish": "tool_calls",
+    "requested_model": "gpt-6-luna",
+    "reported_model": "gpt-6-luna",
+    "text": null,
+    "calls": [
+      {
+        "call_id": "call_dwO5R49XXpKwPGdNqItvu6cu",
+        "name": "probe_echo",
+        "arguments": "{\"value\":\"ALPHA-17\"}",
+        "disposition": "READY",
+        "dispatchable": true
+      }
+    ],
+    "pending_call_ids": [
+      "call_dwO5R49XXpKwPGdNqItvu6cu"
+    ],
+    "usage": {
+      "input_tokens": 118,
+      "output_tokens": 22,
+      "reasoning_tokens": 0,
+      "cached_input_tokens": 0
+    }
+  },
+  "turn_2": {
+    "finish": "complete",
+    "requested_model": "gpt-6-luna",
+    "reported_model": "gpt-6-luna",
+    "text": "ALPHA-17 DONE",
+    "calls": [],
+    "pending_call_ids": [],
+    "usage": {
+      "input_tokens": 161,
+      "output_tokens": 9,
+      "reasoning_tokens": 0,
+      "cached_input_tokens": 0
+    }
+  },
+  "final_text": "ALPHA-17 DONE",
+  "continuation_call_ids": [
+    "call_dwO5R49XXpKwPGdNqItvu6cu"
+  ],
+  "echo_value": "ALPHA-17",
+  "wire": [
+    {
+      "url": "https:\/\/opencode.ai\/zen\/go\/v1\/responses",
+      "url_host": "opencode.ai",
+      "header_names": [
+        "Accept",
+        "Authorization",
+        "Content-Type",
+        "User-Agent",
+        "x-opencode-session"
+      ],
+      "request": {
+        "model": "gpt-6-luna",
+        "input": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "input_text",
+                "text": "Call probe_echo with value exactly ALPHA-17 now. After the tool result returns, reply with the echoed value followed by the word DONE, and make no further tool calls."
+              }
+            ]
+          }
+        ],
+        "instructions": "You are a bounded protocol probe. Use the declared tool when asked; do not claim any value the tool did not return.",
+        "tools": [
+          {
+            "type": "function",
+            "name": "probe_echo",
+            "description": "Echo a probe value back to the caller.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          }
+        ],
+        "tool_choice": "auto",
+        "max_output_tokens": 4096,
+        "reasoning": {
+          "effort": "medium"
+        },
+        "parallel_tool_calls": true
+      },
+      "status": 200,
+      "response": {
+        "id": "resp_0ab0cb809eab6cde006adebb3b84e087d2a875c68872428b8f",
+        "object": "response",
+        "created_at": 1792981819,
+        "completed_at": 1792981820,
+        "status": "completed",
+        "parallel_tool_calls": true,
+        "temperature": 1,
+        "top_p": 0.98,
+        "max_output_tokens": 4096,
+        "previous_response_id": null,
+        "background": false,
+        "truncation": "disabled",
+        "top_logprobs": 0,
+        "max_tool_calls": null,
+        "prompt_cache_retention": "24h",
+        "model": "gpt-6-luna",
+        "error": null,
+        "incomplete_details": null,
+        "output": [
+          {
+            "id": "fc_0ab0cb809eab6cde006adebb3c424487d28998ac8a078d0164",
+            "type": "function_call",
+            "status": "completed",
+            "name": "probe_echo",
+            "call_id": "call_dwO5R49XXpKwPGdNqItvu6cu",
+            "arguments": "{\"value\":\"ALPHA-17\"}"
+          }
+        ],
+        "usage": {
+          "input_tokens": 118,
+          "output_tokens": 22,
+          "total_tokens": 140,
+          "input_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0
+          },
+          "output_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "cost": 0,
+          "opencode": {
+            "billing_source": "go",
+            "list_cost": 2.28E-5,
+            "allowance": 9.12E-5,
+            "tokens": {
+              "input": 118,
+              "output": 22,
+              "reasoning": 0,
+              "cache_read": 0,
+              "cache_write_5m": 0,
+              "cache_write_1h": 0
+            }
+          }
+        },
+        "instructions": "You are a bounded protocol probe. Use the declared tool when asked; do not claim any value the tool did not return.",
+        "tool_choice": "auto",
+        "tools": [
+          {
+            "type": "function",
+            "name": "probe_echo",
+            "description": "Echo a probe value back to the caller.",
+            "strict": true,
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "value"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": null
+          }
+        ],
+        "reasoning": {
+          "context": "all_turns",
+          "effort": "medium",
+          "mode": "standard",
+          "summary": null
+        },
+        "text": {
+          "verbosity": "medium",
+          "format": {
+            "type": "text"
+          }
+        },
+        "moderation": null
+      }
+    },
+    {
+      "url": "https:\/\/opencode.ai\/zen\/go\/v1\/responses",
+      "url_host": "opencode.ai",
+      "header_names": [
+        "Accept",
+        "Authorization",
+        "Content-Type",
+        "User-Agent",
+        "x-opencode-session"
+      ],
+      "request": {
+        "model": "gpt-6-luna",
+        "input": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "input_text",
+                "text": "Call probe_echo with value exactly ALPHA-17 now. After the tool result returns, reply with the echoed value followed by the word DONE, and make no further tool calls."
+              }
+            ]
+          },
+          {
+            "id": "fc_0ab0cb809eab6cde006adebb3c424487d28998ac8a078d0164",
+            "type": "function_call",
+            "status": "completed",
+            "name": "probe_echo",
+            "call_id": "call_dwO5R49XXpKwPGdNqItvu6cu",
+            "arguments": "{\"value\":\"ALPHA-17\"}"
+          },
+          {
+            "type": "function_call_output",
+            "call_id": "call_dwO5R49XXpKwPGdNqItvu6cu",
+            "output": "{\"echoed\":\"ALPHA-17\"}"
+          }
+        ],
+        "instructions": "You are a bounded protocol probe. Use the declared tool when asked; do not claim any value the tool did not return.",
+        "tools": [
+          {
+            "type": "function",
+            "name": "probe_echo",
+            "description": "Echo a probe value back to the caller.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          }
+        ],
+        "tool_choice": "auto",
+        "max_output_tokens": 4096,
+        "reasoning": {
+          "effort": "medium"
+        },
+        "parallel_tool_calls": true
+      },
+      "status": 200,
+      "response": {
+        "id": "resp_0ab0cb809eab6cde006adebb3d47e087d280801aa90041fdb2",
+        "object": "response",
+        "created_at": 1792981821,
+        "completed_at": 1792981822,
+        "status": "completed",
+        "parallel_tool_calls": true,
+        "temperature": 1,
+        "top_p": 0.98,
+        "max_output_tokens": 4096,
+        "previous_response_id": null,
+        "background": false,
+        "truncation": "disabled",
+        "top_logprobs": 0,
+        "max_tool_calls": null,
+        "prompt_cache_retention": "24h",
+        "model": "gpt-6-luna",
+        "error": null,
+        "incomplete_details": null,
+        "output": [
+          {
+            "id": "msg_0ab0cb809eab6cde006adebb3ebbe487d2bfddcdf2ad96a798",
+            "type": "message",
+            "status": "completed",
+            "role": "assistant",
+            "phase": "final_answer",
+            "content": [
+              {
+                "type": "output_text",
+                "text": "ALPHA-17 DONE",
+                "annotations": [],
+                "logprobs": []
+              }
+            ]
+          }
+        ],
+        "usage": {
+          "input_tokens": 161,
+          "output_tokens": 9,
+          "total_tokens": 170,
+          "input_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0
+          },
+          "output_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "cost": 0,
+          "opencode": {
+            "billing_source": "go",
+            "list_cost": 2.06E-5,
+            "allowance": 8.24E-5,
+            "tokens": {
+              "input": 161,
+              "output": 9,
+              "reasoning": 0,
+              "cache_read": 0,
+              "cache_write_5m": 0,
+              "cache_write_1h": 0
+            }
+          }
+        },
+        "instructions": "You are a bounded protocol probe. Use the declared tool when asked; do not claim any value the tool did not return.",
+        "tool_choice": "auto",
+        "tools": [
+          {
+            "type": "function",
+            "name": "probe_echo",
+            "description": "Echo a probe value back to the caller.",
+            "strict": true,
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "value"
+              ],
+              "additionalProperties": false
+            },
+            "output_schema": null
+          }
+        ],
+        "reasoning": {
+          "context": "all_turns",
+          "effort": "medium",
+          "mode": "standard",
+          "summary": null
+        },
+        "text": {
+          "verbosity": "medium",
+          "format": {
+            "type": "text"
+          }
+        },
+        "moderation": null
+      }
+    }
+  ],
+  "synthetic_inputs_only": true,
+  "credential_recorded": false,
+  "captured_at": "2026-10-26T02:30:24.509261800Z"
+}

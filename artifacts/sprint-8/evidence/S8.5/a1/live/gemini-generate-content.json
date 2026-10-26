@@ -1,0 +1,284 @@
+{
+  "protocol": "GEMINI_GENERATE_CONTENT",
+  "label": "Gemini generateContent",
+  "endpoint": "https:\/\/generativelanguage.googleapis.com\/v1beta\/models\/{model}:generateContent",
+  "configured_model": "gemini-3.5-flash-lite",
+  "max_output_tokens": 8192,
+  "reasoning_effort": "minimal",
+  "configured_capabilities": {
+    "tool_calls": true,
+    "parallel_tool_calls": false,
+    "reasoning_budget": true,
+    "temperature": true
+  },
+  "turn_1": {
+    "finish": "tool_calls",
+    "requested_model": "gemini-3.5-flash-lite",
+    "reported_model": "gemini-3.5-flash-lite",
+    "text": null,
+    "calls": [
+      {
+        "call_id": "call_2036702",
+        "name": "probe_echo",
+        "arguments": "{\"value\":\"ALPHA-17\"}",
+        "disposition": "READY",
+        "dispatchable": true
+      }
+    ],
+    "pending_call_ids": [
+      "call_2036702"
+    ],
+    "usage": {
+      "input_tokens": 113,
+      "output_tokens": 19,
+      "reasoning_tokens": null,
+      "cached_input_tokens": null
+    }
+  },
+  "turn_2": {
+    "finish": "complete",
+    "requested_model": "gemini-3.5-flash-lite",
+    "reported_model": "gemini-3.5-flash-lite",
+    "text": "ALPHA-17 DONE",
+    "calls": [],
+    "pending_call_ids": [],
+    "usage": {
+      "input_tokens": 150,
+      "output_tokens": 5,
+      "reasoning_tokens": null,
+      "cached_input_tokens": null
+    }
+  },
+  "final_text": "ALPHA-17 DONE",
+  "continuation_call_ids": [
+    "call_2036702"
+  ],
+  "echo_value": "ALPHA-17",
+  "wire": [
+    {
+      "url": "https:\/\/generativelanguage.googleapis.com\/v1beta\/models\/gemini-3.5-flash-lite:generateContent",
+      "url_host": "generativelanguage.googleapis.com",
+      "header_names": [
+        "Accept",
+        "Content-Type",
+        "x-goog-api-key"
+      ],
+      "request": {
+        "systemInstruction": {
+          "parts": [
+            {
+              "text": "You are a bounded protocol probe. Use the declared tool when asked; do not claim any value the tool did not return."
+            }
+          ]
+        },
+        "contents": [
+          {
+            "role": "user",
+            "parts": [
+              {
+                "text": "Call probe_echo with value exactly ALPHA-17 now. After the tool result returns, reply with the echoed value followed by the word DONE, and make no further tool calls."
+              }
+            ]
+          }
+        ],
+        "tools": [
+          {
+            "functionDeclarations": [
+              {
+                "name": "probe_echo",
+                "description": "Echo a probe value back to the caller.",
+                "parameters": {
+                  "type": "OBJECT",
+                  "properties": {
+                    "value": {
+                      "type": "STRING",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "toolConfig": {
+          "functionCallingConfig": {
+            "mode": "AUTO"
+          }
+        },
+        "generationConfig": {
+          "maxOutputTokens": 8192,
+          "thinkingConfig": {
+            "thinkingLevel": "minimal"
+          }
+        }
+      },
+      "status": 200,
+      "response": {
+        "candidates": [
+          {
+            "content": {
+              "parts": [
+                {
+                  "functionCall": {
+                    "name": "probe_echo",
+                    "args": {
+                      "value": "ALPHA-17"
+                    },
+                    "id": "call_2036702"
+                  },
+                  "thoughtSignature": "EmAKXgFpFH0TwJTulExn8NtnG4TURoyJFL4RejZ9ewhYBRUs6YZ5jG9K45zjKnSjaj+f\/HJNWseH8Cl5uDqial8q4q7fypqBt6m+3V7pKI8oYe6S4zDxVCWvo1LKACPRGQQ="
+                }
+              ],
+              "role": "model"
+            },
+            "finishReason": "STOP",
+            "index": 0,
+            "finishMessage": "Model generated function call(s)."
+          }
+        ],
+        "usageMetadata": {
+          "promptTokenCount": 113,
+          "candidatesTokenCount": 19,
+          "totalTokenCount": 132,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 113
+            }
+          ],
+          "serviceTier": "standard"
+        },
+        "modelVersion": "gemini-3.5-flash-lite",
+        "responseId": "QLveavzDIMO91e8Piq_H8Q8"
+      }
+    },
+    {
+      "url": "https:\/\/generativelanguage.googleapis.com\/v1beta\/models\/gemini-3.5-flash-lite:generateContent",
+      "url_host": "generativelanguage.googleapis.com",
+      "header_names": [
+        "Accept",
+        "Content-Type",
+        "x-goog-api-key"
+      ],
+      "request": {
+        "systemInstruction": {
+          "parts": [
+            {
+              "text": "You are a bounded protocol probe. Use the declared tool when asked; do not claim any value the tool did not return."
+            }
+          ]
+        },
+        "contents": [
+          {
+            "role": "user",
+            "parts": [
+              {
+                "text": "Call probe_echo with value exactly ALPHA-17 now. After the tool result returns, reply with the echoed value followed by the word DONE, and make no further tool calls."
+              }
+            ]
+          },
+          {
+            "parts": [
+              {
+                "functionCall": {
+                  "name": "probe_echo",
+                  "args": {
+                    "value": "ALPHA-17"
+                  },
+                  "id": "call_2036702"
+                },
+                "thoughtSignature": "EmAKXgFpFH0TwJTulExn8NtnG4TURoyJFL4RejZ9ewhYBRUs6YZ5jG9K45zjKnSjaj+f\/HJNWseH8Cl5uDqial8q4q7fypqBt6m+3V7pKI8oYe6S4zDxVCWvo1LKACPRGQQ="
+              }
+            ],
+            "role": "model"
+          },
+          {
+            "role": "user",
+            "parts": [
+              {
+                "functionResponse": {
+                  "response": {
+                    "echoed": "ALPHA-17"
+                  },
+                  "name": "probe_echo",
+                  "id": "call_2036702"
+                }
+              }
+            ]
+          }
+        ],
+        "tools": [
+          {
+            "functionDeclarations": [
+              {
+                "name": "probe_echo",
+                "description": "Echo a probe value back to the caller.",
+                "parameters": {
+                  "type": "OBJECT",
+                  "properties": {
+                    "value": {
+                      "type": "STRING",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "toolConfig": {
+          "functionCallingConfig": {
+            "mode": "AUTO"
+          }
+        },
+        "generationConfig": {
+          "maxOutputTokens": 8192,
+          "thinkingConfig": {
+            "thinkingLevel": "minimal"
+          }
+        }
+      },
+      "status": 200,
+      "response": {
+        "candidates": [
+          {
+            "content": {
+              "parts": [
+                {
+                  "text": "ALPHA-17 DONE",
+                  "thoughtSignature": "EmAKXgFpFH0TW4O4pjB0K6PUSEPVjABSoj8skIHv76sNhkC3LO+StBua1Tgj4ZspfSiULLwcu+ChZCvrQu5zw1JJtDSSdj8KPzlPkdojPdQ2NkPLsYm2ORfhLKv8y7gCsaw="
+                }
+              ],
+              "role": "model"
+            },
+            "finishReason": "STOP",
+            "index": 0
+          }
+        ],
+        "usageMetadata": {
+          "promptTokenCount": 150,
+          "candidatesTokenCount": 5,
+          "totalTokenCount": 155,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 150
+            }
+          ],
+          "serviceTier": "standard"
+        },
+        "modelVersion": "gemini-3.5-flash-lite",
+        "responseId": "Qbvearb2D_rdvr0Pv5fEoQc"
+      }
+    }
+  ],
+  "synthetic_inputs_only": true,
+  "credential_recorded": false,
+  "captured_at": "2026-10-26T02:30:28.177476Z"
+}
