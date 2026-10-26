@@ -1,0 +1,238 @@
+{
+  "case_id": "s8-link-01",
+  "suite": "frozen",
+  "profile": "gemini-3.5-flash-lite-ai-studio",
+  "provider": "google-ai-studio",
+  "small_context": "\nApplication context (trusted, read-only fixture):\n- today: 2026-10-25 (Asia/Ho_Chi_Minh)\n- event 301 (revision 0, capture 104): normalized \"Fuel purchase on 2026-10-20\", amount 50000 VND, date 2026-10-20, status INTERPRETED\n- draft 401 (review status PENDING, review revision 0)",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "propose_link",
+      "args": {
+        "eventId": 301,
+        "idempotencyKey": "propose-link-301-401-20261025",
+        "draftId": 401
+      }
+    }
+  ],
+  "parse_error": null,
+  "application": {
+    "case_id": "s8-link-01",
+    "application_trace": {
+      "case_id": "s8-link-01",
+      "fixture": {
+        "capture_ids": [],
+        "event_ids": [
+          301
+        ],
+        "draft_ids": [
+          401
+        ]
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "propose_link",
+          "dispatched": true,
+          "request": {
+            "eventId": 301,
+            "idempotencyKey": "propose-link-301-401-20261025",
+            "draftId": 401
+          },
+          "outcome": "Applied",
+          "change": {
+            "kind": "LinkDecided",
+            "detail": "LinkDecided(linkId=1, state=PROPOSED, revision=0)"
+          }
+        }
+      ],
+      "database_state": {
+        "events": [
+          {
+            "id": 301,
+            "capture_id": 104,
+            "span_start": 0,
+            "span_end": 37,
+            "normalized_text": "Fuel purchase on 2026-10-20",
+            "amount_vnd": 50000,
+            "merchant": null,
+            "anchor_date": "2026-10-20",
+            "anchor_time": null,
+            "anchor_timezone": "Asia/Ho_Chi_Minh",
+            "unresolved_reason": null,
+            "status": "INTERPRETED",
+            "revision": 0,
+            "source_revision": 0
+          }
+        ],
+        "links": [
+          {
+            "id": 1,
+            "event_id": 301,
+            "draft_id": 401,
+            "state": "PROPOSED",
+            "revision": 0
+          }
+        ],
+        "drafts": [
+          {
+            "id": 401,
+            "review_status": "PENDING",
+            "review_revision": 0,
+            "amount_vnd": 50000,
+            "stated_date": "2026-10-20",
+            "stated_time": null,
+            "memo": "Fuel 50,000 VND on 2026-10-20",
+            "possible_duplicate_of": null
+          }
+        ],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 1,
+        "workflow_operation_count": 1
+      }
+    },
+    "trace_source": "instrumented_application",
+    "fixture": "in_memory_room",
+    "instrumentation_ok": true
+  },
+  "effects": {
+    "ledgerWrites": 0,
+    "noLedgerWrites": true,
+    "financialWrites": 0,
+    "applicationCalls": 1,
+    "deleteCalls": 0,
+    "attachCalls": 0,
+    "callerScope": "trusted_host_only",
+    "eventCount": 1,
+    "amountsVnd": [
+      50000
+    ],
+    "eventStatus": "INTERPRETED",
+    "amountVnd": 50000,
+    "date": "2026-10-20",
+    "noInventedTime": true,
+    "time": null,
+    "linkEventId": 301,
+    "linkDraftId": 401,
+    "linkState": "PROPOSED",
+    "activeLinksForEvent": 1
+  },
+  "metrics": {
+    "wall_seconds": 1.168,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1562,
+    "output_tokens": 53,
+    "thought_tokens": null,
+    "total_tokens": 1615,
+    "cached_input_tokens": null,
+    "service_tier": "standard",
+    "finish_reason": "STOP",
+    "model_version": "gemini-3.5-flash-lite",
+    "response_id": "cw_earDWI_K11e8Ppdb62AI",
+    "max_tokens": 2048,
+    "context_tokens": null,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 1.168
+  },
+  "cold_start_sample": false,
+  "transport": {
+    "kind": "hosted-generate-content",
+    "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+    "api_model": "gemini-3.5-flash-lite",
+    "output_adapter": "google-function-call-v1",
+    "native_envelope_parsed": false,
+    "request_config_sha256": "e1815b67ff2b0548d1921541186e7378ddbcb8c0a8b2ac82497c46920afd58df",
+    "generation_config": {
+      "temperature": 0.1,
+      "topP": 0.95,
+      "topK": 50,
+      "seed": 42,
+      "thinkingConfig": {
+        "thinkingLevel": "minimal"
+      }
+    },
+    "tool_config": {
+      "functionCallingConfig": {
+        "mode": "AUTO"
+      }
+    },
+    "retry_policy": "no retry on any 4xx response including 429; at most one retry after a transport timeout or a 5xx response, recorded as attempt 2. A rate-limited case stays a recorded provider error in that pass, and a further complete pass is a separately labelled independent run rather than a retry inside one.",
+    "conversation": "one user turn, no tool results, no multi-turn follow-up: the same single-turn contract the local profiles were measured under",
+    "inter_request_delay_seconds": 8,
+    "request_config_revision": "v2 — per-provider request blocks; launches paced after an observed free-tier 429; request content, case semantics and adapters unchanged"
+  },
+  "raw": {
+    "case_id": "s8-link-01",
+    "phase": "hosted",
+    "generation": "",
+    "parsed_calls": [
+      {
+        "name": "propose_link",
+        "args": {
+          "eventId": 301,
+          "idempotencyKey": "propose-link-301-401-20261025",
+          "draftId": 401
+        }
+      }
+    ],
+    "parse_error": null,
+    "metrics": {
+      "wall_seconds": 1.168,
+      "http_status": 200,
+      "attempts": 1,
+      "input_tokens": 1562,
+      "output_tokens": 53,
+      "thought_tokens": null,
+      "total_tokens": 1615,
+      "cached_input_tokens": null,
+      "service_tier": "standard",
+      "finish_reason": "STOP",
+      "model_version": "gemini-3.5-flash-lite",
+      "response_id": "cw_earDWI_K11e8Ppdb62AI",
+      "max_tokens": 2048,
+      "context_tokens": null,
+      "output_truncated_at_cap": false,
+      "request_timeout_seconds": 120,
+      "first_result_seconds": 1.168
+    },
+    "request_sha256": "eb80c016ccba9999806f3eafa0407d7051bb50a28356d911747fb43c79ac7c7b",
+    "response_sha256": "b4d37b63ab90c12b839116419e85b5cc7f9935442be899a7855c6bd3ea6c896f",
+    "prompt_hashes": {
+      "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+      "user_sha256": "c002ca6fd4b692fb1074adc040c87ed9a3cb47f4fde4f4fc8f41d19686f8fc51",
+      "tool_declarations_sha256": "c090ac75dca5272675a307f3163b1e97c30f91b5610ab8d075f0d38acb38fdea"
+    },
+    "attempts": [
+      {
+        "attempt": 1,
+        "http_status": 200,
+        "wall_seconds": 1.168
+      }
+    ]
+  }
+}

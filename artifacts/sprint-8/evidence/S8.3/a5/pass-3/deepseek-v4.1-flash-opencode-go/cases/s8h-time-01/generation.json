@@ -1,0 +1,68 @@
+{
+  "case_id": "s8h-time-01",
+  "phase": "opencode-go",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "idempotencyKey": "capture202-note-extract-v1",
+        "captureId": 202,
+        "expectedCaptureRevision": 0,
+        "expectedEventRevision": null,
+        "extractionVersion": "note-extract-v1",
+        "interpretation": {
+          "spanStart": 0,
+          "spanEnd": 51,
+          "normalizedText": "Groceries 45,000 VND yesterday, exact hour unknown.",
+          "amountVnd": 45000,
+          "merchant": "Groceries",
+          "timeAnchor": {
+            "date": "2026-10-24",
+            "time": null,
+            "intervalEndDate": null,
+            "intervalEndTime": null,
+            "timezoneId": "Asia/Ho_Chi_Minh"
+          },
+          "unresolvedReason": null
+        }
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 5.462,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1928,
+    "output_tokens": 725,
+    "thought_tokens": 472,
+    "total_tokens": 2653,
+    "cached_input_tokens": 1920,
+    "finish_reason": "tool_calls",
+    "model_version": "deepseek-v4.1-flash",
+    "response_id": "86bba0db36f4cefc4db97627d9fdb634",
+    "max_tokens": 2048,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 5.462,
+    "cost_usd": 0,
+    "list_cost_usd": 0.00044196,
+    "opencode_allowance_usd": 0.00033147,
+    "billing_source": "go"
+  },
+  "request_sha256": "e69495ef07eadf185aa8f3e0c13fe030c237d4fe735d017239c5298356c1b159",
+  "response_sha256": "4e8530ac41b30b3b09d2364d24c80d13e2eb24e8c8a214c693b56e0dda9e161f",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "9f9a38aa5ab3589e6cbce51cd9367127a17a638f55ae017ccccb9827f225d07e",
+    "tool_declarations_sha256": "bdc6ce982beb2864bfd91b24d8f55ae349103912c7519bba88a039b69410e0ec"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 5.462
+    }
+  ]
+}

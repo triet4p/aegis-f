@@ -1,0 +1,50 @@
+{
+  "case_id": "s8-laya-01",
+  "phase": "hosted",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "request_laya_classification",
+      "args": {
+        "expectedReviewRevision": 0,
+        "idempotencyKey": "laya-class-501-20261025",
+        "description": "coffee at noon",
+        "draftId": 501
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 0.939,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1495,
+    "output_tokens": 59,
+    "thought_tokens": null,
+    "total_tokens": 1554,
+    "cached_input_tokens": null,
+    "service_tier": "standard",
+    "finish_reason": "STOP",
+    "model_version": "gemini-3.5-flash-lite",
+    "response_id": "jhbearjvCIuC0-kP_MuDqQI",
+    "max_tokens": 2048,
+    "context_tokens": null,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 0.939
+  },
+  "request_sha256": "4d0822af1f40f7a9a3de22d4a55caeacaf16c1218f02be594abe7bb6e6deb9b4",
+  "response_sha256": "139f34725871a49f581b6296d835a2c8339e70e95f6739ffc8593412916589c3",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "94adb63b4042f745669c022592c1bfdc2f196dc02e1a95b9041e4b1c64b1801c",
+    "tool_declarations_sha256": "c090ac75dca5272675a307f3163b1e97c30f91b5610ab8d075f0d38acb38fdea"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 0.939
+    }
+  ]
+}

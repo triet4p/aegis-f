@@ -1,0 +1,93 @@
+{
+  "case_id": "s8h-multi-01",
+  "phase": "opencode-go",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "idempotencyKey": "capture-201-event-1-fuel-50k-oct20-3pm",
+        "captureId": 201,
+        "expectedCaptureRevision": 0,
+        "expectedEventRevision": null,
+        "extractionVersion": "1",
+        "interpretation": {
+          "spanStart": 0,
+          "spanEnd": 25,
+          "normalizedText": "Fuel 50k on Oct 20 at 3pm",
+          "amountVnd": 50000,
+          "merchant": null,
+          "timeAnchor": {
+            "date": "2026-10-20",
+            "time": "15:00",
+            "intervalEndDate": null,
+            "intervalEndTime": null,
+            "timezoneId": "Asia/Ho_Chi_Minh"
+          },
+          "unresolvedReason": null
+        }
+      }
+    },
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "idempotencyKey": "capture-201-event-2-snack-32k-circlek-315pm",
+        "captureId": 201,
+        "expectedCaptureRevision": 0,
+        "expectedEventRevision": null,
+        "extractionVersion": "1",
+        "interpretation": {
+          "spanStart": 27,
+          "spanEnd": 58,
+          "normalizedText": "snack 32k at Circle K at 3:15pm",
+          "amountVnd": 32000,
+          "merchant": "Circle K",
+          "timeAnchor": {
+            "date": null,
+            "time": "15:15",
+            "intervalEndDate": null,
+            "intervalEndTime": null,
+            "timezoneId": "Asia/Ho_Chi_Minh"
+          },
+          "unresolvedReason": "No date is stated for the 3:15pm snack; the source only gives the time."
+        }
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 7.446,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1953,
+    "output_tokens": 1322,
+    "thought_tokens": 803,
+    "total_tokens": 3275,
+    "cached_input_tokens": 1792,
+    "finish_reason": "tool_calls",
+    "model_version": "deepseek-v4.1-flash",
+    "response_id": "bc81260ead45d0965bf8d7a551fe9257",
+    "max_tokens": 2048,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 7.446,
+    "cost_usd": 0,
+    "list_cost_usd": 0.00082273,
+    "opencode_allowance_usd": 0.00061704,
+    "billing_source": "go"
+  },
+  "request_sha256": "266d713ef9738d223aea924c5d25e0052dd1f465bd4fbbe540092aff441e5bd3",
+  "response_sha256": "3795ef4d407a512cf0eeaa5132bf2bbfa3aa1c7f47a17b87001f1bec1ea115b9",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "3adee238fb60f9bcbbc42362a77896e2601c7ed655598fffa7cb8a5a81a89b41",
+    "tool_declarations_sha256": "bdc6ce982beb2864bfd91b24d8f55ae349103912c7519bba88a039b69410e0ec"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 7.446
+    }
+  ]
+}

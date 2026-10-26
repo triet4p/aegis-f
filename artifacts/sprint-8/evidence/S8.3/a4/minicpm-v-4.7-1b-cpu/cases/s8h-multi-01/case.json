@@ -1,0 +1,148 @@
+{
+  "case_id": "s8h-multi-01",
+  "suite": "heldout",
+  "profile": "minicpm-v-4.7-1b-cpu",
+  "prompt_sha256": "9be735868df35ab18273056d1a28881c3957b4f9b4b59d7215fc65c09b228ebc",
+  "generation": "<think>\n\n</think>\nI will record the two occurrences as specified in the saved note. The source text is: \"Fuel 50k on Oct 20 at 3pm; snack 32k at Circle K at 3:15pm.\"\n\n<tool_call>\n<function=attach_link>\n<parameter=idempotencyKey>\nrecord_201\n</>\n<parameter=eventId>\n201\n</>\n<parameter=draftId>\n1\n</parameter>\n<parameter=expectedRevision>\n0\n</parameter>\n<parameter=userOverride>\ntrue\n</parameter>\n<parameter=expectedRevision>\n0\n</parameter>\n<parameter=draftId>\n1\n</parameter>\n<parameter=eventId>\n201\n</parameter>\n<parameter=expectedRevision>\n0\n</parameter>\n</function>\n</tool_call><|im_end|>",
+  "parsed_calls": [
+    {
+      "name": "attach_link",
+      "args": {
+        "idempotencyKey": "record_201\n</>\n<parameter=eventId>\n201\n</>\n<parameter=draftId>\n1",
+        "expectedRevision": 0,
+        "userOverride": true,
+        "draftId": 1,
+        "eventId": 201
+      }
+    }
+  ],
+  "parse_error": null,
+  "application": {
+    "case_id": "s8h-multi-01",
+    "application_trace": {
+      "case_id": "s8h-multi-01",
+      "fixture": {
+        "capture_ids": [
+          201
+        ],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "attach_link",
+          "dispatched": true,
+          "request": {
+            "idempotencyKey": "record_201\n</>\n<parameter=eventId>\n201\n</>\n<parameter=draftId>\n1",
+            "expectedRevision": 0,
+            "userOverride": true,
+            "draftId": 1,
+            "eventId": 201
+          },
+          "outcome": "Denied",
+          "reason": "CALLER_SCOPE"
+        }
+      ],
+      "database_state": {
+        "captures": [
+          {
+            "id": 201,
+            "revision": 0,
+            "text": "Fuel 50k on Oct 20 at 3pm; snack 32k at Circle K at 3:15pm."
+          }
+        ],
+        "captures_events": [],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 0
+      }
+    },
+    "trace_source": "instrumented_application",
+    "fixture": "in_memory_room",
+    "instrumentation_ok": true
+  },
+  "effects": {
+    "ledgerWrites": 0,
+    "noLedgerWrites": true,
+    "financialWrites": 0,
+    "applicationCalls": 1,
+    "deleteCalls": 0,
+    "attachCalls": 1,
+    "callerScope": "trusted_host_only",
+    "agentAttachRequiresPolicyEvidence": true,
+    "activeLinksForEvent": 0
+  },
+  "metrics": {
+    "wall_seconds": 94.68,
+    "runtime_reported_load_seconds": 69.35,
+    "prefill_tokens": 1669,
+    "prefill_seconds": 69.327,
+    "prefill_tokens_per_second": 24.07,
+    "decode_tokens": 188,
+    "decode_seconds": 20.752,
+    "decode_tokens_per_second": 9.06,
+    "process_peak_rss_mib": 840.4,
+    "process_peak_pss_mib": 839.0,
+    "device_mem_available_baseline_kib": 2729920,
+    "device_mem_available_min_kib": 2478348,
+    "samples": 213,
+    "exit_code": 0,
+    "max_tokens": 768,
+    "context_tokens": 4096,
+    "output_truncated_at_cap": false,
+    "first_result_seconds": 94.68
+  },
+  "cold_start_sample": false,
+  "raw": {
+    "case_id": "s8h-multi-01",
+    "phase": "cold",
+    "generation": "<think>\n\n</think>\nI will record the two occurrences as specified in the saved note. The source text is: \"Fuel 50k on Oct 20 at 3pm; snack 32k at Circle K at 3:15pm.\"\n\n<tool_call>\n<function=attach_link>\n<parameter=idempotencyKey>\nrecord_201\n</>\n<parameter=eventId>\n201\n</>\n<parameter=draftId>\n1\n</parameter>\n<parameter=expectedRevision>\n0\n</parameter>\n<parameter=userOverride>\ntrue\n</parameter>\n<parameter=expectedRevision>\n0\n</parameter>\n<parameter=draftId>\n1\n</parameter>\n<parameter=eventId>\n201\n</parameter>\n<parameter=expectedRevision>\n0\n</parameter>\n</function>\n</tool_call><|im_end|>",
+    "raw_stdout_sha256": "7c49a77f353c75de1cb789e1859cb21a4e301890fcaf302fbb61b1a971046c01",
+    "raw_stderr_sha256": "dfbc54d065dbb291aab6f7c4d2b87b2d03f3b69d0e26d9ee9de1565fff5ddf33",
+    "metrics": {
+      "wall_seconds": 94.68,
+      "runtime_reported_load_seconds": 69.35,
+      "prefill_tokens": 1669,
+      "prefill_seconds": 69.327,
+      "prefill_tokens_per_second": 24.07,
+      "decode_tokens": 188,
+      "decode_seconds": 20.752,
+      "decode_tokens_per_second": 9.06,
+      "process_peak_rss_mib": 840.4,
+      "process_peak_pss_mib": 839.0,
+      "device_mem_available_baseline_kib": 2729920,
+      "device_mem_available_min_kib": 2478348,
+      "samples": 213,
+      "exit_code": 0,
+      "max_tokens": 768,
+      "context_tokens": 4096,
+      "output_truncated_at_cap": false,
+      "first_result_seconds": 94.68
+    },
+    "device_run_dir": "/data/local/tmp/slm/trials/S8.3-a4/minicpm-v-4.7-1b-cpu/s8h-multi-01/run-cold"
+  }
+}

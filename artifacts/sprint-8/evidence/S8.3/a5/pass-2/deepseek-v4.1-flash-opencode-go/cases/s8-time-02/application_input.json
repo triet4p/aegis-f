@@ -1,0 +1,28 @@
+{
+  "results": [
+    {
+      "case_id": "s8-time-02",
+      "calls": [
+        {
+          "name": "update_event_interpretation",
+          "args": {
+            "idempotencyKey": "capture-103-event-1-v0",
+            "captureId": 103,
+            "expectedCaptureRevision": 0,
+            "expectedEventRevision": null,
+            "extractionVersion": "expense-extract-v1",
+            "interpretation": {
+              "spanStart": 0,
+              "spanEnd": 20,
+              "normalizedText": "Groceries 45,000 VND",
+              "amountVnd": 45000,
+              "merchant": "Groceries",
+              "timeAnchor": null,
+              "unresolvedReason": "Time not remembered by the user and not stated in the source; no date can be inferred."
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

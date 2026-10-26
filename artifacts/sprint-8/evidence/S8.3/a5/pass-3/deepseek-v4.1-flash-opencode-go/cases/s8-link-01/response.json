@@ -1,0 +1,58 @@
+{
+  "id": "d3396c36bff532169a1ecfa94d32caa6",
+  "object": "chat.completion",
+  "created": 1792940020,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "I'll start by reading the pending draft page to see draft 401's stored facts before proposing anything.",
+        "reasoning_content": "The user wants me to propose a link between event 301 and draft 401, then attach if uniquely supported.\n\nLet me think: the application context is a trusted read-only fixture. Event 301: \"Fuel purchase on 2026-10-20\", amount 50000 VND, date 2026-10-20. Draft 401: PENDING, review revision 0. But I don't know the draft's facts — amount, merchant, date. The instruction says \"Compare returned draft facts with the event only when present.\" I should query the draft candidates to see the draft facts before proposing a link?\n\nActually, propose_link is the tool. But policy: \"Propose a link only for an event/draft pair.\" And \"Attach only a previously proposed pair; trusted application policy independently denies agent attachments without unique current evidence.\"\n\nShould I first inspect draft candidates? The bounded read of pending bank drafts would give me draft 401's facts. That seems prudent to determine whether the link is uniquely supported. Let me query with reviewStatus PENDING, onlyPossibleDuplicates false, limit maybe 50 offset 0.\n\nThen propose link. Then attach if uniquely supported by application evidence. But the proposal result will indicate evidence. Actually attach_link requires expectedRevision — which revision? Presumably the link proposal revision. The propose_link result would give a revision. Let's do it stepwise.\n\nLet me query drafts first.",
+        "tool_calls": [
+          {
+            "id": "call_00_rhxmpwm7p5xpjnmr5qd4yal7",
+            "type": "function",
+            "function": {
+              "name": "query_draft_candidates",
+              "arguments": "{\"query\": {\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": false, \"bounds\": {\"limit\": 100, \"offset\": 0}}}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1953,
+    "completion_tokens": 382,
+    "total_tokens": 2335,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1920,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 292,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00023991,
+      "allowance": 0.00017993,
+      "tokens": {
+        "input": 33,
+        "output": 382,
+        "reasoning": 292,
+        "cache_read": 1920,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

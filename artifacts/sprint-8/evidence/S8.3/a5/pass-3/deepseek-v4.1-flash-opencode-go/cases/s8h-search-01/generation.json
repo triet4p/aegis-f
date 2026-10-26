@@ -1,0 +1,56 @@
+{
+  "case_id": "s8h-search-01",
+  "phase": "opencode-go",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "query_draft_candidates",
+      "args": {
+        "query": {
+          "reviewStatus": "PENDING",
+          "onlyPossibleDuplicates": false,
+          "bounds": {
+            "limit": 3,
+            "offset": 0
+          }
+        }
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 2.505,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1850,
+    "output_tokens": 137,
+    "thought_tokens": 67,
+    "total_tokens": 1987,
+    "cached_input_tokens": 1792,
+    "finish_reason": "tool_calls",
+    "model_version": "deepseek-v4.1-flash",
+    "response_id": "4fad3749c39f91875ea78cce9c783259",
+    "max_tokens": 2048,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 2.505,
+    "cost_usd": 0,
+    "list_cost_usd": 9.628e-05,
+    "opencode_allowance_usd": 7.221e-05,
+    "billing_source": "go"
+  },
+  "request_sha256": "628860f2c093a4568dbd5122e77acf5cb2881ace4df06efbf2a468d835552f85",
+  "response_sha256": "5ac5c68fd9cb3c02b52a7426fc7c841c8e760bb4f748c688173bf78ef1c6a09e",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "5ce474259d433c67c93eaee8278377d57bab8262def00d921340a9c51c8a1c52",
+    "tool_declarations_sha256": "bdc6ce982beb2864bfd91b24d8f55ae349103912c7519bba88a039b69410e0ec"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 2.505
+    }
+  ]
+}

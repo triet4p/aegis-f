@@ -1,0 +1,58 @@
+{
+  "id": "a6838c38a7b8e41be41a7d7ce5fca18d",
+  "object": "chat.completion",
+  "created": 1792939851,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "I'll first verify the draft's stored facts via the bounded candidate read.",
+        "reasoning_content": "The user wants to propose a link between event 301 and draft 401, then attach if uniquely supported.\n\nI should first check the draft candidate read? The propose_link tool requires eventId and draftId. But the policy says \"Compare returned draft facts with the event only when present.\" I should query draft candidates to verify draft 401 is a pending draft with facts. Let me do that first.\n\nThen propose link, then attach only if uniquely supported by application evidence. The attach tool requires expectedRevision and userOverride. Hmm, userOverride is nullable string. But \"Never supply evidence or user authority in arguments.\" So userOverride should be null — we cannot supply user authority.\n\nLet's query drafts first.",
+        "tool_calls": [
+          {
+            "id": "call_00_50d4kiwbpc2ezmzm4tdj83xy",
+            "type": "function",
+            "function": {
+              "name": "query_draft_candidates",
+              "arguments": "{\"query\": {\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": false, \"bounds\": {\"limit\": 50, \"offset\": 0}}}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1953,
+    "completion_tokens": 228,
+    "total_tokens": 2181,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1920,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 144,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00014751,
+      "allowance": 0.00011063,
+      "tokens": {
+        "input": 33,
+        "output": 228,
+        "reasoning": 144,
+        "cache_read": 1920,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

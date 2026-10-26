@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "No bank draft link was proposed or attached for event 302, per your instruction and the absence of plausible draft candidates.",
+            "thoughtSignature": "EmAKXgFpFH0TmrR2/0guJD0UuwHOWrDKJ4Ox/7jk5ficKp5F1Bix48U43nj9vuMDiDp5HxGxmk6eG5a05lnEq25bZkIWlLcDzGva66zNn0v1vNmhF1u8wtTtnXYQdnpILRk="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1538,
+    "candidatesTokenCount": 26,
+    "totalTokenCount": 1564,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1538
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash-lite",
+  "responseId": "Ag7eap2eI-KMvr0P9t3i2A8"
+}

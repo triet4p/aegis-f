@@ -1,0 +1,58 @@
+{
+  "id": "9011ae38f313dd7597ab15cd35bd81ce",
+  "object": "chat.completion",
+  "created": 1792937334,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "reasoning_content": "The user asks to run Laya classification for draft 801 with exact review text 'bus fare', expected review revision 2. This is a supported tool call. Do it.",
+        "tool_calls": [
+          {
+            "id": "call_00_lr9ezdjjpps1soz6n5za4ett",
+            "type": "function",
+            "function": {
+              "name": "request_laya_classification",
+              "arguments": "{\"idempotencyKey\": \"laya-draft-801-rev2-bus-fare\", \"draftId\": 801, \"description\": \"bus fare\", \"expectedReviewRevision\": 2}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1897,
+    "completion_tokens": 146,
+    "total_tokens": 2043,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1792,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 36,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00010873,
+      "allowance": 8.154e-05,
+      "tokens": {
+        "input": 105,
+        "output": 146,
+        "reasoning": 36,
+        "cache_read": 1792,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

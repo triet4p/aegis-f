@@ -1,0 +1,58 @@
+{
+  "id": "4fad3749c39f91875ea78cce9c783259",
+  "object": "chat.completion",
+  "created": 1792940104,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "reasoning_content": "The user wants the first page of no more than 3 drafts awaiting review. Use query_draft_candidates with reviewStatus PENDING, onlyPossibleDuplicates false (not specified — filters are review status and possible-duplicate state; the user didn't specify duplicates, so false seems right), bounds limit 3 offset 0.",
+        "tool_calls": [
+          {
+            "id": "call_00_6ymbhfav3vrlkzmkm5b7xfy4",
+            "type": "function",
+            "function": {
+              "name": "query_draft_candidates",
+              "arguments": "{\"query\": {\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": false, \"bounds\": {\"limit\": 3, \"offset\": 0}}}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1850,
+    "completion_tokens": 137,
+    "total_tokens": 1987,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1792,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 67,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 9.628e-05,
+      "allowance": 7.221e-05,
+      "tokens": {
+        "input": 58,
+        "output": 137,
+        "reasoning": 67,
+        "cache_read": 1792,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

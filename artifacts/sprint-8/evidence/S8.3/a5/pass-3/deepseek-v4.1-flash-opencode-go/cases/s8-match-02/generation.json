@@ -1,0 +1,69 @@
+{
+  "case_id": "s8-match-02",
+  "phase": "opencode-go",
+  "generation": "I'll look at the pending drafts to confirm which candidates exist.",
+  "parsed_calls": [
+    {
+      "name": "query_draft_candidates",
+      "args": {
+        "query": {
+          "reviewStatus": "PENDING",
+          "onlyPossibleDuplicates": true,
+          "bounds": {
+            "limit": 50,
+            "offset": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "query_draft_candidates",
+      "args": {
+        "query": {
+          "reviewStatus": "PENDING",
+          "onlyPossibleDuplicates": false,
+          "bounds": {
+            "limit": 50,
+            "offset": 0
+          }
+        }
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 3.437,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1931,
+    "output_tokens": 241,
+    "thought_tokens": 99,
+    "total_tokens": 2172,
+    "cached_input_tokens": 1920,
+    "finish_reason": "tool_calls",
+    "model_version": "deepseek-v4.1-flash",
+    "response_id": "043f3b5ce8ef6f394431159e1a686ad8",
+    "max_tokens": 2048,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 3.437,
+    "cost_usd": 0,
+    "list_cost_usd": 0.00015201,
+    "opencode_allowance_usd": 0.00011401,
+    "billing_source": "go"
+  },
+  "request_sha256": "073c9d1b988204422c343cc94236e710cc2f0262a9867bd5874dd231b7ccebe3",
+  "response_sha256": "bdcebf880140c04140283b7aaa41654fd1128be6ba8e9ec8e09219cd5cb9ae44",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "086c95ff46c7790dbe8edfd1bcecde9935e1b44cef9a1f1e6173510f8237a31d",
+    "tool_declarations_sha256": "bdc6ce982beb2864bfd91b24d8f55ae349103912c7519bba88a039b69410e0ec"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 3.437
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "effect_source": "instrumented_application",
+  "fixture": "in_memory_room",
+  "fixture_timezone": "Asia/Ho_Chi_Minh",
+  "results": [
+    {
+      "case_id": "s8h-multi-01",
+      "fixture": {
+        "capture_ids": [
+          201
+        ],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "update_event_interpretation",
+          "dispatched": true,
+          "request": {
+            "captureId": 201,
+            "expectedCaptureRevision": 0,
+            "idempotencyKey": "fuel_oct20_3pm",
+            "extractionVersion": "1.0",
+            "interpretation": {
+              "amountVnd": 50000,
+              "timeAnchor": {
+                "time": "15:00",
+                "timezoneId": "Asia/Ho_Chi_Minh",
+                "date": "2026-10-20"
+              },
+              "merchant": null,
+              "spanStart": 0,
+              "spanEnd": 24,
+              "normalizedText": "Fuel 50k on Oct 20 at 3pm"
+            },
+            "expectedEventRevision": 0,
+            "unresolvedReason": null
+          },
+          "outcome": "Conflict",
+          "reason": "The capture or interpretation changed under the caller."
+        },
+        {
+          "name": "update_event_interpretation",
+          "dispatched": true,
+          "request": {
+            "expectedCaptureRevision": 0,
+            "idempotencyKey": "snack_circlek_315pm",
+            "expectedEventRevision": 0,
+            "unresolvedReason": null,
+            "captureId": 201,
+            "extractionVersion": "1.0",
+            "interpretation": {
+              "timeAnchor": {
+                "time": "15:15",
+                "date": "2026-10-20",
+                "timezoneId": "Asia/Ho_Chi_Minh"
+              },
+              "merchant": "Circle K",
+              "normalizedText": "snack 32k at Circle K at 3:15pm",
+              "spanStart": 25,
+              "spanEnd": 52,
+              "amountVnd": 32000
+            }
+          },
+          "outcome": "Conflict",
+          "reason": "The capture or interpretation changed under the caller."
+        }
+      ],
+      "database_state": {
+        "captures": [
+          {
+            "id": 201,
+            "revision": 0,
+            "text": "Fuel 50k on Oct 20 at 3pm; snack 32k at Circle K at 3:15pm."
+          }
+        ],
+        "captures_events": [],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 0
+      }
+    }
+  ]
+}

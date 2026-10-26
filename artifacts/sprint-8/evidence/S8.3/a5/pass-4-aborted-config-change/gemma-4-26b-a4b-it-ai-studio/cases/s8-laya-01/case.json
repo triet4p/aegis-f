@@ -1,0 +1,202 @@
+{
+  "case_id": "s8-laya-01",
+  "suite": "frozen",
+  "profile": "gemma-4-26b-a4b-it-ai-studio",
+  "provider": "google-ai-studio",
+  "small_context": "\nApplication context (trusted, read-only fixture):\n- today: 2026-10-25 (Asia/Ho_Chi_Minh)\n- draft 501 (review status PENDING, review revision 0)",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "request_laya_classification",
+      "args": {
+        "description": "coffee at noon",
+        "expectedReviewRevision": 0,
+        "draftId": 501,
+        "idempotencyKey": "req_laya_501_coffee_noon"
+      }
+    }
+  ],
+  "parse_error": null,
+  "application": {
+    "case_id": "s8-laya-01",
+    "application_trace": {
+      "case_id": "s8-laya-01",
+      "fixture": {
+        "capture_ids": [],
+        "event_ids": [],
+        "draft_ids": [
+          501
+        ]
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "request_laya_classification",
+          "dispatched": true,
+          "request": {
+            "description": "coffee at noon",
+            "expectedReviewRevision": 0,
+            "draftId": 501,
+            "idempotencyKey": "req_laya_501_coffee_noon"
+          },
+          "outcome": "Failed",
+          "reason": "Laya runtime is not part of this generative S8.3 trial; the command boundary still ran."
+        }
+      ],
+      "database_state": {
+        "drafts": [
+          {
+            "id": 501,
+            "review_status": "PENDING",
+            "review_revision": 0,
+            "amount_vnd": null,
+            "stated_date": null,
+            "stated_time": null,
+            "memo": "coffee at noon",
+            "possible_duplicate_of": null
+          }
+        ],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 0
+      }
+    },
+    "trace_source": "instrumented_application",
+    "fixture": "in_memory_room",
+    "instrumentation_ok": true
+  },
+  "effects": {
+    "ledgerWrites": 0,
+    "noLedgerWrites": true,
+    "financialWrites": 0,
+    "applicationCalls": 1,
+    "deleteCalls": 0,
+    "attachCalls": 0,
+    "callerScope": "trusted_host_only",
+    "activeLinksForEvent": 0,
+    "draftId": 501,
+    "description": "coffee at noon",
+    "classificationOutcome": "Failed",
+    "classificationIsReviewOnly": true
+  },
+  "metrics": {
+    "wall_seconds": 2.694,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1495,
+    "output_tokens": 54,
+    "thought_tokens": null,
+    "total_tokens": 1549,
+    "cached_input_tokens": null,
+    "service_tier": "standard",
+    "finish_reason": "STOP",
+    "model_version": "gemma-4-26b-a4b-it",
+    "response_id": "lwveaoyGBraM1e8P0ov06QM",
+    "max_tokens": 2048,
+    "context_tokens": null,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 2.694
+  },
+  "cold_start_sample": false,
+  "transport": {
+    "kind": "hosted-generate-content",
+    "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+    "api_model": "gemma-4-26b-a4b-it",
+    "output_adapter": "google-function-call-v1",
+    "native_envelope_parsed": false,
+    "request_config_sha256": "a8469777ea5781fba49934bc8e21c3b37c9cc956553c28ad6a3ea52a0049d762",
+    "generation_config": {
+      "temperature": 0.1,
+      "topP": 0.95,
+      "topK": 50,
+      "seed": 42,
+      "maxOutputTokens": 2048,
+      "thinkingConfig": {
+        "thinkingLevel": "minimal"
+      }
+    },
+    "tool_config": {
+      "functionCallingConfig": {
+        "mode": "AUTO"
+      }
+    },
+    "retry_policy": "no retry on any 4xx response including 429; at most one retry after a transport timeout or a 5xx response, recorded as attempt 2. A rate-limited case stays a recorded provider error in that pass, and a further complete pass is a separately labelled independent run rather than a retry inside one.",
+    "conversation": "one user turn, no tool results, no multi-turn follow-up: the same single-turn contract the local profiles were measured under",
+    "inter_request_delay_seconds": 8,
+    "request_config_revision": "v1.1 — launch pacing added after an observed free-tier 429; request content, semantics and adapter unchanged"
+  },
+  "raw": {
+    "case_id": "s8-laya-01",
+    "phase": "hosted",
+    "generation": "",
+    "parsed_calls": [
+      {
+        "name": "request_laya_classification",
+        "args": {
+          "description": "coffee at noon",
+          "expectedReviewRevision": 0,
+          "draftId": 501,
+          "idempotencyKey": "req_laya_501_coffee_noon"
+        }
+      }
+    ],
+    "parse_error": null,
+    "metrics": {
+      "wall_seconds": 2.694,
+      "http_status": 200,
+      "attempts": 1,
+      "input_tokens": 1495,
+      "output_tokens": 54,
+      "thought_tokens": null,
+      "total_tokens": 1549,
+      "cached_input_tokens": null,
+      "service_tier": "standard",
+      "finish_reason": "STOP",
+      "model_version": "gemma-4-26b-a4b-it",
+      "response_id": "lwveaoyGBraM1e8P0ov06QM",
+      "max_tokens": 2048,
+      "context_tokens": null,
+      "output_truncated_at_cap": false,
+      "request_timeout_seconds": 120,
+      "first_result_seconds": 2.694
+    },
+    "request_sha256": "4d0822af1f40f7a9a3de22d4a55caeacaf16c1218f02be594abe7bb6e6deb9b4",
+    "response_sha256": "b74c9190f8604cb444ea3243b0e13dd9a0dd7ae064b7453d50dceb066bea7a22",
+    "prompt_hashes": {
+      "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+      "user_sha256": "94adb63b4042f745669c022592c1bfdc2f196dc02e1a95b9041e4b1c64b1801c",
+      "tool_declarations_sha256": "c090ac75dca5272675a307f3163b1e97c30f91b5610ab8d075f0d38acb38fdea"
+    },
+    "attempts": [
+      {
+        "attempt": 1,
+        "http_status": 200,
+        "wall_seconds": 2.694
+      }
+    ]
+  }
+}

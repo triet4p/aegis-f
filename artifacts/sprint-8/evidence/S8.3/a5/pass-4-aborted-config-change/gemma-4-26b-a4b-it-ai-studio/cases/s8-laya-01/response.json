@@ -1,0 +1,45 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "",
+            "thought": true
+          },
+          {
+            "functionCall": {
+              "name": "request_laya_classification",
+              "args": {
+                "description": "coffee at noon",
+                "expectedReviewRevision": 0,
+                "draftId": 501,
+                "idempotencyKey": "req_laya_501_coffee_noon"
+              },
+              "id": "call_1585254"
+            },
+            "thoughtSignature": "EiYKJGUyNDgzMGE3LTVjZDYtNDJmZS05OThiLWVlNTM5ZTcyYjljMw=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "finishMessage": "Model generated function call(s)."
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1495,
+    "candidatesTokenCount": 54,
+    "totalTokenCount": 1549,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1495
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemma-4-26b-a4b-it",
+  "responseId": "lwveaoyGBraM1e8P0ov06QM"
+}

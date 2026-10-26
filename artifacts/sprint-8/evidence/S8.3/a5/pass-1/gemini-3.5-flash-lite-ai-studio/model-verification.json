@@ -1,0 +1,44 @@
+{
+  "provider": "google-ai-studio",
+  "profile": "gemini-3.5-flash-lite-ai-studio",
+  "api_model": "gemini-3.5-flash-lite",
+  "output_adapter": "google-function-call-v1",
+  "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+  "request_config_sha256": "e1815b67ff2b0548d1921541186e7378ddbcb8c0a8b2ac82497c46920afd58df",
+  "credential_present": true,
+  "model_identity": {
+    "status": "verified",
+    "http_status": 200,
+    "name": "models/gemini-3.5-flash-lite",
+    "version": "3.5-flash-lite-07-2026",
+    "displayName": "Gemini 3.5 Flash Lite",
+    "inputTokenLimit": 1048576,
+    "outputTokenLimit": 65536,
+    "supportedGenerationMethods": [
+      "generateContent",
+      "countTokens",
+      "createCachedContent",
+      "batchGenerateContent"
+    ],
+    "thinking": true
+  },
+  "preflight": {
+    "purpose": "confirms the live endpoint accepts the frozen tool declarations and generation config",
+    "http_status": 200,
+    "wall_seconds": 1.297,
+    "tool_declarations_accepted": true,
+    "usage": {
+      "promptTokenCount": 1056,
+      "candidatesTokenCount": 1,
+      "totalTokenCount": 1057,
+      "promptTokensDetails": [
+        {
+          "modality": "TEXT",
+          "tokenCount": 1056
+        }
+      ],
+      "serviceTier": "standard"
+    },
+    "error": null
+  }
+}

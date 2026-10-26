@@ -1,0 +1,156 @@
+{
+  "case_id": "s8-link-01",
+  "suite": "frozen",
+  "profile": "lfm2.5-350m-restricted",
+  "prompt_sha256": "bed1456443d22969afb1f0be1eb2526e7ddb5442a0a2f703c2db4aefdf768b5e",
+  "generation": "Event 301 is pending draft 401. Attach it if supported by application evidence.<|im_end|>",
+  "parsed_calls": [],
+  "parse_error": null,
+  "application": {
+    "case_id": "s8-link-01",
+    "application_trace": {
+      "case_id": "s8-link-01",
+      "fixture": {
+        "capture_ids": [],
+        "event_ids": [
+          301
+        ],
+        "draft_ids": [
+          401
+        ]
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [],
+      "database_state": {
+        "events": [
+          {
+            "id": 301,
+            "capture_id": 104,
+            "span_start": 0,
+            "span_end": 37,
+            "normalized_text": "Fuel purchase on 2026-10-20",
+            "amount_vnd": 50000,
+            "merchant": null,
+            "anchor_date": "2026-10-20",
+            "anchor_time": null,
+            "anchor_timezone": "Asia/Ho_Chi_Minh",
+            "unresolved_reason": null,
+            "status": "INTERPRETED",
+            "revision": 0,
+            "source_revision": 0
+          }
+        ],
+        "links": [],
+        "drafts": [
+          {
+            "id": 401,
+            "review_status": "PENDING",
+            "review_revision": 0,
+            "amount_vnd": 50000,
+            "stated_date": "2026-10-20",
+            "stated_time": null,
+            "memo": "Fuel 50,000 VND on 2026-10-20",
+            "possible_duplicate_of": null
+          }
+        ],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 0
+      }
+    },
+    "trace_source": "instrumented_application",
+    "fixture": "in_memory_room",
+    "instrumentation_ok": true
+  },
+  "effects": {
+    "ledgerWrites": 0,
+    "noLedgerWrites": true,
+    "financialWrites": 0,
+    "applicationCalls": 0,
+    "deleteCalls": 0,
+    "attachCalls": 0,
+    "callerScope": "trusted_host_only",
+    "eventCount": 1,
+    "amountsVnd": [
+      50000
+    ],
+    "eventStatus": "INTERPRETED",
+    "amountVnd": 50000,
+    "date": "2026-10-20",
+    "noInventedTime": true,
+    "time": null,
+    "activeLinksForEvent": 0
+  },
+  "metrics": {
+    "wall_seconds": 7.66,
+    "runtime_reported_load_seconds": 5.618,
+    "prefill_tokens": 229,
+    "prefill_seconds": 5.615,
+    "prefill_tokens_per_second": 40.78,
+    "decode_tokens": 19,
+    "decode_seconds": 0.765,
+    "decode_tokens_per_second": 24.83,
+    "process_peak_rss_mib": 312.7,
+    "process_peak_pss_mib": 311.4,
+    "device_mem_available_baseline_kib": 2829376,
+    "device_mem_available_min_kib": 2753256,
+    "samples": 18,
+    "exit_code": 0,
+    "max_tokens": 384,
+    "context_tokens": 4096,
+    "output_truncated_at_cap": false,
+    "first_result_seconds": 7.66
+  },
+  "cold_start_sample": false,
+  "raw": {
+    "case_id": "s8-link-01",
+    "phase": "cold",
+    "generation": "Event 301 is pending draft 401. Attach it if supported by application evidence.<|im_end|>",
+    "raw_stdout_sha256": "36e05ba1b175ee03db94a0ff533f9890ce61da577f94e27df00de9b7ae7d492d",
+    "raw_stderr_sha256": "a11c043ecf39d4260ccf343a36855e7693d9453749b683561d59d2ac2ac60aac",
+    "metrics": {
+      "wall_seconds": 7.66,
+      "runtime_reported_load_seconds": 5.618,
+      "prefill_tokens": 229,
+      "prefill_seconds": 5.615,
+      "prefill_tokens_per_second": 40.78,
+      "decode_tokens": 19,
+      "decode_seconds": 0.765,
+      "decode_tokens_per_second": 24.83,
+      "process_peak_rss_mib": 312.7,
+      "process_peak_pss_mib": 311.4,
+      "device_mem_available_baseline_kib": 2829376,
+      "device_mem_available_min_kib": 2753256,
+      "samples": 18,
+      "exit_code": 0,
+      "max_tokens": 384,
+      "context_tokens": 4096,
+      "output_truncated_at_cap": false,
+      "first_result_seconds": 7.66
+    },
+    "device_run_dir": "/data/local/tmp/slm/trials/S8.3-a4/lfm2.5-350m-restricted/s8-link-01/run-cold"
+  }
+}

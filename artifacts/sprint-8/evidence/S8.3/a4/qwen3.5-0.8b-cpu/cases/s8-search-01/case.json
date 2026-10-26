@@ -1,0 +1,166 @@
+{
+  "case_id": "s8-search-01",
+  "suite": "frozen",
+  "profile": "qwen3.5-0.8b-cpu",
+  "prompt_sha256": "424e4be572553da8fa4d6f3e06a8f195a43a3a2459b71aae3a49188657e637c7",
+  "generation": "<think>\n\n</think>\n<tool_call>\n<function=query_draft_candidates>\n<parameter=query>\n{\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": true, \"bounds\": {\"limit\": 5, \"offset\": 0}}\n</parameter>\n</function>\n</tool_call><|im_end|>",
+  "parsed_calls": [
+    {
+      "name": "query_draft_candidates",
+      "args": {
+        "query": {
+          "reviewStatus": "PENDING",
+          "onlyPossibleDuplicates": true,
+          "bounds": {
+            "limit": 5,
+            "offset": 0
+          }
+        }
+      }
+    }
+  ],
+  "parse_error": null,
+  "application": {
+    "case_id": "s8-search-01",
+    "application_trace": {
+      "case_id": "s8-search-01",
+      "fixture": {
+        "capture_ids": [],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "query_draft_candidates",
+          "dispatched": true,
+          "request": {
+            "query": {
+              "reviewStatus": "PENDING",
+              "onlyPossibleDuplicates": true,
+              "bounds": {
+                "limit": 5,
+                "offset": 0
+              }
+            }
+          },
+          "outcome": "Read",
+          "page": {
+            "limit": 5,
+            "offset": 0,
+            "has_more": false,
+            "items": [
+              {
+                "id": 604,
+                "review_status": "PENDING",
+                "review_revision": 0,
+                "amount_vnd": 70000,
+                "stated_date": "2026-10-22",
+                "stated_time": null,
+                "memo": "purchase 70,000 VND on 2026-10-22",
+                "possible_duplicate_of": 603
+              }
+            ]
+          }
+        }
+      ],
+      "database_state": {
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 0
+      }
+    },
+    "trace_source": "instrumented_application",
+    "fixture": "in_memory_room",
+    "instrumentation_ok": true
+  },
+  "effects": {
+    "ledgerWrites": 0,
+    "noLedgerWrites": true,
+    "financialWrites": 0,
+    "applicationCalls": 1,
+    "deleteCalls": 0,
+    "attachCalls": 0,
+    "callerScope": "trusted_host_only",
+    "activeLinksForEvent": 0,
+    "limit": 5,
+    "offset": 0,
+    "reviewStatus": "PENDING",
+    "draftIds": [
+      604
+    ],
+    "hasMore": false
+  },
+  "metrics": {
+    "wall_seconds": 94.41,
+    "runtime_reported_load_seconds": 82.169,
+    "prefill_tokens": 1560,
+    "prefill_seconds": 82.137,
+    "prefill_tokens_per_second": 18.99,
+    "decode_tokens": 54,
+    "decode_seconds": 7.448,
+    "decode_tokens_per_second": 7.25,
+    "process_peak_rss_mib": 707.3,
+    "process_peak_pss_mib": 705.9,
+    "device_mem_available_baseline_kib": 2687944,
+    "device_mem_available_min_kib": 2496888,
+    "samples": 207,
+    "exit_code": 0,
+    "max_tokens": 768,
+    "context_tokens": 4096,
+    "output_truncated_at_cap": false,
+    "first_result_seconds": 94.41
+  },
+  "cold_start_sample": false,
+  "raw": {
+    "case_id": "s8-search-01",
+    "phase": "cold",
+    "generation": "<think>\n\n</think>\n<tool_call>\n<function=query_draft_candidates>\n<parameter=query>\n{\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": true, \"bounds\": {\"limit\": 5, \"offset\": 0}}\n</parameter>\n</function>\n</tool_call><|im_end|>",
+    "raw_stdout_sha256": "6cfb6f040059b3f79639bcccb07dace88139790fd9f3df40e64b2a5b27af9447",
+    "raw_stderr_sha256": "4f15187cea7740a23629494dd414e3da7334be8094d05bc2a71ef65ea8211ce1",
+    "metrics": {
+      "wall_seconds": 94.41,
+      "runtime_reported_load_seconds": 82.169,
+      "prefill_tokens": 1560,
+      "prefill_seconds": 82.137,
+      "prefill_tokens_per_second": 18.99,
+      "decode_tokens": 54,
+      "decode_seconds": 7.448,
+      "decode_tokens_per_second": 7.25,
+      "process_peak_rss_mib": 707.3,
+      "process_peak_pss_mib": 705.9,
+      "device_mem_available_baseline_kib": 2687944,
+      "device_mem_available_min_kib": 2496888,
+      "samples": 207,
+      "exit_code": 0,
+      "max_tokens": 768,
+      "context_tokens": 4096,
+      "output_truncated_at_cap": false,
+      "first_result_seconds": 94.41
+    },
+    "device_run_dir": "/data/local/tmp/slm/trials/S8.3-a4/qwen3.5-0.8b-cpu/s8-search-01/run-cold"
+  }
+}

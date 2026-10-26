@@ -1,0 +1,57 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "name": "update_event_interpretation",
+              "args": {
+                "interpretation": {
+                  "spanEnd": 129,
+                  "spanStart": 75,
+                  "unresolvedReason": null,
+                  "merchant": null,
+                  "normalizedText": "lunch 28,000 VND on 2026-10-22",
+                  "timeAnchor": {
+                    "date": "2026-10-22",
+                    "intervalEndDate": null,
+                    "intervalEndTime": null,
+                    "timezoneId": "Asia/Ho_Chi_Minh",
+                    "time": null
+                  },
+                  "amountVnd": 28000
+                },
+                "expectedCaptureRevision": 0,
+                "captureId": 107,
+                "idempotencyKey": "lunch-28k-2026-10-22",
+                "expectedEventRevision": null,
+                "extractionVersion": "v1"
+              },
+              "id": "call_1525708"
+            },
+            "thoughtSignature": "EmAKXgFpFH0Tae4VhjXDZOd3QxZMPak03TPlv5i8uBuF6klniXitT4kioZdS5rdWiMV/ToZm5QP848K+7+WeX7Eog+wNYjYRU3jSNV0R1kFtdQzBjPaHdRgmjKUfkwCFgO4="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "finishMessage": "Model generated function call(s)."
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1592,
+    "candidatesTokenCount": 171,
+    "totalTokenCount": 1763,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1592
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash-lite",
+  "responseId": "Jg7easzTDa-32roPt_mnoA0"
+}

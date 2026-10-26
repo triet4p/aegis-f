@@ -1,0 +1,25 @@
+0.00.006.982 I llama_completion: llama backend init
+0.00.016.252 I llama_completion: load the model and apply lora adapter, if any
+0.03.735.241 I cmn          init: llama threadpool init, n_threads = 4
+0.03.753.068 I 
+0.03.753.323 I system_info: n_threads = 4 (n_threads_batch = 4) / 8 | CPU : NEON = 1 | ARM_FMA = 1 | KLEIDIAI = 1 | REPACK = 1 | 
+0.03.753.341 I 
+0.03.763.923 I sampler seed: 42
+0.03.763.976 I sampler params: 
+	repeat_last_n = 64, repeat_penalty = 1.050, frequency_penalty = 0.000, presence_penalty = 0.000
+	dry_multiplier = 0.000, dry_base = 1.750, dry_allowed_length = 2, dry_penalty_last_n = 64
+	top_k = 50, top_p = 0.950, min_p = 0.050, xtc_probability = 0.000, xtc_threshold = 0.100, typical_p = 1.000, top_n_sigma = -1.000, temp = 0.100
+	mirostat = 0, mirostat_lr = 0.100, mirostat_ent = 5.000, adaptive_target = -1.000, adaptive_decay = 0.900
+0.03.763.999 I sampler chain: logits -> penalties -> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> min-p -> ?xtc -> temp-ext -> dist 
+0.03.764.002 I generate: n_ctx = 4096, n_batch = 2048, n_predict = 768, n_keep = 0
+0.03.764.003 I 
+0.03.794.101 W kleidiai: no kernel for tensor type q5_K, not accelerated by KleidiAI (kernels available for Q4_0, Q4_K, Q8_0 and Q6_K)
+1.37.228.235 I common_perf_print:    sampling time =     301.06 ms
+1.37.228.239 I common_perf_print:    samplers time =     271.42 ms /  1627 tokens
+1.37.228.244 I common_perf_print:        load time =   85477.34 ms
+1.37.228.248 I common_perf_print: prompt eval time =   85451.59 ms /  1570 tokens (   54.43 ms per token,    18.37 tokens per second)
+1.37.228.255 I common_perf_print:        eval time =    7692.06 ms /    56 runs   (  137.36 ms per token,     7.28 tokens per second)
+1.37.228.262 I common_perf_print:       total time =   93475.18 ms /  1626 tokens
+1.37.228.267 I common_perf_print: unaccounted time =      30.47 ms /   0.0 %      (total - sampling - prompt eval - eval) / (total)
+1.37.228.270 I common_perf_print:    graphs reused =         55
+1.37.228.274 I common_perf_print:   graph reallocs =          0    /     0        (same size) / (changed size)

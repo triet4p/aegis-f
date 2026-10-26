@@ -1,0 +1,19 @@
+{
+  "results": [
+    {
+      "case_id": "s8h-multi-01",
+      "calls": [
+        {
+          "name": "attach_link",
+          "args": {
+            "idempotencyKey": "record_201\n</>\n<parameter=eventId>\n201\n</>\n<parameter=draftId>\n1",
+            "expectedRevision": 0,
+            "userOverride": true,
+            "draftId": 1,
+            "eventId": 201
+          }
+        }
+      ]
+    }
+  ]
+}

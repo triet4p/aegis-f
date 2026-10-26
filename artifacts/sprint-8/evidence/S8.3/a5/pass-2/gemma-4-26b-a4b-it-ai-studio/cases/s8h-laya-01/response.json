@@ -1,0 +1,45 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "",
+            "thought": true
+          },
+          {
+            "functionCall": {
+              "name": "request_laya_classification",
+              "args": {
+                "expectedReviewRevision": 2,
+                "idempotencyKey": "req_laya_801_bus_fare",
+                "draftId": 801,
+                "description": "bus fare"
+              },
+              "id": "call_1557758"
+            },
+            "thoughtSignature": "EiYKJGUyNDgzMGE3LTVjZDYtNDJmZS05OThiLWVlNTM5ZTcyYjljMw=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "finishMessage": "Model generated function call(s)."
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1492,
+    "candidatesTokenCount": 53,
+    "totalTokenCount": 1545,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1492
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemma-4-26b-a4b-it",
+  "responseId": "CAreatjoNfCj2roP3-zqwA8"
+}

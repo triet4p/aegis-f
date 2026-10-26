@@ -1,0 +1,57 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "name": "update_event_interpretation",
+              "args": {
+                "expectedCaptureRevision": 0,
+                "interpretation": {
+                  "amountVnd": 45000,
+                  "timeAnchor": {
+                    "intervalEndTime": null,
+                    "date": "2026-10-24",
+                    "intervalEndDate": null,
+                    "time": null,
+                    "timezoneId": "Asia/Ho_Chi_Minh"
+                  },
+                  "merchant": null,
+                  "unresolvedReason": null,
+                  "normalizedText": "Groceries 45,000 VND yesterday, exact hour unknown.",
+                  "spanStart": 0,
+                  "spanEnd": 49
+                },
+                "expectedEventRevision": null,
+                "captureId": 202,
+                "idempotencyKey": "capture-202-interp-1",
+                "extractionVersion": "1.0"
+              },
+              "id": "call_1708389"
+            },
+            "thoughtSignature": "EmAKXgFpFH0T0VYBgpUHhVOxnu26GZryf/JWmpqq4potaRP+bWs5YTrOf8s00IfHF4MUrsSL42gdpf9AMaSPKE16mi4atd+IyEVUAjLRmKCXCwN2fJuRurV4ijHY5mqk/GI="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "finishMessage": "Model generated function call(s)."
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1523,
+    "candidatesTokenCount": 159,
+    "totalTokenCount": 1682,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1523
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash-lite",
+  "responseId": "ww_eauCgLdiW9tMPrObr2QQ"
+}

@@ -1,0 +1,72 @@
+{
+  "profile": "minicpm-v-4.7-1b-cpu",
+  "case_id": "s8-multi-01",
+  "assets": {
+    "model": "MiniCPM-V-4_7-1B-Q4_K_M.gguf",
+    "size": 672003680,
+    "sha256": "f18f594747e5317ab490cff9c06339c9cfb89acbe2f02ebc48a4e167bc23576d",
+    "probe_sha256": "034cae38649420907d2ac64020b94894b8f0a25a8a4bcc6584670fc9e2228c65",
+    "binary": "/data/local/tmp/slm/llama-completion",
+    "binary_sha256": "af9dc49fda9022c9536a7daba9c58f6e83a242c5aa5de66d15b551f43568fccd"
+  },
+  "probes": [
+    {
+      "label": "load",
+      "requested_after_seconds": 1.2,
+      "generation_produced_text_before_signal": false,
+      "phase_note": "no generated text before the signal",
+      "partial_calls_were_not_dispatched": false,
+      "partial_calls": [],
+      "partial_parse_error": null,
+      "metrics": {
+        "wall_seconds": 1.59,
+        "runtime_reported_load_seconds": null,
+        "prefill_tokens": null,
+        "prefill_seconds": null,
+        "prefill_tokens_per_second": null,
+        "decode_tokens": null,
+        "decode_seconds": null,
+        "decode_tokens_per_second": null,
+        "process_peak_rss_mib": 103.0,
+        "process_peak_pss_mib": 76.9,
+        "device_mem_available_baseline_kib": 3107416,
+        "device_mem_available_min_kib": 3032388,
+        "samples": 4,
+        "exit_code": 130,
+        "output_truncated_at_cap": false,
+        "cancellation_wall_seconds": 0.39,
+        "kill_after_requested_seconds": 1.2
+      },
+      "application_effects": "none dispatched: the cancelled process never returned a complete generation"
+    },
+    {
+      "label": "generation",
+      "requested_after_seconds": 12.0,
+      "generation_produced_text_before_signal": true,
+      "phase_note": "generation had started",
+      "partial_calls_were_not_dispatched": false,
+      "partial_calls": [],
+      "partial_parse_error": null,
+      "metrics": {
+        "wall_seconds": 12.67,
+        "runtime_reported_load_seconds": 0.884,
+        "prefill_tokens": 1,
+        "prefill_seconds": null,
+        "prefill_tokens_per_second": null,
+        "decode_tokens": 1,
+        "decode_seconds": null,
+        "decode_tokens_per_second": null,
+        "process_peak_rss_mib": 828.0,
+        "process_peak_pss_mib": 826.8,
+        "device_mem_available_baseline_kib": 3098376,
+        "device_mem_available_min_kib": 2890344,
+        "samples": 30,
+        "exit_code": 130,
+        "output_truncated_at_cap": false,
+        "cancellation_wall_seconds": 0.42,
+        "kill_after_requested_seconds": 12.0
+      },
+      "application_effects": "none dispatched: the cancelled process never returned a complete generation"
+    }
+  ]
+}

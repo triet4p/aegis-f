@@ -1,0 +1,59 @@
+{
+  "results": [
+    {
+      "case_id": "s8h-multi-01",
+      "calls": [
+        {
+          "name": "update_event_interpretation",
+          "args": {
+            "idempotencyKey": "capture-201-event-1-fuel-50k-oct20-3pm",
+            "captureId": 201,
+            "expectedCaptureRevision": 0,
+            "expectedEventRevision": null,
+            "extractionVersion": "1",
+            "interpretation": {
+              "spanStart": 0,
+              "spanEnd": 25,
+              "normalizedText": "Fuel 50k on Oct 20 at 3pm",
+              "amountVnd": 50000,
+              "merchant": null,
+              "timeAnchor": {
+                "date": "2026-10-20",
+                "time": "15:00",
+                "intervalEndDate": null,
+                "intervalEndTime": null,
+                "timezoneId": "Asia/Ho_Chi_Minh"
+              },
+              "unresolvedReason": null
+            }
+          }
+        },
+        {
+          "name": "update_event_interpretation",
+          "args": {
+            "idempotencyKey": "capture-201-event-2-snack-32k-circlek-315pm",
+            "captureId": 201,
+            "expectedCaptureRevision": 0,
+            "expectedEventRevision": null,
+            "extractionVersion": "1",
+            "interpretation": {
+              "spanStart": 27,
+              "spanEnd": 58,
+              "normalizedText": "snack 32k at Circle K at 3:15pm",
+              "amountVnd": 32000,
+              "merchant": "Circle K",
+              "timeAnchor": {
+                "date": null,
+                "time": "15:15",
+                "intervalEndDate": null,
+                "intervalEndTime": null,
+                "timezoneId": "Asia/Ho_Chi_Minh"
+              },
+              "unresolvedReason": "No date is stated for the 3:15pm snack; the source only gives the time."
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

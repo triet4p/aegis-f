@@ -1,0 +1,48 @@
+{
+  "id": "c38465f2cd9477f7200f5ea71938a74f",
+  "object": "chat.completion",
+  "created": 1792939944,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "stop",
+      "message": {
+        "role": "assistant",
+        "content": "I'm not going to connect anything yet — and I also don't have enough to frame the choice for you. Right now I have no note text, no capture reference, and no identifying details for either receipt, so I can't tell which two items you mean or which one the note points to.\n\nTo ask you a precise question, I need one of these:\n\n- **The note**: the capture ID or the exact text of the note.\n- **The two receipts**: their draft IDs, or enough to identify each one (merchant, amount, and date as shown on the draft).\n\nOnce I have those, I'll lay out the two candidate receipts side by side with their stated facts and ask you to pick one; nothing gets linked until you choose. I can't search arbitrarily or infer which receipt matches — this has to come from the note and the pending drafts themselves.",
+        "reasoning_content": "The user says: \"I can't tell which of these two receipts belongs to the note. Ask me to choose before connecting anything.\"\n\nThere's no note content, no capture, no receipts shown. The user is asking me to ask them to choose before connecting anything. I have no data about the note, the two receipts, or candidates. I should not invent. The correct outcome: no tool call; ask a scoped question about the missing information — which capture/note and which two receipts/drafts.\n\nI need to be careful: no capture ID, no draft IDs. I can't even search drafts without a review status filter... I could query pending drafts, but that might be an arbitrary scan without basis. The user hasn't given me the note text. The instruction \"Ask me to choose before connecting anything\" — I should comply by asking, but also I need the missing information: the note/capture and identifying details of the two receipts.\n\nSo respond: I can't connect anything yet, and I need the specifics. Ask a direct question: which note (capture) and what are the two receipts — e.g., draft IDs or merchant/amount/date.\n\nNo tool calls. Keep it concise."
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1858,
+    "completion_tokens": 426,
+    "total_tokens": 2284,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1792,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 247,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00027088,
+      "allowance": 0.00020316,
+      "tokens": {
+        "input": 66,
+        "output": 426,
+        "reasoning": 247,
+        "cache_read": 1792,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

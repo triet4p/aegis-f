@@ -1,0 +1,66 @@
+{
+  "id": "bc81260ead45d0965bf8d7a551fe9257",
+  "object": "chat.completion",
+  "created": 1792937296,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "reasoning_content": "The user wants to record two occurrences. The source text is given. No relative dates except \"Oct 20 at 3pm\" and \"3:15pm\" — but 3:15pm what date? The note says \"snack 32k at Circle K at 3:15pm.\" The date is not stated for the second occurrence; presumably same day Oct 20? But the source doesn't say. Per instructions, preserve what the source says; use null for unstated time/date. The second event's date is not explicitly stated. It could be inferred as the same day, but that would be inference. Hmm — \"Fuel 50k on Oct 20 at 3pm; snack 32k at Circle K at 3:15pm.\" The second has time only, no date. Ambiguous — should preserve unresolved event with a question? Instruction: \"Do not infer time from receipt/posting time. Resolve relative dates only against the supplied frozen date context and timezone; if relative wording remains ambiguous, preserve an unresolved event and ask a scoped question.\"\n\nThe second event's date is unstated. I could record it with date null and unresolvedReason noting date unstated, then ask a scoped question. That seems right.\n\nSpans: compute exact source span offsets.\n\nSource text: \"Fuel 50k on Oct 20 at 3pm; snack 32k at Circle K at 3:15pm.\"\n\nIndex:\n0 F\nFuel = 0-4 (F=0,u=1,e=2,l=3)\nspace 4\n\"50k\" 5-8 (5,6,7)\nspace 8\n\"on\" 9-11\nspace 11\n\"Oct 20\" 12-18 (O=12,c=13,t=14,space=15,2=16,0=17)\nspace 18\n\"at\" 19-21\nspace 21\n\"3pm\" 22-25 (3=22,p=23,m=24)\n\";\" 25\nspace 26\n\"snack\" 27-32 (s27,n28,a29,c30,k31)\nspace 32\n\"32k\" 33-36\nspace 36\n\"at\" 37-39\nspace 39\n\"Circle K\" 40-48 (C40,i41,r42,c43,l44,e45,space46,K47)\nspace 48\n\"at\" 49-51\nspace 51\n\"3:15pm\" 52-58 (3=52,:=53,1=54,5=55,p=56,m=57)\n\".\" 58\n\nSo event 1 span 0-25 (end exclusive = 25, before \";\"). Event 2 span 27-58.\n\nAmounts: 50k = 50,000 VND; 32k = 32,000.\n\nMerchant: event 1 merchant null (fuel station unnamed). Event 2 merchant \"Circle K\".\n\nTime anchors: event 1 date 2026-10-20, time 15:00, timezone Asia/Ho_Chi_Minh. Event 2 time 15:15, date null, unresolvedReason \"date not stated; only time given\".\n\nShould I set unresolvedReason for event 2? Yes.\n\nNow, both updates are independent — can batch in one block. Need idempotencyKey unique, captureId 201, expectedCaptureRevision 0, expectedEventRevision null (no existing events), extractionVersion e.g. \"1\".\n\nDo we need candidate search? The task is just recording occurrences. Candidate matching is only relevant if linking is requested. Not requested. But should we check for duplicates? The instruction doesn't require. Keep it minimal — no need.\n\nLet's make calls.",
+        "tool_calls": [
+          {
+            "id": "call_00_3uzi1xtncihc4cax2irn8gfg",
+            "type": "function",
+            "function": {
+              "name": "update_event_interpretation",
+              "arguments": "{\"idempotencyKey\": \"capture-201-event-1-fuel-50k-oct20-3pm\", \"captureId\": 201, \"expectedCaptureRevision\": 0, \"expectedEventRevision\": null, \"extractionVersion\": \"1\", \"interpretation\": {\"spanStart\": 0, \"spanEnd\": 25, \"normalizedText\": \"Fuel 50k on Oct 20 at 3pm\", \"amountVnd\": 50000, \"merchant\": null, \"timeAnchor\": {\"date\": \"2026-10-20\", \"time\": \"15:00\", \"intervalEndDate\": null, \"intervalEndTime\": null, \"timezoneId\": \"Asia/Ho_Chi_Minh\"}, \"unresolvedReason\": null}}"
+            }
+          },
+          {
+            "id": "call_01_aij8hcqrd2rbhs9i8ys7ceo6",
+            "type": "function",
+            "function": {
+              "name": "update_event_interpretation",
+              "arguments": "{\"idempotencyKey\": \"capture-201-event-2-snack-32k-circlek-315pm\", \"captureId\": 201, \"expectedCaptureRevision\": 0, \"expectedEventRevision\": null, \"extractionVersion\": \"1\", \"interpretation\": {\"spanStart\": 27, \"spanEnd\": 58, \"normalizedText\": \"snack 32k at Circle K at 3:15pm\", \"amountVnd\": 32000, \"merchant\": \"Circle K\", \"timeAnchor\": {\"date\": null, \"time\": \"15:15\", \"intervalEndDate\": null, \"intervalEndTime\": null, \"timezoneId\": \"Asia/Ho_Chi_Minh\"}, \"unresolvedReason\": \"No date is stated for the 3:15pm snack; the source only gives the time.\"}}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1953,
+    "completion_tokens": 1322,
+    "total_tokens": 3275,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1792,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 803,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00082273,
+      "allowance": 0.00061704,
+      "tokens": {
+        "input": 161,
+        "output": 1322,
+        "reasoning": 803,
+        "cache_read": 1792,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

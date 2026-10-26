@@ -1,0 +1,153 @@
+{
+  "case_id": "s8-laya-01",
+  "suite": "frozen",
+  "profile": "qwen3.5-0.8b-cpu",
+  "prompt_sha256": "0aa8b3f9c03c2f729ec337fe5a270ae34f18727974d50a50238c51a322a2d10a",
+  "generation": "<think>\n\n</think>\n<tool_call>\n<function=request_laya_classification>\n<parameter=idempotencyKey>\nlaya_classify_draft_501\n</parameter>\n<parameter=draftId>\n501\n</parameter>\n<parameter=description>\ncoffee at noon\n</parameter>\n<parameter=expectedReviewRevision>\n0\n</parameter>\n</function>\n</tool_call><|im_end|>",
+  "parsed_calls": [
+    {
+      "name": "request_laya_classification",
+      "args": {
+        "idempotencyKey": "laya_classify_draft_501",
+        "draftId": 501,
+        "description": "coffee at noon",
+        "expectedReviewRevision": 0
+      }
+    }
+  ],
+  "parse_error": null,
+  "application": {
+    "case_id": "s8-laya-01",
+    "application_trace": {
+      "case_id": "s8-laya-01",
+      "fixture": {
+        "capture_ids": [],
+        "event_ids": [],
+        "draft_ids": [
+          501
+        ]
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "request_laya_classification",
+          "dispatched": true,
+          "request": {
+            "idempotencyKey": "laya_classify_draft_501",
+            "draftId": 501,
+            "description": "coffee at noon",
+            "expectedReviewRevision": 0
+          },
+          "outcome": "Failed",
+          "reason": "Laya runtime is not part of this generative S8.3 trial; the command boundary still ran."
+        }
+      ],
+      "database_state": {
+        "drafts": [
+          {
+            "id": 501,
+            "review_status": "PENDING",
+            "review_revision": 0,
+            "amount_vnd": null,
+            "stated_date": null,
+            "stated_time": null,
+            "memo": "coffee at noon",
+            "possible_duplicate_of": null
+          }
+        ],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 0
+      }
+    },
+    "trace_source": "instrumented_application",
+    "fixture": "in_memory_room",
+    "instrumentation_ok": true
+  },
+  "effects": {
+    "ledgerWrites": 0,
+    "noLedgerWrites": true,
+    "financialWrites": 0,
+    "applicationCalls": 1,
+    "deleteCalls": 0,
+    "attachCalls": 0,
+    "callerScope": "trusted_host_only",
+    "activeLinksForEvent": 0,
+    "draftId": 501,
+    "description": "coffee at noon",
+    "classificationOutcome": "Failed",
+    "classificationIsReviewOnly": true
+  },
+  "metrics": {
+    "wall_seconds": 99.57,
+    "runtime_reported_load_seconds": 84.625,
+    "prefill_tokens": 1608,
+    "prefill_seconds": 84.599,
+    "prefill_tokens_per_second": 19.01,
+    "decode_tokens": 81,
+    "decode_seconds": 10.337,
+    "decode_tokens_per_second": 7.84,
+    "process_peak_rss_mib": 707.4,
+    "process_peak_pss_mib": 706.0,
+    "device_mem_available_baseline_kib": 2705532,
+    "device_mem_available_min_kib": 2498312,
+    "samples": 219,
+    "exit_code": 0,
+    "max_tokens": 768,
+    "context_tokens": 4096,
+    "output_truncated_at_cap": false,
+    "first_result_seconds": 99.57
+  },
+  "cold_start_sample": false,
+  "raw": {
+    "case_id": "s8-laya-01",
+    "phase": "cold",
+    "generation": "<think>\n\n</think>\n<tool_call>\n<function=request_laya_classification>\n<parameter=idempotencyKey>\nlaya_classify_draft_501\n</parameter>\n<parameter=draftId>\n501\n</parameter>\n<parameter=description>\ncoffee at noon\n</parameter>\n<parameter=expectedReviewRevision>\n0\n</parameter>\n</function>\n</tool_call><|im_end|>",
+    "raw_stdout_sha256": "0a741645178851fa3e6bc60a2f9d1d02a8d0dd4e68fb7f9bd800043e0a3cda49",
+    "raw_stderr_sha256": "7e60e081c65101e67802d637aaf1d003aa5de5b5b5e44954a8fb0db80fc5cc64",
+    "metrics": {
+      "wall_seconds": 99.57,
+      "runtime_reported_load_seconds": 84.625,
+      "prefill_tokens": 1608,
+      "prefill_seconds": 84.599,
+      "prefill_tokens_per_second": 19.01,
+      "decode_tokens": 81,
+      "decode_seconds": 10.337,
+      "decode_tokens_per_second": 7.84,
+      "process_peak_rss_mib": 707.4,
+      "process_peak_pss_mib": 706.0,
+      "device_mem_available_baseline_kib": 2705532,
+      "device_mem_available_min_kib": 2498312,
+      "samples": 219,
+      "exit_code": 0,
+      "max_tokens": 768,
+      "context_tokens": 4096,
+      "output_truncated_at_cap": false,
+      "first_result_seconds": 99.57
+    },
+    "device_run_dir": "/data/local/tmp/slm/trials/S8.3-a4/qwen3.5-0.8b-cpu/s8-laya-01/run-cold"
+  }
+}

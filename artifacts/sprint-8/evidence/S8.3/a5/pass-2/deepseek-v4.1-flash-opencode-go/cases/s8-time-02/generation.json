@@ -1,0 +1,62 @@
+{
+  "case_id": "s8-time-02",
+  "phase": "opencode-go",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "idempotencyKey": "capture-103-event-1-v0",
+        "captureId": 103,
+        "expectedCaptureRevision": 0,
+        "expectedEventRevision": null,
+        "extractionVersion": "expense-extract-v1",
+        "interpretation": {
+          "spanStart": 0,
+          "spanEnd": 20,
+          "normalizedText": "Groceries 45,000 VND",
+          "amountVnd": 45000,
+          "merchant": "Groceries",
+          "timeAnchor": null,
+          "unresolvedReason": "Time not remembered by the user and not stated in the source; no date can be inferred."
+        }
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 6.978,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1920,
+    "output_tokens": 799,
+    "thought_tokens": 573,
+    "total_tokens": 2719,
+    "cached_input_tokens": 1920,
+    "finish_reason": "tool_calls",
+    "model_version": "deepseek-v4.1-flash",
+    "response_id": "8d59d25cc32b40989095bf9ed4526532",
+    "max_tokens": 2048,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 6.978,
+    "cost_usd": 0,
+    "list_cost_usd": 0.00048516,
+    "opencode_allowance_usd": 0.00036387,
+    "billing_source": "go"
+  },
+  "request_sha256": "93f6603baf8dfaa7af419d4ec8ebb1412f3949ba9ae9b8b2b91ca73cba839035",
+  "response_sha256": "c1ef95273ab9af82b2ebb9ba0f0858b0a877164914a8a476d0ebd8a93d4a3da8",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "7b48d2c551f411bf5066e6c3d359d13daa8c2b76a9e169d9698254e084cab1ec",
+    "tool_declarations_sha256": "bdc6ce982beb2864bfd91b24d8f55ae349103912c7519bba88a039b69410e0ec"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 6.978
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "case_id": "s8-time-02",
+  "phase": "hosted",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "extractionVersion": "v1",
+        "captureId": 103,
+        "expectedEventRevision": null,
+        "expectedCaptureRevision": 0,
+        "idempotencyKey": "interp-103-groceries-45k",
+        "interpretation": {
+          "timeAnchor": {
+            "timezoneId": null,
+            "intervalEndDate": null,
+            "time": null,
+            "date": null,
+            "intervalEndTime": null
+          },
+          "spanStart": 0,
+          "unresolvedReason": "The date and time of the expense are not remembered.",
+          "normalizedText": "Groceries 45,000 VND",
+          "merchant": null,
+          "spanEnd": 21,
+          "amountVnd": 45000
+        }
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 1.349,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1518,
+    "output_tokens": 147,
+    "thought_tokens": null,
+    "total_tokens": 1665,
+    "cached_input_tokens": null,
+    "service_tier": "standard",
+    "finish_reason": "STOP",
+    "model_version": "gemini-3.5-flash-lite",
+    "response_id": "XA_eapHWFeXt2roP0529uQ0",
+    "max_tokens": 2048,
+    "context_tokens": null,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 1.349
+  },
+  "request_sha256": "3d632bfd03ec53ee6ded1f4922c377b12ed98b10cbfbf7f88d700a795736362e",
+  "response_sha256": "c5e575e58904b1f6a6f00d808d3a56c202ec418ac8e4826204b10bb97cc5481c",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "7b48d2c551f411bf5066e6c3d359d13daa8c2b76a9e169d9698254e084cab1ec",
+    "tool_declarations_sha256": "c090ac75dca5272675a307f3163b1e97c30f91b5610ab8d075f0d38acb38fdea"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 1.349
+    }
+  ]
+}

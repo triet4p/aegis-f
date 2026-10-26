@@ -1,0 +1,66 @@
+{
+  "id": "17d5f7d888bb89f017f7381994f557c8",
+  "object": "chat.completion",
+  "created": 1792937209,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "reasoning_content": "The user's note: \"I bought a 70,000 VND book yesterday at 09:30.\" Capture 102 source text: \"Book 70,000 VND yesterday at 09:30.\" Today is 2026-10-25 Asia/Ho_Chi_Minh. Yesterday = 2026-10-24. Time 09:30.\n\nWe need to store the event interpretation. Extract span from source text. The source text is \"Book 70,000 VND yesterday at 09:30.\" Span 0 to length of string. Let me count: \"Book 70,000 VND yesterday at 09:30.\" — B0 o1 o2 k3 space4 7=5 0=6 ,=7 0=8 0=9 0=10 space11 V12 N13 D14 space15 y16 e17 s18 t19 e20 r21 d22 a23 y24 space25 a26 t27 space28 0=29 9=30 :=31 3=32 0=33 .=34. Length 35. So spanStart 0, spanEnd 35.\n\nNormalized text: maybe \"Book purchase 70,000 VND on 2026-10-24 at 09:30\" — but preserve what the source says. normalizedText minLength 1; it should be a normalized reading. I'll use \"Book 70,000 VND yesterday at 09:30\" or resolve relative date. Better: normalizedText \"Book, 70,000 VND, 2026-10-24 09:30\". Keep it simple: \"Book 70,000 VND 2026-10-24 at 09:30\".\n\nAmount 70000, merchant \"Book\"? Merchant is the store name; \"book\" is the item, not merchant. The source doesn't state a merchant, so merchant null. Hmm — could merchant be null since only item stated. Yes, null.\n\ntimeAnchor: date 2026-10-24, time 09:30, timezoneId \"Asia/Ho_Chi_Minh\". intervalEndDate null, intervalEndTime null.\n\nThen candidate search: pending drafts with possible duplicates? The task: extract events, maybe search candidates. The instructions say candidate search is a bounded read of pending bank drafts. Should we search? The user didn't ask to link anything. It's reasonable to check for a matching draft? The system prompt says \"No plausible candidate means no match; more than one plausible candidate means ask the user.\" Searching is optional. But a good workflow: after storing the event, maybe check pending drafts for plausible duplicates. Hmm, but no mention of a bank transaction. The user just reports a purchase. There might be a pending bank draft for a book purchase. I could search pending drafts. That seems within scope and useful (proposing a link). But do we need eventId? update_event_interpretation returns presumably eventId. Then propose_link requires eventId and draftId.\n\nLet me first store the interpretation. Then, depending on result, search candidates. Independent calls? The search doesn't depend on the event's id, but proposing a link does. I could do update_event_interpretation and query_draft_candidates in the same block since they're independent. That's efficient. Let's do that.\n\nQuery: reviewStatus PENDING, onlyPossibleDuplicates false? The filter \"possible-duplicate state\" — onlyPossibleDuplicates true would filter to drafts flagged as possible duplicates. Hmm, which? A pending bank draft that could match the event. Searching all pending drafts (onlyPossibleDuplicates false) with a small limit seems right; but the flag filter... I'll search PENDING with onlyPossibleDuplicates false, limit 20, offset 0. Actually \"possible duplicate\" state might mean the draft is a possible duplicate of an existing record. Let me just query pending drafts broadly.\n\nIdempotency key: something unique, e.g., \"capture-102-event-v1\".\n\nExpected capture revision 0, expected event revision null (no event yet).\n\nextractionVersion: \"v1\".\n\nLet's do it.",
+        "tool_calls": [
+          {
+            "id": "call_00_zp1lrnjpuo15ow2fom60eosu",
+            "type": "function",
+            "function": {
+              "name": "update_event_interpretation",
+              "arguments": "{\"idempotencyKey\": \"capture-102-book-70k-v1\", \"captureId\": 102, \"expectedCaptureRevision\": 0, \"expectedEventRevision\": null, \"extractionVersion\": \"v1\", \"interpretation\": {\"spanStart\": 0, \"spanEnd\": 35, \"normalizedText\": \"Book 70,000 VND on 2026-10-24 at 09:30\", \"amountVnd\": 70000, \"merchant\": null, \"timeAnchor\": {\"date\": \"2026-10-24\", \"time\": \"09:30\", \"intervalEndDate\": null, \"intervalEndTime\": null, \"timezoneId\": \"Asia/Ho_Chi_Minh\"}, \"unresolvedReason\": null}}"
+            }
+          },
+          {
+            "id": "call_01_l9ixwrt9mvidn9xzuw4h74n4",
+            "type": "function",
+            "function": {
+              "name": "query_draft_candidates",
+              "arguments": "{\"query\": {\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": false, \"bounds\": {\"limit\": 20, \"offset\": 0}}}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1920,
+    "completion_tokens": 1191,
+    "total_tokens": 3111,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 874,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.0010026,
+      "allowance": 0.00075195,
+      "tokens": {
+        "input": 1920,
+        "output": 1191,
+        "reasoning": 874,
+        "cache_read": 0,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

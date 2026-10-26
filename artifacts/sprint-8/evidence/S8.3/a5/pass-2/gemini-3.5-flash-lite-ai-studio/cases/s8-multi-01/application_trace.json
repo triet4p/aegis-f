@@ -1,0 +1,104 @@
+{
+  "effect_source": "instrumented_application",
+  "fixture": "in_memory_room",
+  "fixture_timezone": "Asia/Ho_Chi_Minh",
+  "results": [
+    {
+      "case_id": "s8-multi-01",
+      "fixture": {
+        "capture_ids": [
+          101
+        ],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "update_event_interpretation",
+          "dispatched": true,
+          "request": {
+            "expectedEventRevision": null,
+            "expectedCaptureRevision": 0,
+            "interpretation": {
+              "normalizedText": "Fuel 50,000 VND at 15:00",
+              "merchant": "fuel",
+              "amountVnd": 50000,
+              "spanStart": 0,
+              "timeAnchor": {
+                "time": "15:00",
+                "date": "2026-10-20",
+                "timezoneId": "Asia/Ho_Chi_Minh",
+                "intervalEndTime": null,
+                "intervalEndDate": null
+              },
+              "spanEnd": 21,
+              "unresolvedReason": null
+            },
+            "extractionVersion": "v1",
+            "idempotencyKey": "fuel-extraction-2026-10-20",
+            "captureId": 101
+          },
+          "outcome": "Applied",
+          "change": {
+            "kind": "EventStored",
+            "detail": "EventStored(eventId=603, revision=0)"
+          }
+        }
+      ],
+      "database_state": {
+        "captures": [
+          {
+            "id": 101,
+            "revision": 0,
+            "text": "Fuel 50,000 VND at 15:00; snack 32,000 VND at Circle K at 15:15."
+          }
+        ],
+        "captures_events": [
+          {
+            "id": 603,
+            "capture_id": 101,
+            "span_start": 0,
+            "span_end": 21,
+            "normalized_text": "Fuel 50,000 VND at 15:00",
+            "amount_vnd": 50000,
+            "merchant": "fuel",
+            "anchor_date": "2026-10-20",
+            "anchor_time": "15:00",
+            "anchor_timezone": "Asia/Ho_Chi_Minh",
+            "unresolved_reason": null,
+            "status": "INTERPRETED",
+            "revision": 0,
+            "source_revision": 0
+          }
+        ],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 1
+      }
+    }
+  ]
+}

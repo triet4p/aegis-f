@@ -1,0 +1,52 @@
+{
+  "case_id": "s8h-laya-01",
+  "phase": "opencode-go",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "request_laya_classification",
+      "args": {
+        "idempotencyKey": "laya-draft-801-rev2-bus-fare",
+        "draftId": 801,
+        "description": "bus fare",
+        "expectedReviewRevision": 2
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 2.604,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1897,
+    "output_tokens": 169,
+    "thought_tokens": 59,
+    "total_tokens": 2066,
+    "cached_input_tokens": 1792,
+    "finish_reason": "tool_calls",
+    "model_version": "deepseek-v4.1-flash",
+    "response_id": "cd6d4c80af01b77e1c4779e91b5e5380",
+    "max_tokens": 2048,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 2.604,
+    "cost_usd": 0,
+    "list_cost_usd": 0.00012253,
+    "opencode_allowance_usd": 9.189e-05,
+    "billing_source": "go"
+  },
+  "request_sha256": "58b8bd6ac700ab3f16048763dc513aae3470e9e42cfb606bedd8a6029185b672",
+  "response_sha256": "d2b2993fa5fbb3cafcec0c211b86a75163eec3b25afe3a55e5fa1d32d0bbe103",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "dcb3da927d60cfbe576d00fa6bdac2792e6580eb8e50869a54211f0bcc94ffdf",
+    "tool_declarations_sha256": "bdc6ce982beb2864bfd91b24d8f55ae349103912c7519bba88a039b69410e0ec"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 2.604
+    }
+  ]
+}

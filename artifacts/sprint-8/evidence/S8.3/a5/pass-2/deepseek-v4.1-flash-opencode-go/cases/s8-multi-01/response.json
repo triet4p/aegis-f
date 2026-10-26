@@ -1,0 +1,66 @@
+{
+  "id": "49193bec809c8dbc0e178235ef8dd65f",
+  "object": "chat.completion",
+  "created": 1792939806,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "reasoning_content": "The user wants to save two purchases. There's a capture 101 with revision 0, source text \"Fuel 50,000 VND at 15:00; snack 32,000 VND at Circle K at 15:15.\" — no date in the source text, but the user says 2026-10-20. Hmm. Time anchor: date 2026-10-20 from user statement. The source text doesn't state date. But the user said \"On 2026-10-20 I paid...\" so date is stated by the user. We can use 2026-10-20 as date.\n\nWait — but preserve what the source says. The instruction: never infer time from receipt/posting time. Relative dates resolved against frozen date context. Here the user explicitly gives 2026-10-20, which is an absolute date — fine.\n\nTwo events:\n1. \"Fuel 50,000 VND at 15:00\" — span in source text: index? Let's compute the source text: \"Fuel 50,000 VND at 15:00; snack 32,000 VND at Circle K at 15:15.\"\nPositions: \n\"Fuel \" = 0-4 (F=0,u=1,e=2,l=3, space=4)\n\"50,000\" = 5-10, space=11, \"VND\"=12-14, space=15, \"at\"=16-17, space=18, \"15:00\"=19-23, \";\"=24, space=25\n\"snack\"=26-30, space=31, \"32,000\"=32-37, space=38, \"VND\"=39-41, space=42, \"at\"=43-44, space=45, \"Circle\"=46-51, space=52, \"K\"=53, space=54, \"at\"=55-56, space=57, \"15:15\"=58-62, \".\"=63.\n\nEvent 1 span: 0 to 24 (exclusive end) = \"Fuel 50,000 VND at 15:00\". Merchant: fuel station not stated — merchant null? \"Fuel\" is a category/description, not a merchant. So merchant null.\n\nEvent 2 span: 26 to 63 = \"snack 32,000 VND at Circle K at 15:15\". Merchant: \"Circle K\".\n\nAmounts: 50000 and 32000. Times: 15:00 and 15:15. Date 2026-10-20, timezone Asia/Ho_Chi_Minh.\n\nNow, the user wants to \"save both purchases.\" We have update_event_interpretation to store readings. That's allowed — store or revise one reading of a source span. That's the mechanism to save events.\n\nDo we need to check drafts and propose links? The task is \"save both purchases\" — the events should be stored. Then, should we search candidates for possible matching bank drafts and propose links? The system prompt emphasizes the candidate search and link workflow. It might be appropriate: after storing events, search pending drafts for possible matches. But the user didn't ask to link bank drafts. Hmm. The instruction says \"Propose a link only for an event/draft pair.\" It doesn't require doing so. But it may be helpful. Also, we need eventIds from the update results to propose links. Let's do the interpretation updates first, then optionally search drafts.\n\nGiven the guidance about bounded candidate search and not claiming stored links without confirmation, I think a reasonable approach: store the two interpretations, then query pending draft candidates to see if there are possible duplicates/drafts matching, and propose links if a unique plausible match... but that risks overreach. Actually the emphasis in the prompt on candidate search suggests the scenario might include drafts. But the fixture only says capture 101 with readings none. There's no mention of drafts. Let me query drafts (PENDING, onlyPossibleDuplicates false) to check — it's a bounded read, harmless, and could be relevant since these are bank-draft-like purchases. Actually let me just do it to be thorough; if there are candidates, I could propose links or ask.\n\nHmm, but proposing links without the user asking ... The user said \"Save both purchases.\" I think the main task is storing interpretations. I'll do the two updates in one block (independent), then maybe query drafts.\n\nLet me consider whether to query drafts at all. The application context fixture doesn't mention any drafts. Answering \"no plausible candidate\" would be fine. I think it's reasonable to do a bounded read to check for possible existing drafts so I can mention potential duplicates. I'll do it after the interpretations.\n\nAmounts as integers: 50000 and 32000.\n\nidempotencyKeys: unique strings.\n\nexpectedEventRevision: null (no existing event readings) for creation.\n\nnormalizedText: e.g. \"Fuel 50,000 VND at 15:00\" and \"Snack 32,000 VND at Circle K at 15:15\". Must be minLength 1. Keep close to source.\n\nNow call both updates in one block.\n\nThen query drafts: reviewStatus PENDING, onlyPossibleDuplicates false, bounds limit 25 offset 0. Hmm, but maybe it's better to avoid unnecessary calls. I'll include it — it supports the \"save\" workflow by checking for duplicate drafts. Actually, careful: extra tool calls could be seen as fine. I'll do it.\n\nLet me write the final answer clearly stating what was stored, and noting the date came from the user's statement (not from source text). Also note the source text has no date; date comes from user. Should I preserve unresolved? The user's message provides the date, so it's stated. Fine.\n\nLet's execute.",
+        "tool_calls": [
+          {
+            "id": "call_00_3q1pu31be5wsy26j15sajy68",
+            "type": "function",
+            "function": {
+              "name": "update_event_interpretation",
+              "arguments": "{\"idempotencyKey\": \"capture101-event1-fuel-20261020\", \"captureId\": 101, \"expectedCaptureRevision\": 0, \"expectedEventRevision\": null, \"extractionVersion\": \"extract-v1\", \"interpretation\": {\"spanStart\": 0, \"spanEnd\": 24, \"normalizedText\": \"Fuel 50,000 VND at 15:00\", \"amountVnd\": 50000, \"merchant\": null, \"timeAnchor\": {\"date\": \"2026-10-20\", \"time\": \"15:00\", \"timezoneId\": \"Asia/Ho_Chi_Minh\", \"intervalEndDate\": null, \"intervalEndTime\": null}, \"unresolvedReason\": null}}"
+            }
+          },
+          {
+            "id": "call_01_gfptztj4y47s2f2xas64by4q",
+            "type": "function",
+            "function": {
+              "name": "update_event_interpretation",
+              "arguments": "{\"idempotencyKey\": \"capture101-event2-circlek-20261020\", \"captureId\": 101, \"expectedCaptureRevision\": 0, \"expectedEventRevision\": null, \"extractionVersion\": \"extract-v1\", \"interpretation\": {\"spanStart\": 26, \"spanEnd\": 63, \"normalizedText\": \"Snack 32,000 VND at Circle K at 15:15\", \"amountVnd\": 32000, \"merchant\": \"Circle K\", \"timeAnchor\": {\"date\": \"2026-10-20\", \"time\": \"15:15\", \"timezoneId\": \"Asia/Ho_Chi_Minh\", \"intervalEndDate\": null, \"intervalEndTime\": null}, \"unresolvedReason\": null}}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1964,
+    "completion_tokens": 1744,
+    "total_tokens": 3708,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1920,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 1245,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00105876,
+      "allowance": 0.00079407,
+      "tokens": {
+        "input": 44,
+        "output": 1744,
+        "reasoning": 1245,
+        "cache_read": 1920,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

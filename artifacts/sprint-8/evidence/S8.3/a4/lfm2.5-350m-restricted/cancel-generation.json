@@ -1,0 +1,27 @@
+{
+  "label": "generation",
+  "requested_after_seconds": 12.0,
+  "generation": "Saved purchases: 50,000 VND, 32,000 VND\n\nCapture 101 read: none<|im_end|>",
+  "partial_calls": [],
+  "partial_parse_error": null,
+  "metrics": {
+    "wall_seconds": 8.22,
+    "runtime_reported_load_seconds": 5.853,
+    "prefill_tokens": 239,
+    "prefill_seconds": 5.838,
+    "prefill_tokens_per_second": 40.94,
+    "decode_tokens": 25,
+    "decode_seconds": 1.027,
+    "decode_tokens_per_second": 24.34,
+    "process_peak_rss_mib": 313.3,
+    "process_peak_pss_mib": 312.3,
+    "device_mem_available_baseline_kib": 2762508,
+    "device_mem_available_min_kib": 2671440,
+    "samples": 19,
+    "exit_code": 0,
+    "max_tokens": 384,
+    "context_tokens": 4096,
+    "output_truncated_at_cap": false
+  },
+  "application_effects": "none dispatched: the cancelled generation never completed a parsed call set"
+}

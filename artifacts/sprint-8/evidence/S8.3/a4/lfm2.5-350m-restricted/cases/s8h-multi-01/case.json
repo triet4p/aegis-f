@@ -1,0 +1,122 @@
+{
+  "case_id": "s8h-multi-01",
+  "suite": "heldout",
+  "profile": "lfm2.5-350m-restricted",
+  "prompt_sha256": "b00ef62dd7f07424336dfb6b168c720fb24539fbb0f7d43dc7fb8657ad4e509e",
+  "generation": "Saved notes:\n\n1. Fuel: 50k on Oct 20 at 3pm\n2. Snack: 32k at Circle K at 3:15pm\n\nExisting event readings for capture 201: none<|im_end|>",
+  "parsed_calls": [],
+  "parse_error": null,
+  "application": {
+    "case_id": "s8h-multi-01",
+    "application_trace": {
+      "case_id": "s8h-multi-01",
+      "fixture": {
+        "capture_ids": [
+          201
+        ],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [],
+      "database_state": {
+        "captures": [
+          {
+            "id": 201,
+            "revision": 0,
+            "text": "Fuel 50k on Oct 20 at 3pm; snack 32k at Circle K at 3:15pm."
+          }
+        ],
+        "captures_events": [],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 0
+      }
+    },
+    "trace_source": "instrumented_application",
+    "fixture": "in_memory_room",
+    "instrumentation_ok": true
+  },
+  "effects": {
+    "ledgerWrites": 0,
+    "noLedgerWrites": true,
+    "financialWrites": 0,
+    "applicationCalls": 0,
+    "deleteCalls": 0,
+    "attachCalls": 0,
+    "callerScope": "trusted_host_only",
+    "activeLinksForEvent": 0
+  },
+  "metrics": {
+    "wall_seconds": 9.05,
+    "runtime_reported_load_seconds": 5.613,
+    "prefill_tokens": 229,
+    "prefill_seconds": 5.611,
+    "prefill_tokens_per_second": 40.81,
+    "decode_tokens": 49,
+    "decode_seconds": 2.004,
+    "decode_tokens_per_second": 24.45,
+    "process_peak_rss_mib": 312.7,
+    "process_peak_pss_mib": 311.5,
+    "device_mem_available_baseline_kib": 2827124,
+    "device_mem_available_min_kib": 2735520,
+    "samples": 21,
+    "exit_code": 0,
+    "max_tokens": 384,
+    "context_tokens": 4096,
+    "output_truncated_at_cap": false,
+    "first_result_seconds": 9.05
+  },
+  "cold_start_sample": false,
+  "raw": {
+    "case_id": "s8h-multi-01",
+    "phase": "cold",
+    "generation": "Saved notes:\n\n1. Fuel: 50k on Oct 20 at 3pm\n2. Snack: 32k at Circle K at 3:15pm\n\nExisting event readings for capture 201: none<|im_end|>",
+    "raw_stdout_sha256": "aca27dce5ad87fabd201589039d7ee5bcb07ab164cc534f2bab7f61b8ffaaea2",
+    "raw_stderr_sha256": "cda943d5c418022cef47d714aecd1bbe37750add21f76725781ca2b8d6b6c09c",
+    "metrics": {
+      "wall_seconds": 9.05,
+      "runtime_reported_load_seconds": 5.613,
+      "prefill_tokens": 229,
+      "prefill_seconds": 5.611,
+      "prefill_tokens_per_second": 40.81,
+      "decode_tokens": 49,
+      "decode_seconds": 2.004,
+      "decode_tokens_per_second": 24.45,
+      "process_peak_rss_mib": 312.7,
+      "process_peak_pss_mib": 311.5,
+      "device_mem_available_baseline_kib": 2827124,
+      "device_mem_available_min_kib": 2735520,
+      "samples": 21,
+      "exit_code": 0,
+      "max_tokens": 384,
+      "context_tokens": 4096,
+      "output_truncated_at_cap": false,
+      "first_result_seconds": 9.05
+    },
+    "device_run_dir": "/data/local/tmp/slm/trials/S8.3-a4/lfm2.5-350m-restricted/s8h-multi-01/run-cold"
+  }
+}

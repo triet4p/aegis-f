@@ -1,0 +1,49 @@
+{
+  "case_id": "s8-link-01",
+  "phase": "hosted",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "propose_link",
+      "args": {
+        "draftId": 401,
+        "idempotencyKey": "prop_301_401_20261025",
+        "eventId": 301
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 2.362,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1562,
+    "output_tokens": 50,
+    "thought_tokens": null,
+    "total_tokens": 1612,
+    "cached_input_tokens": null,
+    "service_tier": "standard",
+    "finish_reason": "STOP",
+    "model_version": "gemma-4-26b-a4b-it",
+    "response_id": "igveauuzEJaM1e8Pk-enuQI",
+    "max_tokens": 2048,
+    "context_tokens": null,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 2.362
+  },
+  "request_sha256": "eb80c016ccba9999806f3eafa0407d7051bb50a28356d911747fb43c79ac7c7b",
+  "response_sha256": "f16accf158b1eeed1c87182092623c22a0cc00758bd3a2cf90715c555f5e3984",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "c002ca6fd4b692fb1074adc040c87ed9a3cb47f4fde4f4fc8f41d19686f8fc51",
+    "tool_declarations_sha256": "c090ac75dca5272675a307f3163b1e97c30f91b5610ab8d075f0d38acb38fdea"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 2.362
+    }
+  ]
+}

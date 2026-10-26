@@ -1,0 +1,70 @@
+{
+  "schema": "aegis-f-s8-hosted-request-config/v2",
+  "attempt": "S8.3-a5",
+  "revision": "v2 — per-provider request blocks; launches paced after an observed free-tier 429; request content, case semantics and adapters unchanged",
+  "purpose": "owner-authorized evaluation-only hosted comparison of the frozen S8.2 v2 workflow suite through the real application boundary; not a product adoption, runtime migration or privacy-safe production claim",
+  "authority": "owner authorized test API calls for gemma-4-26b-a4b-it and gemini-3.5-flash-lite on Google AI Studio, and for deepseek-v4.1-flash through the OpenCode Go gateway, with synthetic fixture data only",
+  "synthetic_inputs_only": true,
+  "passes": 3,
+  "request_timeout_seconds": 120,
+  "retry_policy": "no retry on any 4xx response including 429; at most one retry after a transport timeout or a 5xx response, recorded as attempt 2. A rate-limited case stays a recorded provider error in that pass, and a further complete pass is a separately labelled independent run rather than a retry inside one.",
+  "conversation": "one user turn, no tool results, no multi-turn follow-up: the same single-turn contract the local profiles were measured under",
+  "providers": {
+    "google-ai-studio": {
+      "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+      "authentication": "GOOGLE_AI_STUDIO_KEY loaded from the repository local .env in-process and sent only as the x-goog-api-key request header",
+      "tool_config": {
+        "functionCallingConfig": {
+          "mode": "AUTO"
+        }
+      },
+      "generation_config": {
+        "temperature": 0.1,
+        "topP": 0.95,
+        "topK": 50,
+        "seed": 42,
+        "thinkingConfig": {
+          "thinkingLevel": "minimal"
+        }
+      },
+      "inter_request_delay_seconds": 8,
+      "pacing_note": "The free tier enforces 16000 generate-content input tokens per minute for gemma-4-26b. An early unpaced pass hit that documented limit on one case (a 429, preserved as a provider error). Later launches are spaced to stay under it. Pacing changes only launch timing, never request content, the adapter or the per-request latency measurement.",
+      "models": {
+        "gemma-4-26b-a4b-it-ai-studio": {
+          "api_model": "gemma-4-26b-a4b-it",
+          "official_display_name": "Gemma 4 26B A4B IT",
+          "max_output_tokens": 2048
+        },
+        "gemini-3.5-flash-lite-ai-studio": {
+          "api_model": "gemini-3.5-flash-lite",
+          "official_display_name": "Gemini 3.5 Flash Lite",
+          "max_output_tokens": 2048
+        }
+      }
+    },
+    "opencode-go": {
+      "endpoint": "https://opencode.ai/zen/go/v1/chat/completions",
+      "model_list_endpoint": "https://opencode.ai/zen/go/v1/models",
+      "authentication": "OPENCODE_GO_API_KEY loaded from the repository local .env in-process and sent only as an Authorization: Bearer header, together with a stable x-opencode-session and a client user agent, which OpenCode Go documents as client requirements",
+      "protocol_note": "OpenCode Go serves DeepSeek models over the OpenAI-compatible Chat Completions API with OpenAI-style tools/tool_calls. Official Console documentation maps deepseek-v4.1-flash to chat/completions; the Responses API is documented for GPT models. The Go gateway route is https://opencode.ai/zen/go/v1, distinct from the Console /inference route, whose 402 response is retained only as a wrong-route diagnostic.",
+      "generation_config": {
+        "temperature": 0.1,
+        "top_p": 0.95,
+        "seed": 42
+      },
+      "inter_request_delay_seconds": 2,
+      "models": {
+        "deepseek-v4.1-flash-opencode-go": {
+          "api_model": "deepseek-v4.1-flash",
+          "official_display_name": "DeepSeek V4.1 Flash",
+          "max_output_tokens": 2048
+        }
+      }
+    }
+  },
+  "notes": [
+    "temperature/topP/topK/seed mirror the frozen local sampler family where the hosted API exposes the parameter. Google accepts topK; the OpenAI-compatible Go route has no top_k, and neither transport has llama.cpp's repeat penalty.",
+    "thinkingLevel minimal keeps the Google single-pass decode comparable to the local profiles; DeepSeek's reasoning channel is reported separately through completion_tokens_details.reasoning_tokens.",
+    "maxOutputTokens 2048 is generous relative to the local 768-token cap so an answer is not truncated by transport policy; a length finish is recorded per case."
+  ]
+}

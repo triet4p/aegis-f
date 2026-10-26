@@ -1,0 +1,29 @@
+{
+  "label": "load",
+  "requested_after_seconds": 1.2,
+  "generation_produced_text_before_signal": false,
+  "phase_note": "no generated text before the signal",
+  "partial_calls_were_not_dispatched": false,
+  "partial_calls": [],
+  "partial_parse_error": null,
+  "metrics": {
+    "wall_seconds": 1.59,
+    "runtime_reported_load_seconds": null,
+    "prefill_tokens": null,
+    "prefill_seconds": null,
+    "prefill_tokens_per_second": null,
+    "decode_tokens": null,
+    "decode_seconds": null,
+    "decode_tokens_per_second": null,
+    "process_peak_rss_mib": 103.0,
+    "process_peak_pss_mib": 76.9,
+    "device_mem_available_baseline_kib": 3107416,
+    "device_mem_available_min_kib": 3032388,
+    "samples": 4,
+    "exit_code": 130,
+    "output_truncated_at_cap": false,
+    "cancellation_wall_seconds": 0.39,
+    "kill_after_requested_seconds": 1.2
+  },
+  "application_effects": "none dispatched: the cancelled process never returned a complete generation"
+}

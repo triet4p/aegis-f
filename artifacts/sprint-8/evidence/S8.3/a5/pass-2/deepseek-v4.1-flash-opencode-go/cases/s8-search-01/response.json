@@ -1,0 +1,58 @@
+{
+  "id": "5f0f1d327a2be4c373c35cb70055cd2c",
+  "object": "chat.completion",
+  "created": 1792939842,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "reasoning_content": "The user wants me to find a pending bank draft that could match event 201, inspecting at most 5 pending drafts from the first page. I have a tool query_draft_candidates that filters by review status and possible-duplicate state, with bounds. I should query pending drafts, limit 5, offset 0. But I don't have event 201's details — I don't have any information about event 201. The task says \"Compare returned draft facts with the event only when present.\" I don't have event details. Hmm.\n\nActually, I should query the first page of pending drafts. Then compare to event 201 — but I have no event data. Without event details, I cannot determine a match. But maybe I should first query drafts and see. But the instruction: \"No plausible candidate means no match; more than one plausible candidate means ask the user.\" I don't have event 201's facts, so I can't compare. However, maybe the intended behavior is to query the drafts and then report what's there, and ask the user for event details? Let me think.\n\nThe task is answerable in part: query the bounded page. But matching requires event data which isn't provided. I should query, then state I can't compare without event details, and ask a scoped question about event 201's amount/merchant/time. Actually the guidance: \"Clarify missing information with a direct question about the missing field.\"\n\nLet me query first.",
+        "tool_calls": [
+          {
+            "id": "call_00_mxln783ujy3f5tto8fymxjtx",
+            "type": "function",
+            "function": {
+              "name": "query_draft_candidates",
+              "arguments": "{\"query\": {\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": false, \"bounds\": {\"limit\": 5, \"offset\": 0}}}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1860,
+    "completion_tokens": 375,
+    "total_tokens": 2235,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1792,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 305,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00024058,
+      "allowance": 0.00018043,
+      "tokens": {
+        "input": 68,
+        "output": 375,
+        "reasoning": 305,
+        "cache_read": 1792,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

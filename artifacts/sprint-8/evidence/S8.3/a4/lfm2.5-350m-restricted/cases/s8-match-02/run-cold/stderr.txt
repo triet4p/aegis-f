@@ -1,0 +1,24 @@
+0.00.007.306 I llama_completion: llama backend init
+0.00.016.643 I llama_completion: load the model and apply lora adapter, if any
+0.00.894.779 I cmn          init: llama threadpool init, n_threads = 4
+0.00.912.238 I 
+0.00.912.548 I system_info: n_threads = 4 (n_threads_batch = 4) / 8 | CPU : NEON = 1 | ARM_FMA = 1 | KLEIDIAI = 1 | REPACK = 1 | 
+0.00.912.573 I 
+0.00.913.811 I sampler seed: 42
+0.00.913.868 I sampler params: 
+	repeat_last_n = 64, repeat_penalty = 1.050, frequency_penalty = 0.000, presence_penalty = 0.000
+	dry_multiplier = 0.000, dry_base = 1.750, dry_allowed_length = 2, dry_penalty_last_n = 64
+	top_k = 50, top_p = 0.950, min_p = 0.050, xtc_probability = 0.000, xtc_threshold = 0.100, typical_p = 1.000, top_n_sigma = -1.000, temp = 0.100
+	mirostat = 0, mirostat_lr = 0.100, mirostat_ent = 5.000, adaptive_target = -1.000, adaptive_decay = 0.900
+0.00.913.902 I sampler chain: logits -> penalties -> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> min-p -> ?xtc -> temp-ext -> dist 
+0.00.913.906 I generate: n_ctx = 4096, n_batch = 2048, n_predict = 384, n_keep = 1
+0.00.913.908 I 
+0.06.330.475 I common_perf_print:    sampling time =      14.52 ms
+0.06.330.480 I common_perf_print:    samplers time =      12.68 ms /   216 tokens
+0.06.330.483 I common_perf_print:        load time =    5085.11 ms
+0.06.330.487 I common_perf_print: prompt eval time =    5081.44 ms /   207 tokens (   24.55 ms per token,    40.74 tokens per second)
+0.06.330.491 I common_perf_print:        eval time =     318.40 ms /     8 runs   (   39.80 ms per token,    25.13 tokens per second)
+0.06.330.494 I common_perf_print:       total time =    5418.25 ms /   215 tokens
+0.06.330.498 I common_perf_print: unaccounted time =       3.90 ms /   0.1 %      (total - sampling - prompt eval - eval) / (total)
+0.06.330.500 I common_perf_print:    graphs reused =          7
+0.06.330.502 I common_perf_print:   graph reallocs =          0    /     0        (same size) / (changed size)

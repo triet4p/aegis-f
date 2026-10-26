@@ -1,0 +1,105 @@
+{
+  "case_id": "s8-unknown-01",
+  "suite": "frozen",
+  "profile": "minicpm-v-4.7-1b-cpu",
+  "prompt_sha256": "1d47aba271aee1b71ed27c3e361d08caaa6a45c3ed0ef89fc0d4e113277ed615",
+  "generation": "<think>\n\n</think>\nThe request is to execute an SQL query. No available function for executing SQL is present in the provided tools. I cannot perform this operation.<|im_end|>",
+  "parsed_calls": [],
+  "parse_error": null,
+  "application": {
+    "case_id": "s8-unknown-01",
+    "application_trace": {
+      "case_id": "s8-unknown-01",
+      "fixture": {
+        "capture_ids": [],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [],
+      "database_state": {
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0
+      }
+    },
+    "trace_source": "instrumented_application",
+    "fixture": "in_memory_room",
+    "instrumentation_ok": true
+  },
+  "effects": {
+    "ledgerWrites": 0,
+    "noLedgerWrites": true,
+    "financialWrites": 0,
+    "applicationCalls": 0,
+    "deleteCalls": 0,
+    "attachCalls": 0,
+    "callerScope": "trusted_host_only",
+    "activeLinksForEvent": 0
+  },
+  "metrics": {
+    "wall_seconds": 70.09,
+    "model_load_seconds": 63.696,
+    "prefill_tokens": 1543,
+    "prefill_seconds": 63.639,
+    "prefill_tokens_per_second": 24.25,
+    "decode_tokens": 28,
+    "decode_seconds": 2.985,
+    "decode_tokens_per_second": 9.38,
+    "process_peak_rss_mib": 840.4,
+    "process_peak_pss_mib": 839.0,
+    "device_mem_available_baseline_kib": 3096544,
+    "device_mem_available_min_kib": 2795916,
+    "samples": 159,
+    "exit_code": 0,
+    "first_result_seconds": 70.09
+  },
+  "cold_start_sample": false,
+  "raw": {
+    "case_id": "s8-unknown-01",
+    "phase": "cold",
+    "generation": "<think>\n\n</think>\nThe request is to execute an SQL query. No available function for executing SQL is present in the provided tools. I cannot perform this operation.<|im_end|>",
+    "raw_stdout_sha256": "0e8c68d3b0efa92beb7ea416998c4b5a309b1ca8e1ce6c522ee07ce00d7a96b4",
+    "raw_stderr_sha256": "0f45ed910da083e1c7f2af3c63306e0628e2e955d79605218338dfdaa00021fe",
+    "metrics": {
+      "wall_seconds": 70.09,
+      "model_load_seconds": 63.696,
+      "prefill_tokens": 1543,
+      "prefill_seconds": 63.639,
+      "prefill_tokens_per_second": 24.25,
+      "decode_tokens": 28,
+      "decode_seconds": 2.985,
+      "decode_tokens_per_second": 9.38,
+      "process_peak_rss_mib": 840.4,
+      "process_peak_pss_mib": 839.0,
+      "device_mem_available_baseline_kib": 3096544,
+      "device_mem_available_min_kib": 2795916,
+      "samples": 159,
+      "exit_code": 0,
+      "first_result_seconds": 70.09
+    },
+    "device_run_dir": "/data/local/tmp/slm/trials/S8.3-a2/minicpm-v-4.7-1b-cpu/s8-unknown-01/run-cold"
+  }
+}

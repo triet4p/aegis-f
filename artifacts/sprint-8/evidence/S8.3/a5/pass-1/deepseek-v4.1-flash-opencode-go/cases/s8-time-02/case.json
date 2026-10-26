@@ -1,0 +1,370 @@
+{
+  "case_id": "s8-time-02",
+  "suite": "frozen",
+  "profile": "deepseek-v4.1-flash-opencode-go",
+  "provider": "opencode-go",
+  "small_context": "\nApplication context (trusted, read-only fixture):\n- today: 2026-10-25 (Asia/Ho_Chi_Minh)\n- capture 103 (revision 0) source text: \"Groceries 45,000 VND; time not remembered.\"\n- existing event readings for capture 103: none",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "idempotencyKey": "capture-103-event-1-v1",
+        "captureId": 103,
+        "expectedCaptureRevision": 0,
+        "expectedEventRevision": null,
+        "extractionVersion": "1",
+        "interpretation": {
+          "spanStart": 0,
+          "spanEnd": 42,
+          "normalizedText": "Groceries 45,000 VND; time not remembered.",
+          "amountVnd": 45000,
+          "merchant": null,
+          "timeAnchor": null,
+          "unresolvedReason": "Time of purchase not stated in source (\"time not remembered\"); user cannot recall when it occurred."
+        }
+      }
+    },
+    {
+      "name": "query_draft_candidates",
+      "args": {
+        "query": {
+          "reviewStatus": "PENDING",
+          "onlyPossibleDuplicates": false,
+          "bounds": {
+            "limit": 25,
+            "offset": 0
+          }
+        }
+      }
+    }
+  ],
+  "parse_error": null,
+  "application": {
+    "case_id": "s8-time-02",
+    "application_trace": {
+      "case_id": "s8-time-02",
+      "fixture": {
+        "capture_ids": [
+          103
+        ],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "update_event_interpretation",
+          "dispatched": true,
+          "request": {
+            "idempotencyKey": "capture-103-event-1-v1",
+            "captureId": 103,
+            "expectedCaptureRevision": 0,
+            "expectedEventRevision": null,
+            "extractionVersion": "1",
+            "interpretation": {
+              "spanStart": 0,
+              "spanEnd": 42,
+              "normalizedText": "Groceries 45,000 VND; time not remembered.",
+              "amountVnd": 45000,
+              "merchant": null,
+              "timeAnchor": null,
+              "unresolvedReason": "Time of purchase not stated in source (\"time not remembered\"); user cannot recall when it occurred."
+            }
+          },
+          "outcome": "Applied",
+          "change": {
+            "kind": "EventStored",
+            "detail": "EventStored(eventId=603, revision=0)"
+          }
+        },
+        {
+          "name": "query_draft_candidates",
+          "dispatched": true,
+          "request": {
+            "query": {
+              "reviewStatus": "PENDING",
+              "onlyPossibleDuplicates": false,
+              "bounds": {
+                "limit": 25,
+                "offset": 0
+              }
+            }
+          },
+          "outcome": "Read",
+          "page": {
+            "limit": 25,
+            "offset": 0,
+            "has_more": false,
+            "items": [
+              {
+                "id": 801,
+                "review_status": "PENDING",
+                "review_revision": 2,
+                "amount_vnd": null,
+                "stated_date": null,
+                "stated_time": null,
+                "memo": "bus fare",
+                "possible_duplicate_of": null
+              },
+              {
+                "id": 604,
+                "review_status": "PENDING",
+                "review_revision": 0,
+                "amount_vnd": 70000,
+                "stated_date": "2026-10-22",
+                "stated_time": null,
+                "memo": "purchase 70,000 VND on 2026-10-22",
+                "possible_duplicate_of": 603
+              },
+              {
+                "id": 603,
+                "review_status": "PENDING",
+                "review_revision": 0,
+                "amount_vnd": 70000,
+                "stated_date": "2026-10-22",
+                "stated_time": null,
+                "memo": "purchase 70,000 VND on 2026-10-22",
+                "possible_duplicate_of": null
+              },
+              {
+                "id": 601,
+                "review_status": "PENDING",
+                "review_revision": 0,
+                "amount_vnd": null,
+                "stated_date": null,
+                "stated_time": null,
+                "memo": "draft without matching evidence",
+                "possible_duplicate_of": null
+              },
+              {
+                "id": 501,
+                "review_status": "PENDING",
+                "review_revision": 0,
+                "amount_vnd": null,
+                "stated_date": null,
+                "stated_time": null,
+                "memo": "coffee at noon",
+                "possible_duplicate_of": null
+              },
+              {
+                "id": 401,
+                "review_status": "PENDING",
+                "review_revision": 0,
+                "amount_vnd": 50000,
+                "stated_date": "2026-10-20",
+                "stated_time": null,
+                "memo": "Fuel 50,000 VND on 2026-10-20",
+                "possible_duplicate_of": null
+              }
+            ]
+          }
+        }
+      ],
+      "database_state": {
+        "captures": [
+          {
+            "id": 103,
+            "revision": 0,
+            "text": "Groceries 45,000 VND; time not remembered."
+          }
+        ],
+        "captures_events": [
+          {
+            "id": 603,
+            "capture_id": 103,
+            "span_start": 0,
+            "span_end": 42,
+            "normalized_text": "Groceries 45,000 VND; time not remembered.",
+            "amount_vnd": 45000,
+            "merchant": null,
+            "anchor_date": null,
+            "anchor_time": null,
+            "anchor_timezone": null,
+            "unresolved_reason": "Time of purchase not stated in source (\"time not remembered\"); user cannot recall when it occurred.",
+            "status": "UNRESOLVED",
+            "revision": 0,
+            "source_revision": 0
+          }
+        ],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 1
+      }
+    },
+    "trace_source": "instrumented_application",
+    "fixture": "in_memory_room",
+    "instrumentation_ok": true
+  },
+  "effects": {
+    "ledgerWrites": 0,
+    "noLedgerWrites": true,
+    "financialWrites": 0,
+    "applicationCalls": 2,
+    "deleteCalls": 0,
+    "attachCalls": 0,
+    "callerScope": "trusted_host_only",
+    "eventCount": 1,
+    "amountsVnd": [
+      45000
+    ],
+    "eventStatus": "UNRESOLVED",
+    "amountVnd": 45000,
+    "date": null,
+    "noInventedTime": true,
+    "time": null,
+    "activeLinksForEvent": 0,
+    "limit": 25,
+    "offset": 0,
+    "reviewStatus": "PENDING",
+    "draftIds": [
+      801,
+      604,
+      603,
+      601,
+      501,
+      401
+    ],
+    "hasMore": false
+  },
+  "metrics": {
+    "wall_seconds": 7.829,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1920,
+    "output_tokens": 1171,
+    "thought_tokens": 887,
+    "total_tokens": 3091,
+    "cached_input_tokens": 0,
+    "finish_reason": "tool_calls",
+    "model_version": "deepseek-v4.1-flash",
+    "response_id": "0fba1e669266cae3ed533e8d638992c4",
+    "max_tokens": 2048,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 7.829,
+    "cost_usd": 0,
+    "list_cost_usd": 0.0009906,
+    "opencode_allowance_usd": 0.00074295,
+    "billing_source": "go"
+  },
+  "cold_start_sample": false,
+  "transport": {
+    "kind": "opencode-go-chat-completions",
+    "endpoint": "https://opencode.ai/zen/go/v1/chat/completions",
+    "api_model": "deepseek-v4.1-flash",
+    "output_adapter": "openai-chat-tool-calls-v1",
+    "native_envelope_parsed": false,
+    "request_config_sha256": "e1815b67ff2b0548d1921541186e7378ddbcb8c0a8b2ac82497c46920afd58df",
+    "generation_config": {
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "seed": 42
+    },
+    "tool_config": {
+      "tool_choice": "auto"
+    },
+    "retry_policy": "no retry on any 4xx response including 429; at most one retry after a transport timeout or a 5xx response, recorded as attempt 2. A rate-limited case stays a recorded provider error in that pass, and a further complete pass is a separately labelled independent run rather than a retry inside one.",
+    "conversation": "one user turn, no tool results, no multi-turn follow-up: the same single-turn contract the local profiles were measured under",
+    "inter_request_delay_seconds": 2,
+    "request_config_revision": "v2 — per-provider request blocks; launches paced after an observed free-tier 429; request content, case semantics and adapters unchanged"
+  },
+  "raw": {
+    "case_id": "s8-time-02",
+    "phase": "opencode-go",
+    "generation": "",
+    "parsed_calls": [
+      {
+        "name": "update_event_interpretation",
+        "args": {
+          "idempotencyKey": "capture-103-event-1-v1",
+          "captureId": 103,
+          "expectedCaptureRevision": 0,
+          "expectedEventRevision": null,
+          "extractionVersion": "1",
+          "interpretation": {
+            "spanStart": 0,
+            "spanEnd": 42,
+            "normalizedText": "Groceries 45,000 VND; time not remembered.",
+            "amountVnd": 45000,
+            "merchant": null,
+            "timeAnchor": null,
+            "unresolvedReason": "Time of purchase not stated in source (\"time not remembered\"); user cannot recall when it occurred."
+          }
+        }
+      },
+      {
+        "name": "query_draft_candidates",
+        "args": {
+          "query": {
+            "reviewStatus": "PENDING",
+            "onlyPossibleDuplicates": false,
+            "bounds": {
+              "limit": 25,
+              "offset": 0
+            }
+          }
+        }
+      }
+    ],
+    "parse_error": null,
+    "metrics": {
+      "wall_seconds": 7.829,
+      "http_status": 200,
+      "attempts": 1,
+      "input_tokens": 1920,
+      "output_tokens": 1171,
+      "thought_tokens": 887,
+      "total_tokens": 3091,
+      "cached_input_tokens": 0,
+      "finish_reason": "tool_calls",
+      "model_version": "deepseek-v4.1-flash",
+      "response_id": "0fba1e669266cae3ed533e8d638992c4",
+      "max_tokens": 2048,
+      "output_truncated_at_cap": false,
+      "request_timeout_seconds": 120,
+      "first_result_seconds": 7.829,
+      "cost_usd": 0,
+      "list_cost_usd": 0.0009906,
+      "opencode_allowance_usd": 0.00074295,
+      "billing_source": "go"
+    },
+    "request_sha256": "93f6603baf8dfaa7af419d4ec8ebb1412f3949ba9ae9b8b2b91ca73cba839035",
+    "response_sha256": "380e004eed7a397ca9512a5e313f467183706065794b04edead7b06f2ea65504",
+    "prompt_hashes": {
+      "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+      "user_sha256": "7b48d2c551f411bf5066e6c3d359d13daa8c2b76a9e169d9698254e084cab1ec",
+      "tool_declarations_sha256": "bdc6ce982beb2864bfd91b24d8f55ae349103912c7519bba88a039b69410e0ec"
+    },
+    "attempts": [
+      {
+        "attempt": 1,
+        "http_status": 200,
+        "wall_seconds": 7.829
+      }
+    ]
+  }
+}

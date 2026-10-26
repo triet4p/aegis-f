@@ -1,0 +1,55 @@
+{
+  "results": [
+    {
+      "case_id": "s8h-multi-01",
+      "calls": [
+        {
+          "name": "update_event_interpretation",
+          "args": {
+            "idempotencyKey": "fuel_oct20_3pm",
+            "extractionVersion": "1.0",
+            "expectedCaptureRevision": 0,
+            "interpretation": {
+              "spanEnd": 24,
+              "amountVnd": 50000,
+              "merchant": null,
+              "timeAnchor": {
+                "time": "15:00",
+                "timezoneId": "Asia/Ho_Chi_Minh",
+                "date": "2026-10-20"
+              },
+              "normalizedText": "Fuel 50k on Oct 20 at 3pm",
+              "spanStart": 0
+            },
+            "expectedEventRevision": 0,
+            "unresolvedReason": null,
+            "captureId": 201
+          }
+        },
+        {
+          "name": "update_event_interpretation",
+          "args": {
+            "expectedCaptureRevision": 0,
+            "interpretation": {
+              "amountVnd": 32000,
+              "normalizedText": "snack 32k at Circle K at 3:15pm",
+              "spanEnd": 52,
+              "timeAnchor": {
+                "date": "2026-10-20",
+                "timezoneId": "Asia/Ho_Chi_Minh",
+                "time": "15:15"
+              },
+              "spanStart": 25,
+              "merchant": "Circle K"
+            },
+            "idempotencyKey": "snack_circlek_315pm",
+            "extractionVersion": "1.0",
+            "captureId": 201,
+            "expectedEventRevision": 0,
+            "unresolvedReason": null
+          }
+        }
+      ]
+    }
+  ]
+}

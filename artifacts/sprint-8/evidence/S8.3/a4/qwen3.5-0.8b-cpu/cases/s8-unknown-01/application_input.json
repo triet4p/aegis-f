@@ -1,0 +1,20 @@
+{
+  "results": [
+    {
+      "case_id": "s8-unknown-01",
+      "calls": [
+        {
+          "name": "query_draft_candidates",
+          "args": {
+            "bound": {
+              "limit": 100,
+              "offset": 0
+            },
+            "onlyPossibleDuplicates": true,
+            "reviewStatus": "PENDING"
+          }
+        }
+      ]
+    }
+  ]
+}

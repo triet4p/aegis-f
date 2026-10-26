@@ -1,0 +1,115 @@
+{
+  "case_id": "s8-multi-01",
+  "suite": "frozen",
+  "profile": "minicpm-v-4.7-1b-cpu",
+  "prompt_sha256": "3999d9e3fee9b875e3ba201a2f2451748ffbf260e64b7c368825c2b87e691373",
+  "generation": "<think>\n\n</think>\nI'll reconstruct the transaction based on the source text. The user paid 50,000 VND for fuel at 15:00 and 32,000 VND for a snack at Circle K at 15:15. Both are to be saved.\n\n<tool_call>\n<function=update_event_interpretation>\n<parameter=captureId>\n101\n</parameter>\n<parameter=expectedEventRevision>\n0\n</parameter>\n<parameter=extractionVersion>\n1\n</parameter>\n<parameter=idempotencyKey>\ncheck_update\n</parameter>\n<parameter=interpretation>\n{\"spanStart\": 0, \"spanEnd\": 3, \"normalizedText\": \"Fuel 50,000 VND at 15:00; snack 32,000 VND at Circle K at 15:15.\"}\n<parameter=expectedEventRevision>\n0\n</parameter>\n<parameter=interpretation>\n{\"spanStart\": 4, \"spanEnd\": 7, \"normalizedText\": \"Fuel 50,000 VND at 15:00; snack 32,000 VND at Circle K at 15:15.\"}\n<parameter=expectedEventRevision>\n0\n</parameter>\n<parameter=extractionVersion>\n1\n</parameter>\n<parameter=expectedEventRevision>\n0\n</parameter>\n<parameter=captureId>\n101\n</parameter>\n<parameter=expectedCaptureRevision>\n0\n</parameter>\n<parameter=interpretation>\n{\"spanStart\": 4, \"spanEnd\": 7, \"normalizedText\": \"Fuel 50,000 VND at 15:00; snack 32,000 VND at Circle K at 15:15.\"}\n<parameter=expectedEventRevision>\n0\n</parameter>\n<parameter=extractionVersion>\n1\n</parameter>\n<parameter=expectedEventRevision>\n0\n</parameter>\n<parameter=expectedEventRevision>\n0\n</parameter>\n<parameter=captureId>\n101\n</parameter>\n<parameter=interpretation>\n{\"spanStart\": 4, \"spanEnd\": 7, \"normalizedText\": \"Fuel 5",
+  "parsed_calls": null,
+  "parse_error": "minicpm incomplete or malformed tool-call envelope",
+  "application": {
+    "case_id": "s8-multi-01",
+    "application_trace": {
+      "case_id": "s8-multi-01",
+      "fixture": {
+        "capture_ids": [
+          101
+        ],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [],
+      "database_state": {
+        "captures": [
+          {
+            "id": 101,
+            "revision": 0,
+            "text": "Fuel 50,000 VND at 15:00; snack 32,000 VND at Circle K at 15:15."
+          }
+        ],
+        "captures_events": [],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0
+      }
+    },
+    "trace_source": "instrumented_application",
+    "fixture": "in_memory_room",
+    "instrumentation_ok": true
+  },
+  "effects": {
+    "ledgerWrites": 0,
+    "noLedgerWrites": true,
+    "financialWrites": 0,
+    "applicationCalls": 0,
+    "deleteCalls": 0,
+    "attachCalls": 0,
+    "callerScope": "trusted_host_only",
+    "activeLinksForEvent": 0
+  },
+  "metrics": {
+    "wall_seconds": 112.61,
+    "model_load_seconds": 56.111,
+    "prefill_tokens": 1692,
+    "prefill_seconds": 56.083,
+    "prefill_tokens_per_second": 30.17,
+    "decode_tokens": 511,
+    "decode_seconds": 51.808,
+    "decode_tokens_per_second": 9.86,
+    "process_peak_rss_mib": 840.3,
+    "process_peak_pss_mib": 839.0,
+    "device_mem_available_baseline_kib": 3333440,
+    "device_mem_available_min_kib": 2911284,
+    "samples": 247,
+    "exit_code": 0,
+    "first_result_seconds": 112.61
+  },
+  "cold_start_sample": true,
+  "raw": {
+    "case_id": "s8-multi-01",
+    "phase": "cold",
+    "generation": "<think>\n\n</think>\nI'll reconstruct the transaction based on the source text. The user paid 50,000 VND for fuel at 15:00 and 32,000 VND for a snack at Circle K at 15:15. Both are to be saved.\n\n<tool_call>\n<function=update_event_interpretation>\n<parameter=captureId>\n101\n</parameter>\n<parameter=expectedEventRevision>\n0\n</parameter>\n<parameter=extractionVersion>\n1\n</parameter>\n<parameter=idempotencyKey>\ncheck_update\n</parameter>\n<parameter=interpretation>\n{\"spanStart\": 0, \"spanEnd\": 3, \"normalizedText\": \"Fuel 50,000 VND at 15:00; snack 32,000 VND at Circle K at 15:15.\"}\n<parameter=expectedEventRevision>\n0\n</parameter>\n<parameter=interpretation>\n{\"spanStart\": 4, \"spanEnd\": 7, \"normalizedText\": \"Fuel 50,000 VND at 15:00; snack 32,000 VND at Circle K at 15:15.\"}\n<parameter=expectedEventRevision>\n0\n</parameter>\n<parameter=extractionVersion>\n1\n</parameter>\n<parameter=expectedEventRevision>\n0\n</parameter>\n<parameter=captureId>\n101\n</parameter>\n<parameter=expectedCaptureRevision>\n0\n</parameter>\n<parameter=interpretation>\n{\"spanStart\": 4, \"spanEnd\": 7, \"normalizedText\": \"Fuel 50,000 VND at 15:00; snack 32,000 VND at Circle K at 15:15.\"}\n<parameter=expectedEventRevision>\n0\n</parameter>\n<parameter=extractionVersion>\n1\n</parameter>\n<parameter=expectedEventRevision>\n0\n</parameter>\n<parameter=expectedEventRevision>\n0\n</parameter>\n<parameter=captureId>\n101\n</parameter>\n<parameter=interpretation>\n{\"spanStart\": 4, \"spanEnd\": 7, \"normalizedText\": \"Fuel 5",
+    "raw_stdout_sha256": "cefc0a28366905114bfbb7dead3f7a5c8abc15bdea33b1cdb5d747c65f32b4a2",
+    "raw_stderr_sha256": "d7493e0229c1423028f549295da890f4c32d4264b56ec8954221606e025d42b0",
+    "metrics": {
+      "wall_seconds": 112.61,
+      "model_load_seconds": 56.111,
+      "prefill_tokens": 1692,
+      "prefill_seconds": 56.083,
+      "prefill_tokens_per_second": 30.17,
+      "decode_tokens": 511,
+      "decode_seconds": 51.808,
+      "decode_tokens_per_second": 9.86,
+      "process_peak_rss_mib": 840.3,
+      "process_peak_pss_mib": 839.0,
+      "device_mem_available_baseline_kib": 3333440,
+      "device_mem_available_min_kib": 2911284,
+      "samples": 247,
+      "exit_code": 0,
+      "first_result_seconds": 112.61
+    },
+    "device_run_dir": "/data/local/tmp/slm/trials/S8.3-a2/minicpm-v-4.7-1b-cpu/s8-multi-01/run-cold"
+  }
+}

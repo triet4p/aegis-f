@@ -1,0 +1,139 @@
+{
+  "case_id": "s8-time-01",
+  "suite": "frozen",
+  "profile": "minicpm-v-4.7-1b-cpu",
+  "prompt_sha256": "dd8d80bf4636b01219c3e3777c5d229f4f70c881d4bd7a3e1ffad013344faa75",
+  "generation": "<think>\n\n</think>\nI'll extract the bank draft entry for capture 102 (revision 0).\n\n<tool_call>\n<function=query_draft_candidates>\n<parameter=query>\n{\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": true, \"bounds\": {\"limit\": 500, \"offset\": 0}, \"query\": \"book 70,000 VND\"}}\n</parameter>\n</function>\n</tool_call><|im_end|>",
+  "parsed_calls": [
+    {
+      "name": "query_draft_candidates",
+      "args": {
+        "query": "{\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": true, \"bounds\": {\"limit\": 500, \"offset\": 0}, \"query\": \"book 70,000 VND\"}}"
+      }
+    }
+  ],
+  "parse_error": null,
+  "application": {
+    "case_id": "s8-time-01",
+    "application_trace": {
+      "case_id": "s8-time-01",
+      "fixture": {
+        "capture_ids": [
+          102
+        ],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "query_draft_candidates",
+          "dispatched": false,
+          "request": {
+            "query": "{\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": true, \"bounds\": {\"limit\": 500, \"offset\": 0}, \"query\": \"book 70,000 VND\"}}"
+          },
+          "outcome": "not_dispatched_malformed_arguments",
+          "reason": "Value {\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": true, \"bounds\": {\"limit\": 500, \"offset\": 0}, \"query\": \"book 70,000 VND\"}} at query of type java.lang.String cannot be converted to JSONObject"
+        }
+      ],
+      "database_state": {
+        "captures": [
+          {
+            "id": 102,
+            "revision": 0,
+            "text": "Book 70,000 VND yesterday at 09:30."
+          }
+        ],
+        "captures_events": [],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 0
+      }
+    },
+    "trace_source": "instrumented_application",
+    "fixture": "in_memory_room",
+    "instrumentation_ok": true
+  },
+  "effects": {
+    "ledgerWrites": 0,
+    "noLedgerWrites": true,
+    "financialWrites": 0,
+    "applicationCalls": 0,
+    "deleteCalls": 0,
+    "attachCalls": 0,
+    "callerScope": "trusted_host_only",
+    "activeLinksForEvent": 0
+  },
+  "metrics": {
+    "wall_seconds": 66.11,
+    "runtime_reported_load_seconds": 53.967,
+    "prefill_tokens": 1636,
+    "prefill_seconds": 53.938,
+    "prefill_tokens_per_second": 30.33,
+    "decode_tokens": 89,
+    "decode_seconds": 8.741,
+    "decode_tokens_per_second": 10.18,
+    "process_peak_rss_mib": 840.4,
+    "process_peak_pss_mib": 839.0,
+    "device_mem_available_baseline_kib": 2814412,
+    "device_mem_available_min_kib": 2645212,
+    "samples": 153,
+    "exit_code": 0,
+    "max_tokens": 768,
+    "context_tokens": 4096,
+    "output_truncated_at_cap": false,
+    "first_result_seconds": 66.11
+  },
+  "cold_start_sample": false,
+  "raw": {
+    "case_id": "s8-time-01",
+    "phase": "cold",
+    "generation": "<think>\n\n</think>\nI'll extract the bank draft entry for capture 102 (revision 0).\n\n<tool_call>\n<function=query_draft_candidates>\n<parameter=query>\n{\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": true, \"bounds\": {\"limit\": 500, \"offset\": 0}, \"query\": \"book 70,000 VND\"}}\n</parameter>\n</function>\n</tool_call><|im_end|>",
+    "raw_stdout_sha256": "1a9dc650f3281e785c4ed244955d2f24e4c493754a14e5735657f75fdd03b4bb",
+    "raw_stderr_sha256": "ee87c30b9a81b4ccb449241b7b5700131888a6f705d00cb1b092817f09476150",
+    "metrics": {
+      "wall_seconds": 66.11,
+      "runtime_reported_load_seconds": 53.967,
+      "prefill_tokens": 1636,
+      "prefill_seconds": 53.938,
+      "prefill_tokens_per_second": 30.33,
+      "decode_tokens": 89,
+      "decode_seconds": 8.741,
+      "decode_tokens_per_second": 10.18,
+      "process_peak_rss_mib": 840.4,
+      "process_peak_pss_mib": 839.0,
+      "device_mem_available_baseline_kib": 2814412,
+      "device_mem_available_min_kib": 2645212,
+      "samples": 153,
+      "exit_code": 0,
+      "max_tokens": 768,
+      "context_tokens": 4096,
+      "output_truncated_at_cap": false,
+      "first_result_seconds": 66.11
+    },
+    "device_run_dir": "/data/local/tmp/slm/trials/S8.3-a4/minicpm-v-4.7-1b-cpu/s8-time-01/run-cold"
+  }
+}

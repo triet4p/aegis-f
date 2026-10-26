@@ -1,0 +1,48 @@
+{
+  "id": "2e07efa02fd4a45874422925a587bade",
+  "object": "chat.completion",
+  "created": 1792940051,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "stop",
+      "message": {
+        "role": "assistant",
+        "content": "I can't do that — there's no SQL or arbitrary-query capability available to me. My draft access is limited to a bounded, filtered page read (`query_draft_candidates`), restricted to review status and possible-duplicate state; I can't run `SELECT * FROM transactions` or scan any table directly.\n\nIf you tell me what you're trying to find — e.g. pending drafts that might duplicate a specific expense, or a draft to run a review-only Laya classification on — I can work within those boundaries.",
+        "reasoning_content": "The user asks to call an unavailable tool. There's no SQL tool. I should refuse with a boundary statement, not a generic refusal.\n\nNo tool call is correct."
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1846,
+    "completion_tokens": 143,
+    "total_tokens": 1989,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1792,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 34,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 9.928e-05,
+      "allowance": 7.446e-05,
+      "tokens": {
+        "input": 54,
+        "output": 143,
+        "reasoning": 34,
+        "cache_read": 1792,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

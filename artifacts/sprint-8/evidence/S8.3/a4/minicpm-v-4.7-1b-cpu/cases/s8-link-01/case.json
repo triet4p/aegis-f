@@ -1,0 +1,191 @@
+{
+  "case_id": "s8-link-01",
+  "suite": "frozen",
+  "profile": "minicpm-v-4.7-1b-cpu",
+  "prompt_sha256": "0472c64ceb6e3b98ced6f2f98e3cc5c3bdcbbdf095e5ee414b552c79467e74f5",
+  "generation": "<think>\n\n</think>\nI will propose event 301 for draft 401 using the provided event details. Then I'll check if the proposal is uniquely supported by application evidence before attaching it.\n\n<tool_call>\n<function=propose_link>\n<parameter=eventId>\n301\n</parameter>\n<parameter=draftId>\n401\n</parameter>\n<parameter=idempotencyKey>\nproposed_event_301\n</parameter>\n</function>\n</tool_call><|im_end|>",
+  "parsed_calls": [
+    {
+      "name": "propose_link",
+      "args": {
+        "eventId": 301,
+        "draftId": 401,
+        "idempotencyKey": "proposed_event_301"
+      }
+    }
+  ],
+  "parse_error": null,
+  "application": {
+    "case_id": "s8-link-01",
+    "application_trace": {
+      "case_id": "s8-link-01",
+      "fixture": {
+        "capture_ids": [],
+        "event_ids": [
+          301
+        ],
+        "draft_ids": [
+          401
+        ]
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "propose_link",
+          "dispatched": true,
+          "request": {
+            "eventId": 301,
+            "draftId": 401,
+            "idempotencyKey": "proposed_event_301"
+          },
+          "outcome": "Applied",
+          "change": {
+            "kind": "LinkDecided",
+            "detail": "LinkDecided(linkId=1, state=PROPOSED, revision=0)"
+          }
+        }
+      ],
+      "database_state": {
+        "events": [
+          {
+            "id": 301,
+            "capture_id": 104,
+            "span_start": 0,
+            "span_end": 37,
+            "normalized_text": "Fuel purchase on 2026-10-20",
+            "amount_vnd": 50000,
+            "merchant": null,
+            "anchor_date": "2026-10-20",
+            "anchor_time": null,
+            "anchor_timezone": "Asia/Ho_Chi_Minh",
+            "unresolved_reason": null,
+            "status": "INTERPRETED",
+            "revision": 0,
+            "source_revision": 0
+          }
+        ],
+        "links": [
+          {
+            "id": 1,
+            "event_id": 301,
+            "draft_id": 401,
+            "state": "PROPOSED",
+            "revision": 0
+          }
+        ],
+        "drafts": [
+          {
+            "id": 401,
+            "review_status": "PENDING",
+            "review_revision": 0,
+            "amount_vnd": 50000,
+            "stated_date": "2026-10-20",
+            "stated_time": null,
+            "memo": "Fuel 50,000 VND on 2026-10-20",
+            "possible_duplicate_of": null
+          }
+        ],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 1,
+        "workflow_operation_count": 1
+      }
+    },
+    "trace_source": "instrumented_application",
+    "fixture": "in_memory_room",
+    "instrumentation_ok": true
+  },
+  "effects": {
+    "ledgerWrites": 0,
+    "noLedgerWrites": true,
+    "financialWrites": 0,
+    "applicationCalls": 1,
+    "deleteCalls": 0,
+    "attachCalls": 0,
+    "callerScope": "trusted_host_only",
+    "eventCount": 1,
+    "amountsVnd": [
+      50000
+    ],
+    "eventStatus": "INTERPRETED",
+    "amountVnd": 50000,
+    "date": "2026-10-20",
+    "noInventedTime": true,
+    "time": null,
+    "linkEventId": 301,
+    "linkDraftId": 401,
+    "linkState": "PROPOSED",
+    "activeLinksForEvent": 1
+  },
+  "metrics": {
+    "wall_seconds": 85.19,
+    "runtime_reported_load_seconds": 69.732,
+    "prefill_tokens": 1675,
+    "prefill_seconds": 69.702,
+    "prefill_tokens_per_second": 24.03,
+    "decode_tokens": 103,
+    "decode_seconds": 11.224,
+    "decode_tokens_per_second": 9.18,
+    "process_peak_rss_mib": 840.4,
+    "process_peak_pss_mib": 839.0,
+    "device_mem_available_baseline_kib": 2807744,
+    "device_mem_available_min_kib": 2606876,
+    "samples": 193,
+    "exit_code": 0,
+    "max_tokens": 768,
+    "context_tokens": 4096,
+    "output_truncated_at_cap": false,
+    "first_result_seconds": 85.19
+  },
+  "cold_start_sample": false,
+  "raw": {
+    "case_id": "s8-link-01",
+    "phase": "cold",
+    "generation": "<think>\n\n</think>\nI will propose event 301 for draft 401 using the provided event details. Then I'll check if the proposal is uniquely supported by application evidence before attaching it.\n\n<tool_call>\n<function=propose_link>\n<parameter=eventId>\n301\n</parameter>\n<parameter=draftId>\n401\n</parameter>\n<parameter=idempotencyKey>\nproposed_event_301\n</parameter>\n</function>\n</tool_call><|im_end|>",
+    "raw_stdout_sha256": "c8503d8e88024d01a7a95f81a73e4e41c565f06c8a761589396fc7b9751a37d4",
+    "raw_stderr_sha256": "539dfef1482d657aefd5c19fd5b3f9fed908ff989892f3d21237c77bc12a742d",
+    "metrics": {
+      "wall_seconds": 85.19,
+      "runtime_reported_load_seconds": 69.732,
+      "prefill_tokens": 1675,
+      "prefill_seconds": 69.702,
+      "prefill_tokens_per_second": 24.03,
+      "decode_tokens": 103,
+      "decode_seconds": 11.224,
+      "decode_tokens_per_second": 9.18,
+      "process_peak_rss_mib": 840.4,
+      "process_peak_pss_mib": 839.0,
+      "device_mem_available_baseline_kib": 2807744,
+      "device_mem_available_min_kib": 2606876,
+      "samples": 193,
+      "exit_code": 0,
+      "max_tokens": 768,
+      "context_tokens": 4096,
+      "output_truncated_at_cap": false,
+      "first_result_seconds": 85.19
+    },
+    "device_run_dir": "/data/local/tmp/slm/trials/S8.3-a4/minicpm-v-4.7-1b-cpu/s8-link-01/run-cold"
+  }
+}

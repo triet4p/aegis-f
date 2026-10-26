@@ -1,0 +1,66 @@
+{
+  "case_id": "s8h-time-01",
+  "phase": "hosted",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "expectedEventRevision": null,
+        "captureId": 202,
+        "expectedCaptureRevision": 0,
+        "interpretation": {
+          "normalizedText": "Groceries 45,000 VND yesterday, exact hour unknown.",
+          "merchant": null,
+          "spanEnd": 49,
+          "spanStart": 0,
+          "amountVnd": 45000,
+          "timeAnchor": {
+            "intervalEndDate": null,
+            "timezoneId": "Asia/Ho_Chi_Minh",
+            "intervalEndTime": null,
+            "time": null,
+            "date": "2026-10-24"
+          },
+          "unresolvedReason": null
+        },
+        "extractionVersion": "1.0",
+        "idempotencyKey": "capture-202-interp-1"
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 1.581,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1523,
+    "output_tokens": 159,
+    "thought_tokens": null,
+    "total_tokens": 1682,
+    "cached_input_tokens": null,
+    "service_tier": "standard",
+    "finish_reason": "STOP",
+    "model_version": "gemini-3.5-flash-lite",
+    "response_id": "2RbeatDMMvvY9tMPk6X62AM",
+    "max_tokens": 2048,
+    "context_tokens": null,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 1.581
+  },
+  "request_sha256": "2691027460a025db85ddf755a45ef7b5bc72d4686ecfe9b3987238ef424d039f",
+  "response_sha256": "ab301fe4f1e681ab6e125bbf3dfdcaeb77ac46bcf8016e11441f25fff00503b0",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "9f9a38aa5ab3589e6cbce51cd9367127a17a638f55ae017ccccb9827f225d07e",
+    "tool_declarations_sha256": "c090ac75dca5272675a307f3163b1e97c30f91b5610ab8d075f0d38acb38fdea"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 1.581
+    }
+  ]
+}

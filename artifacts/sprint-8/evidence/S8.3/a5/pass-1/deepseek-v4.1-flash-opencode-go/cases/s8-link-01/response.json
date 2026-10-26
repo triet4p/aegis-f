@@ -1,0 +1,58 @@
+{
+  "id": "a01bfd9e77d1064adfa8b43a774a556b",
+  "object": "chat.completion",
+  "created": 1792937241,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "I'll propose the link first so the application can compute its own evidence for this event/draft pair.",
+        "reasoning_content": "The user asks to propose link event 301 / draft 401, then attach if uniquely supported.\n\nI should first propose the link. But should I verify draft facts? The instruction says \"Candidate search is a bounded read of pending bank drafts only.\" I could query candidates to check for other drafts. But the user gave explicit IDs. Proposing a link is fine. However, attaching requires unique current evidence — the app computes link evidence from stored source and draft data. I cannot supply evidence.\n\nLet me think: Do I need to query candidates? The task is specific about event 301 and draft 401. Proposing the link is a single action. Then attaching depends on the proposal result — the app computes evidence. I should propose, then attach based on the result. The attach is dependent on propose_link result, so sequential.\n\nActually should I first check candidate drafts to ensure uniqueness? The guidance: \"Compare returned draft facts with the event only when present. No plausible candidate means no match; more than one plausible candidate means ask the user.\" The app computes link evidence itself. I could optionally query candidates. But the caller gave a specific pair. Proposing is legitimate. However, attaching requires \"unique current evidence\" which application policy independently denies without it. So I should propose, see the result, and if evidence is unique, attach; otherwise report ambiguity.\n\nLet me do propose_link first.\n\nLet me consider whether to query candidates first for plausibility. It's a bounded read; harmless. But it might not be necessary. I'll do the propose first since it's the direct ask, then attach conditioned on result. Actually I could do both candidates query and propose in parallel? propose is independent of the query. But the attach depends on propose result. Let me just do propose_link.\n\nIdempotency key: something unique like \"propose-301-401-1\".",
+        "tool_calls": [
+          {
+            "id": "call_00_00ef0is6ss1z1nu2bf93hc5e",
+            "type": "function",
+            "function": {
+              "name": "propose_link",
+              "arguments": "{\"idempotencyKey\": \"propose-link-event301-draft401-v1\", \"eventId\": 301, \"draftId\": 401}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1953,
+    "completion_tokens": 488,
+    "total_tokens": 2441,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1792,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 381,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00032233,
+      "allowance": 0.00024174,
+      "tokens": {
+        "input": 161,
+        "output": 488,
+        "reasoning": 381,
+        "cache_read": 1792,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

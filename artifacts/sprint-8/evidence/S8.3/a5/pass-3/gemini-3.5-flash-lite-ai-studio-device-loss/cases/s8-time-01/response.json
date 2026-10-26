@@ -1,0 +1,57 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "name": "update_event_interpretation",
+              "args": {
+                "expectedCaptureRevision": 0,
+                "interpretation": {
+                  "spanEnd": 34,
+                  "spanStart": 0,
+                  "amountVnd": 70000,
+                  "merchant": null,
+                  "unresolvedReason": null,
+                  "normalizedText": "Book 70,000 VND yesterday at 09:30.",
+                  "timeAnchor": {
+                    "intervalEndTime": null,
+                    "intervalEndDate": null,
+                    "timezoneId": "Asia/Ho_Chi_Minh",
+                    "date": "2026-10-24",
+                    "time": "09:30"
+                  }
+                },
+                "idempotencyKey": "interp-102-1",
+                "extractionVersion": "v1",
+                "expectedEventRevision": null,
+                "captureId": 102
+              },
+              "id": "call_1657599"
+            },
+            "thoughtSignature": "EmAKXgFpFH0TbKVn+y1E4XR92ilgote2APfy7knJPN/D8Xe1u1DufmcU/tv+NJIm7/XyfQJOV+QGfvbXWJ0OJT/WEa7QUx7yVP+UOf1DH/+Q9YlFD6rdG7MTgan/lfLhAKQ="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "finishMessage": "Model generated function call(s)."
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1523,
+    "candidatesTokenCount": 164,
+    "totalTokenCount": 1687,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1523
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash-lite",
+  "responseId": "UA_easCSLt_A1e8PpP2E2AI"
+}

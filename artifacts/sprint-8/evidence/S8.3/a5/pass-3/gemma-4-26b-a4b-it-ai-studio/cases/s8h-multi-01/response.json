@@ -1,0 +1,85 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "",
+            "thought": true
+          },
+          {
+            "functionCall": {
+              "name": "update_event_interpretation",
+              "args": {
+                "captureId": 201,
+                "expectedCaptureRevision": 0,
+                "idempotencyKey": "fuel_oct20_3pm",
+                "extractionVersion": "1.0",
+                "interpretation": {
+                  "amountVnd": 50000,
+                  "timeAnchor": {
+                    "time": "15:00",
+                    "timezoneId": "Asia/Ho_Chi_Minh",
+                    "date": "2026-10-20"
+                  },
+                  "merchant": null,
+                  "spanStart": 0,
+                  "spanEnd": 24,
+                  "normalizedText": "Fuel 50k on Oct 20 at 3pm"
+                },
+                "expectedEventRevision": 0,
+                "unresolvedReason": null
+              },
+              "id": "call_1379551"
+            },
+            "thoughtSignature": "EiYKJGUyNDgzMGE3LTVjZDYtNDJmZS05OThiLWVlNTM5ZTcyYjljMw=="
+          },
+          {
+            "functionCall": {
+              "name": "update_event_interpretation",
+              "args": {
+                "expectedCaptureRevision": 0,
+                "idempotencyKey": "snack_circlek_315pm",
+                "expectedEventRevision": 0,
+                "unresolvedReason": null,
+                "captureId": 201,
+                "extractionVersion": "1.0",
+                "interpretation": {
+                  "timeAnchor": {
+                    "time": "15:15",
+                    "date": "2026-10-20",
+                    "timezoneId": "Asia/Ho_Chi_Minh"
+                  },
+                  "merchant": "Circle K",
+                  "normalizedText": "snack 32k at Circle K at 3:15pm",
+                  "spanStart": 25,
+                  "spanEnd": 52,
+                  "amountVnd": 32000
+                }
+              },
+              "id": "call_1379552"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "finishMessage": "Model generated function call(s)."
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1556,
+    "candidatesTokenCount": 310,
+    "totalTokenCount": 1866,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1556
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemma-4-26b-a4b-it",
+  "responseId": "Twreapm8Nd7e9tMPj7bQ2AQ"
+}

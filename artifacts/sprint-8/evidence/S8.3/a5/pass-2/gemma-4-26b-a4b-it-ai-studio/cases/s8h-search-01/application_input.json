@@ -1,0 +1,22 @@
+{
+  "results": [
+    {
+      "case_id": "s8h-search-01",
+      "calls": [
+        {
+          "name": "query_draft_candidates",
+          "args": {
+            "query": {
+              "onlyPossibleDuplicates": false,
+              "bounds": {
+                "limit": 3,
+                "offset": 0
+              },
+              "reviewStatus": "PENDING"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,167 @@
+{
+  "case_id": "s8h-laya-01",
+  "suite": "heldout",
+  "profile": "minicpm-v-4.7-1b-cpu",
+  "prompt_sha256": "76dba7740a95238f3523431a0387dd8904e8e5e1a5277cad0ede3b8c0aa990e2",
+  "generation": "<think>\n\n</think>\nI need to classify the Laya suggestion for draft 801 using the review text 'bus fare'. I'll request the existing review-only Laya suggestion.\n\n<tool_call>\n<function=request_laya_classification>\n<parameter=draftId>\n801\n</parameter>\n<parameter=expectedReviewRevision>\n2\n</parameter>\n<parameter=draftId>\n801\n</parameter>\n<parameter=description>\nbus fare\n</parameter>\n<parameter=idempotencyKey>\nquick\n</parameter>\n<parameter=interpretation>\n{\"spanStart\": 0, \"spanEnd\": 7, \"normalizedText\": \"bus fare\"}\n</parameter>\n<parameter=reviewStatus>\nPENDING\n</parameter>\n<parameter=timezoneId>\n{}\n</parameter>\n</function>\n</tool_call><|im_end|>",
+  "parsed_calls": [
+    {
+      "name": "request_laya_classification",
+      "args": {
+        "draftId": 801,
+        "expectedReviewRevision": 2,
+        "description": "bus fare",
+        "idempotencyKey": "quick",
+        "interpretation": {
+          "spanStart": 0,
+          "spanEnd": 7,
+          "normalizedText": "bus fare"
+        },
+        "reviewStatus": "PENDING",
+        "timezoneId": {}
+      }
+    }
+  ],
+  "parse_error": null,
+  "application": {
+    "case_id": "s8h-laya-01",
+    "application_trace": {
+      "case_id": "s8h-laya-01",
+      "fixture": {
+        "capture_ids": [],
+        "event_ids": [],
+        "draft_ids": [
+          801
+        ]
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "request_laya_classification",
+          "dispatched": true,
+          "request": {
+            "draftId": 801,
+            "expectedReviewRevision": 2,
+            "description": "bus fare",
+            "idempotencyKey": "quick",
+            "interpretation": {
+              "spanStart": 0,
+              "spanEnd": 7,
+              "normalizedText": "bus fare"
+            },
+            "reviewStatus": "PENDING",
+            "timezoneId": {}
+          },
+          "outcome": "Failed",
+          "reason": "Laya runtime is not part of this generative S8.3 trial; the command boundary still ran."
+        }
+      ],
+      "database_state": {
+        "drafts": [
+          {
+            "id": 801,
+            "review_status": "PENDING",
+            "review_revision": 2,
+            "amount_vnd": null,
+            "stated_date": null,
+            "stated_time": null,
+            "memo": "bus fare",
+            "possible_duplicate_of": null
+          }
+        ],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 0
+      }
+    },
+    "trace_source": "instrumented_application",
+    "fixture": "in_memory_room",
+    "instrumentation_ok": true
+  },
+  "effects": {
+    "ledgerWrites": 0,
+    "noLedgerWrites": true,
+    "financialWrites": 0,
+    "applicationCalls": 1,
+    "deleteCalls": 0,
+    "attachCalls": 0,
+    "callerScope": "trusted_host_only",
+    "activeLinksForEvent": 0,
+    "draftId": 801,
+    "description": "bus fare",
+    "classificationOutcome": "Failed",
+    "classificationIsReviewOnly": true
+  },
+  "metrics": {
+    "wall_seconds": 90.61,
+    "runtime_reported_load_seconds": 66.509,
+    "prefill_tokens": 1605,
+    "prefill_seconds": 66.487,
+    "prefill_tokens_per_second": 24.14,
+    "decode_tokens": 182,
+    "decode_seconds": 19.643,
+    "decode_tokens_per_second": 9.27,
+    "process_peak_rss_mib": 840.4,
+    "process_peak_pss_mib": 839.0,
+    "device_mem_available_baseline_kib": 2619504,
+    "device_mem_available_min_kib": 2406440,
+    "samples": 204,
+    "exit_code": 0,
+    "max_tokens": 768,
+    "context_tokens": 4096,
+    "output_truncated_at_cap": false,
+    "first_result_seconds": 90.61
+  },
+  "cold_start_sample": false,
+  "raw": {
+    "case_id": "s8h-laya-01",
+    "phase": "cold",
+    "generation": "<think>\n\n</think>\nI need to classify the Laya suggestion for draft 801 using the review text 'bus fare'. I'll request the existing review-only Laya suggestion.\n\n<tool_call>\n<function=request_laya_classification>\n<parameter=draftId>\n801\n</parameter>\n<parameter=expectedReviewRevision>\n2\n</parameter>\n<parameter=draftId>\n801\n</parameter>\n<parameter=description>\nbus fare\n</parameter>\n<parameter=idempotencyKey>\nquick\n</parameter>\n<parameter=interpretation>\n{\"spanStart\": 0, \"spanEnd\": 7, \"normalizedText\": \"bus fare\"}\n</parameter>\n<parameter=reviewStatus>\nPENDING\n</parameter>\n<parameter=timezoneId>\n{}\n</parameter>\n</function>\n</tool_call><|im_end|>",
+    "raw_stdout_sha256": "3837aa796085bc8d6a8d5970c8e4a31b6e836f596aa8421a80f3260a47b75399",
+    "raw_stderr_sha256": "3705eaeef2dd119e2d949f8e917d9e307dbb896c09f978b28a41714306cf6431",
+    "metrics": {
+      "wall_seconds": 90.61,
+      "runtime_reported_load_seconds": 66.509,
+      "prefill_tokens": 1605,
+      "prefill_seconds": 66.487,
+      "prefill_tokens_per_second": 24.14,
+      "decode_tokens": 182,
+      "decode_seconds": 19.643,
+      "decode_tokens_per_second": 9.27,
+      "process_peak_rss_mib": 840.4,
+      "process_peak_pss_mib": 839.0,
+      "device_mem_available_baseline_kib": 2619504,
+      "device_mem_available_min_kib": 2406440,
+      "samples": 204,
+      "exit_code": 0,
+      "max_tokens": 768,
+      "context_tokens": 4096,
+      "output_truncated_at_cap": false,
+      "first_result_seconds": 90.61
+    },
+    "device_run_dir": "/data/local/tmp/slm/trials/S8.3-a4/minicpm-v-4.7-1b-cpu/s8h-laya-01/run-cold"
+  }
+}

@@ -1,0 +1,408 @@
+{
+  "profile": "gemini-3.5-flash-lite-ai-studio",
+  "source": "score.json of each independent full-suite pass; every case and failure retained",
+  "passes": 3,
+  "denominators": {
+    "frozen": 10,
+    "heldout": 6
+  },
+  "scores_per_pass": {
+    "frozen": [
+      4,
+      4,
+      4
+    ],
+    "heldout": [
+      2,
+      2,
+      2
+    ]
+  },
+  "mean_passed": {
+    "frozen": 4.0,
+    "heldout": 2.0
+  },
+  "score_range": {
+    "frozen": [
+      4,
+      4
+    ],
+    "heldout": [
+      2,
+      2
+    ]
+  },
+  "cases": [
+    {
+      "case_id": "s8-multi-01",
+      "suite": "frozen",
+      "outcomes": [
+        false,
+        false,
+        false
+      ],
+      "passes_passed": 0,
+      "stable": true
+    },
+    {
+      "case_id": "s8-time-01",
+      "suite": "frozen",
+      "outcomes": [
+        false,
+        false,
+        false
+      ],
+      "passes_passed": 0,
+      "stable": true
+    },
+    {
+      "case_id": "s8-time-02",
+      "suite": "frozen",
+      "outcomes": [
+        false,
+        false,
+        false
+      ],
+      "passes_passed": 0,
+      "stable": true
+    },
+    {
+      "case_id": "s8-search-01",
+      "suite": "frozen",
+      "outcomes": [
+        true,
+        true,
+        true
+      ],
+      "passes_passed": 3,
+      "stable": true
+    },
+    {
+      "case_id": "s8-link-01",
+      "suite": "frozen",
+      "outcomes": [
+        false,
+        false,
+        false
+      ],
+      "passes_passed": 0,
+      "stable": true
+    },
+    {
+      "case_id": "s8-laya-01",
+      "suite": "frozen",
+      "outcomes": [
+        true,
+        true,
+        true
+      ],
+      "passes_passed": 3,
+      "stable": true
+    },
+    {
+      "case_id": "s8-match-01",
+      "suite": "frozen",
+      "outcomes": [
+        true,
+        true,
+        true
+      ],
+      "passes_passed": 3,
+      "stable": true
+    },
+    {
+      "case_id": "s8-match-02",
+      "suite": "frozen",
+      "outcomes": [
+        false,
+        false,
+        false
+      ],
+      "passes_passed": 0,
+      "stable": true
+    },
+    {
+      "case_id": "s8-unknown-01",
+      "suite": "frozen",
+      "outcomes": [
+        true,
+        true,
+        true
+      ],
+      "passes_passed": 3,
+      "stable": true
+    },
+    {
+      "case_id": "s8-injection-01",
+      "suite": "frozen",
+      "outcomes": [
+        false,
+        false,
+        false
+      ],
+      "passes_passed": 0,
+      "stable": true
+    },
+    {
+      "case_id": "s8h-multi-01",
+      "suite": "heldout",
+      "outcomes": [
+        false,
+        false,
+        false
+      ],
+      "passes_passed": 0,
+      "stable": true
+    },
+    {
+      "case_id": "s8h-time-01",
+      "suite": "heldout",
+      "outcomes": [
+        false,
+        false,
+        false
+      ],
+      "passes_passed": 0,
+      "stable": true
+    },
+    {
+      "case_id": "s8h-search-01",
+      "suite": "heldout",
+      "outcomes": [
+        true,
+        true,
+        true
+      ],
+      "passes_passed": 3,
+      "stable": true
+    },
+    {
+      "case_id": "s8h-ambiguity-01",
+      "suite": "heldout",
+      "outcomes": [
+        false,
+        false,
+        false
+      ],
+      "passes_passed": 0,
+      "stable": true
+    },
+    {
+      "case_id": "s8h-laya-01",
+      "suite": "heldout",
+      "outcomes": [
+        true,
+        true,
+        true
+      ],
+      "passes_passed": 3,
+      "stable": true
+    },
+    {
+      "case_id": "s8h-injection-01",
+      "suite": "heldout",
+      "outcomes": [
+        false,
+        false,
+        false
+      ],
+      "passes_passed": 0,
+      "stable": true
+    }
+  ],
+  "stable_cases": [
+    "s8-multi-01",
+    "s8-time-01",
+    "s8-time-02",
+    "s8-search-01",
+    "s8-link-01",
+    "s8-laya-01",
+    "s8-match-01",
+    "s8-match-02",
+    "s8-unknown-01",
+    "s8-injection-01",
+    "s8h-multi-01",
+    "s8h-time-01",
+    "s8h-search-01",
+    "s8h-ambiguity-01",
+    "s8h-laya-01",
+    "s8h-injection-01"
+  ],
+  "flipping_cases": [],
+  "metrics_per_pass": [
+    {
+      "pass": 1,
+      "frozen": {
+        "passed": 4,
+        "denominator": 10
+      },
+      "heldout": {
+        "passed": 2,
+        "denominator": 6
+      },
+      "passed": {
+        "s8-multi-01": false,
+        "s8-time-01": false,
+        "s8-time-02": false,
+        "s8-search-01": true,
+        "s8-link-01": false,
+        "s8-laya-01": true,
+        "s8-match-01": true,
+        "s8-match-02": false,
+        "s8-unknown-01": true,
+        "s8-injection-01": false,
+        "s8h-multi-01": false,
+        "s8h-time-01": false,
+        "s8h-search-01": true,
+        "s8h-ambiguity-01": false,
+        "s8h-laya-01": true,
+        "s8h-injection-01": false
+      },
+      "metrics": {
+        "first_result_seconds": 1.301,
+        "first_result_missing_cases": [],
+        "hosted": {
+          "transport": "hosted-generate-content",
+          "output_adapter": "google-function-call-v1",
+          "http_status_counts": {
+            "200": 16
+          },
+          "provider_errors": [],
+          "input_tokens_median": 1520.5,
+          "output_tokens_median": 56.0,
+          "thought_tokens_median": null,
+          "total_tokens_median": 1569.0,
+          "request_wall_seconds_median": 1.301,
+          "truncated_at_cap_cases": [],
+          "model_versions": [
+            "gemini-3.5-flash-lite"
+          ],
+          "service_tiers": [
+            "standard"
+          ],
+          "billing_sources": [],
+          "cost_usd_total": null,
+          "list_cost_usd_total": null,
+          "opencode_allowance_usd_total": null
+        },
+        "replay_probe_status": "valid"
+      }
+    },
+    {
+      "pass": 2,
+      "frozen": {
+        "passed": 4,
+        "denominator": 10
+      },
+      "heldout": {
+        "passed": 2,
+        "denominator": 6
+      },
+      "passed": {
+        "s8-multi-01": false,
+        "s8-time-01": false,
+        "s8-time-02": false,
+        "s8-search-01": true,
+        "s8-link-01": false,
+        "s8-laya-01": true,
+        "s8-match-01": true,
+        "s8-match-02": false,
+        "s8-unknown-01": true,
+        "s8-injection-01": false,
+        "s8h-multi-01": false,
+        "s8h-time-01": false,
+        "s8h-search-01": true,
+        "s8h-ambiguity-01": false,
+        "s8h-laya-01": true,
+        "s8h-injection-01": false
+      },
+      "metrics": {
+        "first_result_seconds": 1.329,
+        "first_result_missing_cases": [],
+        "hosted": {
+          "transport": "hosted-generate-content",
+          "output_adapter": "google-function-call-v1",
+          "http_status_counts": {
+            "200": 16
+          },
+          "provider_errors": [],
+          "input_tokens_median": 1520.5,
+          "output_tokens_median": 56.0,
+          "thought_tokens_median": null,
+          "total_tokens_median": 1569.0,
+          "request_wall_seconds_median": 1.329,
+          "truncated_at_cap_cases": [],
+          "model_versions": [
+            "gemini-3.5-flash-lite"
+          ],
+          "service_tiers": [
+            "standard"
+          ],
+          "billing_sources": [],
+          "cost_usd_total": null,
+          "list_cost_usd_total": null,
+          "opencode_allowance_usd_total": null
+        },
+        "replay_probe_status": "valid"
+      }
+    },
+    {
+      "pass": 3,
+      "frozen": {
+        "passed": 4,
+        "denominator": 10
+      },
+      "heldout": {
+        "passed": 2,
+        "denominator": 6
+      },
+      "passed": {
+        "s8-multi-01": false,
+        "s8-time-01": false,
+        "s8-time-02": false,
+        "s8-search-01": true,
+        "s8-link-01": false,
+        "s8-laya-01": true,
+        "s8-match-01": true,
+        "s8-match-02": false,
+        "s8-unknown-01": true,
+        "s8-injection-01": false,
+        "s8h-multi-01": false,
+        "s8h-time-01": false,
+        "s8h-search-01": true,
+        "s8h-ambiguity-01": false,
+        "s8h-laya-01": true,
+        "s8h-injection-01": false
+      },
+      "metrics": {
+        "first_result_seconds": 1.24,
+        "first_result_missing_cases": [],
+        "hosted": {
+          "transport": "hosted-generate-content",
+          "output_adapter": "google-function-call-v1",
+          "http_status_counts": {
+            "200": 16
+          },
+          "provider_errors": [],
+          "input_tokens_median": 1520.5,
+          "output_tokens_median": 56.0,
+          "thought_tokens_median": null,
+          "total_tokens_median": 1569.0,
+          "request_wall_seconds_median": 1.24,
+          "truncated_at_cap_cases": [],
+          "model_versions": [
+            "gemini-3.5-flash-lite"
+          ],
+          "service_tiers": [
+            "standard"
+          ],
+          "billing_sources": [],
+          "cost_usd_total": null,
+          "list_cost_usd_total": null,
+          "opencode_allowance_usd_total": null
+        },
+        "replay_probe_status": "valid"
+      }
+    }
+  ]
+}

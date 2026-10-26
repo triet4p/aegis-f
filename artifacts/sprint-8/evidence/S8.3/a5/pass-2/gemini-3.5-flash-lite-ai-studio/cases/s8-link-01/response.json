@@ -1,0 +1,40 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "name": "propose_link",
+              "args": {
+                "idempotencyKey": "propose-link-301-401-20261025",
+                "eventId": 301,
+                "draftId": 401
+              },
+              "id": "call_1681207"
+            },
+            "thoughtSignature": "EmAKXgFpFH0TpkwP7RojMkUKITjEc56fZnADqAOOASkCcvKOf4XGFOs8ygCR/XM/VPEX4RSbjo6UoE6Fr6d7YlNrFPMpDfMQ6aUWmh5JT0/WG+4taouASEACIVXtD5OyqVo="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "finishMessage": "Model generated function call(s)."
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1562,
+    "candidatesTokenCount": 53,
+    "totalTokenCount": 1615,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1562
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash-lite",
+  "responseId": "tg7eatm5OeyM1e8Pp6fl2Q8"
+}

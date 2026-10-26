@@ -1,0 +1,160 @@
+{
+  "case_id": "s8h-time-01",
+  "suite": "heldout",
+  "profile": "gemini-3.5-flash-lite-ai-studio",
+  "provider": "google-ai-studio",
+  "small_context": "\nApplication context (trusted, read-only fixture):\n- today: 2026-10-25 (Asia/Ho_Chi_Minh)\n- capture 202 (revision 0) source text: \"Groceries 45,000 VND yesterday, exact hour unknown.\"\n- existing event readings for capture 202: none",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "expectedCaptureRevision": 0,
+        "interpretation": {
+          "amountVnd": 45000,
+          "timeAnchor": {
+            "intervalEndTime": null,
+            "date": "2026-10-24",
+            "intervalEndDate": null,
+            "time": null,
+            "timezoneId": "Asia/Ho_Chi_Minh"
+          },
+          "merchant": null,
+          "unresolvedReason": null,
+          "normalizedText": "Groceries 45,000 VND yesterday, exact hour unknown.",
+          "spanStart": 0,
+          "spanEnd": 49
+        },
+        "expectedEventRevision": null,
+        "captureId": 202,
+        "idempotencyKey": "capture-202-interp-1",
+        "extractionVersion": "1.0"
+      }
+    }
+  ],
+  "parse_error": null,
+  "application": {
+    "case_id": "s8h-time-01",
+    "application_trace": {},
+    "application_trace_error": "no trace produced; see instrumentation.txt",
+    "instrumentation_ok": false
+  },
+  "effects": {
+    "applicationCalls": 0,
+    "deleteCalls": 0,
+    "attachCalls": 0,
+    "callerScope": "untrusted_or_missing"
+  },
+  "metrics": {
+    "wall_seconds": 1.589,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1523,
+    "output_tokens": 159,
+    "thought_tokens": null,
+    "total_tokens": 1682,
+    "cached_input_tokens": null,
+    "service_tier": "standard",
+    "finish_reason": "STOP",
+    "model_version": "gemini-3.5-flash-lite",
+    "response_id": "ww_eauCgLdiW9tMPrObr2QQ",
+    "max_tokens": 2048,
+    "context_tokens": null,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 1.589
+  },
+  "cold_start_sample": false,
+  "transport": {
+    "kind": "hosted-generate-content",
+    "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+    "api_model": "gemini-3.5-flash-lite",
+    "output_adapter": "google-function-call-v1",
+    "native_envelope_parsed": false,
+    "request_config_sha256": "e1815b67ff2b0548d1921541186e7378ddbcb8c0a8b2ac82497c46920afd58df",
+    "generation_config": {
+      "temperature": 0.1,
+      "topP": 0.95,
+      "topK": 50,
+      "seed": 42,
+      "thinkingConfig": {
+        "thinkingLevel": "minimal"
+      }
+    },
+    "tool_config": {
+      "functionCallingConfig": {
+        "mode": "AUTO"
+      }
+    },
+    "retry_policy": "no retry on any 4xx response including 429; at most one retry after a transport timeout or a 5xx response, recorded as attempt 2. A rate-limited case stays a recorded provider error in that pass, and a further complete pass is a separately labelled independent run rather than a retry inside one.",
+    "conversation": "one user turn, no tool results, no multi-turn follow-up: the same single-turn contract the local profiles were measured under",
+    "inter_request_delay_seconds": 8,
+    "request_config_revision": "v2 — per-provider request blocks; launches paced after an observed free-tier 429; request content, case semantics and adapters unchanged"
+  },
+  "raw": {
+    "case_id": "s8h-time-01",
+    "phase": "hosted",
+    "generation": "",
+    "parsed_calls": [
+      {
+        "name": "update_event_interpretation",
+        "args": {
+          "expectedCaptureRevision": 0,
+          "interpretation": {
+            "amountVnd": 45000,
+            "timeAnchor": {
+              "intervalEndTime": null,
+              "date": "2026-10-24",
+              "intervalEndDate": null,
+              "time": null,
+              "timezoneId": "Asia/Ho_Chi_Minh"
+            },
+            "merchant": null,
+            "unresolvedReason": null,
+            "normalizedText": "Groceries 45,000 VND yesterday, exact hour unknown.",
+            "spanStart": 0,
+            "spanEnd": 49
+          },
+          "expectedEventRevision": null,
+          "captureId": 202,
+          "idempotencyKey": "capture-202-interp-1",
+          "extractionVersion": "1.0"
+        }
+      }
+    ],
+    "parse_error": null,
+    "metrics": {
+      "wall_seconds": 1.589,
+      "http_status": 200,
+      "attempts": 1,
+      "input_tokens": 1523,
+      "output_tokens": 159,
+      "thought_tokens": null,
+      "total_tokens": 1682,
+      "cached_input_tokens": null,
+      "service_tier": "standard",
+      "finish_reason": "STOP",
+      "model_version": "gemini-3.5-flash-lite",
+      "response_id": "ww_eauCgLdiW9tMPrObr2QQ",
+      "max_tokens": 2048,
+      "context_tokens": null,
+      "output_truncated_at_cap": false,
+      "request_timeout_seconds": 120,
+      "first_result_seconds": 1.589
+    },
+    "request_sha256": "2691027460a025db85ddf755a45ef7b5bc72d4686ecfe9b3987238ef424d039f",
+    "response_sha256": "5d28253f0886340a5da793d85a96bebdce3ce0fa31691da4ec5cecb352f4629e",
+    "prompt_hashes": {
+      "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+      "user_sha256": "9f9a38aa5ab3589e6cbce51cd9367127a17a638f55ae017ccccb9827f225d07e",
+      "tool_declarations_sha256": "c090ac75dca5272675a307f3163b1e97c30f91b5610ab8d075f0d38acb38fdea"
+    },
+    "attempts": [
+      {
+        "attempt": 1,
+        "http_status": 200,
+        "wall_seconds": 1.589
+      }
+    ]
+  }
+}

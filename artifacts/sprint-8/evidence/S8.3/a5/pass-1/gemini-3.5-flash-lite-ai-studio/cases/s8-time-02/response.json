@@ -1,0 +1,57 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "name": "update_event_interpretation",
+              "args": {
+                "idempotencyKey": "interp-103-groceries-45k",
+                "captureId": 103,
+                "expectedCaptureRevision": 0,
+                "expectedEventRevision": null,
+                "interpretation": {
+                  "spanEnd": 21,
+                  "normalizedText": "Groceries 45,000 VND",
+                  "spanStart": 0,
+                  "timeAnchor": {
+                    "intervalEndTime": null,
+                    "time": null,
+                    "intervalEndDate": null,
+                    "date": null,
+                    "timezoneId": null
+                  },
+                  "unresolvedReason": "The date and time of the expense are not remembered.",
+                  "merchant": null,
+                  "amountVnd": 45000
+                },
+                "extractionVersion": "v1"
+              },
+              "id": "call_1357913"
+            },
+            "thoughtSignature": "EmAKXgFpFH0TiHEnBZyY6+oke51xGtPR9EdDOUsgCAfM9TZ2caZ/rNE4tUZt+ljo7ZjmgHCw8gbp3N3gMa+cX+anK6fThZreo6Oy1dGHNhqZLE2EoK0P2B2LUKzaN5x3FD8="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "finishMessage": "Model generated function call(s)."
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1518,
+    "candidatesTokenCount": 147,
+    "totalTokenCount": 1665,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1518
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash-lite",
+  "responseId": "1A3eatrJDdbbrfcPnOLDgQM"
+}

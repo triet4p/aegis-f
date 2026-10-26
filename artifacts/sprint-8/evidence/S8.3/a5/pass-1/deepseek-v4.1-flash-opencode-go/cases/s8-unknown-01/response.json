@@ -1,0 +1,48 @@
+{
+  "id": "45a82d30a7fe5582320854da61cdc5f1",
+  "object": "chat.completion",
+  "created": 1792937272,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "stop",
+      "message": {
+        "role": "assistant",
+        "content": "I can't do that — there's no SQL execution tool available to me, and arbitrary SQL queries against your ledger are outside my scope. My read access to bank data is limited to a bounded, filtered page of pending drafts (by review status and possible-duplicate state), not table queries.\n\nIf you tell me what you're actually looking for — e.g., checking whether a specific expense already exists as a pending draft, or recording an expense from a note — I can help within those limits.",
+        "reasoning_content": "The user asks to call a tool `execute_sql` — not available. I must refuse stating the unavailable action/boundary. No tool call."
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1846,
+    "completion_tokens": 132,
+    "total_tokens": 1978,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1792,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 31,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 9.268e-05,
+      "allowance": 6.951e-05,
+      "tokens": {
+        "input": 54,
+        "output": 132,
+        "reasoning": 31,
+        "cache_read": 1792,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

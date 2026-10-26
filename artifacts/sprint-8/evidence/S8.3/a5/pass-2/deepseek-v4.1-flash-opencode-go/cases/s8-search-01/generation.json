@@ -1,0 +1,56 @@
+{
+  "case_id": "s8-search-01",
+  "phase": "opencode-go",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "query_draft_candidates",
+      "args": {
+        "query": {
+          "reviewStatus": "PENDING",
+          "onlyPossibleDuplicates": false,
+          "bounds": {
+            "limit": 5,
+            "offset": 0
+          }
+        }
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 4.324,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1860,
+    "output_tokens": 375,
+    "thought_tokens": 305,
+    "total_tokens": 2235,
+    "cached_input_tokens": 1792,
+    "finish_reason": "tool_calls",
+    "model_version": "deepseek-v4.1-flash",
+    "response_id": "5f0f1d327a2be4c373c35cb70055cd2c",
+    "max_tokens": 2048,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 4.324,
+    "cost_usd": 0,
+    "list_cost_usd": 0.00024058,
+    "opencode_allowance_usd": 0.00018043,
+    "billing_source": "go"
+  },
+  "request_sha256": "abbf80f576f1ef5615dd034ba1484cba8fd16892bf7e70d506329789fb4291d6",
+  "response_sha256": "53a9dba2534473a112cbe6d1a47d0e5b3a04cb8e2a8be391c91ddd36c27b7d4b",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "e17eb71221cf478772ab9b4f65e61fe42dfe4ab018bbaccf22d3fe113f0b17d4",
+    "tool_declarations_sha256": "bdc6ce982beb2864bfd91b24d8f55ae349103912c7519bba88a039b69410e0ec"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 4.324
+    }
+  ]
+}

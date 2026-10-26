@@ -1,0 +1,34 @@
+{
+  "results": [
+    {
+      "case_id": "s8-time-02",
+      "calls": [
+        {
+          "name": "update_event_interpretation",
+          "args": {
+            "expectedCaptureRevision": 0,
+            "idempotencyKey": "interp-103-groceries-45k",
+            "captureId": 103,
+            "interpretation": {
+              "unresolvedReason": "The date and time of the expense are not remembered.",
+              "spanEnd": 21,
+              "normalizedText": "Groceries 45,000 VND",
+              "spanStart": 0,
+              "amountVnd": 45000,
+              "timeAnchor": {
+                "intervalEndTime": null,
+                "intervalEndDate": null,
+                "date": null,
+                "timezoneId": null,
+                "time": null
+              },
+              "merchant": null
+            },
+            "extractionVersion": "v1",
+            "expectedEventRevision": null
+          }
+        }
+      ]
+    }
+  ]
+}

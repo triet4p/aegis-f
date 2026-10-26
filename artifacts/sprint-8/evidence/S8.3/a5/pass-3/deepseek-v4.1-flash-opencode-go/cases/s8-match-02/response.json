@@ -1,0 +1,66 @@
+{
+  "id": "043f3b5ce8ef6f394431159e1a686ad8",
+  "object": "chat.completion",
+  "created": 1792940044,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "I'll look at the pending drafts to confirm which candidates exist.",
+        "reasoning_content": "The user says two pending drafts are equally plausible for event 602, ask which one, don't attach.\n\nI should search pending drafts to find candidates. The tool filters review status and possible-duplicate. Let me query pending drafts, maybe onlyPossibleDuplicates true and false.\n\nLet me call query_draft_candidates with reviewStatus PENDING, onlyPossibleDuplicates true, and also false, bounded limits.\n\nI need to be careful: two calls independent — can do in one block.",
+        "tool_calls": [
+          {
+            "id": "call_00_vjv9rbm2a6yszogjnee0ob0h",
+            "type": "function",
+            "function": {
+              "name": "query_draft_candidates",
+              "arguments": "{\"query\": {\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": true, \"bounds\": {\"limit\": 50, \"offset\": 0}}}"
+            }
+          },
+          {
+            "id": "call_01_hyylqvo1lvp4q9s4f7myrsfb",
+            "type": "function",
+            "function": {
+              "name": "query_draft_candidates",
+              "arguments": "{\"query\": {\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": false, \"bounds\": {\"limit\": 50, \"offset\": 0}}}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1931,
+    "completion_tokens": 241,
+    "total_tokens": 2172,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1920,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 99,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00015201,
+      "allowance": 0.00011401,
+      "tokens": {
+        "input": 11,
+        "output": 241,
+        "reasoning": 99,
+        "cache_read": 1920,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

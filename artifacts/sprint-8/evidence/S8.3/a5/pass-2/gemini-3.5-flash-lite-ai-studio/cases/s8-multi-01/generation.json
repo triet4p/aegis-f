@@ -1,0 +1,66 @@
+{
+  "case_id": "s8-multi-01",
+  "phase": "hosted",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "expectedEventRevision": null,
+        "expectedCaptureRevision": 0,
+        "interpretation": {
+          "normalizedText": "Fuel 50,000 VND at 15:00",
+          "merchant": "fuel",
+          "amountVnd": 50000,
+          "spanStart": 0,
+          "timeAnchor": {
+            "time": "15:00",
+            "date": "2026-10-20",
+            "timezoneId": "Asia/Ho_Chi_Minh",
+            "intervalEndTime": null,
+            "intervalEndDate": null
+          },
+          "spanEnd": 21,
+          "unresolvedReason": null
+        },
+        "extractionVersion": "v1",
+        "idempotencyKey": "fuel-extraction-2026-10-20",
+        "captureId": 101
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 1.343,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1579,
+    "output_tokens": 170,
+    "thought_tokens": null,
+    "total_tokens": 1749,
+    "cached_input_tokens": null,
+    "service_tier": "standard",
+    "finish_reason": "STOP",
+    "model_version": "gemini-3.5-flash-lite",
+    "response_id": "iA7eataRLt_A1e8PpP2E2AI",
+    "max_tokens": 2048,
+    "context_tokens": null,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 1.343
+  },
+  "request_sha256": "594b92fc9f6aace16234dcd861c6a405fc20a33a453d6ee7394f121c620d8ed1",
+  "response_sha256": "08072a36918e548347712f587fb8e610365294a0ef3c1fdd8b2034b82a95a0a8",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "9d65bc8b0050dc15499b8b00690fabc761eadcecab846e91fa4943092163c535",
+    "tool_declarations_sha256": "c090ac75dca5272675a307f3163b1e97c30f91b5610ab8d075f0d38acb38fdea"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 1.343
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "case_id": "s8-link-01",
+  "phase": "opencode-go",
+  "generation": "I'll propose the link first so the application can compute its own evidence for this event/draft pair.",
+  "parsed_calls": [
+    {
+      "name": "propose_link",
+      "args": {
+        "idempotencyKey": "propose-link-event301-draft401-v1",
+        "eventId": 301,
+        "draftId": 401
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 4.494,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1953,
+    "output_tokens": 488,
+    "thought_tokens": 381,
+    "total_tokens": 2441,
+    "cached_input_tokens": 1792,
+    "finish_reason": "tool_calls",
+    "model_version": "deepseek-v4.1-flash",
+    "response_id": "a01bfd9e77d1064adfa8b43a774a556b",
+    "max_tokens": 2048,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 4.494,
+    "cost_usd": 0,
+    "list_cost_usd": 0.00032233,
+    "opencode_allowance_usd": 0.00024174,
+    "billing_source": "go"
+  },
+  "request_sha256": "6132ea456c6cabde4a3a497c388c5f61e8d05b62ed22b5a9fbb0b3e7a5a8b9e5",
+  "response_sha256": "2eca333ad8134ee3fa78d7cda16efffb7c925d43760649f0a35ab71ff536088f",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "c002ca6fd4b692fb1074adc040c87ed9a3cb47f4fde4f4fc8f41d19686f8fc51",
+    "tool_declarations_sha256": "bdc6ce982beb2864bfd91b24d8f55ae349103912c7519bba88a039b69410e0ec"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 4.494
+    }
+  ]
+}

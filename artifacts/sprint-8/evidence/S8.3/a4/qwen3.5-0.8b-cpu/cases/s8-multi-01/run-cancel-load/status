@@ -1,0 +1,6 @@
+exit_code=130
+wall_ms=1800
+exit_after_kill_ms=440
+samples=4
+mem_total_kib=7837732
+done

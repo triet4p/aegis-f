@@ -1,0 +1,151 @@
+{
+  "effect_source": "instrumented_application",
+  "fixture": "in_memory_room",
+  "fixture_timezone": "Asia/Ho_Chi_Minh",
+  "results": [
+    {
+      "case_id": "s8-multi-01",
+      "fixture": {
+        "capture_ids": [
+          101
+        ],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "update_event_interpretation",
+          "dispatched": true,
+          "request": {
+            "idempotencyKey": "capture101-ev1-fuel-20261020",
+            "captureId": 101,
+            "expectedCaptureRevision": 0,
+            "expectedEventRevision": null,
+            "extractionVersion": "v1",
+            "interpretation": {
+              "spanStart": 0,
+              "spanEnd": 24,
+              "normalizedText": "Fuel 50,000 VND at 15:00",
+              "amountVnd": 50000,
+              "merchant": null,
+              "timeAnchor": {
+                "date": "2026-10-20",
+                "time": "15:00",
+                "intervalEndDate": null,
+                "intervalEndTime": null,
+                "timezoneId": "Asia/Ho_Chi_Minh"
+              },
+              "unresolvedReason": null
+            }
+          },
+          "outcome": "Applied",
+          "change": {
+            "kind": "EventStored",
+            "detail": "EventStored(eventId=603, revision=0)"
+          }
+        },
+        {
+          "name": "update_event_interpretation",
+          "dispatched": true,
+          "request": {
+            "idempotencyKey": "capture101-ev2-circleK-snack-20261020",
+            "captureId": 101,
+            "expectedCaptureRevision": 0,
+            "expectedEventRevision": null,
+            "extractionVersion": "v1",
+            "interpretation": {
+              "spanStart": 26,
+              "spanEnd": 63,
+              "normalizedText": "snack 32,000 VND at Circle K at 15:15",
+              "amountVnd": 32000,
+              "merchant": "Circle K",
+              "timeAnchor": {
+                "date": "2026-10-20",
+                "time": "15:15",
+                "intervalEndDate": null,
+                "intervalEndTime": null,
+                "timezoneId": "Asia/Ho_Chi_Minh"
+              },
+              "unresolvedReason": null
+            }
+          },
+          "outcome": "Applied",
+          "change": {
+            "kind": "EventStored",
+            "detail": "EventStored(eventId=604, revision=0)"
+          }
+        }
+      ],
+      "database_state": {
+        "captures": [
+          {
+            "id": 101,
+            "revision": 0,
+            "text": "Fuel 50,000 VND at 15:00; snack 32,000 VND at Circle K at 15:15."
+          }
+        ],
+        "captures_events": [
+          {
+            "id": 603,
+            "capture_id": 101,
+            "span_start": 0,
+            "span_end": 24,
+            "normalized_text": "Fuel 50,000 VND at 15:00",
+            "amount_vnd": 50000,
+            "merchant": null,
+            "anchor_date": "2026-10-20",
+            "anchor_time": "15:00",
+            "anchor_timezone": "Asia/Ho_Chi_Minh",
+            "unresolved_reason": null,
+            "status": "INTERPRETED",
+            "revision": 0,
+            "source_revision": 0
+          },
+          {
+            "id": 604,
+            "capture_id": 101,
+            "span_start": 26,
+            "span_end": 63,
+            "normalized_text": "snack 32,000 VND at Circle K at 15:15",
+            "amount_vnd": 32000,
+            "merchant": "Circle K",
+            "anchor_date": "2026-10-20",
+            "anchor_time": "15:15",
+            "anchor_timezone": "Asia/Ho_Chi_Minh",
+            "unresolved_reason": null,
+            "status": "INTERPRETED",
+            "revision": 0,
+            "source_revision": 0
+          }
+        ],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 2
+      }
+    }
+  ]
+}

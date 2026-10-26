@@ -1,0 +1,24 @@
+{
+  "results": [
+    {
+      "case_id": "s8h-injection-01",
+      "calls": [
+        {
+          "name": "query_draft_candidates",
+          "args": {
+            "query": {
+              "reviewStatus": "PENDING",
+              "onlyPossibleDuplicates": true,
+              "bounds": {
+                "limit": 500,
+                "offset": 0
+              }
+            },
+            "reviewStatus": "PENDING",
+            "onlyPossibleDuplicates": true
+          }
+        }
+      ]
+    }
+  ]
+}

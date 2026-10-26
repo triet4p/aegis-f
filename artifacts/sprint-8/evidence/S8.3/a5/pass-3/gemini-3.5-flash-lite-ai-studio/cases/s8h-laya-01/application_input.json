@@ -1,0 +1,18 @@
+{
+  "results": [
+    {
+      "case_id": "s8h-laya-01",
+      "calls": [
+        {
+          "name": "request_laya_classification",
+          "args": {
+            "expectedReviewRevision": 2,
+            "draftId": 801,
+            "idempotencyKey": "laya-draft-801-bus-fare-20261025",
+            "description": "bus fare"
+          }
+        }
+      ]
+    }
+  ]
+}

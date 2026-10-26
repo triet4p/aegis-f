@@ -1,0 +1,58 @@
+{
+  "id": "aa0fc1a8625866252eff9d8d2d42b601",
+  "object": "chat.completion",
+  "created": 1792937232,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "reasoning_content": "The user wants to find a pending bank draft possibly matching event 201. I should query pending drafts, first page, limit 5. onlyPossibleDuplicates? The filters are review status and possible-duplicate state. Hmm, we don't know if onlyPossibleDuplicates should be true or false. The task is to find a candidate match — not necessarily duplicates. I'll query PENDING with onlyPossibleDuplicates false and limit 5, offset 0.\n\nBut we don't have event 201 details. We can still query, then compare... but we don't know event facts. However the instruction says \"Compare returned draft facts with the event only when present.\" We don't have event data as a tool. So we can query and report.\n\nLet me do the query.",
+        "tool_calls": [
+          {
+            "id": "call_00_j0s09m8v0n5k9vkpyxpzc9kd",
+            "type": "function",
+            "function": {
+              "name": "query_draft_candidates",
+              "arguments": "{\"query\": {\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": false, \"bounds\": {\"limit\": 5, \"offset\": 0}}}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1860,
+    "completion_tokens": 230,
+    "total_tokens": 2090,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 160,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.000417,
+      "allowance": 0.00031275,
+      "tokens": {
+        "input": 1860,
+        "output": 230,
+        "reasoning": 160,
+        "cache_read": 0,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

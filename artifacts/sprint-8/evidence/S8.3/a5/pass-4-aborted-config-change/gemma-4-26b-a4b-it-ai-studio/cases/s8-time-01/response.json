@@ -1,0 +1,54 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "",
+            "thought": true
+          },
+          {
+            "functionCall": {
+              "name": "update_event_interpretation",
+              "args": {
+                "expectedEventRevision": 0,
+                "idempotencyKey": "book_purchase_20261024",
+                "expectedCaptureRevision": 0,
+                "extractionVersion": "1.0",
+                "captureId": 102,
+                "unresolvedReason": null,
+                "interpretation": {
+                  "spanStart": 5,
+                  "amountVnd": 70000,
+                  "merchant": null,
+                  "spanEnd": 13,
+                  "normalizedText": "70,000 VND"
+                }
+              },
+              "id": "call_1702399"
+            },
+            "thoughtSignature": "EiYKJGUyNDgzMGE3LTVjZDYtNDJmZS05OThiLWVlNTM5ZTcyYjljMw=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "finishMessage": "Model generated function call(s)."
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1523,
+    "candidatesTokenCount": 106,
+    "totalTokenCount": 1629,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1523
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemma-4-26b-a4b-it",
+  "responseId": "YQveauH7NqHU9tMP1dHp2QQ"
+}

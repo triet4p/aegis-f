@@ -1,0 +1,28 @@
+{
+  "results": [
+    {
+      "case_id": "s8-time-02",
+      "calls": [
+        {
+          "name": "update_event_interpretation",
+          "args": {
+            "idempotencyKey": "capture-103-event-1-v1",
+            "captureId": 103,
+            "expectedCaptureRevision": 0,
+            "expectedEventRevision": null,
+            "extractionVersion": "expense-extract-1.0",
+            "interpretation": {
+              "spanStart": 0,
+              "spanEnd": 42,
+              "normalizedText": "Groceries 45,000 VND; time not remembered.",
+              "amountVnd": 45000,
+              "merchant": "Groceries",
+              "timeAnchor": null,
+              "unresolvedReason": "Source states the time is not remembered; no date or time is stated, so the occurrence time is unresolved."
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

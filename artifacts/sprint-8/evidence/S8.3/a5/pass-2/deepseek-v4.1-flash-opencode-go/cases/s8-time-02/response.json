@@ -1,0 +1,58 @@
+{
+  "id": "8d59d25cc32b40989095bf9ed4526532",
+  "object": "chat.completion",
+  "created": 1792939833,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "reasoning_content": "The user says they paid 45,000 VND for groceries, cannot remember when. Capture 103 revision 0, source text: \"Groceries 45,000 VND; time not remembered.\"\n\nWe should record an interpretation with amount 45000, merchant \"Groceries\", timeAnchor null, unresolvedReason for time not remembered? The source says time not remembered. Null means not stated; time is unstated. Should we set unresolvedReason? The instructions: \"A missing required value may be recorded with unresolvedReason and clarified with the user.\" Time isn't necessarily required. But the user explicitly cannot remember when — preserve unresolved event and ask scoped question. Relative wording ambiguous... Here there's no date at all. I think record interpretation with timeAnchor null, and unresolvedReason noting time not remembered, then ask a direct question about the missing time.\n\nLet me compute span. Source text: \"Groceries 45,000 VND; time not remembered.\" The span should be exact source span for the occurrence. spanStart 0, spanEnd = length of \"Groceries 45,000 VND\". Let's count: \"Groceries\" = 9 chars (0-8), space = index 9, \"45,000\" = 6 chars indexes 10-15, space index 16, \"VND\" indexes 17-19. So spanEnd 20 covers \"Groceries 45,000 VND\" (indices 0-19). That's the event occurrence. normalizedText: \"Groceries 45,000 VND\".\n\nShould normalizedText include the whole? Probably the normalized text of the event span. Use \"Groceries 45,000 VND\".\n\nextractionVersion: something like \"expense-extract-v1\".\n\nidempotencyKey: unique string.\n\nexpectedEventRevision: null since no existing readings.\n\nThen ask scoped question about when it happened. Time anchor null.\n\nShould I also query draft candidates? The user didn't mention a bank draft. \"paid 45,000 VND\" — maybe linking to a bank draft? No draft ID given. Could do a bounded read of pending possible duplicates? That seems unnecessary and could be overreach. Instructions say candidate search is bounded read of pending bank drafts only. We could search to see if there's a plausible draft. But without a draft, maybe no. The task: extract event, ask about time. I'll just record interpretation. But maybe should we check drafts to link? The user didn't ask to link. There's no mention of bank draft. I'll skip.\n\nActually, is there risk that recording with null time is fine? Yes.\n\ntimeAnchor: null entirely since no date.\n\nLet me call update_event_interpretation.",
+        "tool_calls": [
+          {
+            "id": "call_00_0xi53zzj9b4lkx45n0ezmchx",
+            "type": "function",
+            "function": {
+              "name": "update_event_interpretation",
+              "arguments": "{\"idempotencyKey\": \"capture-103-event-1-v0\", \"captureId\": 103, \"expectedCaptureRevision\": 0, \"expectedEventRevision\": null, \"extractionVersion\": \"expense-extract-v1\", \"interpretation\": {\"spanStart\": 0, \"spanEnd\": 20, \"normalizedText\": \"Groceries 45,000 VND\", \"amountVnd\": 45000, \"merchant\": \"Groceries\", \"timeAnchor\": null, \"unresolvedReason\": \"Time not remembered by the user and not stated in the source; no date can be inferred.\"}}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1920,
+    "completion_tokens": 799,
+    "total_tokens": 2719,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1920,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 573,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00048516,
+      "allowance": 0.00036387,
+      "tokens": {
+        "input": 0,
+        "output": 799,
+        "reasoning": 573,
+        "cache_read": 1920,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

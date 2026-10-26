@@ -1,0 +1,15 @@
+{
+  "results": [
+    {
+      "case_id": "s8-match-02",
+      "calls": [
+        {
+          "name": "query_draft_candidates",
+          "args": {
+            "query": "{\"reviewStatus\": \"INTERPRETED\", \"onlyPossibleDuplicates\": true, \"bounds\": {\"limit\": 500, \"offset\": 0}, \"query\": \"event 602\"}}"
+          }
+        }
+      ]
+    }
+  ]
+}

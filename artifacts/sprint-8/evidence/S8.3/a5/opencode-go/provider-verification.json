@@ -1,0 +1,73 @@
+{
+  "provider": "opencode-go",
+  "attempt": "S8.3-a5",
+  "status": "gateway_verified",
+  "requested_model": "deepseek-v4.1-flash",
+  "owner_authorization": "owner authorized API requests to the verified OpenCode Go gateway for deepseek-v4.1-flash only; no vendor inference API and no silent substitute",
+  "credential": {
+    "name": "OPENCODE_GO_API_KEY",
+    "source": "repository local .env, read in-process",
+    "present": true,
+    "disclosure": "value never printed, hashed, prefixed, logged or written to any artifact"
+  },
+  "hosts_contacted": [
+    "https://opencode.ai/inference/... (OpenCode Console route; identified below as the wrong route for a Go subscription)",
+    "https://opencode.ai/zen/go/v1/... (OpenCode Go gateway route; used for the evaluation)"
+  ],
+  "vendor_api_contact": "no request was sent to a DeepSeek vendor endpoint, OpenRouter, or any provider other than the opencode.ai hosts listed above",
+  "wrong_route_diagnostic": {
+    "route": "https://opencode.ai/inference/openai/v1/chat/completions and /inference/openai/v1/responses",
+    "observed": "HTTP 200 on GET /inference/v1/models (46 models, deepseek-v4.1-flash present) but HTTP 402 server_error 'Upstream request failed: Insufficient account funds' on both generation paths",
+    "interpretation": "a wrong-route diagnostic, not evidence about the Go subscription's funds. The Console /inference route is documented for Console pay-as-you-go access; a Go subscription reaches models through the Go gateway below.",
+    "retained": true
+  },
+  "verified_go_gateway": {
+    "base": "https://opencode.ai/zen/go/v1",
+    "model_list_endpoint": "https://opencode.ai/zen/go/v1/models",
+    "chat_completions_endpoint": "https://opencode.ai/zen/go/v1/chat/completions",
+    "authentication": "Authorization: Bearer <OPENCODE_GO_API_KEY>, plus a client user agent and a stable x-opencode-session, which the official Go page lists as client requirements",
+    "corroborating_sources": [
+      "official OpenCode Go page: https://opencode.ai/v2/docs/console/go (plan, model list including DeepSeek V4.1 Flash, client requirements, usage limits)",
+      "official OpenCode Console inference reference: https://opencode.ai/v2/docs/console/api/inference (per-model API family; DeepSeek models on OpenAI Chat Completions)",
+      "published provider integration reference: https://docs.docker.com/ai/docker-agent/providers/opencode-go/ (documents the Go base URL as https://opencode.ai/zen/go/v1 with OpenAI-compatible chat completions)"
+    ],
+    "catalog_probe": {
+      "method": "GET",
+      "url": "https://opencode.ai/zen/go/v1/models",
+      "http_status": 200,
+      "catalog_count": 38,
+      "model_present": true,
+      "model_entry": {
+        "id": "deepseek-v4.1-flash",
+        "object": "model",
+        "owned_by": "opencode"
+      }
+    },
+    "preflight": {
+      "method": "POST",
+      "url": "https://opencode.ai/zen/go/v1/chat/completions",
+      "http_status": 200,
+      "tool_declarations_accepted": true,
+      "observed": "a native OpenAI-style tool_calls response using the frozen tool name and a well-formed arguments object",
+      "usage": {
+        "prompt_tokens": 1474,
+        "completion_tokens": 2,
+        "cost": 0,
+        "billing_source": "go"
+      },
+      "note": "cost 0 with billing_source go means the request counted against the Go plan allowance; the provider reports the allowance per response"
+    }
+  },
+  "native_protocol": {
+    "family": "OpenAI Chat Completions",
+    "tools": "OpenAI-style function declarations",
+    "tool_results": "OpenAI-style tool_calls with a JSON-encoded arguments string per call",
+    "owner_lead_check": "the Responses API is documented for GPT models; DeepSeek V4.1 Flash is documented on chat/completions. The evaluation therefore uses Chat Completions, which the Go gateway accepted, rather than routing the model through Responses.",
+    "no_off_scope_routing": "no request was silently redirected to another endpoint family after the preflight"
+  },
+  "evaluation": {
+    "suite": "the same frozen S8.2 v2 frozen and held-out cases, prompts, fixture, tool names/descriptions/arguments and real application dispatch",
+    "passes": 3,
+    "evidence_root": "artifacts/sprint-8/evidence/S8.3/a5/pass-<n>/deepseek-v4.1-flash-opencode-go/"
+  }
+}

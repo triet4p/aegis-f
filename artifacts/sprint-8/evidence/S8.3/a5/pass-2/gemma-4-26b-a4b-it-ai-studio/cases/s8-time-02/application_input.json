@@ -1,0 +1,30 @@
+{
+  "results": [
+    {
+      "case_id": "s8-time-02",
+      "calls": [
+        {
+          "name": "update_event_interpretation",
+          "args": {
+            "extractionVersion": "1.0",
+            "idempotencyKey": "update_event_103_groceries",
+            "expectedCaptureRevision": 0,
+            "unresolvedReason": null,
+            "captureId": 103,
+            "interpretation": {
+              "normalizedText": "45,000 VND",
+              "amountVnd": 45000,
+              "timeAnchor": {
+                "date": null
+              },
+              "merchant": null,
+              "spanStart": 10,
+              "spanEnd": 21
+            },
+            "expectedEventRevision": 0
+          }
+        }
+      ]
+    }
+  ]
+}

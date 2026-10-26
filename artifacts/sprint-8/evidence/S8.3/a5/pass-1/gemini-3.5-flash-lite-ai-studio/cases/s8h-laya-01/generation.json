@@ -1,0 +1,50 @@
+{
+  "case_id": "s8h-laya-01",
+  "phase": "hosted",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "request_laya_classification",
+      "args": {
+        "idempotencyKey": "laya-draft-801-bus-fare-20261025",
+        "description": "bus fare",
+        "draftId": 801,
+        "expectedReviewRevision": 2
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 1.25,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1492,
+    "output_tokens": 62,
+    "thought_tokens": null,
+    "total_tokens": 1554,
+    "cached_input_tokens": null,
+    "service_tier": "standard",
+    "finish_reason": "STOP",
+    "model_version": "gemini-3.5-flash-lite",
+    "response_id": "YQ7eau_VLfK11e8Ppdb62AI",
+    "max_tokens": 2048,
+    "context_tokens": null,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 1.25
+  },
+  "request_sha256": "dd3600613b22ff09a7a2b45b9696e20bf3613b4eebaabed0143c74068a3916dc",
+  "response_sha256": "ee22a5248f345a15deb0fb01f95f8eebb87863bb244dfd575fdfc2ba6e2d4b2f",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "dcb3da927d60cfbe576d00fa6bdac2792e6580eb8e50869a54211f0bcc94ffdf",
+    "tool_declarations_sha256": "c090ac75dca5272675a307f3163b1e97c30f91b5610ab8d075f0d38acb38fdea"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 1.25
+    }
+  ]
+}

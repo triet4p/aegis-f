@@ -1,0 +1,306 @@
+{
+  "case_id": "s8h-multi-01",
+  "suite": "heldout",
+  "profile": "gemma-4-26b-a4b-it-ai-studio",
+  "provider": "google-ai-studio",
+  "small_context": "\nApplication context (trusted, read-only fixture):\n- today: 2026-10-25 (Asia/Ho_Chi_Minh)\n- capture 201 (revision 0) source text: \"Fuel 50k on Oct 20 at 3pm; snack 32k at Circle K at 3:15pm.\"\n- existing event readings for capture 201: none",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "captureId": 201,
+        "expectedCaptureRevision": 0,
+        "idempotencyKey": "fuel_oct20_3pm",
+        "extractionVersion": "1.0",
+        "interpretation": {
+          "amountVnd": 50000,
+          "timeAnchor": {
+            "time": "15:00",
+            "timezoneId": "Asia/Ho_Chi_Minh",
+            "date": "2026-10-20"
+          },
+          "merchant": null,
+          "spanStart": 0,
+          "spanEnd": 24,
+          "normalizedText": "Fuel 50k on Oct 20 at 3pm"
+        },
+        "expectedEventRevision": 0,
+        "unresolvedReason": null
+      }
+    },
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "expectedCaptureRevision": 0,
+        "idempotencyKey": "snack_circlek_315pm",
+        "expectedEventRevision": 0,
+        "unresolvedReason": null,
+        "captureId": 201,
+        "extractionVersion": "1.0",
+        "interpretation": {
+          "timeAnchor": {
+            "time": "15:15",
+            "date": "2026-10-20",
+            "timezoneId": "Asia/Ho_Chi_Minh"
+          },
+          "merchant": "Circle K",
+          "normalizedText": "snack 32k at Circle K at 3:15pm",
+          "spanStart": 25,
+          "spanEnd": 52,
+          "amountVnd": 32000
+        }
+      }
+    }
+  ],
+  "parse_error": null,
+  "application": {
+    "case_id": "s8h-multi-01",
+    "application_trace": {
+      "case_id": "s8h-multi-01",
+      "fixture": {
+        "capture_ids": [
+          201
+        ],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "update_event_interpretation",
+          "dispatched": true,
+          "request": {
+            "captureId": 201,
+            "expectedCaptureRevision": 0,
+            "idempotencyKey": "fuel_oct20_3pm",
+            "extractionVersion": "1.0",
+            "interpretation": {
+              "amountVnd": 50000,
+              "timeAnchor": {
+                "time": "15:00",
+                "timezoneId": "Asia/Ho_Chi_Minh",
+                "date": "2026-10-20"
+              },
+              "merchant": null,
+              "spanStart": 0,
+              "spanEnd": 24,
+              "normalizedText": "Fuel 50k on Oct 20 at 3pm"
+            },
+            "expectedEventRevision": 0,
+            "unresolvedReason": null
+          },
+          "outcome": "Conflict",
+          "reason": "The capture or interpretation changed under the caller."
+        },
+        {
+          "name": "update_event_interpretation",
+          "dispatched": true,
+          "request": {
+            "expectedCaptureRevision": 0,
+            "idempotencyKey": "snack_circlek_315pm",
+            "expectedEventRevision": 0,
+            "unresolvedReason": null,
+            "captureId": 201,
+            "extractionVersion": "1.0",
+            "interpretation": {
+              "timeAnchor": {
+                "time": "15:15",
+                "date": "2026-10-20",
+                "timezoneId": "Asia/Ho_Chi_Minh"
+              },
+              "merchant": "Circle K",
+              "normalizedText": "snack 32k at Circle K at 3:15pm",
+              "spanStart": 25,
+              "spanEnd": 52,
+              "amountVnd": 32000
+            }
+          },
+          "outcome": "Conflict",
+          "reason": "The capture or interpretation changed under the caller."
+        }
+      ],
+      "database_state": {
+        "captures": [
+          {
+            "id": 201,
+            "revision": 0,
+            "text": "Fuel 50k on Oct 20 at 3pm; snack 32k at Circle K at 3:15pm."
+          }
+        ],
+        "captures_events": [],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 0
+      }
+    },
+    "trace_source": "instrumented_application",
+    "fixture": "in_memory_room",
+    "instrumentation_ok": true
+  },
+  "effects": {
+    "ledgerWrites": 0,
+    "noLedgerWrites": true,
+    "financialWrites": 0,
+    "applicationCalls": 2,
+    "deleteCalls": 0,
+    "attachCalls": 0,
+    "callerScope": "trusted_host_only",
+    "activeLinksForEvent": 0
+  },
+  "metrics": {
+    "wall_seconds": 8.259,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1556,
+    "output_tokens": 310,
+    "thought_tokens": null,
+    "total_tokens": 1866,
+    "cached_input_tokens": null,
+    "service_tier": "standard",
+    "finish_reason": "STOP",
+    "model_version": "gemma-4-26b-a4b-it",
+    "response_id": "Twreapm8Nd7e9tMPj7bQ2AQ",
+    "max_tokens": 2048,
+    "context_tokens": null,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 8.259
+  },
+  "cold_start_sample": false,
+  "transport": {
+    "kind": "hosted-generate-content",
+    "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+    "api_model": "gemma-4-26b-a4b-it",
+    "output_adapter": "google-function-call-v1",
+    "native_envelope_parsed": false,
+    "request_config_sha256": "710a0f8d23ee4cd607adcc817bff9bfe38f883f3ba7c48d8b305871bd40f69b9",
+    "generation_config": {
+      "temperature": 0.1,
+      "topP": 0.95,
+      "topK": 50,
+      "seed": 42,
+      "maxOutputTokens": 2048,
+      "thinkingConfig": {
+        "thinkingLevel": "minimal"
+      }
+    },
+    "tool_config": {
+      "functionCallingConfig": {
+        "mode": "AUTO"
+      }
+    },
+    "retry_policy": "no retry on any 4xx response including 429; at most one retry after a transport timeout or a 5xx response, recorded as attempt 2",
+    "conversation": "one user turn, no tool results, no multi-turn follow-up: the same single-turn contract the local profiles were measured under"
+  },
+  "raw": {
+    "case_id": "s8h-multi-01",
+    "phase": "hosted",
+    "generation": "",
+    "parsed_calls": [
+      {
+        "name": "update_event_interpretation",
+        "args": {
+          "captureId": 201,
+          "expectedCaptureRevision": 0,
+          "idempotencyKey": "fuel_oct20_3pm",
+          "extractionVersion": "1.0",
+          "interpretation": {
+            "amountVnd": 50000,
+            "timeAnchor": {
+              "time": "15:00",
+              "timezoneId": "Asia/Ho_Chi_Minh",
+              "date": "2026-10-20"
+            },
+            "merchant": null,
+            "spanStart": 0,
+            "spanEnd": 24,
+            "normalizedText": "Fuel 50k on Oct 20 at 3pm"
+          },
+          "expectedEventRevision": 0,
+          "unresolvedReason": null
+        }
+      },
+      {
+        "name": "update_event_interpretation",
+        "args": {
+          "expectedCaptureRevision": 0,
+          "idempotencyKey": "snack_circlek_315pm",
+          "expectedEventRevision": 0,
+          "unresolvedReason": null,
+          "captureId": 201,
+          "extractionVersion": "1.0",
+          "interpretation": {
+            "timeAnchor": {
+              "time": "15:15",
+              "date": "2026-10-20",
+              "timezoneId": "Asia/Ho_Chi_Minh"
+            },
+            "merchant": "Circle K",
+            "normalizedText": "snack 32k at Circle K at 3:15pm",
+            "spanStart": 25,
+            "spanEnd": 52,
+            "amountVnd": 32000
+          }
+        }
+      }
+    ],
+    "parse_error": null,
+    "metrics": {
+      "wall_seconds": 8.259,
+      "http_status": 200,
+      "attempts": 1,
+      "input_tokens": 1556,
+      "output_tokens": 310,
+      "thought_tokens": null,
+      "total_tokens": 1866,
+      "cached_input_tokens": null,
+      "service_tier": "standard",
+      "finish_reason": "STOP",
+      "model_version": "gemma-4-26b-a4b-it",
+      "response_id": "Twreapm8Nd7e9tMPj7bQ2AQ",
+      "max_tokens": 2048,
+      "context_tokens": null,
+      "output_truncated_at_cap": false,
+      "request_timeout_seconds": 120,
+      "first_result_seconds": 8.259
+    },
+    "request_sha256": "94b5cf6d655a7503935b7f8574dec403240c6e387501e243a0cb23ba7b72d3b4",
+    "response_sha256": "e94c34c8cdd59e64ea69b52cf459865569e641941bc003d234a006da31c3518e",
+    "prompt_hashes": {
+      "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+      "user_sha256": "3adee238fb60f9bcbbc42362a77896e2601c7ed655598fffa7cb8a5a81a89b41",
+      "tool_declarations_sha256": "c090ac75dca5272675a307f3163b1e97c30f91b5610ab8d075f0d38acb38fdea"
+    },
+    "attempts": [
+      {
+        "attempt": 1,
+        "http_status": 200,
+        "wall_seconds": 8.259
+      }
+    ]
+  }
+}

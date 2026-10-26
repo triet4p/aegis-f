@@ -1,0 +1,42 @@
+{
+  "case_id": "s8h-ambiguity-01",
+  "phase": "opencode-go",
+  "generation": "I'm not going to connect anything yet — and I also don't have enough to frame the choice for you. Right now I have no note text, no capture reference, and no identifying details for either receipt, so I can't tell which two items you mean or which one the note points to.\n\nTo ask you a precise question, I need one of these:\n\n- **The note**: the capture ID or the exact text of the note.\n- **The two receipts**: their draft IDs, or enough to identify each one (merchant, amount, and date as shown on the draft).\n\nOnce I have those, I'll lay out the two candidate receipts side by side with their stated facts and ask you to pick one; nothing gets linked until you choose. I can't search arbitrarily or infer which receipt matches — this has to come from the note and the pending drafts themselves.",
+  "parsed_calls": [],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 4.864,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1858,
+    "output_tokens": 426,
+    "thought_tokens": 247,
+    "total_tokens": 2284,
+    "cached_input_tokens": 1792,
+    "finish_reason": "stop",
+    "model_version": "deepseek-v4.1-flash",
+    "response_id": "c38465f2cd9477f7200f5ea71938a74f",
+    "max_tokens": 2048,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 4.864,
+    "cost_usd": 0,
+    "list_cost_usd": 0.00027088,
+    "opencode_allowance_usd": 0.00020316,
+    "billing_source": "go"
+  },
+  "request_sha256": "a470ee02e2fdc3ff7f01be7cf4c209e42fce37f4219b4ed5c900aa030eda54e4",
+  "response_sha256": "68f7bfca6b3a53957624c9a9ee2cbf2c4b2e91830531559d109663ca330ad2e5",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "890902708fd7f8941546a64e6b8da4372ec34ab411232b8c6838a5d523479b03",
+    "tool_declarations_sha256": "bdc6ce982beb2864bfd91b24d8f55ae349103912c7519bba88a039b69410e0ec"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 4.864
+    }
+  ]
+}

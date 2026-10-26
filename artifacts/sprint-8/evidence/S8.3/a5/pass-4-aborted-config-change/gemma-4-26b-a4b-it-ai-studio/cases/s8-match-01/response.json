@@ -1,0 +1,34 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "",
+            "thought": true
+          },
+          {
+            "text": "OK. Event 302 will remain without a link."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1538,
+    "candidatesTokenCount": 13,
+    "totalTokenCount": 1551,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1538
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemma-4-26b-a4b-it",
+  "responseId": "pAveaqGqCIel0-kPmMjg8Qk"
+}

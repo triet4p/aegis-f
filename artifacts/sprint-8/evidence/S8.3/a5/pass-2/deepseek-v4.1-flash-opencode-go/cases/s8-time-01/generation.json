@@ -1,0 +1,68 @@
+{
+  "case_id": "s8-time-01",
+  "phase": "opencode-go",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "idempotencyKey": "capture-102-event-1-v1",
+        "captureId": 102,
+        "expectedCaptureRevision": 0,
+        "expectedEventRevision": null,
+        "extractionVersion": "1",
+        "interpretation": {
+          "spanStart": 0,
+          "spanEnd": 35,
+          "normalizedText": "Book 70,000 VND on 2026-10-24 at 09:30",
+          "amountVnd": 70000,
+          "merchant": null,
+          "timeAnchor": {
+            "date": "2026-10-24",
+            "time": "09:30",
+            "timezoneId": "Asia/Ho_Chi_Minh",
+            "intervalEndDate": null,
+            "intervalEndTime": null
+          },
+          "unresolvedReason": null
+        }
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 10.817,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1920,
+    "output_tokens": 1428,
+    "thought_tokens": 1173,
+    "total_tokens": 3348,
+    "cached_input_tokens": 1920,
+    "finish_reason": "tool_calls",
+    "model_version": "deepseek-v4.1-flash",
+    "response_id": "65187cf97e56326a2f7c6e595a8011e9",
+    "max_tokens": 2048,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 10.817,
+    "cost_usd": 0,
+    "list_cost_usd": 0.00086256,
+    "opencode_allowance_usd": 0.00064692,
+    "billing_source": "go"
+  },
+  "request_sha256": "a17f4fc3c9572bc625679090139416a5d62480144dea94038d4a7b98ea89c9ae",
+  "response_sha256": "aa0f79cdbfbe15db0141fc95f56641085e207aab3df2e637de4d40a018559dfa",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "1525b94a79e1e098b93282e2faed5c846dc48e79379cf4c6e6e046a3635da8d5",
+    "tool_declarations_sha256": "bdc6ce982beb2864bfd91b24d8f55ae349103912c7519bba88a039b69410e0ec"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 10.817
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "",
+            "thought": true
+          },
+          {
+            "functionCall": {
+              "name": "update_event_interpretation",
+              "args": {
+                "expectedEventRevision": 0,
+                "interpretation": {
+                  "normalizedText": "45,000 VND",
+                  "amountVnd": 45000,
+                  "merchant": null,
+                  "timeAnchor": {
+                    "date": null
+                  },
+                  "spanEnd": 21,
+                  "spanStart": 10
+                },
+                "captureId": 103,
+                "unresolvedReason": null,
+                "idempotencyKey": "update_event_103_groceries",
+                "extractionVersion": "1.0",
+                "expectedCaptureRevision": 0
+              },
+              "id": "call_1688166"
+            },
+            "thoughtSignature": "EiYKJGUyNDgzMGE3LTVjZDYtNDJmZS05OThiLWVlNTM5ZTcyYjljMw=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "finishMessage": "Model generated function call(s)."
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1518,
+    "candidatesTokenCount": 112,
+    "totalTokenCount": 1630,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1518
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemma-4-26b-a4b-it",
+  "responseId": "JwreaqKTDvCi9tMP6drzyQI"
+}

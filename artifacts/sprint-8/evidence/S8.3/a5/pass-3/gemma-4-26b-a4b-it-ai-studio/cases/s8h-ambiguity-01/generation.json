@@ -1,0 +1,40 @@
+{
+  "case_id": "s8h-ambiguity-01",
+  "phase": "hosted",
+  "generation": "I understand. I will not attempt to link any drafts to the note. If I find multiple potential matches, I will present them to you and ask you to choose before proceeding with any proposal or attachment.",
+  "parsed_calls": [],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 2.414,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1442,
+    "output_tokens": 41,
+    "thought_tokens": null,
+    "total_tokens": 1483,
+    "cached_input_tokens": null,
+    "service_tier": "standard",
+    "finish_reason": "STOP",
+    "model_version": "gemma-4-26b-a4b-it",
+    "response_id": "ZQreav-KDtus9tMPpJjb2QQ",
+    "max_tokens": 2048,
+    "context_tokens": null,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 2.414
+  },
+  "request_sha256": "fd2ec72183646426b6609ede7ad278a71e8c0f5157b734cb944512c2e18ccec3",
+  "response_sha256": "d880b053d7ce6a727e80444bd32e474f99879b79a64e0b421c4a65c356ff8197",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "890902708fd7f8941546a64e6b8da4372ec34ab411232b8c6838a5d523479b03",
+    "tool_declarations_sha256": "c090ac75dca5272675a307f3163b1e97c30f91b5610ab8d075f0d38acb38fdea"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 2.414
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "case_id": "s8-time-01",
+  "phase": "opencode-go",
+  "generation": "I'll record the interpretation and check pending bank drafts in parallel — these are independent reads/writes.",
+  "parsed_calls": [
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "idempotencyKey": "capture-102-ev1-2026-10-25",
+        "captureId": 102,
+        "expectedCaptureRevision": 0,
+        "expectedEventRevision": null,
+        "extractionVersion": "manual-extract-2026-10-25.v1",
+        "interpretation": {
+          "spanStart": 0,
+          "spanEnd": 35,
+          "normalizedText": "Book 70,000 VND yesterday at 09:30.",
+          "amountVnd": 70000,
+          "merchant": null,
+          "timeAnchor": {
+            "date": "2026-10-24",
+            "time": "09:30",
+            "timezoneId": "Asia/Ho_Chi_Minh",
+            "intervalEndDate": null,
+            "intervalEndTime": null
+          },
+          "unresolvedReason": null
+        }
+      }
+    },
+    {
+      "name": "query_draft_candidates",
+      "args": {
+        "query": {
+          "reviewStatus": "PENDING",
+          "onlyPossibleDuplicates": false,
+          "bounds": {
+            "limit": 25,
+            "offset": 0
+          }
+        }
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 9.526,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1920,
+    "output_tokens": 1159,
+    "thought_tokens": 817,
+    "total_tokens": 3079,
+    "cached_input_tokens": 1920,
+    "finish_reason": "tool_calls",
+    "model_version": "deepseek-v4.1-flash",
+    "response_id": "fe2148f061332758a5fe6fc09e89d9cf",
+    "max_tokens": 2048,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 9.526,
+    "cost_usd": 0,
+    "list_cost_usd": 0.00070116,
+    "opencode_allowance_usd": 0.00052587,
+    "billing_source": "go"
+  },
+  "request_sha256": "a17f4fc3c9572bc625679090139416a5d62480144dea94038d4a7b98ea89c9ae",
+  "response_sha256": "1539ef789889ddcdb1c5f96324b33505ed92829d93c368e050a49ac72bcd90b8",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "1525b94a79e1e098b93282e2faed5c846dc48e79379cf4c6e6e046a3635da8d5",
+    "tool_declarations_sha256": "bdc6ce982beb2864bfd91b24d8f55ae349103912c7519bba88a039b69410e0ec"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 9.526
+    }
+  ]
+}

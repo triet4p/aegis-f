@@ -1,0 +1,66 @@
+{
+  "id": "fe2148f061332758a5fe6fc09e89d9cf",
+  "object": "chat.completion",
+  "created": 1792939992,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "I'll record the interpretation and check pending bank drafts in parallel — these are independent reads/writes.",
+        "reasoning_content": "The user says they bought a 70,000 VND book yesterday at 09:30. Capture 102 revision 0, source text: \"Book 70,000 VND yesterday at 09:30.\" Today is 2026-10-25 in Asia/Ho_Chi_Minh. Yesterday = 2026-10-24, 09:30.\n\nSpan: the source text \"Book 70,000 VND yesterday at 09:30.\" — span start 0, span end... let's count: \"Book 70,000 VND yesterday at 09:30.\" B=0... length: \"Book\" 4, space 1 =5, \"70,000\" 6 =11, space=12, \"VND\" 3 =15, space=16, \"yesterday\" 9 =25, space=26, \"at\" 2 =28, space=29, \"09:30\" 5 =34, \".\" =35. So spanEnd 35.\n\nNormalized text: \"Book 70,000 VND yesterday at 09:30.\" or normalized \"Book 70,000 VND 2026-10-24 09:30\"? The normalizedText should presumably be a normalized representation. I'll keep it as the source with resolution? Better to preserve: normalizedText minLength 1. I'd give \"Book 70,000 VND 2026-10-24 09:30\" — hmm, but \"preserve what the source says\". Let me use normalized text like \"Book 70,000 VND yesterday at 09:30.\" Actually normalizedText is a field for normalizing; I'll use \"Book 70,000 VND yesterday at 09:30\" — keeping original wording while amount normalized. I'll use \"Book 70,000 VND yesterday 09:30\".\n\nSimplest: normalizedText: \"Book 70,000 VND yesterday at 09:30.\" Keep exact.\n\ntimeAnchor: date 2026-10-24, time \"09:30\", timezoneId \"Asia/Ho_Chi_Minh\", intervalEnd null.\n\namountVnd 70000, merchant \"Book\"? Merchant is the counterparty — a book is the item, not merchant. Merchant unstated → null. The source says \"Book\" which is the item purchased, not a merchant. So merchant null.\n\nunresolvedReason null.\n\nAlso should I search for candidate drafts? The user didn't ask to link. But the workflow might involve checking for possible duplicates. The instructions: candidate search is a bounded read of pending bank drafts only. Should I do it? The user's request is just to record the expense event. It could be useful to check pending drafts for a possible match. Hmm — the guidance says \"Compare returned draft facts with the event only when present. No plausible candidate means no match; more than one plausible candidate means ask the user.\" That suggests checking candidates is part of the flow. It's a read-only bounded query, so it's safe and helpful. I'll do the interpretation write and candidate search in parallel? They're independent — yes, no dependency. capture revision 0, expectedEventRevision null (no existing readings).\n\nLet me do both in one block.\n\nextractionVersion: something like \"2026-10-25.v1\". idempotencyKey: unique string.\n\nCandidates: query reviewStatus PENDING, onlyPossibleDuplicates false? Or true? We want to see pending drafts possibly matching. Filter onlyPossibleDuplicates — the app flags possible duplicates. I'd query PENDING with onlyPossibleDuplicates false to get all pending, limit small e.g. 20.\n\nActually, to find a match for this event, pending drafts of any duplicate status. I'll use onlyPossibleDuplicates: false, limit 25, offset 0.\n\nLet me make both calls.",
+        "tool_calls": [
+          {
+            "id": "call_00_ai2ghef4kcgvm336ghz6llr0",
+            "type": "function",
+            "function": {
+              "name": "update_event_interpretation",
+              "arguments": "{\"idempotencyKey\": \"capture-102-ev1-2026-10-25\", \"captureId\": 102, \"expectedCaptureRevision\": 0, \"expectedEventRevision\": null, \"extractionVersion\": \"manual-extract-2026-10-25.v1\", \"interpretation\": {\"spanStart\": 0, \"spanEnd\": 35, \"normalizedText\": \"Book 70,000 VND yesterday at 09:30.\", \"amountVnd\": 70000, \"merchant\": null, \"timeAnchor\": {\"date\": \"2026-10-24\", \"time\": \"09:30\", \"timezoneId\": \"Asia/Ho_Chi_Minh\", \"intervalEndDate\": null, \"intervalEndTime\": null}, \"unresolvedReason\": null}}"
+            }
+          },
+          {
+            "id": "call_01_5hf6awz8j1jbkhztsfxy4d5v",
+            "type": "function",
+            "function": {
+              "name": "query_draft_candidates",
+              "arguments": "{\"query\": {\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": false, \"bounds\": {\"limit\": 25, \"offset\": 0}}}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1920,
+    "completion_tokens": 1159,
+    "total_tokens": 3079,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1920,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 817,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00070116,
+      "allowance": 0.00052587,
+      "tokens": {
+        "input": 0,
+        "output": 1159,
+        "reasoning": 817,
+        "cache_read": 1920,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

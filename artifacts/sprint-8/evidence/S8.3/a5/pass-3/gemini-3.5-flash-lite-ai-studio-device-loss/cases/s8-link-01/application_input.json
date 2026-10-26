@@ -1,0 +1,17 @@
+{
+  "results": [
+    {
+      "case_id": "s8-link-01",
+      "calls": [
+        {
+          "name": "propose_link",
+          "args": {
+            "eventId": 301,
+            "idempotencyKey": "propose-link-301-401-20261025",
+            "draftId": 401
+          }
+        }
+      ]
+    }
+  ]
+}

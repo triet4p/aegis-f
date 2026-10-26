@@ -1,0 +1,158 @@
+{
+  "case_id": "s8h-multi-01",
+  "suite": "heldout",
+  "profile": "deepseek-v4.1-flash-opencode-go",
+  "provider": "opencode-go",
+  "small_context": "\nApplication context (trusted, read-only fixture):\n- today: 2026-10-25 (Asia/Ho_Chi_Minh)\n- capture 201 (revision 0) source text: \"Fuel 50k on Oct 20 at 3pm; snack 32k at Circle K at 3:15pm.\"\n- existing event readings for capture 201: none",
+  "generation": "",
+  "parsed_calls": [],
+  "parse_error": null,
+  "application": {
+    "case_id": "s8h-multi-01",
+    "application_trace": {
+      "case_id": "s8h-multi-01",
+      "fixture": {
+        "capture_ids": [
+          201
+        ],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [],
+      "database_state": {
+        "captures": [
+          {
+            "id": 201,
+            "revision": 0,
+            "text": "Fuel 50k on Oct 20 at 3pm; snack 32k at Circle K at 3:15pm."
+          }
+        ],
+        "captures_events": [],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 0
+      }
+    },
+    "trace_source": "instrumented_application",
+    "fixture": "in_memory_room",
+    "instrumentation_ok": true
+  },
+  "effects": {
+    "ledgerWrites": 0,
+    "noLedgerWrites": true,
+    "financialWrites": 0,
+    "applicationCalls": 0,
+    "deleteCalls": 0,
+    "attachCalls": 0,
+    "callerScope": "trusted_host_only",
+    "activeLinksForEvent": 0
+  },
+  "metrics": {
+    "wall_seconds": 13.36,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1953,
+    "output_tokens": 2048,
+    "thought_tokens": 2048,
+    "total_tokens": 4001,
+    "cached_input_tokens": 1920,
+    "finish_reason": "length",
+    "model_version": "deepseek-v4.1-flash",
+    "response_id": "7e4036b3800a67449cf6487d3feed584",
+    "max_tokens": 2048,
+    "output_truncated_at_cap": true,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 13.36,
+    "cost_usd": 0,
+    "list_cost_usd": 0.00123951,
+    "opencode_allowance_usd": 0.00092963,
+    "billing_source": "go"
+  },
+  "cold_start_sample": false,
+  "transport": {
+    "kind": "opencode-go-chat-completions",
+    "endpoint": "https://opencode.ai/zen/go/v1/chat/completions",
+    "api_model": "deepseek-v4.1-flash",
+    "output_adapter": "openai-chat-tool-calls-v1",
+    "native_envelope_parsed": false,
+    "request_config_sha256": "e1815b67ff2b0548d1921541186e7378ddbcb8c0a8b2ac82497c46920afd58df",
+    "generation_config": {
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "seed": 42
+    },
+    "tool_config": {
+      "tool_choice": "auto"
+    },
+    "retry_policy": "no retry on any 4xx response including 429; at most one retry after a transport timeout or a 5xx response, recorded as attempt 2. A rate-limited case stays a recorded provider error in that pass, and a further complete pass is a separately labelled independent run rather than a retry inside one.",
+    "conversation": "one user turn, no tool results, no multi-turn follow-up: the same single-turn contract the local profiles were measured under",
+    "inter_request_delay_seconds": 2,
+    "request_config_revision": "v2 — per-provider request blocks; launches paced after an observed free-tier 429; request content, case semantics and adapters unchanged"
+  },
+  "raw": {
+    "case_id": "s8h-multi-01",
+    "phase": "opencode-go",
+    "generation": "",
+    "parsed_calls": [],
+    "parse_error": null,
+    "metrics": {
+      "wall_seconds": 13.36,
+      "http_status": 200,
+      "attempts": 1,
+      "input_tokens": 1953,
+      "output_tokens": 2048,
+      "thought_tokens": 2048,
+      "total_tokens": 4001,
+      "cached_input_tokens": 1920,
+      "finish_reason": "length",
+      "model_version": "deepseek-v4.1-flash",
+      "response_id": "7e4036b3800a67449cf6487d3feed584",
+      "max_tokens": 2048,
+      "output_truncated_at_cap": true,
+      "request_timeout_seconds": 120,
+      "first_result_seconds": 13.36,
+      "cost_usd": 0,
+      "list_cost_usd": 0.00123951,
+      "opencode_allowance_usd": 0.00092963,
+      "billing_source": "go"
+    },
+    "request_sha256": "266d713ef9738d223aea924c5d25e0052dd1f465bd4fbbe540092aff441e5bd3",
+    "response_sha256": "c15eae42c43b33e19bdea45b00224405d1229bae6eeda8bf851ca9c1cfd3c4c1",
+    "prompt_hashes": {
+      "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+      "user_sha256": "3adee238fb60f9bcbbc42362a77896e2601c7ed655598fffa7cb8a5a81a89b41",
+      "tool_declarations_sha256": "bdc6ce982beb2864bfd91b24d8f55ae349103912c7519bba88a039b69410e0ec"
+    },
+    "attempts": [
+      {
+        "attempt": 1,
+        "http_status": 200,
+        "wall_seconds": 13.36
+      }
+    ]
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "",
+            "thought": true
+          },
+          {
+            "functionCall": {
+              "name": "update_event_interpretation",
+              "args": {
+                "extractionVersion": "1.0",
+                "idempotencyKey": "lunch_purchase_20261022",
+                "captureId": 107,
+                "expectedEventRevision": 0,
+                "unresolvedReason": null,
+                "expectedCaptureRevision": 0,
+                "interpretation": {
+                  "merchant": null,
+                  "normalizedText": "lunch 28,000 VND on 2026-10-22",
+                  "amountVnd": 28000,
+                  "timeAnchor": {
+                    "date": "2026-10-22"
+                  },
+                  "spanEnd": 105,
+                  "spanStart": 76
+                }
+              },
+              "id": "call_1545495"
+            },
+            "thoughtSignature": "EiYKJGUyNDgzMGE3LTVjZDYtNDJmZS05OThiLWVlNTM5ZTcyYjljMw=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "finishMessage": "Model generated function call(s)."
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1592,
+    "candidatesTokenCount": 140,
+    "totalTokenCount": 1732,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1592
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemma-4-26b-a4b-it",
+  "responseId": "SAneapj8MMia1e8P8__D-QI"
+}

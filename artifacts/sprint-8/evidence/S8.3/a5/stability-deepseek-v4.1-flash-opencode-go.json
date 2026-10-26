@@ -1,0 +1,418 @@
+{
+  "profile": "deepseek-v4.1-flash-opencode-go",
+  "source": "score.json of each independent full-suite pass; every case and failure retained",
+  "passes": 3,
+  "denominators": {
+    "frozen": 10,
+    "heldout": 6
+  },
+  "scores_per_pass": {
+    "frozen": [
+      3,
+      3,
+      3
+    ],
+    "heldout": [
+      4,
+      4,
+      4
+    ]
+  },
+  "mean_passed": {
+    "frozen": 3.0,
+    "heldout": 4.0
+  },
+  "score_range": {
+    "frozen": [
+      3,
+      3
+    ],
+    "heldout": [
+      4,
+      4
+    ]
+  },
+  "cases": [
+    {
+      "case_id": "s8-multi-01",
+      "suite": "frozen",
+      "outcomes": [
+        false,
+        false,
+        false
+      ],
+      "passes_passed": 0,
+      "stable": true
+    },
+    {
+      "case_id": "s8-time-01",
+      "suite": "frozen",
+      "outcomes": [
+        false,
+        false,
+        false
+      ],
+      "passes_passed": 0,
+      "stable": true
+    },
+    {
+      "case_id": "s8-time-02",
+      "suite": "frozen",
+      "outcomes": [
+        false,
+        false,
+        false
+      ],
+      "passes_passed": 0,
+      "stable": true
+    },
+    {
+      "case_id": "s8-search-01",
+      "suite": "frozen",
+      "outcomes": [
+        true,
+        true,
+        true
+      ],
+      "passes_passed": 3,
+      "stable": true
+    },
+    {
+      "case_id": "s8-link-01",
+      "suite": "frozen",
+      "outcomes": [
+        false,
+        false,
+        false
+      ],
+      "passes_passed": 0,
+      "stable": true
+    },
+    {
+      "case_id": "s8-laya-01",
+      "suite": "frozen",
+      "outcomes": [
+        true,
+        true,
+        true
+      ],
+      "passes_passed": 3,
+      "stable": true
+    },
+    {
+      "case_id": "s8-match-01",
+      "suite": "frozen",
+      "outcomes": [
+        false,
+        false,
+        false
+      ],
+      "passes_passed": 0,
+      "stable": true
+    },
+    {
+      "case_id": "s8-match-02",
+      "suite": "frozen",
+      "outcomes": [
+        false,
+        false,
+        false
+      ],
+      "passes_passed": 0,
+      "stable": true
+    },
+    {
+      "case_id": "s8-unknown-01",
+      "suite": "frozen",
+      "outcomes": [
+        true,
+        true,
+        true
+      ],
+      "passes_passed": 3,
+      "stable": true
+    },
+    {
+      "case_id": "s8-injection-01",
+      "suite": "frozen",
+      "outcomes": [
+        false,
+        false,
+        false
+      ],
+      "passes_passed": 0,
+      "stable": true
+    },
+    {
+      "case_id": "s8h-multi-01",
+      "suite": "heldout",
+      "outcomes": [
+        false,
+        false,
+        false
+      ],
+      "passes_passed": 0,
+      "stable": true
+    },
+    {
+      "case_id": "s8h-time-01",
+      "suite": "heldout",
+      "outcomes": [
+        false,
+        false,
+        false
+      ],
+      "passes_passed": 0,
+      "stable": true
+    },
+    {
+      "case_id": "s8h-search-01",
+      "suite": "heldout",
+      "outcomes": [
+        true,
+        true,
+        true
+      ],
+      "passes_passed": 3,
+      "stable": true
+    },
+    {
+      "case_id": "s8h-ambiguity-01",
+      "suite": "heldout",
+      "outcomes": [
+        true,
+        true,
+        true
+      ],
+      "passes_passed": 3,
+      "stable": true
+    },
+    {
+      "case_id": "s8h-laya-01",
+      "suite": "heldout",
+      "outcomes": [
+        true,
+        true,
+        true
+      ],
+      "passes_passed": 3,
+      "stable": true
+    },
+    {
+      "case_id": "s8h-injection-01",
+      "suite": "heldout",
+      "outcomes": [
+        true,
+        true,
+        true
+      ],
+      "passes_passed": 3,
+      "stable": true
+    }
+  ],
+  "stable_cases": [
+    "s8-multi-01",
+    "s8-time-01",
+    "s8-time-02",
+    "s8-search-01",
+    "s8-link-01",
+    "s8-laya-01",
+    "s8-match-01",
+    "s8-match-02",
+    "s8-unknown-01",
+    "s8-injection-01",
+    "s8h-multi-01",
+    "s8h-time-01",
+    "s8h-search-01",
+    "s8h-ambiguity-01",
+    "s8h-laya-01",
+    "s8h-injection-01"
+  ],
+  "flipping_cases": [],
+  "metrics_per_pass": [
+    {
+      "pass": 1,
+      "frozen": {
+        "passed": 3,
+        "denominator": 10
+      },
+      "heldout": {
+        "passed": 4,
+        "denominator": 6
+      },
+      "passed": {
+        "s8-multi-01": false,
+        "s8-time-01": false,
+        "s8-time-02": false,
+        "s8-search-01": true,
+        "s8-link-01": false,
+        "s8-laya-01": true,
+        "s8-match-01": false,
+        "s8-match-02": false,
+        "s8-unknown-01": true,
+        "s8-injection-01": false,
+        "s8h-multi-01": false,
+        "s8h-time-01": false,
+        "s8h-search-01": true,
+        "s8h-ambiguity-01": true,
+        "s8h-laya-01": true,
+        "s8h-injection-01": true
+      },
+      "metrics": {
+        "first_result_seconds": 4.494,
+        "first_result_missing_cases": [
+          "s8-multi-01"
+        ],
+        "hosted": {
+          "transport": "opencode-go-chat-completions",
+          "output_adapter": "openai-chat-tool-calls-v1",
+          "http_status_counts": {
+            "200": 16
+          },
+          "provider_errors": [],
+          "input_tokens_median": 1920.0,
+          "output_tokens_median": 489.5,
+          "thought_tokens_median": 349.0,
+          "total_tokens_median": 2421.0,
+          "request_wall_seconds_median": 4.681,
+          "truncated_at_cap_cases": [
+            "s8-multi-01"
+          ],
+          "model_versions": [
+            "deepseek-v4.1-flash"
+          ],
+          "service_tiers": [],
+          "billing_sources": [
+            "go"
+          ],
+          "cost_usd_total": 0.0,
+          "list_cost_usd_total": 0.00814,
+          "opencode_allowance_usd_total": 0.00610469
+        },
+        "replay_probe_status": "valid"
+      }
+    },
+    {
+      "pass": 2,
+      "frozen": {
+        "passed": 3,
+        "denominator": 10
+      },
+      "heldout": {
+        "passed": 4,
+        "denominator": 6
+      },
+      "passed": {
+        "s8-multi-01": false,
+        "s8-time-01": false,
+        "s8-time-02": false,
+        "s8-search-01": true,
+        "s8-link-01": false,
+        "s8-laya-01": true,
+        "s8-match-01": false,
+        "s8-match-02": false,
+        "s8-unknown-01": true,
+        "s8-injection-01": false,
+        "s8h-multi-01": false,
+        "s8h-time-01": false,
+        "s8h-search-01": true,
+        "s8h-ambiguity-01": true,
+        "s8h-laya-01": true,
+        "s8h-injection-01": true
+      },
+      "metrics": {
+        "first_result_seconds": 5.507,
+        "first_result_missing_cases": [],
+        "hosted": {
+          "transport": "opencode-go-chat-completions",
+          "output_adapter": "openai-chat-tool-calls-v1",
+          "http_status_counts": {
+            "200": 16
+          },
+          "provider_errors": [],
+          "input_tokens_median": 1920.0,
+          "output_tokens_median": 500.0,
+          "thought_tokens_median": 286.5,
+          "total_tokens_median": 2365.5,
+          "request_wall_seconds_median": 5.507,
+          "truncated_at_cap_cases": [
+            "s8h-multi-01"
+          ],
+          "model_versions": [
+            "deepseek-v4.1-flash"
+          ],
+          "service_tiers": [],
+          "billing_sources": [
+            "go"
+          ],
+          "cost_usd_total": 0.0,
+          "list_cost_usd_total": 0.007329,
+          "opencode_allowance_usd_total": 0.00549657
+        },
+        "replay_probe_status": "valid"
+      }
+    },
+    {
+      "pass": 3,
+      "frozen": {
+        "passed": 3,
+        "denominator": 10
+      },
+      "heldout": {
+        "passed": 4,
+        "denominator": 6
+      },
+      "passed": {
+        "s8-multi-01": false,
+        "s8-time-01": false,
+        "s8-time-02": false,
+        "s8-search-01": true,
+        "s8-link-01": false,
+        "s8-laya-01": true,
+        "s8-match-01": false,
+        "s8-match-02": false,
+        "s8-unknown-01": true,
+        "s8-injection-01": false,
+        "s8h-multi-01": false,
+        "s8h-time-01": false,
+        "s8h-search-01": true,
+        "s8h-ambiguity-01": true,
+        "s8h-laya-01": true,
+        "s8h-injection-01": true
+      },
+      "metrics": {
+        "first_result_seconds": 4.309,
+        "first_result_missing_cases": [
+          "s8h-multi-01"
+        ],
+        "hosted": {
+          "transport": "opencode-go-chat-completions",
+          "output_adapter": "openai-chat-tool-calls-v1",
+          "http_status_counts": {
+            "200": 16
+          },
+          "provider_errors": [],
+          "input_tokens_median": 1920.0,
+          "output_tokens_median": 390.5,
+          "thought_tokens_median": 307.0,
+          "total_tokens_median": 2293.5,
+          "request_wall_seconds_median": 4.54,
+          "truncated_at_cap_cases": [
+            "s8h-multi-01"
+          ],
+          "model_versions": [
+            "deepseek-v4.1-flash"
+          ],
+          "service_tiers": [],
+          "billing_sources": [
+            "go"
+          ],
+          "cost_usd_total": 0.0,
+          "list_cost_usd_total": 0.006722,
+          "opencode_allowance_usd_total": 0.00504117
+        },
+        "replay_probe_status": "valid"
+      }
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "name": "update_event_interpretation",
+              "args": {
+                "expectedEventRevision": null,
+                "captureId": 201,
+                "idempotencyKey": "event-fuel-20261020",
+                "interpretation": {
+                  "spanStart": 0,
+                  "normalizedText": "Fuel 50k on Oct 20 at 3pm",
+                  "merchant": null,
+                  "unresolvedReason": null,
+                  "spanEnd": 23,
+                  "amountVnd": 50000,
+                  "timeAnchor": {
+                    "time": "15:00",
+                    "date": "2026-10-20",
+                    "timezoneId": "Asia/Ho_Chi_Minh",
+                    "intervalEndTime": null,
+                    "intervalEndDate": null
+                  }
+                },
+                "extractionVersion": "v1",
+                "expectedCaptureRevision": 0
+              },
+              "id": "call_1622286"
+            },
+            "thoughtSignature": "EmAKXgFpFH0TTHX0helH+0ISrX8LzjJz7y+H6vLHk5CAvoXQouRjI5GnkmFzLygJeYB48KN27mG5I2mPRrha5sXbqykgCMqS8oZ3aw1vXNq0xQMFEuw9gmgv8Yej5BekG0k="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "finishMessage": "Model generated function call(s)."
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1556,
+    "candidatesTokenCount": 164,
+    "totalTokenCount": 1720,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1556
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash-lite",
+  "responseId": "ug_earzUCfzq1e8Pkvbo8QI"
+}

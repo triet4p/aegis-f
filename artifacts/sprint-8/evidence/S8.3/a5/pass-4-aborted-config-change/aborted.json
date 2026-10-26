@@ -1,0 +1,19 @@
+{
+  "attempt": "S8.3-a5",
+  "status": "aborted",
+  "cause": "the frozen request-config file was restructured into per-provider blocks while this pass was running; later cases raised KeyError('models') before any request was sent",
+  "cases_that_completed_before_the_abort": [
+    "s8-injection-01",
+    "s8-laya-01",
+    "s8-link-01",
+    "s8-match-01",
+    "s8-match-02",
+    "s8-multi-01",
+    "s8-search-01",
+    "s8-time-01",
+    "s8-time-02",
+    "s8-unknown-01"
+  ],
+  "claimed_as_trial_evidence": false,
+  "note": "preserved unscored; every completed generation above is real model output but the pass is not a full suite and contributes to no denominator"
+}

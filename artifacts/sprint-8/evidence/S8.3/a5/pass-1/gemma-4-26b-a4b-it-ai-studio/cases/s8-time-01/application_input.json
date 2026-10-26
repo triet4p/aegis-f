@@ -1,0 +1,27 @@
+{
+  "results": [
+    {
+      "case_id": "s8-time-01",
+      "calls": [
+        {
+          "name": "update_event_interpretation",
+          "args": {
+            "expectedCaptureRevision": 0,
+            "idempotencyKey": "book_purchase_20261024",
+            "captureId": 102,
+            "interpretation": {
+              "normalizedText": "70,000 VND",
+              "spanStart": 5,
+              "amountVnd": 70000,
+              "spanEnd": 13,
+              "merchant": null
+            },
+            "expectedEventRevision": 0,
+            "unresolvedReason": null,
+            "extractionVersion": "1.0"
+          }
+        }
+      ]
+    }
+  ]
+}

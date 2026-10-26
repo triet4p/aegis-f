@@ -1,0 +1,81 @@
+{
+  "case_id": "s8-time-01",
+  "phase": "opencode-go",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "idempotencyKey": "capture-102-book-70k-v1",
+        "captureId": 102,
+        "expectedCaptureRevision": 0,
+        "expectedEventRevision": null,
+        "extractionVersion": "v1",
+        "interpretation": {
+          "spanStart": 0,
+          "spanEnd": 35,
+          "normalizedText": "Book 70,000 VND on 2026-10-24 at 09:30",
+          "amountVnd": 70000,
+          "merchant": null,
+          "timeAnchor": {
+            "date": "2026-10-24",
+            "time": "09:30",
+            "intervalEndDate": null,
+            "intervalEndTime": null,
+            "timezoneId": "Asia/Ho_Chi_Minh"
+          },
+          "unresolvedReason": null
+        }
+      }
+    },
+    {
+      "name": "query_draft_candidates",
+      "args": {
+        "query": {
+          "reviewStatus": "PENDING",
+          "onlyPossibleDuplicates": false,
+          "bounds": {
+            "limit": 20,
+            "offset": 0
+          }
+        }
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 7.616,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1920,
+    "output_tokens": 1191,
+    "thought_tokens": 874,
+    "total_tokens": 3111,
+    "cached_input_tokens": 0,
+    "finish_reason": "tool_calls",
+    "model_version": "deepseek-v4.1-flash",
+    "response_id": "17d5f7d888bb89f017f7381994f557c8",
+    "max_tokens": 2048,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 7.616,
+    "cost_usd": 0,
+    "list_cost_usd": 0.0010026,
+    "opencode_allowance_usd": 0.00075195,
+    "billing_source": "go"
+  },
+  "request_sha256": "a17f4fc3c9572bc625679090139416a5d62480144dea94038d4a7b98ea89c9ae",
+  "response_sha256": "5f7edebacbbe819beb43df99d4840b6840b4e748692b399ff7dd36436cda81b6",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "1525b94a79e1e098b93282e2faed5c846dc48e79379cf4c6e6e046a3635da8d5",
+    "tool_declarations_sha256": "bdc6ce982beb2864bfd91b24d8f55ae349103912c7519bba88a039b69410e0ec"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 7.616
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "case_id": "s8-link-01",
+  "phase": "opencode-go",
+  "generation": "I'll start by reading the pending draft page to see draft 401's stored facts before proposing anything.",
+  "parsed_calls": [
+    {
+      "name": "query_draft_candidates",
+      "args": {
+        "query": {
+          "reviewStatus": "PENDING",
+          "onlyPossibleDuplicates": false,
+          "bounds": {
+            "limit": 100,
+            "offset": 0
+          }
+        }
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 4.77,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1953,
+    "output_tokens": 382,
+    "thought_tokens": 292,
+    "total_tokens": 2335,
+    "cached_input_tokens": 1920,
+    "finish_reason": "tool_calls",
+    "model_version": "deepseek-v4.1-flash",
+    "response_id": "d3396c36bff532169a1ecfa94d32caa6",
+    "max_tokens": 2048,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 4.77,
+    "cost_usd": 0,
+    "list_cost_usd": 0.00023991,
+    "opencode_allowance_usd": 0.00017993,
+    "billing_source": "go"
+  },
+  "request_sha256": "6132ea456c6cabde4a3a497c388c5f61e8d05b62ed22b5a9fbb0b3e7a5a8b9e5",
+  "response_sha256": "c2ce1b43f516f0a0c9df46ebe1f20914a2fd244769215a6b676222be28e8c788",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "c002ca6fd4b692fb1074adc040c87ed9a3cb47f4fde4f4fc8f41d19686f8fc51",
+    "tool_declarations_sha256": "bdc6ce982beb2864bfd91b24d8f55ae349103912c7519bba88a039b69410e0ec"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 4.77
+    }
+  ]
+}

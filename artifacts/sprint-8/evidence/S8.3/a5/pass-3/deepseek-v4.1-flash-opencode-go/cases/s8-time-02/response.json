@@ -1,0 +1,58 @@
+{
+  "id": "6742aee00e4d2234ef2c2768619cf536",
+  "object": "chat.completion",
+  "created": 1792940003,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "reasoning_content": "The user says they paid 45,000 VND for groceries but can't remember when. Capture 103 revision 0. Source text: \"Groceries 45,000 VND; time not remembered.\"\n\nI should record an event interpretation with amount 45000, merchant \"Groceries\", timeAnchor null (unstated time), and unresolvedReason since time is missing — but the source says \"time not remembered\", so it's an unresolved event and I should ask a scoped question about the date.\n\nNo candidate search needed? The user hasn't asked about matching a bank draft. The task is extraction. Should I search candidates? Candidate search is for possible duplicates. The instructions say \"Candidate search is a bounded read of pending bank drafts only.\" Not required unless matching is desired. The user just wants to record the expense. I could skip it. But maybe useful? I'd avoid unnecessary calls; no evidence needed.\n\nActually the flow: extract event, store interpretation. Then ask about missing date.\n\nLet me call update_event_interpretation with captureId 103, expectedCaptureRevision 0, expectedEventRevision null, extractionVersion something like \"v1\", idempotencyKey unique, interpretation: spanStart 0, spanEnd length of source text, normalizedText \"Groceries 45,000 VND; time not remembered.\" Actually normalizedText should be normalized version of span — keep it faithful. Amount 45000, merchant \"Groceries\", timeAnchor null, unresolvedReason \"Time not stated; user does not remember when the payment occurred.\"\n\nspanEnd: source text length. \"Groceries 45,000 VND; time not remembered.\" — count: \"Groceries\" 9, space 10, \"45,000\" 16, space 17, \"VND;\" 21, space 22, \"time\" 26, space 27, \"not\" 30, space 31, \"remembered.\" 42. So spanEnd 42.\n\nHmm, should normalizedText include the whole span? Yes, span 0-42 covers the whole text. That's fine.\n\nThen ask: \"What date did you pay the 45,000 VND for groceries?\"\n\nDo I need candidate search? Not asked. I'll skip to avoid unnecessary read? Actually could be helpful to check if there's a pending draft matching groceries 45,000 that could provide the date. The instructions allow bounded read of pending bank drafts only. But the ambiguity is about time; drafts may have dates. Hmm, but linking requires user's decision anyway. The task isn't asking to link. I'll just record and ask.\n\nActually, keep it minimal and correct: record interpretation, then ask the scoped question about the date.",
+        "tool_calls": [
+          {
+            "id": "call_00_zmgbof0zaw8tkiimz7srd7wb",
+            "type": "function",
+            "function": {
+              "name": "update_event_interpretation",
+              "arguments": "{\"idempotencyKey\": \"capture-103-event-1-v1\", \"captureId\": 103, \"expectedCaptureRevision\": 0, \"expectedEventRevision\": null, \"extractionVersion\": \"expense-extract-1.0\", \"interpretation\": {\"spanStart\": 0, \"spanEnd\": 42, \"normalizedText\": \"Groceries 45,000 VND; time not remembered.\", \"amountVnd\": 45000, \"merchant\": \"Groceries\", \"timeAnchor\": null, \"unresolvedReason\": \"Source states the time is not remembered; no date or time is stated, so the occurrence time is unresolved.\"}}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1920,
+    "completion_tokens": 806,
+    "total_tokens": 2726,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1920,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 571,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00048936,
+      "allowance": 0.00036702,
+      "tokens": {
+        "input": 0,
+        "output": 806,
+        "reasoning": 571,
+        "cache_read": 1920,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

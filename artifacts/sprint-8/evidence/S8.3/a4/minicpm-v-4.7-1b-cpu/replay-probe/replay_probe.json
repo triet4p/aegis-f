@@ -1,0 +1,50 @@
+{
+  "profile": "minicpm-v-4.7-1b-cpu",
+  "case_id": "s8-time-01",
+  "source": "host-constructed bounded idempotency probe; not model output; never scored",
+  "calls": [
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "idempotencyKey": "s8-replay-probe-minicpm-v-4.7-1b-cpu",
+        "captureId": 102,
+        "expectedCaptureRevision": 0,
+        "interpretation": {
+          "spanStart": 0,
+          "spanEnd": 35,
+          "normalizedText": "Book purchase",
+          "amountVnd": 70000,
+          "merchant": null,
+          "timeAnchor": {
+            "date": "2026-10-24",
+            "time": "09:30",
+            "timezoneId": "Asia/Ho_Chi_Minh"
+          },
+          "unresolvedReason": null
+        },
+        "extractionVersion": "s8-replay-probe-v1",
+        "expectedEventRevision": null
+      }
+    }
+  ],
+  "replay": {
+    "call_index": 0,
+    "outcomes": [
+      "Applied",
+      "NoChange"
+    ],
+    "operations": [
+      {
+        "idempotency_key": "s8-replay-probe-minicpm-v-4.7-1b-cpu",
+        "command": "UPDATE_EVENT",
+        "outcome": "APPLIED"
+      }
+    ],
+    "state_sha256_before": "7ac82ef258fb912ffe2495854702b35f85a4646fb0550a4aae51f00d3c4f544c",
+    "state_sha256_after": "7ac82ef258fb912ffe2495854702b35f85a4646fb0550a4aae51f00d3c4f544c"
+  },
+  "trace_sha256": "156144ddbe54e69baa5ace05bf05c588dc004e90994781f78dbca4363daecde5",
+  "effect_source": "instrumented_application",
+  "instrumentation_ok": true,
+  "application_trace_error": null
+}

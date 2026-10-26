@@ -1,0 +1,66 @@
+{
+  "id": "aa36d861aacefe29e86757671c470056",
+  "object": "chat.completion",
+  "created": 1792939978,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "reasoning_content": "The user wants to save two purchases. I have capture 101, revision 0, source text: \"Fuel 50,000 VND at 15:00; snack 32,000 VND at Circle K at 15:15.\"\n\nToday is 2026-10-25; user says \"On 2026-10-20\" — a stated date, so time anchor date = 2026-10-20.\n\nEvent 1: \"Fuel 50,000 VND at 15:00\" — span 0..26. Let me count: \"Fuel 50,000 VND at 15:00\" — F=0... \"Fuel \" = 0-4 (5 chars, indices 0-4), \"50,000\" indices 5-10, \" \" 11, \"VND\" 12-14, \" \" 15, \"at\" 16-17, \" \" 18, \"15:00\" 19-23. End = 24. Then \"; \" at 24,25. So event 1 span 0..24.\n\nMerchant: not stated for fuel — null. Amount 50000. Time 15:00, date 2026-10-20.\n\nEvent 2: \"snack 32,000 VND at Circle K at 15:15\" starts at 26. \"snack \" 26-31, \"32,000\" 32-37, \" \" 38, \"VND\" 39-41, \" \" 42, \"at\" 43-44, \" \" 45, \"Circle\" 46-51, \" \" 52, \"K\" 53, \" \" 54, \"at\" 55-56, \" \" 57, \"15:15\" 58-62. End = 63. Source text length: let's check full string: \"Fuel 50,000 VND at 15:00; snack 32,000 VND at Circle K at 15:15.\" Length 64 (including final period at 63). So event 2 span 26..63.\n\nMerchant: \"Circle K\". Amount 32000. Time 15:15. Date 2026-10-20.\n\nNow, expectedEventRevision is nullable — for new events, null presumably.\n\nCapture revision 0, expectedCaptureRevision 0.\n\nShould I use same extractionVersion? Yes e.g. \"v1\".\n\nThen after creating events, I might search draft candidates. The user says \"Save both purchases\" — the tool only stores interpretations, not confirmation. I can note there's no confirmation tool. Also possibly propose links to drafts. But candidate search is allowed: \"bounded read of pending bank drafts only\". Should I search? It could be helpful, but the user didn't ask to match drafts. The task is extraction. Hmm — \"Save both purchases\" — saving means storing event interpretations. Linking to bank drafts isn't requested. I could optionally query candidates. But if I query and there's one candidate per event, proposing links might be beyond scope. I'd say the safest is to record interpretations and note no financial record write exists.\n\nLet's make both update_event_interpretation calls in parallel (independent).\n\nAlso normalizedText: should be a normalized version of the span text. Keep amounts as stated.\n\nTime anchor: date 2026-10-20, time \"15:00\", timezoneId \"Asia/Ho_Chi_Minh\", intervalEnd null.\n\nFor merchant for fuel: null (not stated). unresolvedReason — required values are spanStart, spanEnd, normalizedText, so merchant null is fine without unresolvedReason? Instruction: \"A missing required value may be recorded with unresolvedReason\". Merchant is optional/nullable; not required. But maybe better to note null merchant without unresolvedReason. I'll leave unresolvedReason null since the source simply doesn't state a merchant.\n\nLet me do it.",
+        "tool_calls": [
+          {
+            "id": "call_00_vmf0nfwqlwph2eauy4lhttab",
+            "type": "function",
+            "function": {
+              "name": "update_event_interpretation",
+              "arguments": "{\"idempotencyKey\": \"capture101-ev1-fuel-20261020\", \"captureId\": 101, \"expectedCaptureRevision\": 0, \"expectedEventRevision\": null, \"extractionVersion\": \"v1\", \"interpretation\": {\"spanStart\": 0, \"spanEnd\": 24, \"normalizedText\": \"Fuel 50,000 VND at 15:00\", \"amountVnd\": 50000, \"merchant\": null, \"timeAnchor\": {\"date\": \"2026-10-20\", \"time\": \"15:00\", \"intervalEndDate\": null, \"intervalEndTime\": null, \"timezoneId\": \"Asia/Ho_Chi_Minh\"}, \"unresolvedReason\": null}}"
+            }
+          },
+          {
+            "id": "call_01_871fhp5recobr2qxwkakzojs",
+            "type": "function",
+            "function": {
+              "name": "update_event_interpretation",
+              "arguments": "{\"idempotencyKey\": \"capture101-ev2-circleK-snack-20261020\", \"captureId\": 101, \"expectedCaptureRevision\": 0, \"expectedEventRevision\": null, \"extractionVersion\": \"v1\", \"interpretation\": {\"spanStart\": 26, \"spanEnd\": 63, \"normalizedText\": \"snack 32,000 VND at Circle K at 15:15\", \"amountVnd\": 32000, \"merchant\": \"Circle K\", \"timeAnchor\": {\"date\": \"2026-10-20\", \"time\": \"15:15\", \"intervalEndDate\": null, \"intervalEndTime\": null, \"timezoneId\": \"Asia/Ho_Chi_Minh\"}, \"unresolvedReason\": null}}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1964,
+    "completion_tokens": 1328,
+    "total_tokens": 3292,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1920,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 830,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00080916,
+      "allowance": 0.00060687,
+      "tokens": {
+        "input": 44,
+        "output": 1328,
+        "reasoning": 830,
+        "cache_read": 1920,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

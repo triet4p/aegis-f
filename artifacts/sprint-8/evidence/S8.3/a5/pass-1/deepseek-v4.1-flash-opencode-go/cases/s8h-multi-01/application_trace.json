@@ -1,0 +1,133 @@
+{
+  "effect_source": "instrumented_application",
+  "fixture": "in_memory_room",
+  "fixture_timezone": "Asia/Ho_Chi_Minh",
+  "results": [
+    {
+      "case_id": "s8h-multi-01",
+      "fixture": {
+        "capture_ids": [
+          201
+        ],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "update_event_interpretation",
+          "dispatched": true,
+          "request": {
+            "idempotencyKey": "capture-201-event-1-fuel-50k-oct20-3pm",
+            "captureId": 201,
+            "expectedCaptureRevision": 0,
+            "expectedEventRevision": null,
+            "extractionVersion": "1",
+            "interpretation": {
+              "spanStart": 0,
+              "spanEnd": 25,
+              "normalizedText": "Fuel 50k on Oct 20 at 3pm",
+              "amountVnd": 50000,
+              "merchant": null,
+              "timeAnchor": {
+                "date": "2026-10-20",
+                "time": "15:00",
+                "intervalEndDate": null,
+                "intervalEndTime": null,
+                "timezoneId": "Asia/Ho_Chi_Minh"
+              },
+              "unresolvedReason": null
+            }
+          },
+          "outcome": "Applied",
+          "change": {
+            "kind": "EventStored",
+            "detail": "EventStored(eventId=603, revision=0)"
+          }
+        },
+        {
+          "name": "update_event_interpretation",
+          "dispatched": true,
+          "request": {
+            "idempotencyKey": "capture-201-event-2-snack-32k-circlek-315pm",
+            "captureId": 201,
+            "expectedCaptureRevision": 0,
+            "expectedEventRevision": null,
+            "extractionVersion": "1",
+            "interpretation": {
+              "spanStart": 27,
+              "spanEnd": 58,
+              "normalizedText": "snack 32k at Circle K at 3:15pm",
+              "amountVnd": 32000,
+              "merchant": "Circle K",
+              "timeAnchor": {
+                "date": null,
+                "time": "15:15",
+                "intervalEndDate": null,
+                "intervalEndTime": null,
+                "timezoneId": "Asia/Ho_Chi_Minh"
+              },
+              "unresolvedReason": "No date is stated for the 3:15pm snack; the source only gives the time."
+            }
+          },
+          "outcome": "NeedsClarification",
+          "field": "TIME",
+          "reason": "A stated time needs the date it belongs to."
+        }
+      ],
+      "database_state": {
+        "captures": [
+          {
+            "id": 201,
+            "revision": 0,
+            "text": "Fuel 50k on Oct 20 at 3pm; snack 32k at Circle K at 3:15pm."
+          }
+        ],
+        "captures_events": [
+          {
+            "id": 603,
+            "capture_id": 201,
+            "span_start": 0,
+            "span_end": 25,
+            "normalized_text": "Fuel 50k on Oct 20 at 3pm",
+            "amount_vnd": 50000,
+            "merchant": null,
+            "anchor_date": "2026-10-20",
+            "anchor_time": "15:00",
+            "anchor_timezone": "Asia/Ho_Chi_Minh",
+            "unresolved_reason": null,
+            "status": "INTERPRETED",
+            "revision": 0,
+            "source_revision": 0
+          }
+        ],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 1
+      }
+    }
+  ]
+}

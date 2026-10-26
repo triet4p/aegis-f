@@ -1,0 +1,108 @@
+{
+  "effect_source": "instrumented_application",
+  "fixture": "in_memory_room",
+  "fixture_timezone": "Asia/Ho_Chi_Minh",
+  "results": [
+    {
+      "case_id": "s8-multi-01",
+      "fixture": {
+        "capture_ids": [
+          101
+        ],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "update_event_interpretation",
+          "dispatched": true,
+          "request": {
+            "expectedCaptureRevision": 0,
+            "extractionVersion": "1.0",
+            "expectedEventRevision": 0,
+            "idempotencyKey": "fuel_purchase_20261020_1500",
+            "interpretation": {
+              "spanStart": 0,
+              "timeAnchor": {
+                "date": "2026-10-20",
+                "timezoneId": "Asia/Ho_Chi_Minh",
+                "time": "15:00"
+              },
+              "normalizedText": "Fuel 50,000 VND at 15:00",
+              "spanEnd": 25,
+              "amountVnd": 50000,
+              "merchant": null
+            },
+            "unresolvedReason": null,
+            "captureId": 101
+          },
+          "outcome": "Conflict",
+          "reason": "The capture or interpretation changed under the caller."
+        },
+        {
+          "name": "update_event_interpretation",
+          "dispatched": true,
+          "request": {
+            "captureId": 101,
+            "expectedEventRevision": 0,
+            "unresolvedReason": null,
+            "idempotencyKey": "snack_purchase_20261020_1515",
+            "expectedCaptureRevision": 0,
+            "extractionVersion": "1.0",
+            "interpretation": {
+              "amountVnd": 32000,
+              "timeAnchor": {
+                "time": "15:15",
+                "timezoneId": "Asia/Ho_Chi_Minh",
+                "date": "2026-10-20"
+              },
+              "merchant": "Circle K",
+              "spanEnd": 56,
+              "normalizedText": "snack 32,000 VND at Circle K at 15:15",
+              "spanStart": 27
+            }
+          },
+          "outcome": "Conflict",
+          "reason": "The capture or interpretation changed under the caller."
+        }
+      ],
+      "database_state": {
+        "captures": [
+          {
+            "id": 101,
+            "revision": 0,
+            "text": "Fuel 50,000 VND at 15:00; snack 32,000 VND at Circle K at 15:15."
+          }
+        ],
+        "captures_events": [],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 0
+      }
+    }
+  ]
+}

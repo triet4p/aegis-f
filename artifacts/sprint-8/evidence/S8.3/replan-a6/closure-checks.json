@@ -1,0 +1,445 @@
+{
+  "schema": "s8.3-baseline-closure-checks/v1",
+  "task_id": "S8.3",
+  "attempt_id": "S8.3-replan-a6",
+  "agent_id": "S83BaselineSilver06",
+  "generated_at": "2026-10-26T07:37:49",
+  "classification": "host replay over preserved raw evidence; no provider request, no model call, no phone command, no new inference",
+  "base_commit_sha": "6b83ebab4256ec93b326473db13574fd0d41b190",
+  "contract_validate": {
+    "command": "python tools/slm/s8_contract.py validate",
+    "status": "PASS"
+  },
+  "harness_selftest": {
+    "command": "python tools/slm/s8_trials.py selftest",
+    "status": "PASS",
+    "failures": []
+  },
+  "frozen_inputs_vs_base": {
+    "command": "git diff --exit-code 6b83eb -- <8 frozen inputs>",
+    "exit_code": 0
+  },
+  "evidence_indexes": {
+    "a5": {
+      "declared": 1280,
+      "on_disk_excluding_index": 1280,
+      "missing": 0,
+      "mismatch": 0,
+      "extra": 0
+    },
+    "a4": {
+      "declared": 656,
+      "on_disk_excluding_index": 656,
+      "missing": 0,
+      "mismatch": 0,
+      "extra": 0
+    }
+  },
+  "scoring_replay": {
+    "result": "11/11 scored profiles reproduce score.json byte-for-byte from preserved results.json",
+    "lfm": "build-results policy writes score.json not_applicable; direct scorer output is not that policy document (expected)"
+  },
+  "document_reassembly": {
+    "command": "python tools/slm/s8_trials.py build-results --profile <p> --evidence <temp copy>",
+    "case_outcomes_and_suite_scores_identical_for_all_12_runs": true,
+    "byte_identical_results_json": "6/12 (all three Gemini and all three DeepSeek hosted passes; the three Gemma hosted passes and all three a4 device profiles differ only in document-assembly fields)",
+    "assembly_drift_disclosed": {
+      "gemma_all_passes": "current code adds hosted cost/allowance/billing fields and metric definitions, and names the transport from summary.transport.kind; preserved documents were written by the earlier code revision",
+      "a4_device_profiles": "current code adds run.transport; preserved documents predate that field",
+      "scoring_effect": "none: suite_scores and every per-case passed/reasons tuple are identical"
+    }
+  },
+  "hosted_aggregates": {
+    "Gemma 4 26B": {
+      "per_pass": [
+        {
+          "adapted": 16,
+          "call_bearing_den": 11,
+          "call_bearing_tool_sequence": 10,
+          "call_bearing_tool_and_args": 3,
+          "all_16_tool_and_args": 8,
+          "effects_matched": 10,
+          "workflow_passed": 6,
+          "no_call_den": 5,
+          "no_call_zero_calls": 5,
+          "reading_cases": 1,
+          "reading_rows": 1
+        },
+        {
+          "adapted": 16,
+          "call_bearing_den": 11,
+          "call_bearing_tool_sequence": 10,
+          "call_bearing_tool_and_args": 3,
+          "all_16_tool_and_args": 8,
+          "effects_matched": 10,
+          "workflow_passed": 6,
+          "no_call_den": 5,
+          "no_call_zero_calls": 5,
+          "reading_cases": 1,
+          "reading_rows": 1
+        },
+        {
+          "adapted": 15,
+          "call_bearing_den": 11,
+          "call_bearing_tool_sequence": 10,
+          "call_bearing_tool_and_args": 3,
+          "all_16_tool_and_args": 7,
+          "effects_matched": 10,
+          "workflow_passed": 5,
+          "no_call_den": 5,
+          "no_call_zero_calls": 4,
+          "reading_cases": 1,
+          "reading_rows": 1
+        }
+      ],
+      "totals": {
+        "adapted": 47,
+        "call_bearing_den": 33,
+        "call_bearing_tool_sequence": 30,
+        "call_bearing_tool_and_args": 9,
+        "all_16_tool_and_args": 23,
+        "effects_matched": 30,
+        "workflow_passed": 17,
+        "no_call_den": 15,
+        "no_call_zero_calls": 14,
+        "reading_cases": 3,
+        "reading_rows": 3
+      }
+    },
+    "Gemini 3.5 Flash Lite": {
+      "per_pass": [
+        {
+          "adapted": 16,
+          "call_bearing_den": 11,
+          "call_bearing_tool_sequence": 8,
+          "call_bearing_tool_and_args": 4,
+          "all_16_tool_and_args": 6,
+          "reading_cases": 4,
+          "reading_rows": 4,
+          "effects_matched": 10,
+          "workflow_passed": 6,
+          "no_call_den": 5,
+          "no_call_zero_calls": 2
+        },
+        {
+          "adapted": 16,
+          "call_bearing_den": 11,
+          "call_bearing_tool_sequence": 8,
+          "call_bearing_tool_and_args": 4,
+          "all_16_tool_and_args": 6,
+          "reading_cases": 4,
+          "reading_rows": 4,
+          "effects_matched": 10,
+          "workflow_passed": 6,
+          "no_call_den": 5,
+          "no_call_zero_calls": 2
+        },
+        {
+          "adapted": 16,
+          "call_bearing_den": 11,
+          "call_bearing_tool_sequence": 8,
+          "call_bearing_tool_and_args": 4,
+          "all_16_tool_and_args": 6,
+          "reading_cases": 4,
+          "reading_rows": 4,
+          "effects_matched": 10,
+          "workflow_passed": 6,
+          "no_call_den": 5,
+          "no_call_zero_calls": 2
+        }
+      ],
+      "totals": {
+        "adapted": 48,
+        "call_bearing_den": 33,
+        "call_bearing_tool_sequence": 24,
+        "call_bearing_tool_and_args": 12,
+        "all_16_tool_and_args": 18,
+        "reading_cases": 12,
+        "reading_rows": 12,
+        "effects_matched": 30,
+        "workflow_passed": 18,
+        "no_call_den": 15,
+        "no_call_zero_calls": 6
+      }
+    },
+    "DeepSeek V4.1 Flash": {
+      "per_pass": [
+        {
+          "call_bearing_den": 11,
+          "call_bearing_tool_sequence": 7,
+          "call_bearing_tool_and_args": 4,
+          "all_16_tool_and_args": 7,
+          "adapted": 15,
+          "effects_matched": 11,
+          "reading_cases": 3,
+          "reading_rows": 3,
+          "workflow_passed": 7,
+          "no_call_den": 5,
+          "no_call_zero_calls": 3
+        },
+        {
+          "adapted": 16,
+          "call_bearing_den": 11,
+          "call_bearing_tool_sequence": 9,
+          "call_bearing_tool_and_args": 4,
+          "all_16_tool_and_args": 8,
+          "effects_matched": 12,
+          "reading_cases": 3,
+          "reading_rows": 4,
+          "workflow_passed": 7,
+          "no_call_den": 5,
+          "no_call_zero_calls": 4
+        },
+        {
+          "adapted": 15,
+          "call_bearing_den": 11,
+          "call_bearing_tool_sequence": 7,
+          "call_bearing_tool_and_args": 4,
+          "all_16_tool_and_args": 8,
+          "effects_matched": 12,
+          "reading_cases": 3,
+          "reading_rows": 4,
+          "workflow_passed": 7,
+          "no_call_den": 5,
+          "no_call_zero_calls": 4
+        }
+      ],
+      "totals": {
+        "call_bearing_den": 33,
+        "call_bearing_tool_sequence": 23,
+        "call_bearing_tool_and_args": 12,
+        "all_16_tool_and_args": 23,
+        "adapted": 46,
+        "effects_matched": 35,
+        "reading_cases": 9,
+        "reading_rows": 11,
+        "workflow_passed": 21,
+        "no_call_den": 15,
+        "no_call_zero_calls": 11
+      }
+    }
+  },
+  "hosted_document_check": {
+    "Gemma 4 26B": {
+      "per_pass_table_matches": true,
+      "totals_table_matches": true,
+      "computed_totals": {
+        "adapted": 47,
+        "no_call_zero_calls": 14,
+        "call_bearing_tool_sequence": 30,
+        "call_bearing_tool_and_args": 9,
+        "all_16_tool_and_args": 23,
+        "effects_matched": 30,
+        "workflow_passed": 17,
+        "reading_cases": 3
+      },
+      "documented_totals": {
+        "adapted": 47,
+        "no_call_zero_calls": 14,
+        "call_bearing_tool_sequence": 30,
+        "call_bearing_tool_and_args": 9,
+        "all_16_tool_and_args": 23,
+        "effects_matched": 30,
+        "workflow_passed": 17,
+        "reading_cases": 3
+      }
+    },
+    "Gemini 3.5 Flash Lite": {
+      "per_pass_table_matches": true,
+      "totals_table_matches": true,
+      "computed_totals": {
+        "adapted": 48,
+        "no_call_zero_calls": 6,
+        "call_bearing_tool_sequence": 24,
+        "call_bearing_tool_and_args": 12,
+        "all_16_tool_and_args": 18,
+        "effects_matched": 30,
+        "workflow_passed": 18,
+        "reading_cases": 12
+      },
+      "documented_totals": {
+        "adapted": 48,
+        "no_call_zero_calls": 6,
+        "call_bearing_tool_sequence": 24,
+        "call_bearing_tool_and_args": 12,
+        "all_16_tool_and_args": 18,
+        "effects_matched": 30,
+        "workflow_passed": 18,
+        "reading_cases": 12
+      }
+    },
+    "DeepSeek V4.1 Flash": {
+      "per_pass_table_matches": true,
+      "totals_table_matches": true,
+      "computed_totals": {
+        "adapted": 46,
+        "no_call_zero_calls": 11,
+        "call_bearing_tool_sequence": 23,
+        "call_bearing_tool_and_args": 12,
+        "all_16_tool_and_args": 23,
+        "effects_matched": 35,
+        "workflow_passed": 21,
+        "reading_cases": 9
+      },
+      "documented_totals": {
+        "adapted": 46,
+        "no_call_zero_calls": 11,
+        "call_bearing_tool_sequence": 23,
+        "call_bearing_tool_and_args": 12,
+        "all_16_tool_and_args": 23,
+        "effects_matched": 35,
+        "workflow_passed": 21,
+        "reading_cases": 9
+      }
+    }
+  },
+  "hosted_cap_facts": {
+    "Gemma 4 26B": {
+      "max_output_tokens": 333,
+      "truncated_generations": 0,
+      "truncated_cases": [],
+      "thought_tokens_on_truncated": [],
+      "cap": 2048
+    },
+    "Gemini 3.5 Flash Lite": {
+      "max_output_tokens": 171,
+      "truncated_generations": 0,
+      "truncated_cases": [],
+      "thought_tokens_on_truncated": [],
+      "cap": 2048
+    },
+    "DeepSeek V4.1 Flash": {
+      "max_output_tokens": 2048,
+      "truncated_generations": 3,
+      "truncated_cases": [
+        "pass-1/s8-multi-01",
+        "pass-2/s8h-multi-01",
+        "pass-3/s8h-multi-01"
+      ],
+      "thought_tokens_on_truncated": [
+        1814,
+        2048,
+        1580
+      ],
+      "cap": 2048
+    }
+  },
+  "device_facts": {
+    "minicpm-v-4.7-1b-cpu": {
+      "score_status": "scored",
+      "suite_scores": {
+        "frozen": {
+          "passed": 1,
+          "denominator": 10
+        },
+        "heldout": {
+          "passed": 1,
+          "denominator": 6
+        }
+      },
+      "caps_context": {
+        "768/4096": 16
+      },
+      "flagged_truncated": [],
+      "top_decode_tokens": [
+        [
+          767,
+          "s8-multi-01"
+        ],
+        [
+          188,
+          "s8h-multi-01"
+        ],
+        [
+          182,
+          "s8h-laya-01"
+        ]
+      ],
+      "observed_effect_mismatch_cases": 8
+    },
+    "qwen3.5-0.8b-cpu": {
+      "score_status": "scored",
+      "suite_scores": {
+        "frozen": {
+          "passed": 2,
+          "denominator": 10
+        },
+        "heldout": {
+          "passed": 1,
+          "denominator": 6
+        }
+      },
+      "caps_context": {
+        "768/4096": 16
+      },
+      "flagged_truncated": [],
+      "top_decode_tokens": [
+        [
+          767,
+          "s8h-multi-01"
+        ],
+        [
+          354,
+          "s8-multi-01"
+        ],
+        [
+          300,
+          "s8-match-01"
+        ]
+      ],
+      "observed_effect_mismatch_cases": 9
+    },
+    "lfm2.5-350m-restricted": {
+      "score_status": "not_applicable",
+      "suite_scores": null,
+      "caps_context": {
+        "384/4096": 16
+      },
+      "flagged_truncated": [],
+      "top_decode_tokens": [
+        [
+          73,
+          "s8-search-01"
+        ],
+        [
+          49,
+          "s8h-multi-01"
+        ],
+        [
+          25,
+          "s8-multi-01"
+        ]
+      ],
+      "observed_effect_mismatch_cases": null
+    }
+  },
+  "device_cap_bound_cases": {
+    "minicpm-v-4.7-1b-cpu/s8-multi-01": {
+      "decode_tokens": 767,
+      "max_tokens": 768,
+      "output_truncated_at_cap": false,
+      "parse_error": true,
+      "tail": "parameter=captureId>\n101\n</parameter>\n<parameter=interpretation>\n{\"spanStart\": 4"
+    },
+    "qwen3.5-0.8b-cpu/s8h-multi-01": {
+      "decode_tokens": 767,
+      "max_tokens": 768,
+      "output_truncated_at_cap": false,
+      "parse_error": false,
+      "tail": "iven that I cannot create new events through these tools, I should note that the"
+    }
+  },
+  "operational_events": {
+    "complete_hosted_passes": 9,
+    "gemma_429_case": "pass-3/gemma-4-26b-a4b-it-ai-studio/s8h-injection-01",
+    "device_loss_invalid_pass": "pass-3/gemini-3.5-flash-lite-ai-studio-device-loss (aborted.json; excluded)",
+    "aborted_supplemental_pass": "pass-4-aborted-config-change (aborted.json; excluded)",
+    "wrong_route_diagnostic": "opencode-go/provider-verification.json wrong_route_diagnostic (Console /inference HTTP 402)",
+    "device_aborted_first_minicpm_run": "a4/aborted-run-1-minicpm/aborted.json (5 raw generations, 4 case records; excluded)"
+  },
+  "limits": [
+    "Scoring replay used preserved results.json; document re-assembly from raw summary.json is semantically identical but not byte-identical for a4 and Gemma a5 because s8_trials.py changed after those documents were written.",
+    "No fresh provider or phone inference was run, by assignment.",
+    "Aggregates depend on the documented column definitions now written into both reports; prior labels were ambiguous but the numbers are unchanged."
+  ]
+}

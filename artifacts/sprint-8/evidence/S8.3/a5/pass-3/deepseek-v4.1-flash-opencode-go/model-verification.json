@@ -1,0 +1,62 @@
+{
+  "provider": "opencode-go",
+  "profile": "deepseek-v4.1-flash-opencode-go",
+  "api_model": "deepseek-v4.1-flash",
+  "output_adapter": "openai-chat-tool-calls-v1",
+  "endpoint": "https://opencode.ai/zen/go/v1/chat/completions",
+  "model_list_endpoint": "https://opencode.ai/zen/go/v1/models",
+  "protocol_note": "OpenCode Go serves DeepSeek models over the OpenAI-compatible Chat Completions API with OpenAI-style tools/tool_calls. Official Console documentation maps deepseek-v4.1-flash to chat/completions; the Responses API is documented for GPT models. The Go gateway route is https://opencode.ai/zen/go/v1, distinct from the Console /inference route, whose 402 response is retained only as a wrong-route diagnostic.",
+  "request_config_sha256": "e1815b67ff2b0548d1921541186e7378ddbcb8c0a8b2ac82497c46920afd58df",
+  "credential_present": true,
+  "model_identity": {
+    "status": "verified",
+    "http_status": 200,
+    "catalog_count": 38,
+    "model_present": true,
+    "model_entry": {
+      "id": "deepseek-v4.1-flash",
+      "object": "model",
+      "created": 1792939968,
+      "owned_by": "opencode"
+    }
+  },
+  "preflight": {
+    "purpose": "confirms the Go gateway accepts the frozen tool declarations and generation config",
+    "http_status": 200,
+    "wall_seconds": 2.275,
+    "tool_declarations_accepted": true,
+    "usage": {
+      "prompt_tokens": 1474,
+      "completion_tokens": 2,
+      "total_tokens": 1476,
+      "prompt_tokens_details": {
+        "audio_tokens": 0,
+        "cached_tokens": 1408,
+        "cache_creation_input_tokens": 0,
+        "cache_write_tokens": 0
+      },
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": 0,
+        "audio_tokens": 0,
+        "reasoning_tokens": 0,
+        "rejected_prediction_tokens": 0
+      },
+      "cost": 0,
+      "opencode": {
+        "billing_source": "go",
+        "list_cost": 1.532e-05,
+        "allowance": 1.149e-05,
+        "tokens": {
+          "input": 66,
+          "output": 2,
+          "reasoning": 0,
+          "cache_read": 1408,
+          "cache_write_5m": 0,
+          "cache_write_1h": 0
+        }
+      }
+    },
+    "model_version": "deepseek-v4.1-flash",
+    "error": null
+  }
+}

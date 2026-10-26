@@ -1,0 +1,186 @@
+{
+  "effect_source": "instrumented_application",
+  "fixture": "in_memory_room",
+  "fixture_timezone": "Asia/Ho_Chi_Minh",
+  "results": [
+    {
+      "case_id": "s8-time-01",
+      "fixture": {
+        "capture_ids": [
+          102
+        ],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "update_event_interpretation",
+          "dispatched": true,
+          "request": {
+            "idempotencyKey": "capture-102-book-70k-v1",
+            "captureId": 102,
+            "expectedCaptureRevision": 0,
+            "expectedEventRevision": null,
+            "extractionVersion": "v1",
+            "interpretation": {
+              "spanStart": 0,
+              "spanEnd": 35,
+              "normalizedText": "Book 70,000 VND on 2026-10-24 at 09:30",
+              "amountVnd": 70000,
+              "merchant": null,
+              "timeAnchor": {
+                "date": "2026-10-24",
+                "time": "09:30",
+                "intervalEndDate": null,
+                "intervalEndTime": null,
+                "timezoneId": "Asia/Ho_Chi_Minh"
+              },
+              "unresolvedReason": null
+            }
+          },
+          "outcome": "Applied",
+          "change": {
+            "kind": "EventStored",
+            "detail": "EventStored(eventId=603, revision=0)"
+          }
+        },
+        {
+          "name": "query_draft_candidates",
+          "dispatched": true,
+          "request": {
+            "query": {
+              "reviewStatus": "PENDING",
+              "onlyPossibleDuplicates": false,
+              "bounds": {
+                "limit": 20,
+                "offset": 0
+              }
+            }
+          },
+          "outcome": "Read",
+          "page": {
+            "limit": 20,
+            "offset": 0,
+            "has_more": false,
+            "items": [
+              {
+                "id": 801,
+                "review_status": "PENDING",
+                "review_revision": 2,
+                "amount_vnd": null,
+                "stated_date": null,
+                "stated_time": null,
+                "memo": "bus fare",
+                "possible_duplicate_of": null
+              },
+              {
+                "id": 604,
+                "review_status": "PENDING",
+                "review_revision": 0,
+                "amount_vnd": 70000,
+                "stated_date": "2026-10-22",
+                "stated_time": null,
+                "memo": "purchase 70,000 VND on 2026-10-22",
+                "possible_duplicate_of": 603
+              },
+              {
+                "id": 603,
+                "review_status": "PENDING",
+                "review_revision": 0,
+                "amount_vnd": 70000,
+                "stated_date": "2026-10-22",
+                "stated_time": null,
+                "memo": "purchase 70,000 VND on 2026-10-22",
+                "possible_duplicate_of": null
+              },
+              {
+                "id": 601,
+                "review_status": "PENDING",
+                "review_revision": 0,
+                "amount_vnd": null,
+                "stated_date": null,
+                "stated_time": null,
+                "memo": "draft without matching evidence",
+                "possible_duplicate_of": null
+              },
+              {
+                "id": 501,
+                "review_status": "PENDING",
+                "review_revision": 0,
+                "amount_vnd": null,
+                "stated_date": null,
+                "stated_time": null,
+                "memo": "coffee at noon",
+                "possible_duplicate_of": null
+              },
+              {
+                "id": 401,
+                "review_status": "PENDING",
+                "review_revision": 0,
+                "amount_vnd": 50000,
+                "stated_date": "2026-10-20",
+                "stated_time": null,
+                "memo": "Fuel 50,000 VND on 2026-10-20",
+                "possible_duplicate_of": null
+              }
+            ]
+          }
+        }
+      ],
+      "database_state": {
+        "captures": [
+          {
+            "id": 102,
+            "revision": 0,
+            "text": "Book 70,000 VND yesterday at 09:30."
+          }
+        ],
+        "captures_events": [
+          {
+            "id": 603,
+            "capture_id": 102,
+            "span_start": 0,
+            "span_end": 35,
+            "normalized_text": "Book 70,000 VND on 2026-10-24 at 09:30",
+            "amount_vnd": 70000,
+            "merchant": null,
+            "anchor_date": "2026-10-24",
+            "anchor_time": "09:30",
+            "anchor_timezone": "Asia/Ho_Chi_Minh",
+            "unresolved_reason": null,
+            "status": "INTERPRETED",
+            "revision": 0,
+            "source_revision": 0
+          }
+        ],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 1
+      }
+    }
+  ]
+}

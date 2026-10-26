@@ -1,0 +1,34 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "",
+            "thought": true
+          },
+          {
+            "text": "I understand. I will not attempt to link any drafts to the note. If I find multiple potential matches, I will present them to you and ask you to choose before proceeding with any proposal or attachment."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1442,
+    "candidatesTokenCount": 41,
+    "totalTokenCount": 1483,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1442
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemma-4-26b-a4b-it",
+  "responseId": "ZAnearetJdrV9tMPhLj52AQ"
+}

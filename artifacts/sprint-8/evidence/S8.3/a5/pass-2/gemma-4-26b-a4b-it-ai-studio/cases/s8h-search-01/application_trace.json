@@ -1,0 +1,98 @@
+{
+  "effect_source": "instrumented_application",
+  "fixture": "in_memory_room",
+  "fixture_timezone": "Asia/Ho_Chi_Minh",
+  "results": [
+    {
+      "case_id": "s8h-search-01",
+      "fixture": {
+        "capture_ids": [],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "query_draft_candidates",
+          "dispatched": true,
+          "request": {
+            "query": {
+              "onlyPossibleDuplicates": false,
+              "bounds": {
+                "limit": 3,
+                "offset": 0
+              },
+              "reviewStatus": "PENDING"
+            }
+          },
+          "outcome": "Read",
+          "page": {
+            "limit": 3,
+            "offset": 0,
+            "has_more": true,
+            "items": [
+              {
+                "id": 801,
+                "review_status": "PENDING",
+                "review_revision": 2,
+                "amount_vnd": null,
+                "stated_date": null,
+                "stated_time": null,
+                "memo": "bus fare",
+                "possible_duplicate_of": null
+              },
+              {
+                "id": 604,
+                "review_status": "PENDING",
+                "review_revision": 0,
+                "amount_vnd": 70000,
+                "stated_date": "2026-10-22",
+                "stated_time": null,
+                "memo": "purchase 70,000 VND on 2026-10-22",
+                "possible_duplicate_of": 603
+              },
+              {
+                "id": 603,
+                "review_status": "PENDING",
+                "review_revision": 0,
+                "amount_vnd": 70000,
+                "stated_date": "2026-10-22",
+                "stated_time": null,
+                "memo": "purchase 70,000 VND on 2026-10-22",
+                "possible_duplicate_of": null
+              }
+            ]
+          }
+        }
+      ],
+      "database_state": {
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 0
+      }
+    }
+  ]
+}

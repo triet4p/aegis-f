@@ -1,0 +1,48 @@
+{
+  "id": "cb6d89bb16a00aa000cf98a4f452e5a0",
+  "object": "chat.completion",
+  "created": 1792940113,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "stop",
+      "message": {
+        "role": "assistant",
+        "content": "I don't have the note or the two receipts in front of me, so I can't present a meaningful choice yet. Nothing has been proposed or connected.\n\nTo ask you to choose, I need:\n\n1. **The note** — its text, or the capture/event ID it was extracted into.\n2. **The two receipts** — the two draft IDs (or their bank descriptions and amounts).\n\nOnce I have those, I'll compare the note's amount, merchant, and time against each draft's stored facts and ask you which one belongs — without linking anything until you pick.",
+        "reasoning_content": "The user says \"I can't tell which of these two receipts belongs to the note. Ask me to choose before connecting anything.\"\n\nWe don't have the note text or receipt data. We have no capture ID, no event, no drafts. The user asks us to ask them to choose. But we have no context — no note, no receipts. We need to clarify what note and which two receipts. We should ask a direct question about the missing field.\n\nShould we call any tool? Candidate search is bounded read of pending bank drafts. But we have no event to compare against. We don't know the note or amounts. We could query drafts, but without knowing anything, that would be guessing. The instruction: \"No tool call is the correct outcome when the request is ambiguous or unsupported.\"\n\nThe user explicitly asks us to ask them to choose. So the correct outcome: ask which note, and what the two receipts are — or ask them to provide the note text and the two receipts, or ask them to identify the two candidates.\n\nWe should not propose or attach anything. We should respond with a direct clarifying question.\n\nAlso should note we have no captured note/event ID in this conversation. So ask: which note (capture/event), and which two receipts/drafts (IDs or descriptions)?\n\nKeep it concise."
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1858,
+    "completion_tokens": 389,
+    "total_tokens": 2247,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1792,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 269,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00024868,
+      "allowance": 0.00018651,
+      "tokens": {
+        "input": 66,
+        "output": 389,
+        "reasoning": 269,
+        "cache_read": 1792,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

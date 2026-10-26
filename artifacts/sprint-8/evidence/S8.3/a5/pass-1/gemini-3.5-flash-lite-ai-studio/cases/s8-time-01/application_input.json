@@ -1,0 +1,34 @@
+{
+  "results": [
+    {
+      "case_id": "s8-time-01",
+      "calls": [
+        {
+          "name": "update_event_interpretation",
+          "args": {
+            "expectedEventRevision": null,
+            "extractionVersion": "v1",
+            "idempotencyKey": "interp-102-1",
+            "captureId": 102,
+            "expectedCaptureRevision": 0,
+            "interpretation": {
+              "unresolvedReason": null,
+              "merchant": null,
+              "spanStart": 0,
+              "normalizedText": "Book 70,000 VND yesterday at 09:30.",
+              "timeAnchor": {
+                "timezoneId": "Asia/Ho_Chi_Minh",
+                "intervalEndDate": null,
+                "date": "2026-10-24",
+                "time": "09:30",
+                "intervalEndTime": null
+              },
+              "amountVnd": 70000,
+              "spanEnd": 34
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "id": "86bba0db36f4cefc4db97627d9fdb634",
+  "object": "chat.completion",
+  "created": 1792940097,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "reasoning_content": "The note: \"Groceries 45,000 VND yesterday, exact hour unknown.\" Today 2026-10-25. Yesterday = 2026-10-24. Time unknown → time null. Amount 45,000 VND = 45000. Merchant \"Groceries\"? Hmm, \"Groceries\" is a category-like description but it's the merchant text as stated. Merchant = \"Groceries\"? Preserve what the source says. It's ambiguous whether Groceries is merchant. I'd say merchant \"Groceries\" as it's the description. Actually normalizedText should be the verbatim source span.\n\nSpan: whole note, start 0, end length of string. Let's compute: \"Groceries 45,000 VND yesterday, exact hour unknown.\" Length: \"Groceries\" 9, space 1 =10, \"45,000\" 6 =16, space=17, \"VND\"3=20, space=21, \"yesterday,\"10=31, space=32, \"exact\"5=37, space=38, \"hour\"4=42, space=43, \"unknown.\"8=51. So spanEnd 51.\n\nAmount 45000. Time anchor date 2026-10-24, time null, timezoneId Asia/Ho_Chi_Minh. No unresolvedReason needed since time unknown is stated explicitly (\"exact hour unknown\") and date resolved. So timeAnchor with date 2026-10-24, time null.\n\nThen should I search for draft candidates? The user only asked to extract the note. Hmm. Extraction task. Do I need candidate search? The instruction says candidate search is bounded read for possible duplicates, but user request is just extraction. Probably just store interpretation. But maybe linking is part of workflow? The user request is only extraction. I'll do extraction; optionally search drafts? Since request doesn't mention matching, I'll not search. Actually a link requires an event id which we don't have (update_event_interpretation returns maybe event id). Keep it simple: one call.\n\nextractionVersion: something like \"v1\". idempotencyKey: unique string.\n\nexpectedEventRevision: null (no existing event).",
+        "tool_calls": [
+          {
+            "id": "call_00_3zwpitukkwr9ctogq6ljmnqa",
+            "type": "function",
+            "function": {
+              "name": "update_event_interpretation",
+              "arguments": "{\"idempotencyKey\": \"capture202-note-extract-v1\", \"captureId\": 202, \"expectedCaptureRevision\": 0, \"expectedEventRevision\": null, \"extractionVersion\": \"note-extract-v1\", \"interpretation\": {\"spanStart\": 0, \"spanEnd\": 51, \"normalizedText\": \"Groceries 45,000 VND yesterday, exact hour unknown.\", \"amountVnd\": 45000, \"merchant\": \"Groceries\", \"timeAnchor\": {\"date\": \"2026-10-24\", \"time\": null, \"intervalEndDate\": null, \"intervalEndTime\": null, \"timezoneId\": \"Asia/Ho_Chi_Minh\"}, \"unresolvedReason\": null}}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1928,
+    "completion_tokens": 725,
+    "total_tokens": 2653,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1920,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 472,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00044196,
+      "allowance": 0.00033147,
+      "tokens": {
+        "input": 8,
+        "output": 725,
+        "reasoning": 472,
+        "cache_read": 1920,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

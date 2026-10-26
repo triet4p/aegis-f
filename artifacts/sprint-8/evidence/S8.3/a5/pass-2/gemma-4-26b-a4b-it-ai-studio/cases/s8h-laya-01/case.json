@@ -1,0 +1,200 @@
+{
+  "case_id": "s8h-laya-01",
+  "suite": "heldout",
+  "profile": "gemma-4-26b-a4b-it-ai-studio",
+  "provider": "google-ai-studio",
+  "small_context": "\nApplication context (trusted, read-only fixture):\n- today: 2026-10-25 (Asia/Ho_Chi_Minh)\n- draft 801 (review status PENDING, review revision 2)",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "request_laya_classification",
+      "args": {
+        "expectedReviewRevision": 2,
+        "idempotencyKey": "req_laya_801_bus_fare",
+        "draftId": 801,
+        "description": "bus fare"
+      }
+    }
+  ],
+  "parse_error": null,
+  "application": {
+    "case_id": "s8h-laya-01",
+    "application_trace": {
+      "case_id": "s8h-laya-01",
+      "fixture": {
+        "capture_ids": [],
+        "event_ids": [],
+        "draft_ids": [
+          801
+        ]
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "request_laya_classification",
+          "dispatched": true,
+          "request": {
+            "expectedReviewRevision": 2,
+            "idempotencyKey": "req_laya_801_bus_fare",
+            "draftId": 801,
+            "description": "bus fare"
+          },
+          "outcome": "Failed",
+          "reason": "Laya runtime is not part of this generative S8.3 trial; the command boundary still ran."
+        }
+      ],
+      "database_state": {
+        "drafts": [
+          {
+            "id": 801,
+            "review_status": "PENDING",
+            "review_revision": 2,
+            "amount_vnd": null,
+            "stated_date": null,
+            "stated_time": null,
+            "memo": "bus fare",
+            "possible_duplicate_of": null
+          }
+        ],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 0
+      }
+    },
+    "trace_source": "instrumented_application",
+    "fixture": "in_memory_room",
+    "instrumentation_ok": true
+  },
+  "effects": {
+    "ledgerWrites": 0,
+    "noLedgerWrites": true,
+    "financialWrites": 0,
+    "applicationCalls": 1,
+    "deleteCalls": 0,
+    "attachCalls": 0,
+    "callerScope": "trusted_host_only",
+    "activeLinksForEvent": 0,
+    "draftId": 801,
+    "description": "bus fare",
+    "classificationOutcome": "Failed",
+    "classificationIsReviewOnly": true
+  },
+  "metrics": {
+    "wall_seconds": 2.344,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1492,
+    "output_tokens": 53,
+    "thought_tokens": null,
+    "total_tokens": 1545,
+    "cached_input_tokens": null,
+    "service_tier": "standard",
+    "finish_reason": "STOP",
+    "model_version": "gemma-4-26b-a4b-it",
+    "response_id": "CAreatjoNfCj2roP3-zqwA8",
+    "max_tokens": 2048,
+    "context_tokens": null,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 2.344
+  },
+  "cold_start_sample": false,
+  "transport": {
+    "kind": "hosted-generate-content",
+    "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+    "api_model": "gemma-4-26b-a4b-it",
+    "output_adapter": "google-function-call-v1",
+    "native_envelope_parsed": false,
+    "request_config_sha256": "710a0f8d23ee4cd607adcc817bff9bfe38f883f3ba7c48d8b305871bd40f69b9",
+    "generation_config": {
+      "temperature": 0.1,
+      "topP": 0.95,
+      "topK": 50,
+      "seed": 42,
+      "maxOutputTokens": 2048,
+      "thinkingConfig": {
+        "thinkingLevel": "minimal"
+      }
+    },
+    "tool_config": {
+      "functionCallingConfig": {
+        "mode": "AUTO"
+      }
+    },
+    "retry_policy": "no retry on any 4xx response including 429; at most one retry after a transport timeout or a 5xx response, recorded as attempt 2",
+    "conversation": "one user turn, no tool results, no multi-turn follow-up: the same single-turn contract the local profiles were measured under"
+  },
+  "raw": {
+    "case_id": "s8h-laya-01",
+    "phase": "hosted",
+    "generation": "",
+    "parsed_calls": [
+      {
+        "name": "request_laya_classification",
+        "args": {
+          "expectedReviewRevision": 2,
+          "idempotencyKey": "req_laya_801_bus_fare",
+          "draftId": 801,
+          "description": "bus fare"
+        }
+      }
+    ],
+    "parse_error": null,
+    "metrics": {
+      "wall_seconds": 2.344,
+      "http_status": 200,
+      "attempts": 1,
+      "input_tokens": 1492,
+      "output_tokens": 53,
+      "thought_tokens": null,
+      "total_tokens": 1545,
+      "cached_input_tokens": null,
+      "service_tier": "standard",
+      "finish_reason": "STOP",
+      "model_version": "gemma-4-26b-a4b-it",
+      "response_id": "CAreatjoNfCj2roP3-zqwA8",
+      "max_tokens": 2048,
+      "context_tokens": null,
+      "output_truncated_at_cap": false,
+      "request_timeout_seconds": 120,
+      "first_result_seconds": 2.344
+    },
+    "request_sha256": "dd3600613b22ff09a7a2b45b9696e20bf3613b4eebaabed0143c74068a3916dc",
+    "response_sha256": "9d3d007de1bf4194e529b4dc976dc4b81a75579085179b1e42fcccbda7353185",
+    "prompt_hashes": {
+      "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+      "user_sha256": "dcb3da927d60cfbe576d00fa6bdac2792e6580eb8e50869a54211f0bcc94ffdf",
+      "tool_declarations_sha256": "c090ac75dca5272675a307f3163b1e97c30f91b5610ab8d075f0d38acb38fdea"
+    },
+    "attempts": [
+      {
+        "attempt": 1,
+        "http_status": 200,
+        "wall_seconds": 2.344
+      }
+    ]
+  }
+}

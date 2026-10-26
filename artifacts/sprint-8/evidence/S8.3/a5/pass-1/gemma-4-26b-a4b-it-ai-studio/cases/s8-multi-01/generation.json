@@ -1,0 +1,87 @@
+{
+  "case_id": "s8-multi-01",
+  "phase": "hosted",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "expectedCaptureRevision": 0,
+        "captureId": 101,
+        "unresolvedReason": null,
+        "extractionVersion": "1.0",
+        "expectedEventRevision": 0,
+        "interpretation": {
+          "normalizedText": "Fuel 50,000 VND at 15:00",
+          "merchant": null,
+          "spanStart": 0,
+          "spanEnd": 25,
+          "timeAnchor": {
+            "timezoneId": "Asia/Ho_Chi_Minh",
+            "time": "15:00",
+            "date": "2026-10-20"
+          },
+          "amountVnd": 50000
+        },
+        "idempotencyKey": "fuel_purchase_20261020_1500"
+      }
+    },
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "idempotencyKey": "snack_purchase_20261020_1515",
+        "interpretation": {
+          "timeAnchor": {
+            "time": "15:15",
+            "date": "2026-10-20",
+            "timezoneId": "Asia/Ho_Chi_Minh"
+          },
+          "spanEnd": 56,
+          "merchant": "Circle K",
+          "spanStart": 27,
+          "normalizedText": "snack 32,000 VND at Circle K at 15:15",
+          "amountVnd": 32000
+        },
+        "captureId": 101,
+        "extractionVersion": "1.0",
+        "expectedCaptureRevision": 0,
+        "expectedEventRevision": 0,
+        "unresolvedReason": null
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 8.615,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1579,
+    "output_tokens": 333,
+    "thought_tokens": null,
+    "total_tokens": 1912,
+    "cached_input_tokens": null,
+    "service_tier": "standard",
+    "finish_reason": "STOP",
+    "model_version": "gemma-4-26b-a4b-it",
+    "response_id": "FgneasajLo331e8PqtnXsAM",
+    "max_tokens": 2048,
+    "context_tokens": null,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 8.615
+  },
+  "request_sha256": "594b92fc9f6aace16234dcd861c6a405fc20a33a453d6ee7394f121c620d8ed1",
+  "response_sha256": "974e252f6851db6d106c981c338cc44420d526694d03ac2562e8e29243905b05",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "9d65bc8b0050dc15499b8b00690fabc761eadcecab846e91fa4943092163c535",
+    "tool_declarations_sha256": "c090ac75dca5272675a307f3163b1e97c30f91b5610ab8d075f0d38acb38fdea"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 8.615
+    }
+  ]
+}

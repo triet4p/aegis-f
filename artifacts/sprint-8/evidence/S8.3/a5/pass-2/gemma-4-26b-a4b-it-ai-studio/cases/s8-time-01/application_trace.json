@@ -1,0 +1,77 @@
+{
+  "effect_source": "instrumented_application",
+  "fixture": "in_memory_room",
+  "fixture_timezone": "Asia/Ho_Chi_Minh",
+  "results": [
+    {
+      "case_id": "s8-time-01",
+      "fixture": {
+        "capture_ids": [
+          102
+        ],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "update_event_interpretation",
+          "dispatched": true,
+          "request": {
+            "interpretation": {
+              "spanStart": 5,
+              "amountVnd": 70000,
+              "normalizedText": "70,000 VND",
+              "spanEnd": 13,
+              "merchant": null
+            },
+            "captureId": 102,
+            "expectedEventRevision": 0,
+            "extractionVersion": "1.0",
+            "expectedCaptureRevision": 0,
+            "idempotencyKey": "book_purchase_20261024",
+            "unresolvedReason": null
+          },
+          "outcome": "Conflict",
+          "reason": "The capture or interpretation changed under the caller."
+        }
+      ],
+      "database_state": {
+        "captures": [
+          {
+            "id": 102,
+            "revision": 0,
+            "text": "Book 70,000 VND yesterday at 09:30."
+          }
+        ],
+        "captures_events": [],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 0
+      }
+    }
+  ]
+}

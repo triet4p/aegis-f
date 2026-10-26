@@ -1,0 +1,85 @@
+{
+  "effect_source": "instrumented_application",
+  "fixture": "in_memory_room",
+  "fixture_timezone": "Asia/Ho_Chi_Minh",
+  "results": [
+    {
+      "case_id": "s8h-time-01",
+      "fixture": {
+        "capture_ids": [
+          202
+        ],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "update_event_interpretation",
+          "dispatched": true,
+          "request": {
+            "interpretation": {
+              "spanStart": 0,
+              "amountVnd": 45000,
+              "normalizedText": "Groceries 45,000 VND yesterday, exact hour unknown.",
+              "unresolvedReason": null,
+              "timeAnchor": {
+                "timezoneId": "Asia/Ho_Chi_Minh",
+                "date": "2026-10-24",
+                "intervalEndDate": null,
+                "intervalEndTime": null,
+                "time": null
+              },
+              "merchant": null,
+              "spanEnd": 49
+            },
+            "extractionVersion": "1.0",
+            "captureId": 202,
+            "idempotencyKey": "capture-202-interp-1",
+            "expectedCaptureRevision": 0,
+            "expectedEventRevision": null
+          },
+          "outcome": "NeedsClarification",
+          "field": "TIME",
+          "reason": "A stated time zone needs the time it anchors."
+        }
+      ],
+      "database_state": {
+        "captures": [
+          {
+            "id": 202,
+            "revision": 0,
+            "text": "Groceries 45,000 VND yesterday, exact hour unknown."
+          }
+        ],
+        "captures_events": [],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 0
+      }
+    }
+  ]
+}

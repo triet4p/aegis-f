@@ -1,0 +1,59 @@
+{
+  "case_id": "s8-time-01",
+  "phase": "hosted",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "expectedEventRevision": 0,
+        "idempotencyKey": "book_purchase_20261024",
+        "expectedCaptureRevision": 0,
+        "extractionVersion": "1.0",
+        "captureId": 102,
+        "unresolvedReason": null,
+        "interpretation": {
+          "spanStart": 5,
+          "amountVnd": 70000,
+          "merchant": null,
+          "spanEnd": 13,
+          "normalizedText": "70,000 VND"
+        }
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 3.688,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1523,
+    "output_tokens": 106,
+    "thought_tokens": null,
+    "total_tokens": 1629,
+    "cached_input_tokens": null,
+    "service_tier": "standard",
+    "finish_reason": "STOP",
+    "model_version": "gemma-4-26b-a4b-it",
+    "response_id": "YQveauH7NqHU9tMP1dHp2QQ",
+    "max_tokens": 2048,
+    "context_tokens": null,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 3.688
+  },
+  "request_sha256": "6545500862ceb3f65ef4cb0d9624416b7821c861304f27acf1efea1b68541643",
+  "response_sha256": "0d491a570334ad27fe8bd0317b7c4304923e44036736327e5343e692389cd648",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "1525b94a79e1e098b93282e2faed5c846dc48e79379cf4c6e6e046a3635da8d5",
+    "tool_declarations_sha256": "c090ac75dca5272675a307f3163b1e97c30f91b5610ab8d075f0d38acb38fdea"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 3.688
+    }
+  ]
+}

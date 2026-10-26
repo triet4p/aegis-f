@@ -1,0 +1,34 @@
+{
+  "results": [
+    {
+      "case_id": "s8h-time-01",
+      "calls": [
+        {
+          "name": "update_event_interpretation",
+          "args": {
+            "expectedEventRevision": null,
+            "expectedCaptureRevision": 0,
+            "extractionVersion": "1.0",
+            "idempotencyKey": "capture-202-interp-1",
+            "interpretation": {
+              "spanStart": 0,
+              "unresolvedReason": null,
+              "amountVnd": 45000,
+              "merchant": null,
+              "spanEnd": 49,
+              "normalizedText": "Groceries 45,000 VND yesterday, exact hour unknown.",
+              "timeAnchor": {
+                "intervalEndTime": null,
+                "date": "2026-10-24",
+                "time": null,
+                "intervalEndDate": null,
+                "timezoneId": "Asia/Ho_Chi_Minh"
+              }
+            },
+            "captureId": 202
+          }
+        }
+      ]
+    }
+  ]
+}

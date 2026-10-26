@@ -1,0 +1,176 @@
+{
+  "case_id": "s8-time-02",
+  "suite": "frozen",
+  "profile": "qwen3.5-0.8b-cpu",
+  "prompt_sha256": "26a162039edaa2110fb05ade08da707e262b96c5862cab5019f62fefb2a3716f",
+  "generation": "<think>\n\n</think>\nI need to extract the distinct real-world occurrence of your grocery payment. The source text is \"Groceries 45,000 VND; time not remembered.\" I'll use this exact source span as the extraction target.\n\nLet me check what's available in the draft candidates database first to see if there are any relevant entries:\n\n<tool_call>\n<function=query_draft_candidates>\n<parameter=query>\n{\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": true, \"bounds\": {\"limit\": 500, \"offset\": 0}}\n</parameter>\n</function>\n</tool_call><|im_end|>",
+  "parsed_calls": [
+    {
+      "name": "query_draft_candidates",
+      "args": {
+        "query": {
+          "reviewStatus": "PENDING",
+          "onlyPossibleDuplicates": true,
+          "bounds": {
+            "limit": 500,
+            "offset": 0
+          }
+        }
+      }
+    }
+  ],
+  "parse_error": null,
+  "application": {
+    "case_id": "s8-time-02",
+    "application_trace": {
+      "case_id": "s8-time-02",
+      "fixture": {
+        "capture_ids": [
+          103
+        ],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "query_draft_candidates",
+          "dispatched": true,
+          "request": {
+            "query": {
+              "reviewStatus": "PENDING",
+              "onlyPossibleDuplicates": true,
+              "bounds": {
+                "limit": 500,
+                "offset": 0
+              }
+            }
+          },
+          "outcome": "Read",
+          "page": {
+            "limit": 500,
+            "offset": 0,
+            "has_more": false,
+            "items": [
+              {
+                "id": 604,
+                "review_status": "PENDING",
+                "review_revision": 0,
+                "amount_vnd": 70000,
+                "stated_date": "2026-10-22",
+                "stated_time": null,
+                "memo": "purchase 70,000 VND on 2026-10-22",
+                "possible_duplicate_of": 603
+              }
+            ]
+          }
+        }
+      ],
+      "database_state": {
+        "captures": [
+          {
+            "id": 103,
+            "revision": 0,
+            "text": "Groceries 45,000 VND; time not remembered."
+          }
+        ],
+        "captures_events": [],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 0
+      }
+    },
+    "trace_source": "instrumented_application",
+    "fixture": "in_memory_room",
+    "instrumentation_ok": true
+  },
+  "effects": {
+    "ledgerWrites": 0,
+    "noLedgerWrites": true,
+    "financialWrites": 0,
+    "applicationCalls": 1,
+    "deleteCalls": 0,
+    "attachCalls": 0,
+    "callerScope": "trusted_host_only",
+    "activeLinksForEvent": 0,
+    "limit": 500,
+    "offset": 0,
+    "reviewStatus": "PENDING",
+    "draftIds": [
+      604
+    ],
+    "hasMore": false
+  },
+  "metrics": {
+    "wall_seconds": 109.85,
+    "runtime_reported_load_seconds": 88.98,
+    "prefill_tokens": 1631,
+    "prefill_seconds": 88.943,
+    "prefill_tokens_per_second": 18.34,
+    "decode_tokens": 125,
+    "decode_seconds": 15.635,
+    "decode_tokens_per_second": 7.99,
+    "process_peak_rss_mib": 707.4,
+    "process_peak_pss_mib": 706.0,
+    "device_mem_available_baseline_kib": 2656040,
+    "device_mem_available_min_kib": 2278820,
+    "samples": 237,
+    "exit_code": 0,
+    "max_tokens": 768,
+    "context_tokens": 4096,
+    "output_truncated_at_cap": false,
+    "first_result_seconds": 109.85
+  },
+  "cold_start_sample": false,
+  "raw": {
+    "case_id": "s8-time-02",
+    "phase": "cold",
+    "generation": "<think>\n\n</think>\nI need to extract the distinct real-world occurrence of your grocery payment. The source text is \"Groceries 45,000 VND; time not remembered.\" I'll use this exact source span as the extraction target.\n\nLet me check what's available in the draft candidates database first to see if there are any relevant entries:\n\n<tool_call>\n<function=query_draft_candidates>\n<parameter=query>\n{\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": true, \"bounds\": {\"limit\": 500, \"offset\": 0}}\n</parameter>\n</function>\n</tool_call><|im_end|>",
+    "raw_stdout_sha256": "1be296ca5cc6cfb255bff0edaa0bd8fa9c827f88178d3d513b94c8b3a59831c4",
+    "raw_stderr_sha256": "97608c2ccfa633d983a4cf983fbabecac02ea7674afa0e85bff9d20e63ecbccc",
+    "metrics": {
+      "wall_seconds": 109.85,
+      "runtime_reported_load_seconds": 88.98,
+      "prefill_tokens": 1631,
+      "prefill_seconds": 88.943,
+      "prefill_tokens_per_second": 18.34,
+      "decode_tokens": 125,
+      "decode_seconds": 15.635,
+      "decode_tokens_per_second": 7.99,
+      "process_peak_rss_mib": 707.4,
+      "process_peak_pss_mib": 706.0,
+      "device_mem_available_baseline_kib": 2656040,
+      "device_mem_available_min_kib": 2278820,
+      "samples": 237,
+      "exit_code": 0,
+      "max_tokens": 768,
+      "context_tokens": 4096,
+      "output_truncated_at_cap": false,
+      "first_result_seconds": 109.85
+    },
+    "device_run_dir": "/data/local/tmp/slm/trials/S8.3-a4/qwen3.5-0.8b-cpu/s8-time-02/run-cold"
+  }
+}

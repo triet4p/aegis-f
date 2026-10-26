@@ -1,0 +1,80 @@
+{
+  "effect_source": "instrumented_application",
+  "fixture": "in_memory_room",
+  "fixture_timezone": "Asia/Ho_Chi_Minh",
+  "results": [
+    {
+      "case_id": "s8-link-01",
+      "fixture": {
+        "capture_ids": [],
+        "event_ids": [
+          301
+        ],
+        "draft_ids": [
+          401
+        ]
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [],
+      "database_state": {
+        "events": [
+          {
+            "id": 301,
+            "capture_id": 104,
+            "span_start": 0,
+            "span_end": 37,
+            "normalized_text": "Fuel purchase on 2026-10-20",
+            "amount_vnd": 50000,
+            "merchant": null,
+            "anchor_date": "2026-10-20",
+            "anchor_time": null,
+            "anchor_timezone": "Asia/Ho_Chi_Minh",
+            "unresolved_reason": null,
+            "status": "INTERPRETED",
+            "revision": 0,
+            "source_revision": 0
+          }
+        ],
+        "links": [],
+        "drafts": [
+          {
+            "id": 401,
+            "review_status": "PENDING",
+            "review_revision": 0,
+            "amount_vnd": 50000,
+            "stated_date": "2026-10-20",
+            "stated_time": null,
+            "memo": "Fuel 50,000 VND on 2026-10-20",
+            "possible_duplicate_of": null
+          }
+        ],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 0
+      }
+    }
+  ]
+}

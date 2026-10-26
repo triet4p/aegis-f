@@ -1,0 +1,35 @@
+{
+  "profile": "gemini-3.5-flash-lite-ai-studio",
+  "case_id": "s8-time-01",
+  "source": "host-constructed bounded idempotency probe; not model output; never scored",
+  "calls": [
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "idempotencyKey": "s8-replay-probe-gemini-3.5-flash-lite-ai-studio",
+        "captureId": 102,
+        "expectedCaptureRevision": 0,
+        "interpretation": {
+          "spanStart": 0,
+          "spanEnd": 35,
+          "normalizedText": "Book purchase",
+          "amountVnd": 70000,
+          "merchant": null,
+          "timeAnchor": {
+            "date": "2026-10-24",
+            "time": "09:30",
+            "timezoneId": "Asia/Ho_Chi_Minh"
+          },
+          "unresolvedReason": null
+        },
+        "extractionVersion": "s8-replay-probe-v1",
+        "expectedEventRevision": null
+      }
+    }
+  ],
+  "replay": null,
+  "trace_sha256": null,
+  "effect_source": null,
+  "instrumentation_ok": false,
+  "application_trace_error": "no trace produced; see instrumentation.txt"
+}

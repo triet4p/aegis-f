@@ -1,0 +1,58 @@
+{
+  "id": "5700150d498fad6b1a9502d0802e3b6f",
+  "object": "chat.completion",
+  "created": 1792940011,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "reasoning_content": "The user wants to find a pending bank draft that could match event 201, inspecting at most 5 pending drafts from the first page. I should query drafts: reviewStatus PENDING, onlyPossibleDuplicates false (or true? — \"possible-duplicate state\" filter; to match event we might want onlyPossibleDuplicates false). Let's just query pending, limit 5, offset 0.\n\nI don't have event 201 details though. I can query candidates and compare, but I don't have event facts. Hmm. The task says compare returned draft facts with the event only when present. Event 201 details aren't given to me... I have no tool to read the event. I only can propose link for an event/draft pair. Without event details, I can't determine plausibility. But maybe I should just query the page and report. Let me query.\n\nonlyPossibleDuplicates: false? The filter restricts to possible-duplicate drafts. Actually to find a draft that could match an event, we'd want drafts not necessarily marked duplicates — but the filter \"onlyPossibleDuplicates\" true would return only drafts flagged as possible duplicates. A matching draft likely flag. But ambiguity. Let's query with false to see normal pending drafts, limit 5. Actually the flag \"possible-duplicate state\" — a draft that may be a duplicate of an existing record would be exactly the candidate. Hmm. Either way, reading a page of 5 pending is what was asked. I'll do one query with onlyPossibleDuplicates false.\n\nLet me call it.",
+        "tool_calls": [
+          {
+            "id": "call_00_kxkh1etyjztbxdthxen5bwk2",
+            "type": "function",
+            "function": {
+              "name": "query_draft_candidates",
+              "arguments": "{\"query\": {\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": false, \"bounds\": {\"limit\": 5, \"offset\": 0}}}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1860,
+    "completion_tokens": 392,
+    "total_tokens": 2252,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1792,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 322,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00025078,
+      "allowance": 0.00018808,
+      "tokens": {
+        "input": 68,
+        "output": 392,
+        "reasoning": 322,
+        "cache_read": 1792,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

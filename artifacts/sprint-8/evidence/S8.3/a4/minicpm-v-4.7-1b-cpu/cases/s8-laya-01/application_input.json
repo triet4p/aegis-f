@@ -1,0 +1,22 @@
+{
+  "results": [
+    {
+      "case_id": "s8-laya-01",
+      "calls": [
+        {
+          "name": "request_laya_classification",
+          "args": {
+            "draftId": 501,
+            "description": "coffee at noon",
+            "expectedReviewRevision": 1,
+            "idempotencyKey": "classification",
+            "internodeId": 12345,
+            "limit": 1,
+            "offset": 0,
+            "reviewStatus": "PENDING"
+          }
+        }
+      ]
+    }
+  ]
+}

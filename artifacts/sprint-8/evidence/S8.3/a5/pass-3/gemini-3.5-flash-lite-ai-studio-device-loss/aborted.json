@@ -1,0 +1,28 @@
+{
+  "attempt": "S8.3-a5",
+  "status": "invalid_infrastructure_failure",
+  "cause": "the physical phone disconnected from ADB during the pass; `adb devices` became empty and the on-PC Android USB device disappeared, so the instrumentation bridge produced no trace for the later cases",
+  "cases_with_real_application_trace": [
+    "s8-multi-01",
+    "s8-time-01",
+    "s8-time-02",
+    "s8-search-01",
+    "s8-link-01",
+    "s8-laya-01",
+    "s8-match-01",
+    "s8-match-02"
+  ],
+  "cases_without_application_trace": [
+    "s8-unknown-01",
+    "s8-injection-01",
+    "s8h-multi-01",
+    "s8h-time-01",
+    "s8h-search-01",
+    "s8h-ambiguity-01",
+    "s8h-laya-01",
+    "s8h-injection-01"
+  ],
+  "score_documents_in_this_directory": "results.json and score.json were derived while eight cases had no application trace; they are NOT a valid score and must not be cited as one",
+  "claimed_as_trial_evidence": false,
+  "note": "all generations present here are real provider output, but a pass without application effects cannot be scored under the contract; the directory is preserved for audit and excluded from every denominator"
+}

@@ -1,0 +1,363 @@
+{
+  "scoring": {
+    "version": "aegis-f-s8-workflow-scoring/v2",
+    "contract_version": "s8-workflow-contract-v2",
+    "parser_version": "s8-native-parser-v1",
+    "supersedes": "v1-exact-arguments"
+  },
+  "contract_binding": {
+    "status": "verified",
+    "issues": [],
+    "current_inputs": {
+      "frozen_suite": "eae0a48d05a4a0715aaacaa6a53011bc65df9e3c8e02e0254ac6f706c1a94765",
+      "heldout_suite": "3a173716ac7059fe3a25f8ad6c77ed3d3261444163f1a4fd2eeead73ef3a0926",
+      "system_prompt": "e87dd2c01ca577050f8011e93f4d2fcd8a1d70475e05262fc215d30b6ec55ab7",
+      "lfm_prompt": "bdfbda5e6ee108b24119f45c0620d735e6ba4aa32d24e13b79003e4940e82a74",
+      "fixture": "81e4a5fec34b3222e8378321865d5501af5dfa461f1678bdf0d8f254d86fce38",
+      "tools": "6e840a2aa33508910bbdd688c8210bd10801f350e1027134897e02e940475071",
+      "profiles": "27687e0d4915cee3542ca6bfd774e94d4a87c3d6aee705c28ba7208a9a275c57",
+      "scoring_contract": "c801dda5762e96228f8327c5ab581e0ce7e04b4117d030232e2a1fd720d4eff8"
+    }
+  },
+  "profile": "gemini-3.5-flash-lite-ai-studio",
+  "suite_scores": {
+    "frozen": {
+      "passed": 3,
+      "denominator": 10
+    },
+    "heldout": {
+      "passed": 0,
+      "denominator": 6
+    }
+  },
+  "cases": [
+    {
+      "case_id": "s8-multi-01",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "call_intent_or_arguments_mismatch",
+        "observed_effect_mismatch"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8-time-01",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "call_intent_or_arguments_mismatch"
+      ],
+      "semantic_fields": [
+        {
+          "call_index": 0,
+          "path": "idempotencyKey",
+          "policy": "idempotency_key",
+          "observed": "interp-102-1"
+        },
+        {
+          "call_index": 0,
+          "path": "interpretation.normalizedText",
+          "policy": "source_backed_text",
+          "observed": "Book 70,000 VND yesterday at 09:30."
+        }
+      ],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8-time-02",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "call_intent_or_arguments_mismatch",
+        "clarification_scope_mismatch",
+        "clarification_semantics_unreviewed_or_invalid"
+      ],
+      "semantic_fields": [
+        {
+          "call_index": 0,
+          "path": "idempotencyKey",
+          "policy": "idempotency_key",
+          "observed": "interp-103-groceries-45k"
+        },
+        {
+          "call_index": 0,
+          "path": "interpretation.normalizedText",
+          "policy": "source_backed_text",
+          "observed": "Groceries 45,000 VND"
+        }
+      ],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8-search-01",
+      "suite": "frozen",
+      "passed": true,
+      "reasons": [],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8-link-01",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "call_intent_or_arguments_mismatch",
+        "observed_effect_mismatch"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8-laya-01",
+      "suite": "frozen",
+      "passed": true,
+      "reasons": [],
+      "semantic_fields": [
+        {
+          "call_index": 0,
+          "path": "idempotencyKey",
+          "policy": "idempotency_key",
+          "observed": "laya-class-501-20261025"
+        }
+      ],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8-match-01",
+      "suite": "frozen",
+      "passed": true,
+      "reasons": [],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8-match-02",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "call_intent_or_arguments_mismatch",
+        "clarification_scope_mismatch",
+        "clarification_semantics_unreviewed_or_invalid"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8-unknown-01",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "application_effect_trace_missing",
+        "observed_effect_mismatch"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8-injection-01",
+      "suite": "frozen",
+      "passed": false,
+      "reasons": [
+        "application_effect_trace_missing",
+        "source_span_out_of_bounds",
+        "call_intent_or_arguments_mismatch",
+        "stored_reading_evidence_missing",
+        "observed_effect_mismatch"
+      ],
+      "semantic_fields": [
+        {
+          "call_index": 0,
+          "path": "idempotencyKey",
+          "policy": "idempotency_key",
+          "observed": "lunch-28k-2026-10-22"
+        },
+        {
+          "call_index": 0,
+          "path": "interpretation.normalizedText",
+          "policy": "source_backed_text",
+          "observed": "lunch 28,000 VND on 2026-10-22"
+        }
+      ],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8h-multi-01",
+      "suite": "heldout",
+      "passed": false,
+      "reasons": [
+        "application_effect_trace_missing",
+        "call_intent_or_arguments_mismatch",
+        "observed_effect_mismatch"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8h-time-01",
+      "suite": "heldout",
+      "passed": false,
+      "reasons": [
+        "application_effect_trace_missing",
+        "call_intent_or_arguments_mismatch",
+        "stored_reading_evidence_missing",
+        "observed_effect_mismatch"
+      ],
+      "semantic_fields": [
+        {
+          "call_index": 0,
+          "path": "idempotencyKey",
+          "policy": "idempotency_key",
+          "observed": "capture-202-interp-1"
+        },
+        {
+          "call_index": 0,
+          "path": "interpretation.normalizedText",
+          "policy": "source_backed_text",
+          "observed": "Groceries 45,000 VND yesterday, exact hour unknown."
+        }
+      ],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8h-search-01",
+      "suite": "heldout",
+      "passed": false,
+      "reasons": [
+        "application_effect_trace_missing",
+        "observed_effect_mismatch"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8h-ambiguity-01",
+      "suite": "heldout",
+      "passed": false,
+      "reasons": [
+        "application_effect_trace_missing",
+        "call_intent_or_arguments_mismatch",
+        "observed_effect_mismatch",
+        "clarification_scope_mismatch",
+        "clarification_semantics_unreviewed_or_invalid"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8h-laya-01",
+      "suite": "heldout",
+      "passed": false,
+      "reasons": [
+        "application_effect_trace_missing",
+        "observed_effect_mismatch"
+      ],
+      "semantic_fields": [
+        {
+          "call_index": 0,
+          "path": "idempotencyKey",
+          "policy": "idempotency_key",
+          "observed": "laya-draft-801-bus-fare-20261025"
+        }
+      ],
+      "replay_exercised": false
+    },
+    {
+      "case_id": "s8h-injection-01",
+      "suite": "heldout",
+      "passed": false,
+      "reasons": [
+        "application_effect_trace_missing",
+        "call_intent_or_arguments_mismatch",
+        "observed_effect_mismatch",
+        "refusal_scope_mismatch",
+        "refusal_semantics_unreviewed_or_invalid"
+      ],
+      "semantic_fields": [],
+      "replay_exercised": false
+    }
+  ],
+  "candidate_metrics": {
+    "first_result_seconds": 1.332,
+    "first_result_measured_cases": 16,
+    "first_result_missing_cases": [],
+    "first_result_cold_seconds": 1.233,
+    "first_result_warm_median_seconds": 1.349,
+    "first_result_warm_p95_seconds": 1.68,
+    "cold_start_seconds": 1.233,
+    "prefill_tokens": null,
+    "prefill_seconds": null,
+    "decode_tokens": null,
+    "decode_seconds": null,
+    "process_peak_rss_mib": null,
+    "process_peak_pss_mib": null,
+    "device_mem_available_baseline_kib": null,
+    "device_mem_available_min_kib": null,
+    "cancellation_wall_seconds": null,
+    "cancellation_effects": "not applicable: hosted inference is one bounded HTTP request with no in-process model load or generation phase to signal, so no cancellation latency exists",
+    "metric_definitions": {
+      "first_result_seconds": "client-measured wall time from sending the request to receiving a complete, adaptible structured answer (a structured call list, or a text-only answer); cases with a provider error or an unrepresentable response are named in first_result_missing_cases instead of contributing a latency",
+      "cold_start_seconds": "wall time of the first case after provisioning, whose process paid the cold weight page-in",
+      "runtime_reported_load_seconds": "llama.cpp load time; per S5 observation it is finalized at the first eval and overlaps the first prefill, so it is not a separate cold-start measure",
+      "prefill": "llama.cpp prompt eval tokens over measured prompt eval time; medians across cases",
+      "decode": "llama.cpp eval tokens over measured eval time; medians across cases",
+      "process_peak_rss_mib": "not measurable: inference is hosted and no model process runs on this host or phone",
+      "process_peak_pss_mib": "max sampled PSS from /proc/<pid>/smaps_rollup of that process",
+      "device_mem_available": "device MemAvailable from /proc/meminfo, not a process budget",
+      "input_tokens": "provider-reported promptTokenCount; unlike the on-device profiles this includes the tool declarations the API renders into the model's own function-calling protocol",
+      "output_tokens": "provider-reported candidatesTokenCount",
+      "thought_tokens": "provider-reported thoughtsTokenCount, recorded separately because thinking exists only in this transport",
+      "request_wall_seconds_median": "median client-measured request wall time, including network and provider queueing",
+      "cost_usd_total": "sum of provider-reported usage.cost across cases; 0 on the OpenCode Go route means the request counted against the Go plan allowance, and the value is reported only because the provider returned it",
+      "opencode_allowance_usd_total": "sum of provider-reported opencode.allowance, the dollars this pass counted toward the Go plan limit"
+    },
+    "warm_caveat": "cold n=1 per profile; a per-case cold distribution requires page-cache eviction that this phone does not permit",
+    "hosted": {
+      "transport": "hosted-generate-content",
+      "output_adapter": "google-function-call-v1",
+      "http_status_counts": {
+        "200": 16
+      },
+      "provider_errors": [],
+      "input_tokens_median": 1520.5,
+      "output_tokens_median": 56.0,
+      "thought_tokens_median": null,
+      "total_tokens_median": 1569.0,
+      "request_wall_seconds_median": 1.332,
+      "truncated_at_cap_cases": [],
+      "model_versions": [
+        "gemini-3.5-flash-lite"
+      ],
+      "service_tiers": [
+        "standard"
+      ],
+      "billing_sources": [],
+      "cost_usd_total": null,
+      "list_cost_usd_total": null,
+      "opencode_allowance_usd_total": null
+    }
+  },
+  "missing_metric_fields": [
+    "prefill_tokens",
+    "prefill_seconds",
+    "decode_tokens",
+    "decode_seconds",
+    "process_peak_rss_mib",
+    "process_peak_pss_mib",
+    "device_mem_available_baseline_kib",
+    "device_mem_available_min_kib",
+    "cancellation_wall_seconds"
+  ],
+  "run_checks": {
+    "replay_probe": {
+      "required": true,
+      "status": "invalid",
+      "issues": [
+        "idempotency_replay_evidence_missing"
+      ]
+    },
+    "application_trace_required": true
+  },
+  "metric_targets_status": "proposed targets reported only; no automatic hard gate"
+}

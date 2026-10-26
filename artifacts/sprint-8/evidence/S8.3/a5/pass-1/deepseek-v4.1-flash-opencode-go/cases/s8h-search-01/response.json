@@ -1,0 +1,58 @@
+{
+  "id": "3dcef909b5715a42c46cbafaab6cd290",
+  "object": "chat.completion",
+  "created": 1792937318,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "reasoning_content": "The user asks to show the first page of no more than 3 drafts awaiting review. This is a read. Use query_draft_candidates with reviewStatus PENDING, onlyPossibleDuplicates false? Hmm — \"awaiting review\" means PENDING review status. onlyPossibleDuplicates filter — should be false to include all? Setting onlyPossibleDuplicates: false means filter to non-duplicates only? Or does it mean don't filter by duplicate state? The parameter is a boolean, required. \"This query filters review state and possible-duplicate status only\". Likely onlyPossibleDuplicates: false returns drafts flagged as not possible duplicates. Hmm. But to show all pending drafts, setting onlyPossibleDuplicates false would exclude duplicates. There's no \"null\" option for boolean. I'd set false as the default page. Let's just do it: limit 3, offset 0.\n\nActually, ambiguous: filtering onlyPossibleDuplicates=false excludes possible duplicates, which may hide drafts. But there's no way to get all. I'll query with false and note the filter.",
+        "tool_calls": [
+          {
+            "id": "call_00_8wj24n3nx6lyy5411n1za3d3",
+            "type": "function",
+            "function": {
+              "name": "query_draft_candidates",
+              "arguments": "{\"query\": {\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": false, \"bounds\": {\"limit\": 3, \"offset\": 0}}}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1850,
+    "completion_tokens": 292,
+    "total_tokens": 2142,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1792,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 222,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00018928,
+      "allowance": 0.00014196,
+      "tokens": {
+        "input": 58,
+        "output": 292,
+        "reasoning": 222,
+        "cache_read": 1792,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

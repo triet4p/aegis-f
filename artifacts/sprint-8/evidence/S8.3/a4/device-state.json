@@ -1,0 +1,89 @@
+{
+  "task": "S8.3",
+  "attempt": "S8.3-a4",
+  "agent": "S83DeviceSilver04",
+  "captured_at": "2026-10-25",
+  "purpose": "Device and artifact identity re-verified before the v2 trials of this attempt. The a2 device state was not reused as fresh approval; every value below was observed in this attempt.",
+  "device": {
+    "adb_serial": "AAAJBB4930914141",
+    "adb_devices_l": "AAAJBB4930914141 device product:ALT-LX2 model:ALT_LX2 device:HNALT-QL transport_id:17",
+    "abi": "arm64-v8a",
+    "android_release": "14",
+    "sdk": 34,
+    "model": "ALT-LX2",
+    "mem_total_kib": 7837732,
+    "mem_available_kib_at_capture": 2762276,
+    "data_free_kib": 158462028,
+    "llama_processes_running_at_capture": 0
+  },
+  "installed_packages": {
+    "io.github.triet4p.aegisf": {"versionCode": 4, "versionName": "1.0", "minSdk": 24, "targetSdk": 37, "debuggable": true},
+    "io.github.triet4p.aegisf.test": {"versionCode": 0, "versionName": null, "minSdk": 24, "targetSdk": 37}
+  },
+  "host_apks_installed_with_adb_install_r_t": {
+    "app/build/outputs/apk/debug/app-debug.apk": {
+      "sha256": "f2221ea6b6a30d378a71f875082ca59aeead0006b2e79355cf1724e3aae8ed3c",
+      "bytes": 88892997
+    },
+    "app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk": {
+      "sha256": "8a781becedc350913535dcb566288d5aeb7b9507e61d0a5e0c3db085b4994a34",
+      "bytes": 498063
+    }
+  },
+  "device_runner": {
+    "path": "/data/local/tmp/slm/llama-completion",
+    "sha256": "af9dc49fda9022c9536a7daba9c58f6e83a242c5aa5de66d15b551f43568fccd",
+    "bytes": 136086088,
+    "note": "S8.1-pinned llama.cpp commit 31288c9; unchanged from the a2 observation, re-hashed in this attempt"
+  },
+  "device_probe": {
+    "path": "/data/local/tmp/slm/s8_device_probe.sh",
+    "sha256": "034cae38649420907d2ac64020b94894b8f0a25a8a4bcc6584670fc9e2228c65",
+    "host_copy": "tools/slm/s8_device_probe.sh",
+    "host_sha256": "034cae38649420907d2ac64020b94894b8f0a25a8a4bcc6584670fc9e2228c65"
+  },
+  "models_on_device": {
+    "MiniCPM-V-4_7-1B-Q4_K_M.gguf": {
+      "bytes": 672003680,
+      "sha256": "f18f594747e5317ab490cff9c06339c9cfb89acbe2f02ebc48a4e167bc23576d",
+      "tested_this_attempt": true,
+      "authorization": "exact previously approved openbmb/MiniCPM-V-4.7-1B-gguf revision 0ad5ef54b51a8cf42de80532d840b61b66519054 artifact"
+    },
+    "Qwen3.5-0.8B-Q4_K_M.gguf": {
+      "bytes": 532517120,
+      "sha256": "bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517",
+      "tested_this_attempt": true,
+      "authorization": "previously verified existing artifact"
+    },
+    "LFM2.5-350M-Q4_K_M.gguf": {
+      "bytes": 229312224,
+      "sha256": "7e6f72643caafc9a68256686638c4d7916f2cec76d1df478d4c3ddcd95a6aed4",
+      "tested_this_attempt": true,
+      "authorization": "previously verified existing artifact"
+    },
+    "gemma-4-E2B-it-Q4_K_M.gguf": {
+      "bytes": 3427880384,
+      "sha256": "71e6e8cb64a76da1a734fb8f6ba389d2784950d9902f5e87244fca0a15190c94",
+      "tested_this_attempt": false,
+      "authorization": "previously verified existing artifact; not run in this attempt"
+    },
+    "LFM2.5-350M-Q4_0.gguf": {"bytes": 219309792, "sha256": "85e32858daafad55b7bcd6b97a1343ee0661188e8036f9862d14d6b563142f50", "tested_this_attempt": false},
+    "LFM2.5-350M-QAD-Q4_0.gguf": {"bytes": 219312832, "sha256": "3d10b6ab8fc91a919534b9558e266255aca0bbc7f6d015963599aa9e74e05b1d", "tested_this_attempt": false},
+    "LFM2.5-1.2B-Instruct-Q4_K_M.gguf": {"bytes": 730895168, "sha256": "b1b3de114215d9507409a662a501a631095a479a419584e8a2ded6304b19b4f5", "tested_this_attempt": false}
+  },
+  "checks": [
+    {"name": "device-visible", "command": "adb devices -l", "result": "one device, state device"},
+    {"name": "device-properties", "command": "adb shell getprop ro.product.cpu.abi / ro.build.version.release / ro.build.version.sdk / ro.product.model", "result": "arm64-v8a / 14 / 34 / ALT-LX2"},
+    {"name": "storage", "command": "adb shell df -k /data", "result": "158462028 KiB available, 33% used"},
+    {"name": "packages", "command": "adb shell dumpsys package io.github.triet4p.aegisf / .test", "result": "app versionCode 4; test package versionCode 0; both installed"},
+    {"name": "model-hashes", "command": "adb shell sha256sum /data/local/tmp/slm/models/*.gguf", "result": "every hash matches the recorded identities; the three tested models match exactly"},
+    {"name": "runner-hash", "command": "adb shell sha256sum /data/local/tmp/slm/llama-completion", "result": "af9dc49f...68fccd matches the S8.1 pin and the a2 record"},
+    {"name": "probe-hash", "command": "adb shell sha256sum /data/local/tmp/slm/s8_device_probe.sh", "result": "034cae38...e2228c65 matches tools/slm/s8_device_probe.sh"},
+    {"name": "harness-asset-verification", "command": "python tools/slm/s8_trials.py verify --profile minicpm-v-4.7-1b-cpu", "result": "model, probe and binary hashes reported by the harness; no mismatch"},
+    {"name": "apk-install", "command": "adb install -r -t app-debug.apk; adb install -r -t app-debug-androidTest.apk", "result": "Success for both; the test APK carries the a4 trace-null fix"}
+  ],
+  "not_verified": [
+    "No uninstall or app-data clear was performed; the app's own on-device data was not inspected or modified.",
+    "Page-cache eviction is impossible without root, so per-case cold distribution remains n=1."
+  ]
+}

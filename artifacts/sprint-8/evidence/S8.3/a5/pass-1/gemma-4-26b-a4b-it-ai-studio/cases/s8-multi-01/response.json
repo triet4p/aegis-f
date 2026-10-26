@@ -1,0 +1,85 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "",
+            "thought": true
+          },
+          {
+            "functionCall": {
+              "name": "update_event_interpretation",
+              "args": {
+                "expectedCaptureRevision": 0,
+                "captureId": 101,
+                "unresolvedReason": null,
+                "extractionVersion": "1.0",
+                "expectedEventRevision": 0,
+                "interpretation": {
+                  "normalizedText": "Fuel 50,000 VND at 15:00",
+                  "merchant": null,
+                  "spanStart": 0,
+                  "spanEnd": 25,
+                  "timeAnchor": {
+                    "timezoneId": "Asia/Ho_Chi_Minh",
+                    "time": "15:00",
+                    "date": "2026-10-20"
+                  },
+                  "amountVnd": 50000
+                },
+                "idempotencyKey": "fuel_purchase_20261020_1500"
+              },
+              "id": "call_1465690"
+            },
+            "thoughtSignature": "EiYKJGUyNDgzMGE3LTVjZDYtNDJmZS05OThiLWVlNTM5ZTcyYjljMw=="
+          },
+          {
+            "functionCall": {
+              "name": "update_event_interpretation",
+              "args": {
+                "idempotencyKey": "snack_purchase_20261020_1515",
+                "interpretation": {
+                  "timeAnchor": {
+                    "time": "15:15",
+                    "date": "2026-10-20",
+                    "timezoneId": "Asia/Ho_Chi_Minh"
+                  },
+                  "spanEnd": 56,
+                  "merchant": "Circle K",
+                  "spanStart": 27,
+                  "normalizedText": "snack 32,000 VND at Circle K at 15:15",
+                  "amountVnd": 32000
+                },
+                "captureId": 101,
+                "extractionVersion": "1.0",
+                "expectedCaptureRevision": 0,
+                "expectedEventRevision": 0,
+                "unresolvedReason": null
+              },
+              "id": "call_1465691"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "finishMessage": "Model generated function call(s)."
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1579,
+    "candidatesTokenCount": 333,
+    "totalTokenCount": 1912,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1579
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemma-4-26b-a4b-it",
+  "responseId": "FgneasajLo331e8PqtnXsAM"
+}

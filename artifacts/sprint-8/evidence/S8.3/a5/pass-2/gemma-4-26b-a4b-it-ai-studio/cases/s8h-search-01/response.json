@@ -1,0 +1,49 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "",
+            "thought": true
+          },
+          {
+            "functionCall": {
+              "name": "query_draft_candidates",
+              "args": {
+                "query": {
+                  "onlyPossibleDuplicates": false,
+                  "bounds": {
+                    "limit": 3,
+                    "offset": 0
+                  },
+                  "reviewStatus": "PENDING"
+                }
+              },
+              "id": "call_1603069"
+            },
+            "thoughtSignature": "EiYKJGUyNDgzMGE3LTVjZDYtNDJmZS05OThiLWVlNTM5ZTcyYjljMw=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "finishMessage": "Model generated function call(s)."
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1433,
+    "candidatesTokenCount": 38,
+    "totalTokenCount": 1471,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1433
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemma-4-26b-a4b-it",
+  "responseId": "_wneapPeNoeX9tMPpPGm2QQ"
+}

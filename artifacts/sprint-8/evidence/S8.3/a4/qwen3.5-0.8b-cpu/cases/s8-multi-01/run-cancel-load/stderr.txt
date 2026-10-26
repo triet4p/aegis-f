@@ -1,0 +1,2 @@
+0.00.003.961 I llama_completion: llama backend init
+0.00.011.209 I llama_completion: load the model and apply lora adapter, if any

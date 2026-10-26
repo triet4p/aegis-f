@@ -1,0 +1,34 @@
+{
+  "results": [
+    {
+      "case_id": "s8-multi-01",
+      "calls": [
+        {
+          "name": "update_event_interpretation",
+          "args": {
+            "captureId": 101,
+            "expectedEventRevision": null,
+            "expectedCaptureRevision": 0,
+            "interpretation": {
+              "spanEnd": 21,
+              "merchant": "fuel",
+              "amountVnd": 50000,
+              "normalizedText": "Fuel 50,000 VND at 15:00",
+              "timeAnchor": {
+                "time": "15:00",
+                "intervalEndDate": null,
+                "intervalEndTime": null,
+                "timezoneId": "Asia/Ho_Chi_Minh",
+                "date": "2026-10-20"
+              },
+              "unresolvedReason": null,
+              "spanStart": 0
+            },
+            "idempotencyKey": "fuel-extraction-2026-10-20",
+            "extractionVersion": "v1"
+          }
+        }
+      ]
+    }
+  ]
+}

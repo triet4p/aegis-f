@@ -1,0 +1,29 @@
+{
+  "label": "generation",
+  "requested_after_seconds": 12.0,
+  "generation": "<think>\n\n</think>\n\nInterrupted by user",
+  "partial_calls": [],
+  "partial_parse_error": null,
+  "metrics": {
+    "wall_seconds": 12.56,
+    "runtime_reported_load_seconds": 1.225,
+    "prefill_tokens": 1,
+    "prefill_seconds": null,
+    "prefill_tokens_per_second": null,
+    "decode_tokens": 1,
+    "decode_seconds": null,
+    "decode_tokens_per_second": null,
+    "process_peak_rss_mib": 828.0,
+    "process_peak_pss_mib": 826.8,
+    "device_mem_available_baseline_kib": 2604356,
+    "device_mem_available_min_kib": 2402748,
+    "samples": 28,
+    "exit_code": 130,
+    "max_tokens": 768,
+    "context_tokens": 4096,
+    "output_truncated_at_cap": false,
+    "cancellation_wall_seconds": 0.46,
+    "kill_after_requested_seconds": 12.0
+  },
+  "application_effects": "none dispatched: the cancelled generation never completed a parsed call set"
+}

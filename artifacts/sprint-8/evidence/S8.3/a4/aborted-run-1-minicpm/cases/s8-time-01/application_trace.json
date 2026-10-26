@@ -1,0 +1,65 @@
+{
+  "effect_source": "instrumented_application",
+  "fixture": "in_memory_room",
+  "fixture_timezone": "Asia/Ho_Chi_Minh",
+  "results": [
+    {
+      "case_id": "s8-time-01",
+      "fixture": {
+        "capture_ids": [
+          102
+        ],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "query_draft_candidates",
+          "dispatched": false,
+          "request": {
+            "query": "{\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": true, \"bounds\": {\"limit\": 500, \"offset\": 0}, \"query\": \"book 70,000 VND\"}}"
+          },
+          "outcome": "not_dispatched_malformed_arguments",
+          "reason": "Value {\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": true, \"bounds\": {\"limit\": 500, \"offset\": 0}, \"query\": \"book 70,000 VND\"}} at query of type java.lang.String cannot be converted to JSONObject"
+        }
+      ],
+      "database_state": {
+        "captures": [
+          {
+            "id": 102,
+            "revision": 0,
+            "text": "Book 70,000 VND yesterday at 09:30."
+          }
+        ],
+        "captures_events": [],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 0
+      }
+    }
+  ]
+}

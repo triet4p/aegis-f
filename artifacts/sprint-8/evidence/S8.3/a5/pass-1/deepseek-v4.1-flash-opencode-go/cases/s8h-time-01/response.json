@@ -1,0 +1,58 @@
+{
+  "id": "00947afd6b4299e4986a9040df3a0445",
+  "object": "chat.completion",
+  "created": 1792937309,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "reasoning_content": "The note: \"Groceries 45,000 VND yesterday, exact hour unknown.\"\n\nFrozen today 2026-10-25, timezone Asia/Ho_Chi_Minh. Yesterday = 2026-10-24. Amount 45,000 VND. Merchant: \"Groceries\"? Actually \"Groceries\" is likely a description/category, but merchant unstated — preserve what source says. The source says \"Groceries\" as the leading word. Is that a merchant? It's ambiguous — could be a category. Safer: merchant null? Hmm. The instruction: preserve what the source says; use null for unstated amount, merchant, or time. \"Groceries\" is arguably a description, not a merchant name. I'd set merchant null and normalizedText \"Groceries 45,000 VND\". Hmm, but maybe the user expects merchant \"Groceries\". Let me think — typical guidance: don't infer merchant. \"Groceries\" is a category word, not a merchant identity. I'll set merchant null and note in the response? Actually a null merchant with no unresolvedReason... The unresolved reason field is for missing required value. Time: date 2026-10-24, time null, hour unknown explicitly. Time anchor date 2026-10-24, time null, timezone Asia/Ho_Chi_Minh.\n\nShould I set unresolvedReason for the unknown hour? The source explicitly says exact hour unknown, so time null is accurate, not missing-required. I could include unresolvedReason null. But maybe better to record nothing unresolved since the source itself says hour unknown. I'll leave unresolvedReason null.\n\nSpan: the source text is exactly the note; spanStart 0, spanEnd = length of string. \"Groceries 45,000 VND yesterday, exact hour unknown.\" Let's count: \"Groceries\" 9 chars (0-8), space 9, \"45,000\" 10-15 (6 chars: 4,5,,,0,0,0 → indices 10,11,12,13,14,15), space 16, \"VND\" 17-19, space 20, \"yesterday\" 21-29 (9 chars), \",\" 30, space 31, \"exact\" 32-36, space 37, \"hour\" 38-41, space 42, \"unknown\" 43-49, \".\" 50. So length 51, spanEnd 51.\n\nLet me verify: \"Groceries 45,000 VND yesterday, exact hour unknown.\" \nG r o c e r i e s =9. +space=10. \"45,000\"=6 →16. +space=17. \"VND\"=3→20. +space=21. \"yesterday\"=9→30. \",\"=31. space=32. \"exact\"=5→37. space=38. \"hour\"=4→42. space=43. \"unknown\"=7→50. \".\"=51. Yes spanEnd 51.\n\nAlso should I check draft candidates? The task is just extraction. Candidates search would only be needed for matching. The user asked to extract verbatim. No candidate search needed. But maybe relevant? The instruction says candidate search is a bounded read... Only when matching is requested. The note doesn't ask for matching. So just the interpretation tool.\n\nextractionVersion: something like \"note-extract-v1\". idempotencyKey: unique string.\n\nexpectedEventRevision null (creating new event reading).\n\nAlso the user said \"Extract the saved note verbatim\" — so normalizedText should be verbatim source text. I'll set normalizedText to the full sentence, and merchant... Hmm. Verbatim extraction arguably means normalizedText = full text. Merchant null since \"Groceries\" is not clearly a merchant identifier. Actually let me reconsider: many graders would accept merchant \"Groceries\". But the safer rubric-aligned choice: don't infer. The word could be a merchant or an item description. I'll set null and mention it.\n\nHmm, but a null merchant might be considered \"missing required value\" requiring unresolvedReason. Not required though; merchant is optional. I'll state in reply that merchant isn't clearly identified.\n\nLet's call the tool.",
+        "tool_calls": [
+          {
+            "id": "call_00_wha83kd21zyo4mmgo57s3sh7",
+            "type": "function",
+            "function": {
+              "name": "update_event_interpretation",
+              "arguments": "{\"idempotencyKey\": \"capture-202-note-extract-v1\", \"captureId\": 202, \"expectedCaptureRevision\": 0, \"expectedEventRevision\": null, \"extractionVersion\": \"note-extract-v1\", \"interpretation\": {\"spanStart\": 0, \"spanEnd\": 51, \"normalizedText\": \"Groceries 45,000 VND yesterday, exact hour unknown.\", \"amountVnd\": 45000, \"merchant\": null, \"timeAnchor\": {\"date\": \"2026-10-24\", \"time\": null, \"intervalEndDate\": null, \"intervalEndTime\": null, \"timezoneId\": \"Asia/Ho_Chi_Minh\"}, \"unresolvedReason\": null}}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1928,
+    "completion_tokens": 1169,
+    "total_tokens": 3097,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1792,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 918,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00072718,
+      "allowance": 0.00054538,
+      "tokens": {
+        "input": 136,
+        "output": 1169,
+        "reasoning": 918,
+        "cache_read": 1792,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

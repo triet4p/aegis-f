@@ -1,0 +1,42 @@
+{
+  "status": "PASS",
+  "checks": {
+    "stored_reading_effects": [
+      {
+        "call_index": 0,
+        "stored_reading": {
+          "capture_id": 102,
+          "span_start": 0,
+          "span_end": 35,
+          "normalized_text": "Bought a book yesterday at 09:30",
+          "amount_vnd": 70000,
+          "anchor_date": "2026-10-24",
+          "anchor_time": "09:30",
+          "unresolved_reason": null,
+          "status": "INTERPRETED"
+        }
+      }
+    ],
+    "binding_status": "verified",
+    "case_reasons": [],
+    "replay_probe_status": "valid",
+    "replay_probe_issues": [],
+    "replay_duplication_status": "invalid",
+    "build_results": {
+      "document_binding_status": "verified",
+      "document_has_call_effects": true,
+      "document_has_replay_probe": true,
+      "replay_probe_status": "valid",
+      "case_reasons": [],
+      "first_result_missing_cases": [
+        "s8-time-01"
+      ]
+    }
+  },
+  "failures": [],
+  "boundary": "host tooling check over the preserved S8.3-a2 discriminator record; no phone was contacted, no model output was generated, and this is not a candidate score or new device evidence",
+  "inputs": {
+    "trace": "F:\\ai-ml\\aegis-f\\artifacts\\sprint-8\\evidence\\S8.3\\a2\\contract-discriminator\\trace-semantic-variant.json",
+    "result": "F:\\ai-ml\\aegis-f\\artifacts\\sprint-8\\evidence\\S8.3\\a2\\contract-discriminator\\results-semantic-variant.json"
+  }
+}

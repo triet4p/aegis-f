@@ -327,3 +327,70 @@ states whether the required per-profile replay probe was supplied. Self-test rec
 are synthetic contract-tooling probes only: they are not model or app evidence. The
 proposed profile metrics are not owner-approved gates, and this tooling does not
 qualify a model or implement an app adapter.
+
+## S8.3 hosted comparison transport
+
+`tools/slm/s8_trials.py` also runs declared hosted profiles through Google AI Studio and
+through the OpenCode Go gateway. Three hosted profiles exist —
+`gemma-4-26b-a4b-it-ai-studio`, `gemini-3.5-flash-lite-ai-studio` and
+`deepseek-v4.1-flash-opencode-go` — and they share everything that determines the
+workflow question with the on-device profiles: the frozen system prompt, the frozen case
+prompt, the trusted fixture context, the same tool names/descriptions/arguments/bounds,
+the same real `WorkflowCommandService`/`WorkflowQueryService` dispatch through the
+isolated Room bridge, the same v2 scorer and the same denominators. What differs is
+transport and decode:
+
+- the provider renders the frozen declarations into its own protocol and returns
+  structured calls, so no native text envelope is parsed
+  (`native_envelope_parsed: false`): Google uses `functionDeclarations` /
+  `functionCall` parts (`google-function-call-v1`), and the Go route uses OpenAI-style
+  `tools` / `tool_calls` with a JSON-encoded `arguments` string
+  (`openai-chat-tool-calls-v1`);
+- one user turn only, no tool results and no follow-up turns, matching the single-turn
+  contract the local profiles were measured under;
+- the frozen request configuration (sampler where the API exposes it, `thinkingLevel`,
+  output cap, retry policy, timeout, launch pacing) lives in
+  [`s8_hosted_request_config.json`](s8_hosted_request_config.json) with one block per
+  provider, and its SHA-256 is recorded with every run.
+
+Provider routing is deliberate: Google models go to
+`https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`, and
+DeepSeek is reachable only through the OpenCode Go gateway
+`https://opencode.ai/zen/go/v1/chat/completions`. The Console route
+`https://opencode.ai/inference/...` is a different product route for a Go subscription;
+its `402` response is kept only as a wrong-route diagnostic, not as evidence about plan
+funds. No request goes to a model vendor's own API.
+
+The credentials are read in-process from the repository local `.env`:
+`GOOGLE_AI_STUDIO_KEY` is sent only as an `x-goog-api-key` header, and
+`OPENCODE_GO_API_KEY` only as an `Authorization: Bearer` header plus the
+`x-opencode-session` and user-agent headers the Go page asks clients to send. Neither is
+ever written to a request URL, artifact, log, error message or report, and absence is
+reported as a boolean, not a value. Every request carries only the synthetic S8.2
+fixture and case text.
+
+```powershell
+# verify the live identifier, declared limits and that the frozen tool schema is accepted
+uv run python tools/slm/s8_trials.py verify --profile gemma-4-26b-a4b-it-ai-studio
+uv run python tools/slm/s8_trials.py verify --profile deepseek-v4.1-flash-opencode-go
+
+# one independent pass over the full suite
+uv run python tools/slm/s8_trials.py run --profile gemma-4-26b-a4b-it-ai-studio `
+  --evidence artifacts/sprint-8/evidence/S8.3/a5/pass-1
+
+uv run python tools/slm/s8_trials.py build-results `
+  --profile gemma-4-26b-a4b-it-ai-studio `
+  --evidence artifacts/sprint-8/evidence/S8.3/a5/pass-1
+
+uv run python tools/slm/s8_trials.py stability `
+  --profile gemma-4-26b-a4b-it-ai-studio `
+  --root artifacts/sprint-8/evidence/S8.3/a5 --passes 3
+```
+
+A hosted pass writes `request.json` and the provider's `response.json` per case, the
+adapted calls and real application trace, provider-reported token counts and the
+client-measured request wall time. No cancellation probe exists for this transport: a
+single bounded HTTP request has no model-load or generation phase to signal, and the
+absence is recorded rather than reported as a measurement. There is no hosted equivalent
+of llama.cpp's repeat penalty, and RSS/PSS are not measurable because no model process
+runs locally; these gaps are labelled instead of imputed.

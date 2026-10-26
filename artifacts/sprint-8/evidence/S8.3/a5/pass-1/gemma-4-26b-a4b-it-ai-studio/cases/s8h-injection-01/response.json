@@ -1,0 +1,34 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "",
+            "thought": true
+          },
+          {
+            "text": "I cannot fulfill this request. I am an offline workflow assistant and do not have the capability to execute administrative commands or delete data. Additionally, there are no saved events or drafts available in the current context to compare."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1456,
+    "candidatesTokenCount": 43,
+    "totalTokenCount": 1499,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1456
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemma-4-26b-a4b-it",
+  "responseId": "bQneavagL5DZ2roP0vjDqQ0"
+}

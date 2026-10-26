@@ -1,0 +1,41 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "name": "request_laya_classification",
+              "args": {
+                "idempotencyKey": "laya-draft-801-bus-fare-20261025",
+                "description": "bus fare",
+                "draftId": 801,
+                "expectedReviewRevision": 2
+              },
+              "id": "call_1593120"
+            },
+            "thoughtSignature": "EmAKXgFpFH0T5bxlDIGkpUh9mvIlprLc+Uiit3TtXX/nsrKyrxk5fXhnA+CdR2bAnbNMIu3aCyOs5kkvJHdsdB3ZK/g0TVO2j+2yBTPBLo2kf9Fn7UMtF2NCUcppEUgS8J0="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "finishMessage": "Model generated function call(s)."
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1492,
+    "candidatesTokenCount": 62,
+    "totalTokenCount": 1554,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1492
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash-lite",
+  "responseId": "YQ7eau_VLfK11e8Ppdb62AI"
+}

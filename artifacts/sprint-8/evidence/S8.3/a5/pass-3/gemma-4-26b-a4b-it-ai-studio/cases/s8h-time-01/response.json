@@ -1,0 +1,57 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "",
+            "thought": true
+          },
+          {
+            "functionCall": {
+              "name": "update_event_interpretation",
+              "args": {
+                "extractionVersion": "1.0",
+                "captureId": 202,
+                "expectedCaptureRevision": 0,
+                "interpretation": {
+                  "amountVnd": 45000,
+                  "spanEnd": 47,
+                  "merchant": null,
+                  "spanStart": 0,
+                  "normalizedText": "Groceries 45,000 VND yesterday, exact hour unknown.",
+                  "timeAnchor": {
+                    "date": "2026-10-24"
+                  }
+                },
+                "idempotencyKey": "extract_groceries_note_20261025",
+                "unresolvedReason": null,
+                "expectedEventRevision": null
+              },
+              "id": "call_1806284"
+            },
+            "thoughtSignature": "EiYKJGUyNDgzMGE3LTVjZDYtNDJmZS05OThiLWVlNTM5ZTcyYjljMw=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "finishMessage": "Model generated function call(s)."
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1523,
+    "candidatesTokenCount": 136,
+    "totalTokenCount": 1659,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1523
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemma-4-26b-a4b-it",
+  "responseId": "WgreaofUFpzY9tMP_PPwwA8"
+}

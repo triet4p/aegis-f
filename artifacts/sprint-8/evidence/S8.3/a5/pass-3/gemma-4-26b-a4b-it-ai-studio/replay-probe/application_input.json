@@ -1,0 +1,33 @@
+{
+  "results": [
+    {
+      "case_id": "s8-time-01",
+      "calls": [
+        {
+          "name": "update_event_interpretation",
+          "args": {
+            "idempotencyKey": "s8-replay-probe-gemma-4-26b-a4b-it-ai-studio",
+            "captureId": 102,
+            "expectedCaptureRevision": 0,
+            "interpretation": {
+              "spanStart": 0,
+              "spanEnd": 35,
+              "normalizedText": "Book purchase",
+              "amountVnd": 70000,
+              "merchant": null,
+              "timeAnchor": {
+                "date": "2026-10-24",
+                "time": "09:30",
+                "timezoneId": "Asia/Ho_Chi_Minh"
+              },
+              "unresolvedReason": null
+            },
+            "extractionVersion": "s8-replay-probe-v1",
+            "expectedEventRevision": null
+          }
+        }
+      ],
+      "replay_index": 0
+    }
+  ]
+}

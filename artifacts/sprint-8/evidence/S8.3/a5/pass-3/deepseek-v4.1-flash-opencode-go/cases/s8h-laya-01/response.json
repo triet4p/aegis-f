@@ -1,0 +1,58 @@
+{
+  "id": "cc1701a9426a07a445f5115d27ccbbfb",
+  "object": "chat.completion",
+  "created": 1792940120,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "reasoning_content": "The user asks to run the existing category suggestion (Laya classification) for draft 801 with description 'bus fare', expectedReviewRevision 2. That's a supported call. Need idempotencyKey.\n\nWe should just call it. No other dependencies.",
+        "tool_calls": [
+          {
+            "id": "call_00_gksrycmqg4slljcmghcpt8gu",
+            "type": "function",
+            "function": {
+              "name": "request_laya_classification",
+              "arguments": "{\"idempotencyKey\": \"laya-draft-801-rev2-bus-fare\", \"draftId\": 801, \"description\": \"bus fare\", \"expectedReviewRevision\": 2}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1897,
+    "completion_tokens": 163,
+    "total_tokens": 2060,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1792,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 53,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00011893,
+      "allowance": 8.919e-05,
+      "tokens": {
+        "input": 105,
+        "output": 163,
+        "reasoning": 53,
+        "cache_read": 1792,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

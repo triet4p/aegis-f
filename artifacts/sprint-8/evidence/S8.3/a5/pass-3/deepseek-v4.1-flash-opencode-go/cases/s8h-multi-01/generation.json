@@ -1,0 +1,42 @@
+{
+  "case_id": "s8h-multi-01",
+  "phase": "opencode-go",
+  "generation": "",
+  "parsed_calls": null,
+  "parse_error": "tool_call arguments are not valid JSON for update_event_interpretation",
+  "metrics": {
+    "wall_seconds": 13.616,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1953,
+    "output_tokens": 2048,
+    "thought_tokens": 1580,
+    "total_tokens": 4001,
+    "cached_input_tokens": 1920,
+    "finish_reason": "length",
+    "model_version": "deepseek-v4.1-flash",
+    "response_id": "41e27d5b63bea7a366af82e039741720",
+    "max_tokens": 2048,
+    "output_truncated_at_cap": true,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": null,
+    "cost_usd": 0,
+    "list_cost_usd": 0.00123951,
+    "opencode_allowance_usd": 0.00092963,
+    "billing_source": "go"
+  },
+  "request_sha256": "266d713ef9738d223aea924c5d25e0052dd1f465bd4fbbe540092aff441e5bd3",
+  "response_sha256": "7d7f036b4f6e62b2839a2e1ed979b9849dabd43d56c35b2b0efb2685845dc509",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "3adee238fb60f9bcbbc42362a77896e2601c7ed655598fffa7cb8a5a81a89b41",
+    "tool_declarations_sha256": "bdc6ce982beb2864bfd91b24d8f55ae349103912c7519bba88a039b69410e0ec"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 13.616
+    }
+  ]
+}

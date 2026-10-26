@@ -1,0 +1,34 @@
+{
+  "results": [
+    {
+      "case_id": "s8h-multi-01",
+      "calls": [
+        {
+          "name": "update_event_interpretation",
+          "args": {
+            "expectedEventRevision": null,
+            "captureId": 201,
+            "idempotencyKey": "event-fuel-20261020",
+            "interpretation": {
+              "spanStart": 0,
+              "normalizedText": "Fuel 50k on Oct 20 at 3pm",
+              "merchant": null,
+              "unresolvedReason": null,
+              "spanEnd": 23,
+              "amountVnd": 50000,
+              "timeAnchor": {
+                "time": "15:00",
+                "date": "2026-10-20",
+                "timezoneId": "Asia/Ho_Chi_Minh",
+                "intervalEndTime": null,
+                "intervalEndDate": null
+              }
+            },
+            "extractionVersion": "v1",
+            "expectedCaptureRevision": 0
+          }
+        }
+      ]
+    }
+  ]
+}

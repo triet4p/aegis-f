@@ -1,0 +1,35 @@
+{
+  "task": "S8.3",
+  "attempt": "S8.3-a2",
+  "agent": "S83TrialsSilver02",
+  "profile": "minicpm-v-4.7-1b-cpu",
+  "restricted": false,
+  "assets": {
+    "model": "MiniCPM-V-4_7-1B-Q4_K_M.gguf",
+    "size": 672003680,
+    "sha256": "f18f594747e5317ab490cff9c06339c9cfb89acbe2f02ebc48a4e167bc23576d",
+    "probe_sha256": "034cae38649420907d2ac64020b94894b8f0a25a8a4bcc6584670fc9e2228c65",
+    "binary": "/data/local/tmp/slm/llama-completion",
+    "binary_sha256": "af9dc49fda9022c9536a7daba9c58f6e83a242c5aa5de66d15b551f43568fccd"
+  },
+  "started_at": "2026-10-25T17:37:51",
+  "case_order": [
+    "s8-multi-01",
+    "s8-time-01",
+    "s8-time-02",
+    "s8-search-01",
+    "s8-link-01",
+    "s8-laya-01",
+    "s8-match-01",
+    "s8-match-02",
+    "s8-unknown-01",
+    "s8-injection-01",
+    "s8h-multi-01",
+    "s8h-time-01",
+    "s8h-search-01",
+    "s8h-ambiguity-01",
+    "s8h-laya-01",
+    "s8h-injection-01"
+  ],
+  "cases": {}
+}

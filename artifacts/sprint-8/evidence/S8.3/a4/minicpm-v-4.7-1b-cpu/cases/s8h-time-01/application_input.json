@@ -1,0 +1,20 @@
+{
+  "results": [
+    {
+      "case_id": "s8h-time-01",
+      "calls": [
+        {
+          "name": "update_event_interpretation",
+          "args": {
+            "captureId": 202,
+            "expectedCaptureRevision": 0,
+            "idempotencyKey": "extract_note",
+            "interpretation": null,
+            "extractionVersion": 1.0,
+            "expectedEventRevision": 0
+          }
+        }
+      ]
+    }
+  ]
+}

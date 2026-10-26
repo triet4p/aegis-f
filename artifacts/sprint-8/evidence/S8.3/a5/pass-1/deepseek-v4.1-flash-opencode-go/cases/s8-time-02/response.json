@@ -1,0 +1,66 @@
+{
+  "id": "0fba1e669266cae3ed533e8d638992c4",
+  "object": "chat.completion",
+  "created": 1792937222,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "reasoning_content": "The user says paid 45,000 VND for groceries, can't remember when. Capture 103 has source text \"Groceries 45,000 VND; time not remembered.\" No existing readings. So I should store an interpretation with amount 45000, merchant \"Groceries\"? Merchant — the source says \"Groceries\" which is a category/description, not a merchant name. Hmm. Preserve what source says; merchant unstated → null. Time not remembered → timeAnchor null, unresolvedReason maybe \"time not remembered\".\n\nSpan: source text \"Groceries 45,000 VND; time not remembered.\" spanStart 0, spanEnd length. Let's compute: \"Groceries 45,000 VND; time not remembered.\" \n\"Groceries\" = 9 chars (0-8), space 9, \"45,000\" 10-15, space 16, \"VND\" 17-19, \";\" 20, space 21, \"time\" 22-25, space 26, \"not\" 27-29, space 30, \"remembered\" 31-40, \".\" 41. So length 42, spanEnd 42.\n\nnormalizedText: maybe \"Groceries 45,000 VND\" with time unresolved. Include note? normalizedText should be a normalized form of the span. Use \"Groceries 45,000 VND; time not remembered.\" perhaps. Let's use \"Groceries 45,000 VND (time not remembered)\".\n\nMerchant: \"Groceries\" isn't a merchant. Set merchant null? Hmm, the user says \"I paid ... for groceries\". The source span is \"Groceries 45,000 VND\". Merchant is unstated — better null. But normalizedText can include groceries.\n\ntimeAnchor null with unresolvedReason \"time not remembered\".\n\nextractionVersion: \"1\".\n\nidempotencyKey: some unique string.\n\nexpectedCaptureRevision 0, expectedEventRevision null (new event).\n\nLet me do the update.\n\nShould I also query draft candidates for possible match? The task: user paid, can't remember when. There may be a draft to link. Candidate search is a bounded read of pending bank drafts. It might be worth querying pending drafts with possible duplicates? Hmm, but linking requires an event/draft pair and evidence. The instruction says compare returned draft facts with the event only when present. But is searching warranted? The user didn't ask to link. But the workflow likely wants matching a bank draft. However amount 45,000 and no date — a plausible candidate can't be matched without time and merchant. I could search pending drafts to see if any plausible candidate exists. That's a bounded read. Given a real expense occurrence, checking for a matching draft seems reasonable. But the frozen date context and missing time means I can't verify. I could do the interpretation first, then query.\n\nActually, the guidance: \"No plausible candidate means no match; more than one plausible candidate means ask the user.\" Searching is optional. I'll do the interpretation, and also query pending drafts (onlyPossibleDuplicates? Probably false — search pending drafts; possible-duplicate flag means drafts that are suspected duplicates). I'll query reviewStatus PENDING, onlyPossibleDuplicates false, limit 20.\n\nThese two calls are independent? The draft query doesn't depend on interpretation result. Yes, independent — can do in one block. Though linking would depend. Let's do both in one block.\n\nWait — should I search at all? The risk: pulling drafts that are unrelated. It's a bounded read; fine. It may help detect candidate. But then if multiple 45,000 drafts exist, I'd ask. If none, no match. I think doing the search is helpful but could be considered overreach? It's a read-only bounded query, allowed. I'll do it.\n\nActually, careful: The event's time is unknown; even if there's exactly one 45,000 draft, matching would be plausible but time unknown is fine — bank draft has a date. Hmm, but evidence computation is app-side. I'd only propose if plausible. Let's see results.\n\nLet me make the calls.",
+        "tool_calls": [
+          {
+            "id": "call_00_9o3vgfogam2a255jon42jp42",
+            "type": "function",
+            "function": {
+              "name": "update_event_interpretation",
+              "arguments": "{\"idempotencyKey\": \"capture-103-event-1-v1\", \"captureId\": 103, \"expectedCaptureRevision\": 0, \"expectedEventRevision\": null, \"extractionVersion\": \"1\", \"interpretation\": {\"spanStart\": 0, \"spanEnd\": 42, \"normalizedText\": \"Groceries 45,000 VND; time not remembered.\", \"amountVnd\": 45000, \"merchant\": null, \"timeAnchor\": null, \"unresolvedReason\": \"Time of purchase not stated in source (\\\"time not remembered\\\"); user cannot recall when it occurred.\"}}"
+            }
+          },
+          {
+            "id": "call_01_x029guoa24xac4q5n8zylp7s",
+            "type": "function",
+            "function": {
+              "name": "query_draft_candidates",
+              "arguments": "{\"query\": {\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": false, \"bounds\": {\"limit\": 25, \"offset\": 0}}}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1920,
+    "completion_tokens": 1171,
+    "total_tokens": 3091,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 887,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.0009906,
+      "allowance": 0.00074295,
+      "tokens": {
+        "input": 1920,
+        "output": 1171,
+        "reasoning": 887,
+        "cache_read": 0,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

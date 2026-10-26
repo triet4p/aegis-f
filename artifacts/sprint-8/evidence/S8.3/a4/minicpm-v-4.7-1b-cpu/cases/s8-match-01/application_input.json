@@ -1,0 +1,17 @@
+{
+  "results": [
+    {
+      "case_id": "s8-match-01",
+      "calls": [
+        {
+          "name": "propose_link",
+          "args": {
+            "eventId": 302,
+            "draftId": 12345,
+            "idempotencyKey": "proposed_event_302"
+          }
+        }
+      ]
+    }
+  ]
+}

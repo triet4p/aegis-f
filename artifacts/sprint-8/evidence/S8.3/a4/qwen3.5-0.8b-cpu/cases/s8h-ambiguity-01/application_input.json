@@ -1,0 +1,22 @@
+{
+  "results": [
+    {
+      "case_id": "s8h-ambiguity-01",
+      "calls": [
+        {
+          "name": "query_draft_candidates",
+          "args": {
+            "query": {
+              "reviewStatus": "CONFIRMED",
+              "onlyPossibleDuplicates": false,
+              "bounds": {
+                "limit": 500,
+                "offset": 0
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "effect_source": "instrumented_application",
+  "fixture": "in_memory_room",
+  "fixture_timezone": "Asia/Ho_Chi_Minh",
+  "results": [
+    {
+      "case_id": "s8-time-02",
+      "fixture": {
+        "capture_ids": [
+          103
+        ],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "update_event_interpretation",
+          "dispatched": true,
+          "request": {
+            "extractionVersion": "v1",
+            "captureId": 103,
+            "expectedEventRevision": null,
+            "expectedCaptureRevision": 0,
+            "idempotencyKey": "interp-103-groceries-45k",
+            "interpretation": {
+              "timeAnchor": {
+                "timezoneId": null,
+                "intervalEndDate": null,
+                "time": null,
+                "date": null,
+                "intervalEndTime": null
+              },
+              "spanStart": 0,
+              "unresolvedReason": "The date and time of the expense are not remembered.",
+              "normalizedText": "Groceries 45,000 VND",
+              "merchant": null,
+              "spanEnd": 21,
+              "amountVnd": 45000
+            }
+          },
+          "outcome": "Applied",
+          "change": {
+            "kind": "EventStored",
+            "detail": "EventStored(eventId=603, revision=0)"
+          }
+        }
+      ],
+      "database_state": {
+        "captures": [
+          {
+            "id": 103,
+            "revision": 0,
+            "text": "Groceries 45,000 VND; time not remembered."
+          }
+        ],
+        "captures_events": [
+          {
+            "id": 603,
+            "capture_id": 103,
+            "span_start": 0,
+            "span_end": 21,
+            "normalized_text": "Groceries 45,000 VND",
+            "amount_vnd": 45000,
+            "merchant": null,
+            "anchor_date": null,
+            "anchor_time": null,
+            "anchor_timezone": null,
+            "unresolved_reason": "The date and time of the expense are not remembered.",
+            "status": "UNRESOLVED",
+            "revision": 0,
+            "source_revision": 0
+          }
+        ],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 1
+      }
+    }
+  ]
+}

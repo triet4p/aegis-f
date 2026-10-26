@@ -1,0 +1,42 @@
+{
+  "provider": "google-ai-studio",
+  "profile": "gemma-4-26b-a4b-it-ai-studio",
+  "api_model": "gemma-4-26b-a4b-it",
+  "output_adapter": "google-function-call-v1",
+  "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+  "request_config_sha256": "710a0f8d23ee4cd607adcc817bff9bfe38f883f3ba7c48d8b305871bd40f69b9",
+  "credential_present": true,
+  "model_identity": {
+    "status": "verified",
+    "http_status": 200,
+    "name": "models/gemma-4-26b-a4b-it",
+    "version": "001",
+    "displayName": "Gemma 4 26B A4B IT",
+    "inputTokenLimit": 262144,
+    "outputTokenLimit": 32768,
+    "supportedGenerationMethods": [
+      "generateContent",
+      "countTokens"
+    ],
+    "thinking": true
+  },
+  "preflight": {
+    "purpose": "confirms the live endpoint accepts the frozen tool declarations and generation config",
+    "http_status": 200,
+    "wall_seconds": 1.051,
+    "tool_declarations_accepted": true,
+    "usage": {
+      "promptTokenCount": 1056,
+      "candidatesTokenCount": 1,
+      "totalTokenCount": 1057,
+      "promptTokensDetails": [
+        {
+          "modality": "TEXT",
+          "tokenCount": 1056
+        }
+      ],
+      "serviceTier": "standard"
+    },
+    "error": null
+  }
+}

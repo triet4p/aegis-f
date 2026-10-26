@@ -1,0 +1,48 @@
+{
+  "id": "7a0056d85f141fe5833111235e2548c8",
+  "object": "chat.completion",
+  "created": 1792937327,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "stop",
+      "message": {
+        "role": "assistant",
+        "content": "I'm ready to help, but I don't have anything to compare yet — there's no note text, capture, or receipt information in your message. I can't guess which two receipts you mean, and I won't propose or attach any link until you've chosen.\n\nCould you provide:\n\n1. **The note** — its text (as written, including any date/relative wording) or the capture it came from.\n2. **The two receipts** — the draft IDs, or enough bank description detail (merchant, amount, date) to identify them in the pending drafts.\n\nOnce I have those, I'll lay out each candidate's stored facts next to the note and ask you to pick one before doing anything else.",
+        "reasoning_content": "The user says \"I can't tell which of these two receipts belongs to the note. Ask me to choose before connecting anything.\"\n\nBut I have no note content, no capture ID, no draft IDs. The user hasn't provided any data. I should ask for clarification — which note, which two receipts. There's no context. I need to ask a scoped question.\n\nMaybe I could search pending drafts, but I don't know anything. The instruction says no tool call is correct outcome when request is ambiguous. The user explicitly asks me to ask them to choose before connecting anything. But they haven't given me the note or the receipts. So I should ask for the missing information: the note text/capture, and which two receipts (draft IDs) they mean.\n\nLet me respond with a direct question about the missing fields."
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1858,
+    "completion_tokens": 318,
+    "total_tokens": 2176,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1792,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 169,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00020608,
+      "allowance": 0.00015456,
+      "tokens": {
+        "input": 66,
+        "output": 318,
+        "reasoning": 169,
+        "cache_read": 1792,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

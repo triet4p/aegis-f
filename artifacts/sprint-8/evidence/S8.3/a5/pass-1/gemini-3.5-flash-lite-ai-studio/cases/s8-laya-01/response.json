@@ -1,0 +1,41 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "name": "request_laya_classification",
+              "args": {
+                "expectedReviewRevision": 0,
+                "draftId": 501,
+                "description": "coffee at noon",
+                "idempotencyKey": "laya-class-501-20261025"
+              },
+              "id": "call_1544043"
+            },
+            "thoughtSignature": "EmAKXgFpFH0ThUC4hfaxINUYmGZY1BY2hzYyqB9hj5tEKoy1MGZOJFl1x8Wb6bsjp57/mXPlndHi6Dy0FxlLw1mHDj9JhmycAqYQRLZw/MiWSUNBzTCwS/POzFeX5AAYX0E="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "finishMessage": "Model generated function call(s)."
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1495,
+    "candidatesTokenCount": 59,
+    "totalTokenCount": 1554,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1495
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash-lite",
+  "responseId": "9g3eaqCkLMza9tMPy6SUmAs"
+}

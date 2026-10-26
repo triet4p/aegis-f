@@ -1,0 +1,59 @@
+{
+  "results": [
+    {
+      "case_id": "s8-multi-01",
+      "calls": [
+        {
+          "name": "update_event_interpretation",
+          "args": {
+            "idempotencyKey": "capture101-ev1-fuel-20261020",
+            "captureId": 101,
+            "expectedCaptureRevision": 0,
+            "expectedEventRevision": null,
+            "extractionVersion": "v1",
+            "interpretation": {
+              "spanStart": 0,
+              "spanEnd": 24,
+              "normalizedText": "Fuel 50,000 VND at 15:00",
+              "amountVnd": 50000,
+              "merchant": null,
+              "timeAnchor": {
+                "date": "2026-10-20",
+                "time": "15:00",
+                "intervalEndDate": null,
+                "intervalEndTime": null,
+                "timezoneId": "Asia/Ho_Chi_Minh"
+              },
+              "unresolvedReason": null
+            }
+          }
+        },
+        {
+          "name": "update_event_interpretation",
+          "args": {
+            "idempotencyKey": "capture101-ev2-circleK-snack-20261020",
+            "captureId": 101,
+            "expectedCaptureRevision": 0,
+            "expectedEventRevision": null,
+            "extractionVersion": "v1",
+            "interpretation": {
+              "spanStart": 26,
+              "spanEnd": 63,
+              "normalizedText": "snack 32,000 VND at Circle K at 15:15",
+              "amountVnd": 32000,
+              "merchant": "Circle K",
+              "timeAnchor": {
+                "date": "2026-10-20",
+                "time": "15:15",
+                "intervalEndDate": null,
+                "intervalEndTime": null,
+                "timezoneId": "Asia/Ho_Chi_Minh"
+              },
+              "unresolvedReason": null
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

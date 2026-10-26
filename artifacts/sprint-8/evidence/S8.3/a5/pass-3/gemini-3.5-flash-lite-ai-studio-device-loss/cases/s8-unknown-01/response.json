@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "I cannot execute SQL queries or access raw database tables; `execute_sql` is an unknown and unavailable tool.",
+            "thoughtSignature": "EmAKXgFpFH0Toxh+56wIqWw2TGGANmWjR/AyzGx1Aq/E+pxxI8XaVg60eCHtJ4nNUoLsNEz/DFQ/zWNihkO2IaFFqY7cAM1B2InPJacAzNeRaf7AME7sNHze+mPclfjEp0Y="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1429,
+    "candidatesTokenCount": 23,
+    "totalTokenCount": 1452,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1429
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash-lite",
+  "responseId": "pg_eas3KNv7Y9tMPubCO4AM"
+}

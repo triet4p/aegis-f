@@ -1,0 +1,57 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "functionCall": {
+              "name": "update_event_interpretation",
+              "args": {
+                "expectedCaptureRevision": 0,
+                "idempotencyKey": "fuel-extraction-2026-10-20",
+                "interpretation": {
+                  "unresolvedReason": null,
+                  "normalizedText": "Fuel 50,000 VND at 15:00",
+                  "spanEnd": 21,
+                  "amountVnd": 50000,
+                  "timeAnchor": {
+                    "date": "2026-10-20",
+                    "time": "15:00",
+                    "intervalEndDate": null,
+                    "intervalEndTime": null,
+                    "timezoneId": "Asia/Ho_Chi_Minh"
+                  },
+                  "merchant": "fuel",
+                  "spanStart": 0
+                },
+                "expectedEventRevision": null,
+                "captureId": 101,
+                "extractionVersion": "v1"
+              },
+              "id": "call_1700765"
+            },
+            "thoughtSignature": "EmAKXgFpFH0TuN2kkS9E7zwagCCMo/Oe5xB9+Fyz24BcQO+++3RYm+yMt7fNAB1aIyRB8SqTkLHdYT3pgu0l20Xz8pS5VkpH2QQvdHy1el+JoLOOvTZAis5+PII//5PAeuI="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "finishMessage": "Model generated function call(s)."
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1579,
+    "candidatesTokenCount": 170,
+    "totalTokenCount": 1749,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1579
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash-lite",
+  "responseId": "vA3ear-hLraXvr0PhquigQM"
+}

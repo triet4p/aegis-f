@@ -1,0 +1,100 @@
+{
+  "effect_source": "instrumented_application",
+  "fixture": "in_memory_room",
+  "fixture_timezone": "Asia/Ho_Chi_Minh",
+  "results": [
+    {
+      "case_id": "s8h-time-01",
+      "fixture": {
+        "capture_ids": [
+          202
+        ],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "update_event_interpretation",
+          "dispatched": true,
+          "request": {
+            "unresolvedReason": null,
+            "idempotencyKey": "extract_groceries_note_20261025",
+            "captureId": 202,
+            "expectedEventRevision": null,
+            "expectedCaptureRevision": 0,
+            "extractionVersion": "1.0",
+            "interpretation": {
+              "normalizedText": "Groceries 45,000 VND yesterday, exact hour unknown.",
+              "merchant": null,
+              "spanEnd": 47,
+              "amountVnd": 45000,
+              "timeAnchor": {
+                "date": "2026-10-24"
+              },
+              "spanStart": 0
+            }
+          },
+          "outcome": "Applied",
+          "change": {
+            "kind": "EventStored",
+            "detail": "EventStored(eventId=603, revision=0)"
+          }
+        }
+      ],
+      "database_state": {
+        "captures": [
+          {
+            "id": 202,
+            "revision": 0,
+            "text": "Groceries 45,000 VND yesterday, exact hour unknown."
+          }
+        ],
+        "captures_events": [
+          {
+            "id": 603,
+            "capture_id": 202,
+            "span_start": 0,
+            "span_end": 47,
+            "normalized_text": "Groceries 45,000 VND yesterday, exact hour unknown.",
+            "amount_vnd": 45000,
+            "merchant": null,
+            "anchor_date": "2026-10-24",
+            "anchor_time": null,
+            "anchor_timezone": null,
+            "unresolved_reason": null,
+            "status": "INTERPRETED",
+            "revision": 0,
+            "source_revision": 0
+          }
+        ],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 1
+      }
+    }
+  ]
+}

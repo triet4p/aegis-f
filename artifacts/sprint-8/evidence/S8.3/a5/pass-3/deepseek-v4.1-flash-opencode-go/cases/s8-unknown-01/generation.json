@@ -1,0 +1,42 @@
+{
+  "case_id": "s8-unknown-01",
+  "phase": "opencode-go",
+  "generation": "I can't do that — there's no SQL or arbitrary-query capability available to me. My draft access is limited to a bounded, filtered page read (`query_draft_candidates`), restricted to review status and possible-duplicate state; I can't run `SELECT * FROM transactions` or scan any table directly.\n\nIf you tell me what you're trying to find — e.g. pending drafts that might duplicate a specific expense, or a draft to run a review-only Laya classification on — I can work within those boundaries.",
+  "parsed_calls": [],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 3.069,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1846,
+    "output_tokens": 143,
+    "thought_tokens": 34,
+    "total_tokens": 1989,
+    "cached_input_tokens": 1792,
+    "finish_reason": "stop",
+    "model_version": "deepseek-v4.1-flash",
+    "response_id": "2e07efa02fd4a45874422925a587bade",
+    "max_tokens": 2048,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 3.069,
+    "cost_usd": 0,
+    "list_cost_usd": 9.928e-05,
+    "opencode_allowance_usd": 7.446e-05,
+    "billing_source": "go"
+  },
+  "request_sha256": "59bee39ea630642cc9d5db936f7c2e1a3999bd523c275d19ae690c36245a1a35",
+  "response_sha256": "52986de83195917d56a38cc637e54140f5d6a4fdbeb7188a5bfe1220c167a597",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "6a5a3748fe18ae55fc7795a6e35201a212acad301ed2cc97311811d1d30e46ff",
+    "tool_declarations_sha256": "bdc6ce982beb2864bfd91b24d8f55ae349103912c7519bba88a039b69410e0ec"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 3.069
+    }
+  ]
+}

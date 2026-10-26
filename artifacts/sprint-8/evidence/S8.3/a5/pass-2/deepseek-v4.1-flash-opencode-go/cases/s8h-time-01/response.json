@@ -1,0 +1,58 @@
+{
+  "id": "4deac0ac2ac35b567b4e5e1405c9cafd",
+  "object": "chat.completion",
+  "created": 1792939928,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "reasoning_content": "The note: \"Groceries 45,000 VND yesterday, exact hour unknown.\" Today is 2026-10-25, so yesterday = 2026-10-24. Exact hour unknown → time null, date 2026-10-24 Asia/Ho_Chi_Minh. Amount 45,000 VND = 45000. Merchant \"Groceries\"? Hmm — \"Groceries\" is more a category/description than merchant. Merchant is arguably not stated. The source says \"Groceries 45,000 VND\" — that's a description. Merchant not explicitly stated. I should preserve what the source says; set merchant null since it's not a named merchant? Could argue \"Groceries\" is the merchant. Safer: merchant null (unstated), normalizedText = \"Groceries 45,000 VND\". Hmm, normalizedText should probably be the normalized version of span. Let me set normalizedText = \"Groceries 45,000 VND\" and span 0..46 covering whole text? The span should cover the whole note \"Groceries 45,000 VND yesterday, exact hour unknown.\" Maybe span covers the amount/merchant portion plus time phrase. I'll use the whole string span 0 to length.\n\nLength of string: \"Groceries 45,000 VND yesterday, exact hour unknown.\"\nLet me count: \"Groceries\" 9 (0-8), space 9, \"45,000\" 10-15, space 16, \"VND\" 17-19, space 20, \"yesterday\" 21-29, \",\" 30, space 31, \"exact\" 32-36, space 37, \"hour\" 38-41, space 42, \"unknown\" 43-49, \".\" 50. Total length 51. So spanStart 0, spanEnd 51.\n\nTime anchor: date 2026-10-24, time null, interval null, timezoneId \"Asia/Ho_Chi_Minh\".\n\nShould I clarify? \"exact hour unknown\" — the note itself states hour unknown. Date is resolved (yesterday relative to frozen today). So no unresolved reason needed? The hour is unstated but the source says exact hour unknown — that's preserved, not ambiguous. So no unresolvedReason.\n\nShould I search candidates? The task only asks to extract the saved note. Candidate search is optional; the user didn't ask to link. I'll just store the interpretation. Maybe not search drafts since not requested.\n\nMerchant: \"Groceries\" — I'd say merchant is not stated; it's a description/category-like word. I'll set merchant null and normalizedText \"Groceries 45,000 VND\". Hmm, normalizedText minLength 1. Fine.\n\nIdempotency key: something like \"capture-202-event-1-v1\".\n\nExtraction version: \"extract-v1\".\n\nCall update_event_interpretation with expectedEventRevision null (no existing event) and expectedCaptureRevision 0.",
+        "tool_calls": [
+          {
+            "id": "call_00_5vq4vpkygrt8pabph31mcvvl",
+            "type": "function",
+            "function": {
+              "name": "update_event_interpretation",
+              "arguments": "{\"idempotencyKey\": \"capture-202-event-1-extract-v1\", \"captureId\": 202, \"expectedCaptureRevision\": 0, \"expectedEventRevision\": null, \"extractionVersion\": \"extract-v1\", \"interpretation\": {\"spanStart\": 0, \"spanEnd\": 51, \"normalizedText\": \"Groceries 45,000 VND\", \"amountVnd\": 45000, \"merchant\": null, \"timeAnchor\": {\"date\": \"2026-10-24\", \"time\": null, \"intervalEndDate\": null, \"intervalEndTime\": null, \"timezoneId\": \"Asia/Ho_Chi_Minh\"}, \"unresolvedReason\": null}}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1928,
+    "completion_tokens": 896,
+    "total_tokens": 2824,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1920,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 650,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00054456,
+      "allowance": 0.00040842,
+      "tokens": {
+        "input": 8,
+        "output": 896,
+        "reasoning": 650,
+        "cache_read": 1920,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

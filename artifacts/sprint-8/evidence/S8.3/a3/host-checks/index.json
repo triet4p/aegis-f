@@ -1,0 +1,58 @@
+{
+  "task": "S8.3",
+  "attempt": "S8.3-a3",
+  "agent": "S83HostPrepSilver03",
+  "executed_at": "2026-10-25",
+  "device_contacted": false,
+  "model_inference_run": false,
+  "boundary": "Host-only checks after the harness and instrumentation changes. No ADB/device command, no model inference and no cloud call was made. A compile establishes build correctness only; Android/Room runtime effects require the disconnected phone.",
+  "checks": [
+    {
+      "name": "androidtest-compile",
+      "command": "powershell -NoProfile -Command \"& .\\gradlew.bat :app:compileDebugAndroidTestKotlin --offline --console=plain\"",
+      "result": "BUILD SUCCESSFUL after the final bridge edit (:app:compileDebugAndroidTestKotlin executed)",
+      "notes": "The recorded log is the capture invocation after the same check; the compile task was up-to-date and no source changed in between.",
+      "file": "androidtest-compile.log",
+      "sha256": "73ca36e7a0e2e1f35af19ef1a69a6ddc0f783d06f22066288fea67bb753e5455"
+    },
+    {
+      "name": "contract-validate",
+      "command": "python tools/slm/s8_contract.py validate",
+      "result": "PASS (s8-workflow-contract-v2, aegis-f-s8-workflow-scoring/v2, s8-native-parser-v1; frozen 10 / held-out 6)",
+      "file": "contract-validate.json",
+      "sha256": "b41f6f270dbc5813272442182e1abbd0d4092746a56e998a4443cfeda64ee443"
+    },
+    {
+      "name": "contract-selftest",
+      "command": "python tools/slm/s8_contract.py selftest",
+      "result": "PASS (v2 semantic probes accepted/rejected as declared; v1 exact rule preserved)",
+      "file": "contract-selftest.json",
+      "sha256": "bd0039296ca5dfebc253bc29c2c1517319efee33adea56d8e8001e290ab018f9"
+    },
+    {
+      "name": "harness-selftest",
+      "command": "python tools/slm/s8_trials.py selftest",
+      "result": "PASS (assembly binding verified; stored reading derived from the preserved real trace; replay probe valid; re-applied retry invalid; absent probe reported missing; unparsed case excluded from first-result latency)",
+      "file": "harness-selftest.json",
+      "sha256": "d7c262a3a65cb56a9e709877945c8630522550d0324374bfa46247465eee85dc",
+      "stdout_file": "harness-selftest.stdout.json",
+      "stdout_sha256": "5cf94dc306f88bbaddf2fd160ab3298d35267cff54c8d8ae34bdd0363ac287b0"
+    },
+    {
+      "name": "python-syntax",
+      "command": "python -m py_compile tools/slm/s8_trials.py",
+      "result": "OK"
+    },
+    {
+      "name": "python-lint",
+      "command": "ruff check tools/slm/s8_trials.py",
+      "result": "not run: ruff is not installed on this host and no package was installed for this task"
+    }
+  ],
+  "not_run": [
+    "adb devices / any device command: the phone is disconnected by owner instruction",
+    "model transfer, install, generation or inference",
+    "androidTest execution (needs a device): per-call stored readings and the device replay probe are implemented but unobserved",
+    "build-results with real per-case observations: no a3 device observation exists"
+  ]
+}

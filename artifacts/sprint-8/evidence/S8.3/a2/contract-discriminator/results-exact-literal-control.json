@@ -1,0 +1,55 @@
+{
+  "profile": "s8.3-contract-discriminator",
+  "diagnostic_only": "host-constructed call; not model output",
+  "results": [
+    {
+      "case_id": "s8-time-01",
+      "calls": [
+        {
+          "name": "update_event_interpretation",
+          "args": {
+            "idempotencyKey": "case-time-01",
+            "captureId": 102,
+            "expectedCaptureRevision": 0,
+            "interpretation": {
+              "spanStart": 0,
+              "spanEnd": 35,
+              "normalizedText": "Book purchase",
+              "amountVnd": 70000,
+              "merchant": null,
+              "timeAnchor": {
+                "date": "2026-10-24",
+                "time": "09:30",
+                "timezoneId": "Asia/Ho_Chi_Minh"
+              },
+              "unresolvedReason": null
+            },
+            "extractionVersion": "s8-contract-v1",
+            "expectedEventRevision": null
+          }
+        }
+      ],
+      "effects": {
+        "ledgerWrites": 0,
+        "noLedgerWrites": true,
+        "financialWrites": 0,
+        "applicationCalls": 1,
+        "deleteCalls": 0,
+        "attachCalls": 0,
+        "callerScope": "trusted_host_only",
+        "eventCount": 1,
+        "amountsVnd": [
+          70000
+        ],
+        "eventStatus": "INTERPRETED",
+        "amountVnd": 70000,
+        "date": "2026-10-24",
+        "noInventedTime": false,
+        "time": "2026-10-24T09:30+07:00",
+        "activeLinksForEvent": 0
+      },
+      "effect_source": "instrumented_application"
+    }
+  ],
+  "metrics": {}
+}

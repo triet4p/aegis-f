@@ -1,0 +1,191 @@
+{
+  "case_id": "s8-link-01",
+  "suite": "frozen",
+  "profile": "qwen3.5-0.8b-cpu",
+  "prompt_sha256": "0472c64ceb6e3b98ced6f2f98e3cc5c3bdcbbdf095e5ee414b552c79467e74f5",
+  "generation": "<think>\n\n</think>\n<tool_call>\n<function=propose_link>\n<parameter=idempotencyKey>\nevt_301\n</parameter>\n<parameter=eventId>\n301\n</parameter>\n<parameter=draftId>\n401\n</parameter>\n</function>\n</tool_call><|im_end|>",
+  "parsed_calls": [
+    {
+      "name": "propose_link",
+      "args": {
+        "idempotencyKey": "evt_301",
+        "eventId": 301,
+        "draftId": 401
+      }
+    }
+  ],
+  "parse_error": null,
+  "application": {
+    "case_id": "s8-link-01",
+    "application_trace": {
+      "case_id": "s8-link-01",
+      "fixture": {
+        "capture_ids": [],
+        "event_ids": [
+          301
+        ],
+        "draft_ids": [
+          401
+        ]
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "propose_link",
+          "dispatched": true,
+          "request": {
+            "idempotencyKey": "evt_301",
+            "eventId": 301,
+            "draftId": 401
+          },
+          "outcome": "Applied",
+          "change": {
+            "kind": "LinkDecided",
+            "detail": "LinkDecided(linkId=1, state=PROPOSED, revision=0)"
+          }
+        }
+      ],
+      "database_state": {
+        "events": [
+          {
+            "id": 301,
+            "capture_id": 104,
+            "span_start": 0,
+            "span_end": 37,
+            "normalized_text": "Fuel purchase on 2026-10-20",
+            "amount_vnd": 50000,
+            "merchant": null,
+            "anchor_date": "2026-10-20",
+            "anchor_time": null,
+            "anchor_timezone": "Asia/Ho_Chi_Minh",
+            "unresolved_reason": null,
+            "status": "INTERPRETED",
+            "revision": 0,
+            "source_revision": 0
+          }
+        ],
+        "links": [
+          {
+            "id": 1,
+            "event_id": 301,
+            "draft_id": 401,
+            "state": "PROPOSED",
+            "revision": 0
+          }
+        ],
+        "drafts": [
+          {
+            "id": 401,
+            "review_status": "PENDING",
+            "review_revision": 0,
+            "amount_vnd": 50000,
+            "stated_date": "2026-10-20",
+            "stated_time": null,
+            "memo": "Fuel 50,000 VND on 2026-10-20",
+            "possible_duplicate_of": null
+          }
+        ],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 1,
+        "workflow_operation_count": 1
+      }
+    },
+    "trace_source": "instrumented_application",
+    "fixture": "in_memory_room",
+    "instrumentation_ok": true
+  },
+  "effects": {
+    "ledgerWrites": 0,
+    "noLedgerWrites": true,
+    "financialWrites": 0,
+    "applicationCalls": 1,
+    "deleteCalls": 0,
+    "attachCalls": 0,
+    "callerScope": "trusted_host_only",
+    "eventCount": 1,
+    "amountsVnd": [
+      50000
+    ],
+    "eventStatus": "INTERPRETED",
+    "amountVnd": 50000,
+    "date": "2026-10-20",
+    "noInventedTime": true,
+    "time": null,
+    "linkEventId": 301,
+    "linkDraftId": 401,
+    "linkState": "PROPOSED",
+    "activeLinksForEvent": 1
+  },
+  "metrics": {
+    "wall_seconds": 101.4,
+    "runtime_reported_load_seconds": 89.101,
+    "prefill_tokens": 1675,
+    "prefill_seconds": 89.072,
+    "prefill_tokens_per_second": 18.8,
+    "decode_tokens": 63,
+    "decode_seconds": 7.848,
+    "decode_tokens_per_second": 8.03,
+    "process_peak_rss_mib": 707.4,
+    "process_peak_pss_mib": 706.0,
+    "device_mem_available_baseline_kib": 2713928,
+    "device_mem_available_min_kib": 2503896,
+    "samples": 223,
+    "exit_code": 0,
+    "max_tokens": 768,
+    "context_tokens": 4096,
+    "output_truncated_at_cap": false,
+    "first_result_seconds": 101.4
+  },
+  "cold_start_sample": false,
+  "raw": {
+    "case_id": "s8-link-01",
+    "phase": "cold",
+    "generation": "<think>\n\n</think>\n<tool_call>\n<function=propose_link>\n<parameter=idempotencyKey>\nevt_301\n</parameter>\n<parameter=eventId>\n301\n</parameter>\n<parameter=draftId>\n401\n</parameter>\n</function>\n</tool_call><|im_end|>",
+    "raw_stdout_sha256": "f544c32cf799f0c9925ee6a743f2e786d4c01ab74fc1faba5190d535859a3060",
+    "raw_stderr_sha256": "2995bfdde95904d7413042fa1540633d9510659bf0ba061d660264df6d4fb5d6",
+    "metrics": {
+      "wall_seconds": 101.4,
+      "runtime_reported_load_seconds": 89.101,
+      "prefill_tokens": 1675,
+      "prefill_seconds": 89.072,
+      "prefill_tokens_per_second": 18.8,
+      "decode_tokens": 63,
+      "decode_seconds": 7.848,
+      "decode_tokens_per_second": 8.03,
+      "process_peak_rss_mib": 707.4,
+      "process_peak_pss_mib": 706.0,
+      "device_mem_available_baseline_kib": 2713928,
+      "device_mem_available_min_kib": 2503896,
+      "samples": 223,
+      "exit_code": 0,
+      "max_tokens": 768,
+      "context_tokens": 4096,
+      "output_truncated_at_cap": false,
+      "first_result_seconds": 101.4
+    },
+    "device_run_dir": "/data/local/tmp/slm/trials/S8.3-a4/qwen3.5-0.8b-cpu/s8-link-01/run-cold"
+  }
+}

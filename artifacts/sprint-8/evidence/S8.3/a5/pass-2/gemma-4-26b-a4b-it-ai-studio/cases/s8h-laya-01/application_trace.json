@@ -1,0 +1,72 @@
+{
+  "effect_source": "instrumented_application",
+  "fixture": "in_memory_room",
+  "fixture_timezone": "Asia/Ho_Chi_Minh",
+  "results": [
+    {
+      "case_id": "s8h-laya-01",
+      "fixture": {
+        "capture_ids": [],
+        "event_ids": [],
+        "draft_ids": [
+          801
+        ]
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [
+        {
+          "name": "request_laya_classification",
+          "dispatched": true,
+          "request": {
+            "expectedReviewRevision": 2,
+            "idempotencyKey": "req_laya_801_bus_fare",
+            "draftId": 801,
+            "description": "bus fare"
+          },
+          "outcome": "Failed",
+          "reason": "Laya runtime is not part of this generative S8.3 trial; the command boundary still ran."
+        }
+      ],
+      "database_state": {
+        "drafts": [
+          {
+            "id": 801,
+            "review_status": "PENDING",
+            "review_revision": 2,
+            "amount_vnd": null,
+            "stated_date": null,
+            "stated_time": null,
+            "memo": "bus fare",
+            "possible_duplicate_of": null
+          }
+        ],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 0
+      }
+    }
+  ]
+}

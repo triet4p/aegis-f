@@ -1,0 +1,42 @@
+{
+  "case_id": "s8-multi-01",
+  "phase": "opencode-go",
+  "generation": "I'll record both occurrences from the capture, and check pending bank drafts for possible matches.",
+  "parsed_calls": null,
+  "parse_error": "tool_call arguments are not valid JSON for update_event_interpretation",
+  "metrics": {
+    "wall_seconds": 11.871,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1964,
+    "output_tokens": 2048,
+    "thought_tokens": 1814,
+    "total_tokens": 4012,
+    "cached_input_tokens": 0,
+    "finish_reason": "length",
+    "model_version": "deepseek-v4.1-flash",
+    "response_id": "1e5b1de47a0a41c68c65c1ea6b699a6b",
+    "max_tokens": 2048,
+    "output_truncated_at_cap": true,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": null,
+    "cost_usd": 0,
+    "list_cost_usd": 0.0015234,
+    "opencode_allowance_usd": 0.00114255,
+    "billing_source": "go"
+  },
+  "request_sha256": "7791a5019c432b8250bfb21ba5aa1534838717e04df1474b975642f6e865fce8",
+  "response_sha256": "4ad3acae271bc30608ac00c9800d89f4d89f5dd2f256be2ba76ae7b0065f0637",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "9d65bc8b0050dc15499b8b00690fabc761eadcecab846e91fa4943092163c535",
+    "tool_declarations_sha256": "bdc6ce982beb2864bfd91b24d8f55ae349103912c7519bba88a039b69410e0ec"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 11.871
+    }
+  ]
+}

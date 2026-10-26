@@ -1,0 +1,34 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "",
+            "thought": true
+          },
+          {
+            "text": "I have found two pending drafts that are equally plausible matches for your purchase of 70,000 VND on 2026-10-22 (event 602).\n\nWhich of these drafts should I link to this event?\n- Draft [ID unknown]\n- Draft [ID unknown]"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 1534,
+    "candidatesTokenCount": 68,
+    "totalTokenCount": 1602,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1534
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemma-4-26b-a4b-it",
+  "responseId": "PwneavO-G6PV9tMP0-WouQI"
+}

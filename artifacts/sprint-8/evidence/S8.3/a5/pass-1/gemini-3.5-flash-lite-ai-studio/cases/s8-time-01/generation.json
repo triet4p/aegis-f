@@ -1,0 +1,66 @@
+{
+  "case_id": "s8-time-01",
+  "phase": "hosted",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "expectedEventRevision": null,
+        "extractionVersion": "v1",
+        "idempotencyKey": "interp-102-1",
+        "captureId": 102,
+        "expectedCaptureRevision": 0,
+        "interpretation": {
+          "unresolvedReason": null,
+          "merchant": null,
+          "spanStart": 0,
+          "normalizedText": "Book 70,000 VND yesterday at 09:30.",
+          "timeAnchor": {
+            "timezoneId": "Asia/Ho_Chi_Minh",
+            "intervalEndDate": null,
+            "date": "2026-10-24",
+            "time": "09:30",
+            "intervalEndTime": null
+          },
+          "amountVnd": 70000,
+          "spanEnd": 34
+        }
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 1.278,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1523,
+    "output_tokens": 164,
+    "thought_tokens": null,
+    "total_tokens": 1687,
+    "cached_input_tokens": null,
+    "service_tier": "standard",
+    "finish_reason": "STOP",
+    "model_version": "gemini-3.5-flash-lite",
+    "response_id": "yA3eaqzpNLeT1e8P09C6kAQ",
+    "max_tokens": 2048,
+    "context_tokens": null,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 1.278
+  },
+  "request_sha256": "6545500862ceb3f65ef4cb0d9624416b7821c861304f27acf1efea1b68541643",
+  "response_sha256": "fd3e22a3ccc9976655a1c65abe69b8f856b27d293b8d9d4fdb6f613acb80dd5f",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "1525b94a79e1e098b93282e2faed5c846dc48e79379cf4c6e6e046a3635da8d5",
+    "tool_declarations_sha256": "c090ac75dca5272675a307f3163b1e97c30f91b5610ab8d075f0d38acb38fdea"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 1.278
+    }
+  ]
+}

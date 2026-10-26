@@ -1,0 +1,54 @@
+{
+  "case_id": "s8-search-01",
+  "phase": "hosted",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "query_draft_candidates",
+      "args": {
+        "query": {
+          "onlyPossibleDuplicates": false,
+          "reviewStatus": "PENDING",
+          "bounds": {
+            "limit": 5,
+            "offset": 0
+          }
+        }
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 1.429,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1445,
+    "output_tokens": 38,
+    "thought_tokens": null,
+    "total_tokens": 1483,
+    "cached_input_tokens": null,
+    "service_tier": "standard",
+    "finish_reason": "STOP",
+    "model_version": "gemini-3.5-flash-lite",
+    "response_id": "3w3earq1IIel0-kPmMjg8Qk",
+    "max_tokens": 2048,
+    "context_tokens": null,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 1.429
+  },
+  "request_sha256": "3434a85e809edadfe0d11c181fdfd0c2fcb4984c73b06c2c0df6d856f624c35b",
+  "response_sha256": "93b2a3b1ee75216ba114bf82a9633571fd4fca7bc1877e47f6e5c9f9fc66bbc7",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "e17eb71221cf478772ab9b4f65e61fe42dfe4ab018bbaccf22d3fe113f0b17d4",
+    "tool_declarations_sha256": "c090ac75dca5272675a307f3163b1e97c30f91b5610ab8d075f0d38acb38fdea"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 1.429
+    }
+  ]
+}

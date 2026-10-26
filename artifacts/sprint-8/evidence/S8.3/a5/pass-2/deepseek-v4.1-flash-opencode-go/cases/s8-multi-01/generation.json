@@ -1,0 +1,93 @@
+{
+  "case_id": "s8-multi-01",
+  "phase": "opencode-go",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "idempotencyKey": "capture101-event1-fuel-20261020",
+        "captureId": 101,
+        "expectedCaptureRevision": 0,
+        "expectedEventRevision": null,
+        "extractionVersion": "extract-v1",
+        "interpretation": {
+          "spanStart": 0,
+          "spanEnd": 24,
+          "normalizedText": "Fuel 50,000 VND at 15:00",
+          "amountVnd": 50000,
+          "merchant": null,
+          "timeAnchor": {
+            "date": "2026-10-20",
+            "time": "15:00",
+            "timezoneId": "Asia/Ho_Chi_Minh",
+            "intervalEndDate": null,
+            "intervalEndTime": null
+          },
+          "unresolvedReason": null
+        }
+      }
+    },
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "idempotencyKey": "capture101-event2-circlek-20261020",
+        "captureId": 101,
+        "expectedCaptureRevision": 0,
+        "expectedEventRevision": null,
+        "extractionVersion": "extract-v1",
+        "interpretation": {
+          "spanStart": 26,
+          "spanEnd": 63,
+          "normalizedText": "Snack 32,000 VND at Circle K at 15:15",
+          "amountVnd": 32000,
+          "merchant": "Circle K",
+          "timeAnchor": {
+            "date": "2026-10-20",
+            "time": "15:15",
+            "timezoneId": "Asia/Ho_Chi_Minh",
+            "intervalEndDate": null,
+            "intervalEndTime": null
+          },
+          "unresolvedReason": null
+        }
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 11.337,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1964,
+    "output_tokens": 1744,
+    "thought_tokens": 1245,
+    "total_tokens": 3708,
+    "cached_input_tokens": 1920,
+    "finish_reason": "tool_calls",
+    "model_version": "deepseek-v4.1-flash",
+    "response_id": "49193bec809c8dbc0e178235ef8dd65f",
+    "max_tokens": 2048,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 11.337,
+    "cost_usd": 0,
+    "list_cost_usd": 0.00105876,
+    "opencode_allowance_usd": 0.00079407,
+    "billing_source": "go"
+  },
+  "request_sha256": "7791a5019c432b8250bfb21ba5aa1534838717e04df1474b975642f6e865fce8",
+  "response_sha256": "e7826d31a0ebc42e1ed5bcf23e7ddc001a36415590da89b3cb772a8bbc74b3b1",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "9d65bc8b0050dc15499b8b00690fabc761eadcecab846e91fa4943092163c535",
+    "tool_declarations_sha256": "bdc6ce982beb2864bfd91b24d8f55ae349103912c7519bba88a039b69410e0ec"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 11.337
+    }
+  ]
+}

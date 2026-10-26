@@ -1,0 +1,42 @@
+{
+  "case_id": "s8h-ambiguity-01",
+  "phase": "opencode-go",
+  "generation": "I'm ready to help, but I don't have anything to compare yet — there's no note text, capture, or receipt information in your message. I can't guess which two receipts you mean, and I won't propose or attach any link until you've chosen.\n\nCould you provide:\n\n1. **The note** — its text (as written, including any date/relative wording) or the capture it came from.\n2. **The two receipts** — the draft IDs, or enough bank description detail (merchant, amount, date) to identify them in the pending drafts.\n\nOnce I have those, I'll lay out each candidate's stored facts next to the note and ask you to pick one before doing anything else.",
+  "parsed_calls": [],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 4.215,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1858,
+    "output_tokens": 318,
+    "thought_tokens": 169,
+    "total_tokens": 2176,
+    "cached_input_tokens": 1792,
+    "finish_reason": "stop",
+    "model_version": "deepseek-v4.1-flash",
+    "response_id": "7a0056d85f141fe5833111235e2548c8",
+    "max_tokens": 2048,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 4.215,
+    "cost_usd": 0,
+    "list_cost_usd": 0.00020608,
+    "opencode_allowance_usd": 0.00015456,
+    "billing_source": "go"
+  },
+  "request_sha256": "a470ee02e2fdc3ff7f01be7cf4c209e42fce37f4219b4ed5c900aa030eda54e4",
+  "response_sha256": "c374df75261a18e5534b433884a7cc67655449e9754e7dc58773b3ce4b038d6d",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "890902708fd7f8941546a64e6b8da4372ec34ab411232b8c6838a5d523479b03",
+    "tool_declarations_sha256": "bdc6ce982beb2864bfd91b24d8f55ae349103912c7519bba88a039b69410e0ec"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 4.215
+    }
+  ]
+}

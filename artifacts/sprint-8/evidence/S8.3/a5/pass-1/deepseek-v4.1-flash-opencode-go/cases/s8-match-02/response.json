@@ -1,0 +1,58 @@
+{
+  "id": "c9e804db1be821825d83481982306ee2",
+  "object": "chat.completion",
+  "created": 1792937264,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "reasoning_content": "The user says two pending drafts are equally plausible for event 602, asks me to ask which one, not attach either. I should query pending drafts to present candidates. Candidate search is a bounded read of pending bank drafts. Let me query pending drafts, onlyPossibleDuplicates maybe false. Let's do PENDING with onlyPossibleDuplicates false, limit 50 offset 0.\n\nThen present the two plausible candidates and ask which one. Do not attach.\n\nLet me call the tool.",
+        "tool_calls": [
+          {
+            "id": "call_00_wsvmh9ztsnhzrq7bgms5nai1",
+            "type": "function",
+            "function": {
+              "name": "query_draft_candidates",
+              "arguments": "{\"query\": {\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": false, \"bounds\": {\"limit\": 50, \"offset\": 0}}}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1931,
+    "completion_tokens": 168,
+    "total_tokens": 2099,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1792,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 98,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 0.00012703,
+      "allowance": 9.527e-05,
+      "tokens": {
+        "input": 139,
+        "output": 168,
+        "reasoning": 98,
+        "cache_read": 1792,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}

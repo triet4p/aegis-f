@@ -1,0 +1,87 @@
+{
+  "case_id": "s8h-multi-01",
+  "phase": "hosted",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "expectedEventRevision": 0,
+        "idempotencyKey": "fuel_oct20_3pm",
+        "interpretation": {
+          "merchant": null,
+          "amountVnd": 50000,
+          "spanStart": 0,
+          "spanEnd": 24,
+          "normalizedText": "Fuel 50k on Oct 20 at 3pm",
+          "timeAnchor": {
+            "time": "15:00",
+            "date": "2026-10-20",
+            "timezoneId": "Asia/Ho_Chi_Minh"
+          }
+        },
+        "extractionVersion": "1.0",
+        "expectedCaptureRevision": 0,
+        "unresolvedReason": null,
+        "captureId": 201
+      }
+    },
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "extractionVersion": "1.0",
+        "captureId": 201,
+        "unresolvedReason": null,
+        "interpretation": {
+          "timeAnchor": {
+            "timezoneId": "Asia/Ho_Chi_Minh",
+            "time": "15:15",
+            "date": "2026-10-20"
+          },
+          "spanStart": 25,
+          "normalizedText": "snack 32k at Circle K at 3:15pm",
+          "spanEnd": 52,
+          "amountVnd": 32000,
+          "merchant": "Circle K"
+        },
+        "idempotencyKey": "snack_circlek_315pm",
+        "expectedCaptureRevision": 0,
+        "expectedEventRevision": 0
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 8.148,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1556,
+    "output_tokens": 310,
+    "thought_tokens": null,
+    "total_tokens": 1866,
+    "cached_input_tokens": null,
+    "service_tier": "standard",
+    "finish_reason": "STOP",
+    "model_version": "gemma-4-26b-a4b-it",
+    "response_id": "7gneaqf9OLaXvr0PhquigQM",
+    "max_tokens": 2048,
+    "context_tokens": null,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 8.148
+  },
+  "request_sha256": "94b5cf6d655a7503935b7f8574dec403240c6e387501e243a0cb23ba7b72d3b4",
+  "response_sha256": "3ac54186aecf01e43b2071f68d32bbc372456da78153eaa2fb3120aefcf86c29",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "3adee238fb60f9bcbbc42362a77896e2601c7ed655598fffa7cb8a5a81a89b41",
+    "tool_declarations_sha256": "c090ac75dca5272675a307f3163b1e97c30f91b5610ab8d075f0d38acb38fdea"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 8.148
+    }
+  ]
+}

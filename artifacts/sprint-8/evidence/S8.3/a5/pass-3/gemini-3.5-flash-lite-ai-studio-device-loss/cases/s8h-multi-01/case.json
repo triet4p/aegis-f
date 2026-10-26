@@ -1,0 +1,160 @@
+{
+  "case_id": "s8h-multi-01",
+  "suite": "heldout",
+  "profile": "gemini-3.5-flash-lite-ai-studio",
+  "provider": "google-ai-studio",
+  "small_context": "\nApplication context (trusted, read-only fixture):\n- today: 2026-10-25 (Asia/Ho_Chi_Minh)\n- capture 201 (revision 0) source text: \"Fuel 50k on Oct 20 at 3pm; snack 32k at Circle K at 3:15pm.\"\n- existing event readings for capture 201: none",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "expectedEventRevision": null,
+        "captureId": 201,
+        "idempotencyKey": "event-fuel-20261020",
+        "interpretation": {
+          "spanStart": 0,
+          "normalizedText": "Fuel 50k on Oct 20 at 3pm",
+          "merchant": null,
+          "unresolvedReason": null,
+          "spanEnd": 23,
+          "amountVnd": 50000,
+          "timeAnchor": {
+            "time": "15:00",
+            "date": "2026-10-20",
+            "timezoneId": "Asia/Ho_Chi_Minh",
+            "intervalEndTime": null,
+            "intervalEndDate": null
+          }
+        },
+        "extractionVersion": "v1",
+        "expectedCaptureRevision": 0
+      }
+    }
+  ],
+  "parse_error": null,
+  "application": {
+    "case_id": "s8h-multi-01",
+    "application_trace": {},
+    "application_trace_error": "no trace produced; see instrumentation.txt",
+    "instrumentation_ok": false
+  },
+  "effects": {
+    "applicationCalls": 0,
+    "deleteCalls": 0,
+    "attachCalls": 0,
+    "callerScope": "untrusted_or_missing"
+  },
+  "metrics": {
+    "wall_seconds": 1.368,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1556,
+    "output_tokens": 164,
+    "thought_tokens": null,
+    "total_tokens": 1720,
+    "cached_input_tokens": null,
+    "service_tier": "standard",
+    "finish_reason": "STOP",
+    "model_version": "gemini-3.5-flash-lite",
+    "response_id": "ug_earzUCfzq1e8Pkvbo8QI",
+    "max_tokens": 2048,
+    "context_tokens": null,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 1.368
+  },
+  "cold_start_sample": false,
+  "transport": {
+    "kind": "hosted-generate-content",
+    "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+    "api_model": "gemini-3.5-flash-lite",
+    "output_adapter": "google-function-call-v1",
+    "native_envelope_parsed": false,
+    "request_config_sha256": "e1815b67ff2b0548d1921541186e7378ddbcb8c0a8b2ac82497c46920afd58df",
+    "generation_config": {
+      "temperature": 0.1,
+      "topP": 0.95,
+      "topK": 50,
+      "seed": 42,
+      "thinkingConfig": {
+        "thinkingLevel": "minimal"
+      }
+    },
+    "tool_config": {
+      "functionCallingConfig": {
+        "mode": "AUTO"
+      }
+    },
+    "retry_policy": "no retry on any 4xx response including 429; at most one retry after a transport timeout or a 5xx response, recorded as attempt 2. A rate-limited case stays a recorded provider error in that pass, and a further complete pass is a separately labelled independent run rather than a retry inside one.",
+    "conversation": "one user turn, no tool results, no multi-turn follow-up: the same single-turn contract the local profiles were measured under",
+    "inter_request_delay_seconds": 8,
+    "request_config_revision": "v2 — per-provider request blocks; launches paced after an observed free-tier 429; request content, case semantics and adapters unchanged"
+  },
+  "raw": {
+    "case_id": "s8h-multi-01",
+    "phase": "hosted",
+    "generation": "",
+    "parsed_calls": [
+      {
+        "name": "update_event_interpretation",
+        "args": {
+          "expectedEventRevision": null,
+          "captureId": 201,
+          "idempotencyKey": "event-fuel-20261020",
+          "interpretation": {
+            "spanStart": 0,
+            "normalizedText": "Fuel 50k on Oct 20 at 3pm",
+            "merchant": null,
+            "unresolvedReason": null,
+            "spanEnd": 23,
+            "amountVnd": 50000,
+            "timeAnchor": {
+              "time": "15:00",
+              "date": "2026-10-20",
+              "timezoneId": "Asia/Ho_Chi_Minh",
+              "intervalEndTime": null,
+              "intervalEndDate": null
+            }
+          },
+          "extractionVersion": "v1",
+          "expectedCaptureRevision": 0
+        }
+      }
+    ],
+    "parse_error": null,
+    "metrics": {
+      "wall_seconds": 1.368,
+      "http_status": 200,
+      "attempts": 1,
+      "input_tokens": 1556,
+      "output_tokens": 164,
+      "thought_tokens": null,
+      "total_tokens": 1720,
+      "cached_input_tokens": null,
+      "service_tier": "standard",
+      "finish_reason": "STOP",
+      "model_version": "gemini-3.5-flash-lite",
+      "response_id": "ug_earzUCfzq1e8Pkvbo8QI",
+      "max_tokens": 2048,
+      "context_tokens": null,
+      "output_truncated_at_cap": false,
+      "request_timeout_seconds": 120,
+      "first_result_seconds": 1.368
+    },
+    "request_sha256": "94b5cf6d655a7503935b7f8574dec403240c6e387501e243a0cb23ba7b72d3b4",
+    "response_sha256": "21749a7d5f34221e605daf80166140d6463725166ca7914d6f4ac615b4ba127a",
+    "prompt_hashes": {
+      "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+      "user_sha256": "3adee238fb60f9bcbbc42362a77896e2601c7ed655598fffa7cb8a5a81a89b41",
+      "tool_declarations_sha256": "c090ac75dca5272675a307f3163b1e97c30f91b5610ab8d075f0d38acb38fdea"
+    },
+    "attempts": [
+      {
+        "attempt": 1,
+        "http_status": 200,
+        "wall_seconds": 1.368
+      }
+    ]
+  }
+}

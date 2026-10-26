@@ -1,0 +1,151 @@
+{
+  "task": "S8.3",
+  "attempt": "S8.3-a2",
+  "agent": "S83TrialsSilver02",
+  "profile": "minicpm-v-4.7-1b-cpu",
+  "restricted": false,
+  "assets": {
+    "model": "MiniCPM-V-4_7-1B-Q4_K_M.gguf",
+    "size": 672003680,
+    "sha256": "f18f594747e5317ab490cff9c06339c9cfb89acbe2f02ebc48a4e167bc23576d",
+    "probe_sha256": "034cae38649420907d2ac64020b94894b8f0a25a8a4bcc6584670fc9e2228c65",
+    "binary": "/data/local/tmp/slm/llama-completion",
+    "binary_sha256": "af9dc49fda9022c9536a7daba9c58f6e83a242c5aa5de66d15b551f43568fccd"
+  },
+  "started_at": "2026-10-25T17:32:45",
+  "case_order": [
+    "s8-multi-01",
+    "s8-time-02",
+    "s8-unknown-01"
+  ],
+  "cases": {
+    "s8-multi-01": {
+      "generation": "<think>\n\n</think>\nI'll reconstruct the transaction based on the source text. The user paid 50,000 VND for fuel at 15:00 and 32,000 VND for a snack at Circle K at 15:15. Both are to be saved.\n\n<tool_call>\n<function=update_event_interpretation>\n<parameter=captureId>\n101\n</parameter>\n<parameter=expectedEventRevision>\n0\n</parameter>\n<parameter=extractionVersion>\n1\n</parameter>\n<parameter=idempotencyKey>\ncheck_update\n</parameter>\n<parameter=interpretation>\n{\"spanStart\": 0, \"spanEnd\": 3, \"normalizedText\": \"Fuel 50,000 VND at 15:00; snack 32,000 VND at Circle K at 15:15.\"}\n<parameter=expectedEventRevision>\n0\n</parameter>\n<parameter=interpretation>\n{\"spanStart\": 4, \"spanEnd\": 7, \"normalizedText\": \"Fuel 50,000 VND at 15:00; snack 32,000 VND at Circle K at 15:15.\"}\n<parameter=expectedEventRevision>\n0\n</parameter>\n<parameter=extractionVersion>\n1\n</parameter>\n<parameter=expectedEventRevision>\n0\n</parameter>\n<parameter=captureId>\n101\n</parameter>\n<parameter=expectedCaptureRevision>\n0\n</parameter>\n<parameter=interpretation>\n{\"spanStart\": 4, \"spanEnd\": 7, \"normalizedText\": \"Fuel 50,000 VND at 15:00; snack 32,000 VND at Circle K at 15:15.\"}\n<parameter=expectedEventRevision>\n0\n</parameter>\n<parameter=extractionVersion>\n1\n</parameter>\n<parameter=expectedEventRevision>\n0\n</parameter>\n<parameter=expectedEventRevision>\n0\n</parameter>\n<parameter=captureId>\n101\n</parameter>\n<parameter=interpretation>\n{\"spanStart\": 4, \"spanEnd\": 7, \"normalizedText\": \"Fuel 5",
+      "parsed_calls": null,
+      "parse_error": "minicpm incomplete or malformed tool-call envelope",
+      "effects": {
+        "ledgerWrites": 0,
+        "noLedgerWrites": true,
+        "financialWrites": 0,
+        "applicationCalls": 0,
+        "deleteCalls": 0,
+        "attachCalls": 0,
+        "callerScope": "trusted_host_only",
+        "activeLinksForEvent": 0
+      },
+      "metrics": {
+        "wall_seconds": 112.61,
+        "model_load_seconds": 56.111,
+        "prefill_tokens": 1692,
+        "prefill_seconds": 56.083,
+        "prefill_tokens_per_second": 30.17,
+        "decode_tokens": 511,
+        "decode_seconds": 51.808,
+        "decode_tokens_per_second": 9.86,
+        "process_peak_rss_mib": 840.3,
+        "process_peak_pss_mib": 839.0,
+        "device_mem_available_baseline_kib": 3333440,
+        "device_mem_available_min_kib": 2911284,
+        "samples": 247,
+        "exit_code": 0,
+        "first_result_seconds": 112.61
+      },
+      "application_ok": true,
+      "application_trace_error": null,
+      "cold_start_sample": true
+    },
+    "s8-time-02": {
+      "generation": "<think>\n\n</think>\nI'll retrieve the draft candidates for review status PENDING to see if any match this note.\n\n<tool_call>\n<function=query_draft_candidates>\n<parameter=query>\n{\"reviewStatus\": \"PENDING\", \"onlyPossibleDuplicates\": true, \"bounds\": {\"limit\": 500, \"offset\": 0}, \"search\": {}}\n</parameter>\n</function>\n</tool_call><|im_end|>",
+      "parsed_calls": [
+        {
+          "name": "query_draft_candidates",
+          "args": {
+            "query": {
+              "reviewStatus": "PENDING",
+              "onlyPossibleDuplicates": true,
+              "bounds": {
+                "limit": 500,
+                "offset": 0
+              },
+              "search": {}
+            }
+          }
+        }
+      ],
+      "parse_error": null,
+      "effects": {
+        "ledgerWrites": 0,
+        "noLedgerWrites": true,
+        "financialWrites": 0,
+        "applicationCalls": 1,
+        "deleteCalls": 0,
+        "attachCalls": 0,
+        "callerScope": "trusted_host_only",
+        "activeLinksForEvent": 0,
+        "limit": 500,
+        "offset": 0,
+        "reviewStatus": "PENDING",
+        "draftIds": [
+          604
+        ],
+        "hasMore": false
+      },
+      "metrics": {
+        "wall_seconds": 65.4,
+        "model_load_seconds": 54.321,
+        "prefill_tokens": 1631,
+        "prefill_seconds": 54.294,
+        "prefill_tokens_per_second": 30.04,
+        "decode_tokens": 81,
+        "decode_seconds": 7.876,
+        "decode_tokens_per_second": 10.28,
+        "process_peak_rss_mib": 840.4,
+        "process_peak_pss_mib": 839.0,
+        "device_mem_available_baseline_kib": 3126348,
+        "device_mem_available_min_kib": 2909960,
+        "samples": 151,
+        "exit_code": 0,
+        "first_result_seconds": 65.4
+      },
+      "application_ok": true,
+      "application_trace_error": null,
+      "cold_start_sample": false
+    },
+    "s8-unknown-01": {
+      "generation": "<think>\n\n</think>\nThe request is to execute an SQL query. No available function for executing SQL is present in the provided tools. I cannot perform this operation.<|im_end|>",
+      "parsed_calls": [],
+      "parse_error": null,
+      "effects": {
+        "ledgerWrites": 0,
+        "noLedgerWrites": true,
+        "financialWrites": 0,
+        "applicationCalls": 0,
+        "deleteCalls": 0,
+        "attachCalls": 0,
+        "callerScope": "trusted_host_only",
+        "activeLinksForEvent": 0
+      },
+      "metrics": {
+        "wall_seconds": 70.09,
+        "model_load_seconds": 63.696,
+        "prefill_tokens": 1543,
+        "prefill_seconds": 63.639,
+        "prefill_tokens_per_second": 24.25,
+        "decode_tokens": 28,
+        "decode_seconds": 2.985,
+        "decode_tokens_per_second": 9.38,
+        "process_peak_rss_mib": 840.4,
+        "process_peak_pss_mib": 839.0,
+        "device_mem_available_baseline_kib": 3096544,
+        "device_mem_available_min_kib": 2795916,
+        "samples": 159,
+        "exit_code": 0,
+        "first_result_seconds": 70.09
+      },
+      "application_ok": true,
+      "application_trace_error": null,
+      "cold_start_sample": false
+    }
+  },
+  "finished_at": "2026-10-25T17:37:02"
+}

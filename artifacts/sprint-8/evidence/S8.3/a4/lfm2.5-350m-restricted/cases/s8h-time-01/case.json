@@ -1,0 +1,122 @@
+{
+  "case_id": "s8h-time-01",
+  "suite": "heldout",
+  "profile": "lfm2.5-350m-restricted",
+  "prompt_sha256": "1e2ff33e1408ce34912ba08da9c4f591a47ea55cf27c2848238de042bc1fd7d4",
+  "generation": "spreadsheet\n\n<|im_end|>",
+  "parsed_calls": [],
+  "parse_error": null,
+  "application": {
+    "case_id": "s8h-time-01",
+    "application_trace": {
+      "case_id": "s8h-time-01",
+      "fixture": {
+        "capture_ids": [
+          202
+        ],
+        "event_ids": [],
+        "draft_ids": []
+      },
+      "scope": {
+        "kind": "AgentSession",
+        "scope_id": "s8.3-isolated-trial",
+        "capture_ids": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          201,
+          202
+        ],
+        "draft_ids": [
+          401,
+          501,
+          601,
+          603,
+          604,
+          801
+        ]
+      },
+      "outcomes": [],
+      "database_state": {
+        "captures": [
+          {
+            "id": 202,
+            "revision": 0,
+            "text": "Groceries 45,000 VND yesterday, exact hour unknown."
+          }
+        ],
+        "captures_events": [],
+        "ledger_record_count": 0,
+        "stored_draft_count": 6,
+        "total_link_rows": 0,
+        "workflow_operation_count": 0
+      }
+    },
+    "trace_source": "instrumented_application",
+    "fixture": "in_memory_room",
+    "instrumentation_ok": true
+  },
+  "effects": {
+    "ledgerWrites": 0,
+    "noLedgerWrites": true,
+    "financialWrites": 0,
+    "applicationCalls": 0,
+    "deleteCalls": 0,
+    "attachCalls": 0,
+    "callerScope": "trusted_host_only",
+    "activeLinksForEvent": 0
+  },
+  "metrics": {
+    "wall_seconds": 6.42,
+    "runtime_reported_load_seconds": 4.966,
+    "prefill_tokens": 203,
+    "prefill_seconds": 4.964,
+    "prefill_tokens_per_second": 40.9,
+    "decode_tokens": 5,
+    "decode_seconds": 0.2,
+    "decode_tokens_per_second": 24.99,
+    "process_peak_rss_mib": 310.4,
+    "process_peak_pss_mib": 309.3,
+    "device_mem_available_baseline_kib": 2811840,
+    "device_mem_available_min_kib": 2721844,
+    "samples": 15,
+    "exit_code": 0,
+    "max_tokens": 384,
+    "context_tokens": 4096,
+    "output_truncated_at_cap": false,
+    "first_result_seconds": 6.42
+  },
+  "cold_start_sample": false,
+  "raw": {
+    "case_id": "s8h-time-01",
+    "phase": "cold",
+    "generation": "spreadsheet\n\n<|im_end|>",
+    "raw_stdout_sha256": "1f6a7cad13eb9049dda349d8c026525c11c1029ca8969e4ef5e3126d98eb9c15",
+    "raw_stderr_sha256": "2c7136f369665d82dd8dc51b95b69ca8dc1d0bad690b5beab264434c48a153f0",
+    "metrics": {
+      "wall_seconds": 6.42,
+      "runtime_reported_load_seconds": 4.966,
+      "prefill_tokens": 203,
+      "prefill_seconds": 4.964,
+      "prefill_tokens_per_second": 40.9,
+      "decode_tokens": 5,
+      "decode_seconds": 0.2,
+      "decode_tokens_per_second": 24.99,
+      "process_peak_rss_mib": 310.4,
+      "process_peak_pss_mib": 309.3,
+      "device_mem_available_baseline_kib": 2811840,
+      "device_mem_available_min_kib": 2721844,
+      "samples": 15,
+      "exit_code": 0,
+      "max_tokens": 384,
+      "context_tokens": 4096,
+      "output_truncated_at_cap": false,
+      "first_result_seconds": 6.42
+    },
+    "device_run_dir": "/data/local/tmp/slm/trials/S8.3-a4/lfm2.5-350m-restricted/s8h-time-01/run-cold"
+  }
+}

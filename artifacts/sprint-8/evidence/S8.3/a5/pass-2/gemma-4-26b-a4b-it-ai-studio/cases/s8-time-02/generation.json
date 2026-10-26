@@ -1,0 +1,62 @@
+{
+  "case_id": "s8-time-02",
+  "phase": "hosted",
+  "generation": "",
+  "parsed_calls": [
+    {
+      "name": "update_event_interpretation",
+      "args": {
+        "extractionVersion": "1.0",
+        "idempotencyKey": "update_event_103_groceries",
+        "expectedCaptureRevision": 0,
+        "unresolvedReason": null,
+        "captureId": 103,
+        "interpretation": {
+          "normalizedText": "45,000 VND",
+          "amountVnd": 45000,
+          "timeAnchor": {
+            "date": null
+          },
+          "merchant": null,
+          "spanStart": 10,
+          "spanEnd": 21
+        },
+        "expectedEventRevision": 0
+      }
+    }
+  ],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 4.732,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1518,
+    "output_tokens": 112,
+    "thought_tokens": null,
+    "total_tokens": 1630,
+    "cached_input_tokens": null,
+    "service_tier": "standard",
+    "finish_reason": "STOP",
+    "model_version": "gemma-4-26b-a4b-it",
+    "response_id": "xQneaoKoM6Xcvr0PnY_GuAM",
+    "max_tokens": 2048,
+    "context_tokens": null,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 4.732
+  },
+  "request_sha256": "3d632bfd03ec53ee6ded1f4922c377b12ed98b10cbfbf7f88d700a795736362e",
+  "response_sha256": "0e597ba65c983cae37db7a2a199986d2ac879528ee478d63dd76f3cee35a5a88",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "7b48d2c551f411bf5066e6c3d359d13daa8c2b76a9e169d9698254e084cab1ec",
+    "tool_declarations_sha256": "c090ac75dca5272675a307f3163b1e97c30f91b5610ab8d075f0d38acb38fdea"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 4.732
+    }
+  ]
+}

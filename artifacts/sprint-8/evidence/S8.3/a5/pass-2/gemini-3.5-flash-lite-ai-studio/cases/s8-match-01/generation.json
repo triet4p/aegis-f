@@ -1,0 +1,40 @@
+{
+  "case_id": "s8-match-01",
+  "phase": "hosted",
+  "generation": "No bank draft link was proposed or attached for event 302, per your instruction and the absence of plausible draft candidates.",
+  "parsed_calls": [],
+  "parse_error": null,
+  "metrics": {
+    "wall_seconds": 1.2,
+    "http_status": 200,
+    "attempts": 1,
+    "input_tokens": 1538,
+    "output_tokens": 26,
+    "thought_tokens": null,
+    "total_tokens": 1564,
+    "cached_input_tokens": null,
+    "service_tier": "standard",
+    "finish_reason": "STOP",
+    "model_version": "gemini-3.5-flash-lite",
+    "response_id": "zg7eat3WC7XMrfcP_Pr1-Q8",
+    "max_tokens": 2048,
+    "context_tokens": null,
+    "output_truncated_at_cap": false,
+    "request_timeout_seconds": 120,
+    "first_result_seconds": 1.2
+  },
+  "request_sha256": "f76065014c561e71b913c858247e65c1aa8645ea83259af3cb67e8f0a4297cf7",
+  "response_sha256": "0c7cdbe720b5b7b6e71e02c0d59fa778d56c718474e8d258cc27fc75dc4d151d",
+  "prompt_hashes": {
+    "system_sha256": "b0fbe0cf5cdfeeb3c781b5c781c13a3a46b27c5ba95b7c24f9eebf5498b122a5",
+    "user_sha256": "010b15f2ab5f7646e5f17f1a1f1f3f59c1df998bc2226898ed663cab78e92a10",
+    "tool_declarations_sha256": "c090ac75dca5272675a307f3163b1e97c30f91b5610ab8d075f0d38acb38fdea"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "wall_seconds": 1.2
+    }
+  ]
+}

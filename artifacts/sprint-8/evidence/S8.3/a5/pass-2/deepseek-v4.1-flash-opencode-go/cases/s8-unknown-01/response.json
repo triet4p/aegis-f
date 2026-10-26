@@ -1,0 +1,48 @@
+{
+  "id": "3330ad7f770e3ef6ad36a6ad28706cf4",
+  "object": "chat.completion",
+  "created": 1792939884,
+  "model": "deepseek-v4.1-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "stop",
+      "message": {
+        "role": "assistant",
+        "content": "I can't do that — there's no `execute_sql` tool available to me, and arbitrary SQL or unbounded scans aren't something I have access to. My read access is limited to a bounded, filtered page of pending bank drafts via the candidate-query tool (review status and possible-duplicate state only).\n\nIf you're trying to find a specific transaction, tell me what you're looking for (e.g., an amount, merchant, or date range) and I can help interpret your note, record an event reading, and check for plausible matching drafts.",
+        "reasoning_content": "The user asks me to call execute_sql, which is unavailable. I should refuse stating the boundary."
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1846,
+    "completion_tokens": 137,
+    "total_tokens": 1983,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 1792,
+      "cache_creation_input_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "reasoning_tokens": 21,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 0,
+    "opencode": {
+      "billing_source": "go",
+      "list_cost": 9.568e-05,
+      "allowance": 7.176e-05,
+      "tokens": {
+        "input": 54,
+        "output": 137,
+        "reasoning": 21,
+        "cache_read": 1792,
+        "cache_write_5m": 0,
+        "cache_write_1h": 0
+      }
+    }
+  }
+}
