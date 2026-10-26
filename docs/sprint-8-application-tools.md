@@ -1,0 +1,31 @@
+# Sprint 8.7 — bounded application tools
+
+S8.7 adds the Android adapter seam for the five closed S8 agent operations. It uses the existing `WorkflowQueryService` and `WorkflowCommandService`; it does not add persistence or bypass their scope, revision, idempotency, link-evidence, or Laya policies. A host creates one `BoundedWorkflowToolAdapter` with a trusted `WorkflowToolSession` containing the `AgentSession`, its S8.6 `MaskedPromptBoundary`, and a trusted operation key. The v2 model schema contains no operation-key argument and rejects extra fields. The host reuses its trusted key for an exact retry; the services' durable operation record detects changed payloads.
+
+## Tool declarations and privacy compatibility
+
+`tools/slm/s8_agent_tools.json` (`aegis-f-s8-agent-tools/v1`) remains unchanged for the frozen v1 development/held-out evaluation and its historical integer-value fixture calls. Its `update_event_interpretation.amountVnd` requires a raw integer, while `MaskedApplicationEffect.rehydrateInterpretation` only accepts same-session string tokens. A v1 model call therefore cannot both satisfy its schema and satisfy S8.6's typed local rehydration rule; passing an integer would also put the raw value back on the provider boundary. No raw-value compatibility path is enabled.
+
+The application instead consumes `tools/slm/s8_agent_tools_v2.json` (`aegis-f-s8-agent-tools/v2`), the canonical declaration for the masked runtime path. Amount/date/time fields are nullable token strings; the adapter rehydrates each through the existing typed vault methods. `maskedSpanText` is required and checked against the current stored source span before `updateEventInterpretation` runs. Capture and event revisions are compared-and-set by the command service; stale requests do not overwrite state. The model-provided timezone is not used: the adapter derives it from the current stored capture. The app build copies the one v2 JSON declaration into generated assets, and `S8AgentToolDeclarations` loads it rather than maintaining a second Kotlin schema.
+
+`spanStart` and `spanEnd` are UTF-16 offsets into that exact masked source view. The adapter verifies the copied masked span and translates those boundaries through the session vault to offsets in the original stored text; a partial token or a range that does not match the current source is refused. Persisted `NoteEventEntity` offsets therefore remain the app's original-source offsets, never model-visible token offsets.
+
+The frozen contract also had no offset translation between variable-length privacy tokens and source indices: model-visible masked offsets cannot be reused as stored-source offsets. S8.7 adds this local mapping to the existing `MaskedApplicationEffect` seam instead of guessing or changing database semantics. It is consumed by the Android adapter's source observation and event update paths; the v1 fixture argument coordinates remain historical, while new masked calls use v2 coordinates.
+
+Affected consumers are the Android generated asset, declaration loader, adapter argument validation and the S8.7 masked adapter tests. The old v1 evaluation script, schema and dev/held-out fixture versions are intentionally not migrated or edited; they retain their historical raw-argument semantics and are not the runtime declaration. New masked-runtime callers must use v2.
+
+Each adapter instance is bound to one operation identity. The host uses a new trusted key for a distinct mutation and reuses that key on retry; provider-supplied keys never select operation identity.
+
+## Runtime behavior
+
+- `observeCaptureContext(captureId)` is a host-side bounded read. It checks the capture against the trusted session before reading, then returns the actual stored capture revision, masked source text, current event readings and only links to granted drafts. Tool query responses are paged and filtered to granted draft IDs before their rows or pagination metadata leave the adapter.
+- `query_draft_candidates` reads bounded draft pages through the shared query service. It returns only the session's drafts and masks bank text, amounts, dates, times and descriptions before returning structured observations.
+- `update_event_interpretation` requires a granted capture and exact current-source span match; tokens are typed and rehydrated locally, and the command service persists the interpretation and durable operation result.
+- `propose_link` and `attach_link` use the existing commands, which compute and recheck app-owned link evidence. Agent-supplied evidence and non-null user overrides are refused. An ambiguous proposal remains unattached for user review.
+- `request_laya_classification` requires a granted draft and the exact current review description in its masked form. It invokes `WorkflowCommandService.requestClassification`, whose configured `ClassificationEngine` is the real `LayaClassificationEngine` in the application. The adapter does not synthesize a prediction and does not write a category or ledger entry.
+- For a key already present in the durable operation journal, the adapter reconstructs typed arguments and delegates to the command service's replay/conflict path rather than re-checking mutable state and silently creating a new operation. A same-key changed payload remains a conflict.
+- Unknown tool names, incomplete/schema-invalid arguments, foreign/unknown/swapped tokens, caller-scope violations, stale revisions, unsupported override decisions and privacy-boundary failures return bounded structured refusals; only the five declared names are dispatched. Confirmation, dismissal, deletion, SQL, shell, arbitrary filesystem access, plugins and device automation are not exposed.
+
+The connected smoke uses an in-memory Room database and provisions only the pinned Apache-2.0 Laya export from test-staged source files through the existing `LayaModelProvisioner`; the app-bundled tokenizer is used. It does not read or modify the normal app package/database.
+
+Adapter smoke and Laya evidence are recorded in `artifacts/sprint-8/workers/S8.7-replan-a1.md` after execution. The service remains an adapter seam for the later executor task; S8.7 does not implement a multi-turn executor or skills/settings UI.

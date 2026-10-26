@@ -1,8 +1,17 @@
+import org.gradle.api.tasks.Copy
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
 }
+
+val s8AgentToolAssetDir = layout.buildDirectory.dir("generated/s8-agent-tools/assets")
+val copyS8AgentToolDeclarations by tasks.registering(Copy::class) {
+    from(rootProject.file("tools/slm/s8_agent_tools_v2.json"))
+    into(s8AgentToolAssetDir)
+}
+
 
 android {
     namespace = "io.github.triet4p.aegisf"
@@ -31,6 +40,11 @@ android {
             isIncludeAndroidResources = true
         }
     }
+}
+
+android.sourceSets.getByName("main").assets.srcDir(s8AgentToolAssetDir.get().asFile)
+tasks.named("preBuild").configure {
+    dependsOn(copyS8AgentToolDeclarations)
 }
 
 kotlin {

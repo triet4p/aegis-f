@@ -149,11 +149,86 @@ data class MaskedInterpretation(
 object MaskedApplicationEffect {
 
     /**
+     * Maps model offsets in the masked source view to exact offsets in the stored source.
+     *
+     * Sensitive tokens have different lengths from their source values. The model's copied
+     * span is therefore checked against the current masked source before its boundaries are
+     * translated locally; a boundary inside a token or an unmapped sensitive literal refuses.
+     */
+    fun sourceOffsetsForMaskedSpan(
+        scope: WorkflowCallerScope.AgentSession,
+        boundary: MaskedPromptBoundary,
+        captureId: Long,
+        captureText: String,
+        maskedStart: Int,
+        maskedEnd: Int,
+        maskedSpanText: String,
+    ): Pair<Int, Int> {
+        if (captureId !in scope.captureIds) {
+            throw TokenValidationException("the capture is outside this session's scope")
+        }
+        val vault = boundary.vault
+        val maskedSource = vault.maskedPreview(captureText)
+        if (SensitiveVault.UNMAPPED_SENTINEL in maskedSource) {
+            throw TokenValidationException("the source has an unmapped sensitive value")
+        }
+        if (maskedStart < 0 || maskedEnd <= maskedStart || maskedEnd > maskedSource.length) {
+            throw TokenValidationException("the masked source span is not usable")
+        }
+        val splitsToken = SensitiveVault.TOKEN_PATTERN.findAll(maskedSource).any { token ->
+            (maskedStart > token.range.first && maskedStart <= token.range.last) ||
+                (maskedEnd > token.range.first && maskedEnd <= token.range.last)
+        }
+        if (splitsToken) throw TokenValidationException("the masked span splits a protected value")
+        if (maskedSource.substring(maskedStart, maskedEnd) != maskedSpanText) {
+            throw TokenValidationException("the masked span does not match the source text")
+        }
+        val sourceStart = vault.rehydrateText(maskedSource.substring(0, maskedStart)).length
+        val sourceEnd = vault.rehydrateText(maskedSource.substring(0, maskedEnd)).length
+        if (sourceEnd <= sourceStart) {
+            throw TokenValidationException("the translated source span is not usable")
+        }
+        return sourceStart to sourceEnd
+    }
+
+    /** Maps a stored source span to the masked character offsets a model can observe. */
+    fun maskedOffsetsForSourceSpan(
+        scope: WorkflowCallerScope.AgentSession,
+        boundary: MaskedPromptBoundary,
+        captureId: Long,
+        captureText: String,
+        sourceStart: Int,
+        sourceEnd: Int,
+    ): Pair<Int, Int> {
+        if (captureId !in scope.captureIds) {
+            throw TokenValidationException("the capture is outside this session's scope")
+        }
+        if (sourceStart < 0 || sourceEnd <= sourceStart || sourceEnd > captureText.length) {
+            throw TokenValidationException("the source span is not usable")
+        }
+        val vault = boundary.vault
+        val maskedSource = vault.maskedPreview(captureText)
+        val maskedPrefix = vault.maskedPreview(captureText.substring(0, sourceStart))
+        val maskedSpan = vault.maskedPreview(captureText.substring(sourceStart, sourceEnd))
+        val maskedSuffix = vault.maskedPreview(captureText.substring(sourceEnd))
+        if (SensitiveVault.UNMAPPED_SENTINEL in maskedSource ||
+            SensitiveVault.UNMAPPED_SENTINEL in maskedPrefix ||
+            SensitiveVault.UNMAPPED_SENTINEL in maskedSpan ||
+            SensitiveVault.UNMAPPED_SENTINEL in maskedSuffix ||
+            maskedPrefix + maskedSpan + maskedSuffix != maskedSource
+        ) {
+            throw TokenValidationException("the source span does not align with masked context")
+        }
+        return maskedPrefix.length to (maskedPrefix.length + maskedSpan.length)
+    }
+
+    /**
      * Rehydrates a masked event-reading argument into [NoteEventInterpretation], or refuses.
      *
      * [captureText] is the current capture text the model read; [spanStart]/[spanEnd] are the
-     * model's claimed masked offsets; [maskedSpanText] is the masked text the model saw at
-     * those offsets. Unknown/ambiguous rehydration fails closed with [TokenValidationException].
+     * translated offsets into that stored source. [maskedSpanText] is the exact copied range
+     * from the masked source view, mapped locally before this call. Unknown/ambiguous
+     * rehydration fails closed with [TokenValidationException].
      */
     fun rehydrateInterpretation(
         scope: WorkflowCallerScope.AgentSession,

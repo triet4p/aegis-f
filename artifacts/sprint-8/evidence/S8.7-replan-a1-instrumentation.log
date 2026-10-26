@@ -1,0 +1,28 @@
+Task: S8.7 / attempt S8.7-replan-a1 / round 2
+Device: ALT-LX2 / Android 14 / serial AAAJBB4930914141
+Isolated target: io.github.triet4p.aegisf.s87evidence
+Runner: io.github.triet4p.aegisf.s87evidence.test/androidx.test.runner.AndroidJUnitRunner
+Command: adb -s AAAJBB4930914141 shell am instrument -r -w -e class io.github.triet4p.aegisf.agent.S87LayaAdapterInstrumentedTest io.github.triet4p.aegisf.s87evidence.test/androidx.test.runner.AndroidJUnitRunner
+
+INSTRUMENTATION_STATUS: class=io.github.triet4p.aegisf.agent.S87LayaAdapterInstrumentedTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=
+io.github.triet4p.aegisf.agent.S87LayaAdapterInstrumentedTest:
+INSTRUMENTATION_STATUS: test=actualRoomToolOperationsReachLocalLayaAndPersistOnlyTheAllowedEffects
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=io.github.triet4p.aegisf.agent.S87LayaAdapterInstrumentedTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=actualRoomToolOperationsReachLocalLayaAndPersistOnlyTheAllowedEffects
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_RESULT: stream=
+
+Time: 24,224
+
+OK (1 test)
+
+INSTRUMENTATION_CODE: -1

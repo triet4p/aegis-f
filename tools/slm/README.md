@@ -419,6 +419,16 @@ clarification/no-match, adversarial (scope injection, unknown SQL, confirm/delet
 retry/recovery, and privacy (account masking with exact integer-VND rehydration).
 Single-turn v2 baseline and multi-turn agent metrics are never mixed.
 
+The raw integer-valued tool declaration above remains the immutable v1 evaluation
+contract. The masked Android runtime uses the versioned
+[`s8_agent_tools_v2.json`](s8_agent_tools_v2.json) declaration, with scoped token
+strings, a source-backed masked span, and host-bound operation identity excluded from
+tool arguments, described in
+[`docs/sprint-8-application-tools.md`](../../docs/sprint-8-application-tools.md).
+
+The two contracts are intentionally separate: v1 fixture calls stay byte-for-byte
+historical and are never accepted as raw-value runtime calls.
+
 ```powershell
 uv run python tools/slm/s8_agent_contract.py validate
 uv run python tools/slm/s8_agent_contract.py selftest

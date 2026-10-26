@@ -1,0 +1,134 @@
+{
+  "additionalProperties": false,
+  "schema": "aegis-f-s8-agent-tools/v2",
+  "tools": [
+    {
+      "description": "Read a bounded page of stored bank drafts. This query filters review state and possible-duplicate status only; it does not assert a match.",
+      "mapsTo": "WorkflowQueryService.draftCandidates(DraftCandidateQuery)",
+      "name": "query_draft_candidates",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "additionalProperties": false,
+            "properties": {
+              "bounds": {
+                "additionalProperties": false,
+                "properties": {
+                  "limit": {
+                    "description": "Maximum number of drafts in the page; integer from 1 through 500.",
+                    "maximum": 500,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "offset": {
+                    "description": "Zero-based page offset; non-negative integer.",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": ["limit", "offset"],
+                "type": "object"
+              },
+              "onlyPossibleDuplicates": {"type": "boolean"},
+              "reviewStatus": {
+                "enum": ["PENDING", "CONFIRMED", "DISMISSED", null],
+                "type": ["string", "null"]
+              }
+            },
+            "required": ["reviewStatus", "onlyPossibleDuplicates", "bounds"],
+            "type": "object"
+          }
+        },
+        "required": ["query"],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Store or revise one reading of a source span. spanStart/spanEnd are UTF-16 offsets into the exact masked source view; maskedSpanText must be copied exactly from that range. Sensitive amount/date/time values are same-session vault tokens, never raw literals. Operation identity is host-bound, not a tool argument.",
+      "mapsTo": "WorkflowCommandService.updateEventInterpretation(scope, UpdateEventRequest)",
+      "name": "update_event_interpretation",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "captureId": {"minimum": 1, "type": "integer"},
+          "expectedCaptureRevision": {"minimum": 0, "type": "integer"},
+          "expectedEventRevision": {"minimum": 0, "type": ["integer", "null"]},
+          "extractionVersion": {"minLength": 1, "type": "string"},
+          "interpretation": {
+            "additionalProperties": false,
+            "properties": {
+              "amountVnd": {"type": ["string", "null"]},
+              "merchant": {"type": ["string", "null"]},
+              "maskedSpanText": {"minLength": 1, "type": "string"},
+              "normalizedText": {"minLength": 1, "type": "string"},
+              "spanEnd": {"minimum": 1, "type": "integer"},
+              "spanStart": {"minimum": 0, "type": "integer"},
+              "timeAnchor": {
+                "additionalProperties": false,
+                "properties": {
+                  "date": {"type": ["string", "null"]},
+                  "intervalEndDate": {"type": ["string", "null"]},
+                  "intervalEndTime": {"type": ["string", "null"]},
+                  "time": {"type": ["string", "null"]},
+                  "timezoneId": {"type": ["string", "null"]}
+                },
+                "type": ["object", "null"]
+              },
+              "unresolvedReason": {"type": ["string", "null"]}
+            },
+            "required": ["spanStart", "spanEnd", "normalizedText", "maskedSpanText"],
+            "type": "object"
+          }
+        },
+        "required": ["captureId", "expectedCaptureRevision", "interpretation", "extractionVersion", "expectedEventRevision"],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Propose an event/draft association. The app computes link evidence from stored source and draft data; caller-supplied evidence is forbidden. Operation identity is host-bound, not a tool argument.",
+      "mapsTo": "WorkflowCommandService.proposeLink(scope, ProposeLinkRequest)",
+      "name": "propose_link",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "draftId": {"minimum": 1, "type": "integer"},
+          "eventId": {"minimum": 1, "type": "integer"}
+        },
+        "required": ["eventId", "draftId"],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Attach only a previously proposed pair. Agent scope is subject to the application's unchanged evidence policy; ambiguity remains for the user. Operation identity is host-bound, not a tool argument.",
+      "mapsTo": "WorkflowCommandService.attachLink(scope, AttachLinkRequest)",
+      "name": "attach_link",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "draftId": {"minimum": 1, "type": "integer"},
+          "eventId": {"minimum": 1, "type": "integer"},
+          "expectedRevision": {"minimum": 0, "type": "integer"},
+          "userOverride": {"type": ["string", "null"]}
+        },
+        "required": ["eventId", "draftId", "expectedRevision", "userOverride"],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Request the existing review-only local Laya suggestion for one draft and its masked description; this does not choose a category or write a ledger record. Operation identity is host-bound, not a tool argument.",
+      "mapsTo": "WorkflowCommandService.requestClassification(scope, ClassificationRequest)",
+      "name": "request_laya_classification",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {"type": "string"},
+          "draftId": {"minimum": 1, "type": "integer"},
+          "expectedReviewRevision": {"minimum": 0, "type": ["integer", "null"]}
+        },
+        "required": ["draftId", "description", "expectedReviewRevision"],
+        "type": "object"
+      }
+    }
+  ]
+}

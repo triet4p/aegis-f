@@ -349,6 +349,10 @@ class WorkflowQueryService(
 
     // --- Sources ------------------------------------------------------------
 
+    /** One capture by stable id; caller authorization must precede this read. */
+    suspend fun sourceExcerpt(captureId: Long): CaptureMessageEntity? =
+        captureMessageDao.findById(captureId)
+
     /**
      * A bounded page of the stored sources.
      *
@@ -486,6 +490,10 @@ class WorkflowQueryService(
 
 
     // --- Draft candidates ---------------------------------------------------
+    /** One stored draft by id; callers must authorize the id before reading it. */
+    suspend fun draftCandidate(draftId: Long): PendingBankDraftEntity? =
+        pendingBankDraftDao.findById(draftId)
+
     /**
      * A bounded page of the stored bank drafts.
      *
@@ -848,6 +856,19 @@ class WorkflowQueryService(
         },
         bounds = query.bounds,
     )
+    /** One durable operation record by the host-owned idempotency key. */
+    suspend fun workflowOperation(idempotencyKey: String): WorkflowOperation? =
+        workflowOperationDao.findByKey(idempotencyKey)?.let { operation ->
+            WorkflowOperation(
+                idempotencyKey = operation.idempotencyKey,
+                scopeId = operation.scopeId,
+                command = operation.command,
+                outcome = operation.outcome,
+                change = decodeWorkflowChange(operation.changeSummary),
+                createdAtEpochMillis = operation.createdAtEpochMillis,
+            )
+        }
+
 
     /**
      * A bounded page of the recorded preparation commands.

@@ -9,6 +9,13 @@ and no release has been tagged or published. Format follows
 
 ### Added
 
+- Added a bounded application-tool adapter over the shared workflow query and command services.
+  Its fixed query and reversible event/context/link operations use trusted session scope,
+  masked-token rehydration, service-owned revisions and durable operation replay; Laya
+  classification still runs through the real local inference service and remains review-only.
+  The masked runtime declarations are versioned separately so historical raw-value evaluation
+  fixtures and their v1 schema remain unchanged.
+
 - Added the mandatory local pre-egress masking boundary used before any hosted model
   request. User input, selected context, history and tool results are masked on-device
   through deterministic detection of grouped/unit amounts, calendar dates, wall-clock

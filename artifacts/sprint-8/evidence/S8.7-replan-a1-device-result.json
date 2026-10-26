@@ -1,0 +1,43 @@
+{
+  "task": "S8.7",
+  "attempt": "S8.7-replan-a1",
+  "reviewRound": 2,
+  "device": {
+    "model": "ALT-LX2",
+    "android": 14,
+    "serial": "AAAJBB4930914141",
+    "targetPackage": "io.github.triet4p.aegisf.s87evidence",
+    "testPackage": "io.github.triet4p.aegisf.s87evidence.test"
+  },
+  "test": "io.github.triet4p.aegisf.agent.S87LayaAdapterInstrumentedTest#actualRoomToolOperationsReachLocalLayaAndPersistOnlyTheAllowedEffects",
+  "instrumentation": {
+    "tests": 1,
+    "failures": 0,
+    "statusCode": 0,
+    "runnerResultCode": -1,
+    "result": "OK (1 test)",
+    "rawLog": "artifacts/sprint-8/evidence/S8.7-replan-a1-instrumentation.log"
+  },
+  "model": {
+    "origin": "receptron/laya-onnx",
+    "revision": "68f27dfe5a27a54fb2b1fefc432f43f972e90868",
+    "license": "Apache-2.0",
+    "provisioner": "LayaModelProvisioner",
+    "source": "MODEL",
+    "candidateIds": [1],
+    "probabilities": [0.7468],
+    "unknownShare": 0.2532,
+    "confidence": 0.1837,
+    "logcat": "artifacts/sprint-8/evidence/S8.7-replan-a1-laya.logcat"
+  },
+  "pinnedFiles": {
+    "laya.onnx": "a874eb254b58b0fcb1e7ad56fbb188c29d64e08c9a46b689433e1f52c66dba1e",
+    "laya.onnx.data": "487746363a8da57bcadb4345352997d22a0fb90d70aa22c6856668d023242aba",
+    "laya_config.json": "5049005dc6ae3ca5e82cc7d85c421357d5c543817300c8e8c5281ddbc69bb561",
+    "tokenizer/laya_tokenizer.bin": "09b371ce4b613716bdad862985c37774dfd3ea6373919c8312f9a6cf8bb9ad1b"
+  },
+  "database": "in-memory Room; synthetic capture/draft; no user database read or reset",
+  "ledgerRowsAfterClassificationAndRetry": 0,
+  "classificationOperationRowsAfterRetry": 1,
+  "sameSnapshotAfterRetry": true
+}

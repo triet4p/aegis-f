@@ -1,0 +1,4 @@
+Command: adb -s AAAJBB4930914141 shell logcat -d -s S87LayaSmoke:I
+-----
+--------- beginning of main
+10-26 14:50:29.071 31138 31164 I S87LayaSmoke: source=MODEL candidates=1 probabilities=0.7468 unknownShare=0.2532 confidence=0.1837
