@@ -17,6 +17,7 @@ import io.github.triet4p.aegisf.data.NotificationAccessStore
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.notification.BankNotificationListener
+import io.github.triet4p.aegisf.provider.HostedProviderSettingsStore
 import io.github.triet4p.aegisf.notification.isNotificationAccessGranted
 import io.github.triet4p.aegisf.ui.AegisAppShell
 
@@ -44,6 +45,9 @@ class MainActivity : ComponentActivity() {
         (application as AegisApplication).container.workflowCommandService
     }
 
+    private val hostedProviderSettingsStore: HostedProviderSettingsStore by lazy {
+        (application as AegisApplication).container.hostedProviderSettingsStore
+    }
     /** The same durable queue the process starts; review reads its state and controls it. */
     private val classificationQueue by lazy {
         (application as AegisApplication).container.bankDraftClassificationQueue
@@ -71,6 +75,9 @@ class MainActivity : ComponentActivity() {
                     classificationQueue = classificationQueue,
                     layaInferenceLifecycle = layaInferenceLifecycle,
                     notificationAccessStore = notificationAccessStore,
+                    hostedProviderSettingsStore = hostedProviderSettingsStore,
+                    createHostedWorkflowHost = (application as AegisApplication).container::createHostedWorkflowHost,
+                    agentRunHistory = (application as AegisApplication).container.agentRunHistory,
                 )
             }
         }

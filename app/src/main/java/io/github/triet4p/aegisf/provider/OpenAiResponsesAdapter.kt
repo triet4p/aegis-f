@@ -165,7 +165,9 @@ class OpenAiResponsesAdapter internal constructor(
         config.budget.reasoningEffort?.let {
             request.put("reasoning", JSONObject().put("effort", it.wireName))
         }
-        config.budget.parallelToolCalls?.let { request.put("parallel_tool_calls", it) }
+        if (tools.isNotEmpty()) {
+            config.budget.parallelToolCalls?.let { request.put("parallel_tool_calls", it) }
+        }
         return request
     }
 

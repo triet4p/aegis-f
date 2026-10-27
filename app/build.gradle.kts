@@ -29,6 +29,17 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    buildTypes {
+        debug {
+            if (
+                project.findProperty("S812_ANDROID_TARGET_PACKAGE")?.toString() ==
+                "io.github.triet4p.aegisf.s812evidence"
+            ) {
+                applicationIdSuffix = ".s812evidence"
+            }
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -45,18 +56,22 @@ android {
     }
 }
 
-// Live-gate propagation for the S8.11 one-shot smoke: the Gradle daemon does not reliably
-// inherit ad-hoc shell exports on every host, so the gate reaches the test JVM through an
-// explicit project property (command line `-P`) or the daemon environment, whichever is
-// present. Env remains the documented primary gate; `-P` is the fallback launcher on hosts
-// where daemon env inheritance is blocked. Values are gate flags and attempt ids only —
-// never credentials.
-// AFTER S8.11, Main may extend the list to other live gates or remove this block.
+// Live-gate propagation for the provider smoke tests: the Gradle daemon does not
+// reliably inherit ad-hoc shell exports on every host, so these flags reach the test JVM through
+// an explicit project property or the daemon environment. S8.5's historical protocol gate stays
+// environment-based because its test intentionally reads that variable. Gate flags, package IDs
+// and attempt IDs only; never pass credentials here.
 tasks.withType<Test> {
-    listOf("AEGIS_S811_LIVE_SMOKE", "S811_ATTEMPT").forEach { name ->
+    listOf(
+        "AEGIS_S811_LIVE_SMOKE",
+        "S811_ATTEMPT",
+    ).forEach { name ->
         val value = project.findProperty(name)?.toString() ?: System.getenv(name)
         if (!value.isNullOrBlank()) systemProperty(name, value)
     }
+    project.findProperty("AEGIS_S85_LIVE_PROTOCOL_SMOKE")?.toString()
+        ?.takeIf { it == "1" }
+        ?.let { environment("AEGIS_S85_LIVE_PROTOCOL_SMOKE", it) }
 }
 
 android.sourceSets.getByName("main").assets.srcDir(s8AgentRuntimeAssetDir.get().asFile)
@@ -100,6 +115,8 @@ dependencies {
     testImplementation("org.robolectric:robolectric:4.17")
     testImplementation("androidx.test:core:1.7.0")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+    androidTestImplementation(platform("androidx.compose:compose-bom:2026.09.00"))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test:rules:1.7.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")

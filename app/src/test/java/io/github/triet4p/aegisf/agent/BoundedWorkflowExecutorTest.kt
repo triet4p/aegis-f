@@ -573,6 +573,371 @@ class BoundedWorkflowExecutorTest {
     }
 
     @Test
+    fun `resumeTracked reopens a clarifying run and completes the corrected effect`() = runBlocking {
+        val fixture = prepare()
+        val masked = fixture.maskedSource
+        val amount = token(masked, "AMT")
+        val date = token(masked, "DATE")
+        val time = token(masked, "TIME")
+        val incompleteUpdate = JSONObject()
+            .put("captureId", fixture.captureId)
+            .put("expectedCaptureRevision", 0)
+            .put("expectedEventRevision", JSONObject.NULL)
+            .put("extractionVersion", "s8.12-resume-tracked-test")
+            .put(
+                "interpretation",
+                JSONObject()
+                    .put("spanStart", 0)
+                    .put("spanEnd", masked.length)
+                    .put("normalizedText", masked)
+                    .put("maskedSpanText", masked)
+                    .put("amountVnd", JSONObject.NULL)
+                    .put("merchant", JSONObject.NULL)
+                    .put("unresolvedReason", JSONObject.NULL)
+                    .put(
+                        "timeAnchor",
+                        JSONObject()
+                            .put("date", date)
+                            .put("time", time)
+                            .put("timezoneId", JSONObject.NULL)
+                            .put("intervalEndDate", JSONObject.NULL)
+                            .put("intervalEndTime", JSONObject.NULL),
+                    ),
+            )
+        val correctedUpdate = JSONObject(incompleteUpdate.toString()).apply {
+            getJSONObject("interpretation").put("amountVnd", amount)
+        }
+        val script = scripted()
+        script += { toolTurn(call(BoundedWorkflowToolAdapter.UPDATE_EVENT_INTERPRETATION, incompleteUpdate)) }
+        script += { toolTurn(call(BoundedWorkflowToolAdapter.UPDATE_EVENT_INTERPRETATION, correctedUpdate)) }
+        script += { complete("The synthetic reading was completed after clarification.") }
+        val gatewayAdapter = ScriptedAdapter(script)
+        val gateway = MaskedHostedGateway(gatewayAdapter, fixture.boundary)
+        val host = WorkflowRunHost(
+            scope = fixture.scope,
+            boundary = fixture.boundary,
+            gateway = gateway,
+            declarations = declarations,
+            skills = skills,
+            commands = commands,
+            queries = queries,
+            operationKeys = WorkflowOperationKeySource { "s8-12-resume-tracked-key-${sequence.incrementAndGet()}" },
+        )
+        val history = AgentRunHistory(database)
+        val executor = BoundedWorkflowExecutor(host)
+        val admitted = history.admitRun(
+            fixture.scope,
+            WorkflowRunRequest(
+                intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
+                userRequest = "Interpret the synthetic fixture note.",
+            ),
+            fixture.boundary,
+            null,
+        )
+        history.claimForExecution(admitted.runId, admitted.attempt)
+        val request = WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
+            userRequest = "Interpret the synthetic fixture note.",
+        )
+        val first = executor.startWithAttemptKey(request, admitted.attemptKey)
+        assertTrue("expected a clarification, got $first", first is WorkflowRunOutcome.Clarifying)
+        first as WorkflowRunOutcome.Clarifying
+        history.recordAttemptOutcome(admitted.runId, admitted.attempt, first, fixture.boundary)
+        val resumed = executor.resumeTracked(history, admitted.runId, first.continuation, "The amount is 25,000 VND.")
+        assertTrue("expected the tracked resume to complete, got $resumed", resumed is WorkflowRunOutcome.Completed)
+        val events = queries.captureEvents(
+            io.github.triet4p.aegisf.data.CaptureEventQuery(fixture.captureId, QueryPageRequest(10, 0)),
+        ).items
+        assertEquals(1, events.size)
+        assertEquals(25_000L, events.single().amountVnd)
+        assertTrue("no ledger row may be written by an agent workflow", database.transactionDao().findAll().isEmpty())
+        assertEquals(1L, database.workflowOperationDao().countOf("UPDATE_EVENT"))
+
+        // Validation happens before any durable transition: a foreign executor and a blank
+        // answer each refuse without reopening a new attempt; a consumed continuation then
+        // refuses a repeat through the same ownership check.
+        val foreign = BoundedWorkflowExecutor(host)
+        var foreignFailures = 0
+        runCatching { foreign.resumeTracked(history, admitted.runId, first.continuation, "   ") }
+            .onFailure { foreignFailures += 1 }
+        assertEquals(1, foreignFailures)
+        runCatching { executor.resumeTracked(history, admitted.runId, first.continuation, "The amount is 25,000 VND.") }
+            .onFailure { foreignFailures += 1 }
+        assertEquals(2, foreignFailures)
+        val failedRun = history.admitRun(
+            fixture.scope,
+            WorkflowRunRequest(
+                intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
+                userRequest = "A different synthetic fixture note.",
+            ),
+            fixture.boundary,
+            null,
+        )
+        history.claimForExecution(failedRun.runId, failedRun.attempt)
+        history.recordAttemptOutcome(
+            failedRun.runId,
+            failedRun.attempt,
+            WorkflowRunOutcome.Incomplete(
+                reason = WorkflowRunStopReason.TOOL_FAILURE,
+                detail = "synthetic failure",
+                answer = null,
+                turns = 0,
+                toolCalls = 0,
+                trace = emptyList(),
+            ),
+            fixture.boundary,
+        )
+        // A FAILED run never reopens through the clarifying-only path even with a fresh
+        // continuation shape: reopenClarifying returns null without touching the run.
+        val failedReopen = history.reopenClarifying(fixture.scope, failedRun.runId)
+        assertNull("a FAILED run is not a suspended clarification", failedReopen)
+    }
+
+    @Test
+    fun `resumeTracked resumes after clarification with distinct per-command keys`() = runBlocking {
+        // Turn 1 stores a needs-clarification request (no effect). The run suspends. After the
+        // tracked resume, turn 2 stores the corrected reading (applied) and turn 3 issues a
+        // distinct read-only draft query; the run then completes. The resumed repeat runs
+        // under the suspended run's own verbatim per-command keys, so identical repeats
+        // replay while distinct tools keep distinct identities.
+        val fixture = prepare()
+        val masked = fixture.maskedSource
+        val amount = token(masked, "AMT")
+        val date = token(masked, "DATE")
+        val time = token(masked, "TIME")
+        fun interpretation(amountToken: String?): JSONObject = JSONObject()
+            .put("spanStart", 0)
+            .put("spanEnd", masked.length)
+            .put("normalizedText", masked)
+            .put("maskedSpanText", masked)
+            .put("amountVnd", amountToken ?: JSONObject.NULL)
+            .put("merchant", JSONObject.NULL)
+            .put("unresolvedReason", JSONObject.NULL)
+            .put(
+                "timeAnchor",
+                JSONObject()
+                    .put("date", date)
+                    .put("time", time)
+                    .put("timezoneId", JSONObject.NULL)
+                    .put("intervalEndDate", JSONObject.NULL)
+                    .put("intervalEndTime", JSONObject.NULL),
+            )
+        fun updateArgs(amountToken: String?) = JSONObject()
+            .put("captureId", fixture.captureId)
+            .put("expectedCaptureRevision", 0)
+            .put("expectedEventRevision", JSONObject.NULL)
+            .put("extractionVersion", "s8.12-resume-mixed-test")
+            .put("interpretation", interpretation(amountToken))
+        val script = scripted()
+        script += { toolTurn(call(BoundedWorkflowToolAdapter.UPDATE_EVENT_INTERPRETATION, updateArgs(null))) }
+        script += { toolTurn(call(BoundedWorkflowToolAdapter.UPDATE_EVENT_INTERPRETATION, updateArgs(amount))) }
+        script += { toolTurn(call(BoundedWorkflowToolAdapter.QUERY_DRAFT_CANDIDATES, draftQueryArgs())) }
+        script += { complete("The synthetic reading completed after clarification.") }
+        val gatewayAdapter = ScriptedAdapter(script)
+        val gateway = MaskedHostedGateway(gatewayAdapter, fixture.boundary)
+        val host = WorkflowRunHost(
+            scope = fixture.scope,
+            boundary = fixture.boundary,
+            gateway = gateway,
+            declarations = declarations,
+            skills = skills,
+            commands = commands,
+            queries = queries,
+            operationKeys = WorkflowOperationKeySource { "s8-12-resume-mixed-key-${sequence.incrementAndGet()}" },
+        )
+        val history = AgentRunHistory(database)
+        val executor = BoundedWorkflowExecutor(host)
+        val userRequest = "Interpret the synthetic fixture note across a clarification."
+        val admitted = history.admitRun(
+            fixture.scope,
+            WorkflowRunRequest(
+                intents = setOf(WorkflowIntent.INTERPRET_EVENTS, WorkflowIntent.SEARCH_DRAFTS),
+                userRequest = userRequest,
+            ),
+            fixture.boundary,
+            null,
+        )
+        history.claimForExecution(admitted.runId, admitted.attempt)
+        val suspended = executor.startWithAttemptKey(
+            WorkflowRunRequest(
+                intents = setOf(WorkflowIntent.INTERPRET_EVENTS, WorkflowIntent.SEARCH_DRAFTS),
+                userRequest = userRequest,
+            ),
+            admitted.attemptKey,
+        )
+        assertTrue("expected a clarification, got $suspended", suspended is WorkflowRunOutcome.Clarifying)
+        suspended as WorkflowRunOutcome.Clarifying
+        history.recordAttemptOutcome(admitted.runId, admitted.attempt, suspended, fixture.boundary)
+        // No effect is stored before the resume: the only pre-clarification dispatch asked
+        // for clarification and recorded nothing durable.
+        assertTrue(queries.captureEvents(
+            io.github.triet4p.aegisf.data.CaptureEventQuery(fixture.captureId, QueryPageRequest(10, 0)),
+        ).items.isEmpty())
+        assertEquals(0L, database.workflowOperationDao().countOf("UPDATE_EVENT"))
+        val keysBefore = suspended.continuation.fixedOperationKeys()
+        assertEquals(admitted.attemptKey + ":update", keysBefore[BoundedWorkflowToolAdapter.UPDATE_EVENT_INTERPRETATION])
+        val resumed = executor.resumeTracked(history, admitted.runId, suspended.continuation, "The amount is 25,000 VND.")
+        assertTrue("expected the tracked resume to complete, got $resumed", resumed is WorkflowRunOutcome.Completed)
+        resumed as WorkflowRunOutcome.Completed
+        assertTrue(resumed.verifiedEffects.any { it is WorkflowVerifiedEffect.EventReading })
+        // Exact-once: one stored reading with the corrected amount, one journal row for the
+        // applied mutation; the distinct read tool used its own non-journaled key.
+        val events = queries.captureEvents(
+            io.github.triet4p.aegisf.data.CaptureEventQuery(fixture.captureId, QueryPageRequest(10, 0)),
+        ).items
+        assertEquals(1, events.size)
+        assertEquals(25_000L, events.single().amountVnd)
+        assertEquals(1L, database.workflowOperationDao().countOf("UPDATE_EVENT"))
+        assertTrue("no ledger row may be written by an agent workflow", database.transactionDao().findAll().isEmpty())
+        // A consumed continuation then refuses a repeat through the ownership check.
+        var consumedRefusals = 0
+        runCatching { executor.resumeTracked(history, admitted.runId, suspended.continuation, "The amount is 25,000 VND.") }
+            .onFailure { consumedRefusals += 1 }
+        assertEquals(1, consumedRefusals)
+    }
+
+    @Test
+    fun `resumeTracked replays a pre-clarification effect and completes two distinct resumed mutations`() = runBlocking {
+        // Turn 1 applies a real reading (one stored event, one UPDATE_EVENT journal row) and then
+        // asks for clarification through a different tool (a blocked classification description),
+        // so the suspended run owns an effect BEFORE the clarification. After resumeTracked,
+        // turn 2 replays that exact reading (same key plus same request: no second effect) and
+        // proposes a link, turn 3 attaches it, and the run completes. The two resumed mutations
+        // use distinct per-command keys; the pre-clarification effect keeps its own identity.
+        val fixture = prepare(draftMemo = "otp 482913 payment")
+        val blockedDescription = fixture.boundary.maskOutbound("otp 482913 payment", MaskedPath.CONTEXT)
+        val appliedUpdate = updateArgs(fixture)
+        val classifyArgs = JSONObject()
+            .put("draftId", fixture.draftId)
+            .put("description", blockedDescription)
+            .put("expectedReviewRevision", 0)
+        val script = scripted()
+        script += {
+            toolTurn(
+                call(BoundedWorkflowToolAdapter.UPDATE_EVENT_INTERPRETATION, appliedUpdate),
+                call(BoundedWorkflowToolAdapter.REQUEST_LAYA_CLASSIFICATION, classifyArgs),
+            )
+        }
+        var linkedEventId = 0L
+        script += {
+            linkedEventId = queries.captureEvents(
+                io.github.triet4p.aegisf.data.CaptureEventQuery(fixture.captureId, QueryPageRequest(10, 0)),
+            ).items.single().id
+            toolTurn(
+                call(BoundedWorkflowToolAdapter.UPDATE_EVENT_INTERPRETATION, appliedUpdate),
+                call(
+                    BoundedWorkflowToolAdapter.PROPOSE_LINK,
+                    JSONObject().put("eventId", linkedEventId).put("draftId", fixture.draftId),
+                ),
+            )
+        }
+        script += {
+            val pair = queries.linkOperations(
+                LinkOperationQuery(eventId = linkedEventId, draftId = fixture.draftId, bounds = QueryPageRequest(1, 0)),
+            ).items.single()
+            toolTurn(
+                call(
+                    BoundedWorkflowToolAdapter.ATTACH_LINK,
+                    JSONObject()
+                        .put("eventId", linkedEventId)
+                        .put("draftId", fixture.draftId)
+                        .put("expectedRevision", pair.revision)
+                        .put("userOverride", JSONObject.NULL),
+                ),
+            )
+        }
+        script += { complete("The synthetic reading and link completed after clarification.") }
+        val gatewayAdapter = ScriptedAdapter(script)
+        val gateway = MaskedHostedGateway(gatewayAdapter, fixture.boundary)
+        val host = WorkflowRunHost(
+            scope = fixture.scope,
+            boundary = fixture.boundary,
+            gateway = gateway,
+            declarations = declarations,
+            skills = skills,
+            commands = commands,
+            queries = queries,
+            operationKeys = WorkflowOperationKeySource { "s8-12-resume-preeffect-key-${sequence.incrementAndGet()}" },
+        )
+        val history = AgentRunHistory(database)
+        val executor = BoundedWorkflowExecutor(host)
+        val userRequest = "Interpret the synthetic fixture note and link it to the pending draft."
+        val admitted = history.admitRun(
+            fixture.scope,
+            WorkflowRunRequest(
+                intents = setOf(WorkflowIntent.INTERPRET_EVENTS, WorkflowIntent.LINK_EVENT_TO_DRAFT),
+                userRequest = userRequest,
+            ),
+            fixture.boundary,
+            null,
+        )
+        history.claimForExecution(admitted.runId, admitted.attempt)
+        val suspended = executor.startWithAttemptKey(
+            WorkflowRunRequest(
+                intents = setOf(WorkflowIntent.INTERPRET_EVENTS, WorkflowIntent.LINK_EVENT_TO_DRAFT),
+                userRequest = userRequest,
+            ),
+            admitted.attemptKey,
+        )
+        assertTrue("expected a clarification, got $suspended", suspended is WorkflowRunOutcome.Clarifying)
+        suspended as WorkflowRunOutcome.Clarifying
+        assertEquals("description", suspended.field)
+        // The pre-clarification effect is really stored: one event row, one journal row.
+        val preEvents = queries.captureEvents(
+            io.github.triet4p.aegisf.data.CaptureEventQuery(fixture.captureId, QueryPageRequest(10, 0)),
+        ).items
+        assertEquals(1, preEvents.size)
+        assertEquals(25_000L, preEvents.single().amountVnd)
+        assertEquals(1L, database.workflowOperationDao().countOf("UPDATE_EVENT"))
+        assertEquals(1L, mutationRows())
+        history.recordAttemptOutcome(admitted.runId, admitted.attempt, suspended, fixture.boundary)
+        val keysBefore = suspended.continuation.fixedOperationKeys()
+        val updateKey = keysBefore[BoundedWorkflowToolAdapter.UPDATE_EVENT_INTERPRETATION]
+        val proposeKey = keysBefore[BoundedWorkflowToolAdapter.PROPOSE_LINK]
+        val attachKey = keysBefore[BoundedWorkflowToolAdapter.ATTACH_LINK]
+        assertEquals(admitted.attemptKey + ":update", updateKey)
+        assertEquals(admitted.attemptKey + ":propose", proposeKey)
+        assertEquals(admitted.attemptKey + ":attach", attachKey)
+        assertEquals(3, setOf(updateKey, proposeKey, attachKey).size)
+        val resumed = executor.resumeTracked(history, admitted.runId, suspended.continuation, "Keep it manual and link the synthetic reading.")
+        assertTrue("expected the tracked resume to complete, got $resumed", resumed is WorkflowRunOutcome.Completed)
+        resumed as WorkflowRunOutcome.Completed
+        assertTrue(resumed.verifiedEffects.any { it is WorkflowVerifiedEffect.EventReading })
+        val link = resumed.verifiedEffects.filterIsInstance<WorkflowVerifiedEffect.LinkState>().single()
+        assertEquals(ContextLinkState.ACCEPTED, link.state)
+        // Exact-once: the replayed reading stored nothing twice; the two resumed mutations
+        // each stored exactly once under their own identities.
+        val events = queries.captureEvents(
+            io.github.triet4p.aegisf.data.CaptureEventQuery(fixture.captureId, QueryPageRequest(10, 0)),
+        ).items
+        assertEquals(1, events.size)
+        assertEquals(25_000L, events.single().amountVnd)
+        assertEquals(0, events.single().revision)
+        assertEquals(1L, database.workflowOperationDao().countOf("UPDATE_EVENT"))
+        assertEquals(1L, database.workflowOperationDao().countOf("PROPOSE_LINK"))
+        assertEquals(1L, database.workflowOperationDao().countOf("ATTACH_LINK"))
+        val storedLink = queries.linkOperations(
+            LinkOperationQuery(eventId = linkedEventId, draftId = fixture.draftId, bounds = QueryPageRequest(1, 0)),
+        ).items.single()
+        assertEquals(ContextLinkState.ACCEPTED, storedLink.state)
+        assertEquals(1, storedLink.revision)
+        assertTrue("no ledger row may be written by an agent workflow", database.transactionDao().findAll().isEmpty())
+        assertTrue("no raw amount may leave the device", gatewayAdapter.egress().none { it.contains("25,000") })
+        assertTrue("no raw date may leave the device", gatewayAdapter.egress().none { it.contains("2026-10-22") })
+        assertTrue("no raw time may leave the device", gatewayAdapter.egress().none { it.contains("09:15") })
+        // Invalid and consumed inputs refuse without touching the stored effect.
+        var refusals = 0
+        runCatching { executor.resumeTracked(history, admitted.runId, suspended.continuation, "   ") }
+            .onFailure { refusals += 1 }
+        runCatching { BoundedWorkflowExecutor(host).resumeTracked(history, admitted.runId, suspended.continuation, "foreign") }
+            .onFailure { refusals += 1 }
+        runCatching { executor.resumeTracked(history, admitted.runId, suspended.continuation, "The amount is 25,000 VND.") }
+            .onFailure { refusals += 1 }
+        assertEquals(3, refusals)
+        assertEquals(1L, database.workflowOperationDao().countOf("UPDATE_EVENT"))
+    }
+
+    @Test
     fun `a repeated identical mutation replays one operation instead of duplicating it`() = runBlocking {
         val fixture = prepare()
         val update = updateArgs(fixture)

@@ -55,7 +55,12 @@ import io.github.triet4p.aegisf.data.NotificationAccessStore
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
+import io.github.triet4p.aegisf.agent.AgentRunHistory
+import io.github.triet4p.aegisf.agent.WorkflowRunHost
+import io.github.triet4p.aegisf.data.WorkflowCallerScope
+import io.github.triet4p.aegisf.provider.HostedProviderConfig
 import java.io.Serializable
+import io.github.triet4p.aegisf.provider.HostedProviderSettingsStore
 import java.util.TimeZone
 
 /**
@@ -94,6 +99,7 @@ private sealed interface DashboardRoute : Serializable {
 
     /** The records behind one Dashboard figure, in the scope the figure shows. */
     data class ScopedList(val listScope: DashboardListScope) : DashboardRoute
+    data object HostedProviderSettings : DashboardRoute
 
     /** One stored record, opened from a Dashboard list. */
     data class RecordDetail(val transactionId: Long) : DashboardRoute
@@ -133,6 +139,9 @@ internal fun AegisAppShell(
     classificationQueue: BankDraftClassificationQueue,
     layaInferenceLifecycle: LayaInferenceLifecycle,
     notificationAccessStore: NotificationAccessStore,
+    hostedProviderSettingsStore: HostedProviderSettingsStore,
+    createHostedWorkflowHost: (WorkflowCallerScope.AgentSession, HostedProviderConfig) -> WorkflowRunHost,
+    agentRunHistory: AgentRunHistory,
     modifier: Modifier = Modifier,
 ) {
     var destination by rememberSaveable { mutableStateOf(PrimaryDestination.DASHBOARD) }
@@ -244,6 +253,7 @@ internal fun AegisAppShell(
                             layaInferenceLifecycle = layaInferenceLifecycle,
                             scope = dashboardScope,
                             onScopeChange = { dashboardScope = it },
+                            hostedProviderSettingsStore = hostedProviderSettingsStore,
                             notificationAccessStore = notificationAccessStore,
                             stack = dashboardStack,
                             onOpenSettings = {
@@ -254,6 +264,9 @@ internal fun AegisAppShell(
                             },
                             onOpenModelSetup = {
                                 dashboardStack = dashboardStack + DashboardRoute.ModelSetup
+                            },
+                            onOpenHostedProviderSettings = {
+                                dashboardStack = dashboardStack + DashboardRoute.HostedProviderSettings
                             },
                             onOpenList = { listScope ->
                                 dashboardStack = dashboardStack +
@@ -275,9 +288,12 @@ internal fun AegisAppShell(
                     PrimaryDestination.CHAT -> ChatDestination(
                         queryService = queryService,
                         commandService = commandService,
+                        hostedProviderSettingsStore = hostedProviderSettingsStore,
                         onOpenManual = { destination = PrimaryDestination.MANUAL },
                         onRecordTransaction = { openTransactionEditor() },
                         onRecordEvent = { eventId -> openTransactionEditor(eventId) },
+                        createHostedWorkflowHost = createHostedWorkflowHost,
+                        agentRunHistory = agentRunHistory,
                     )
 
                     PrimaryDestination.REVIEW -> ReviewDestination(
@@ -468,10 +484,12 @@ private fun DashboardDestination(
     scope: DashboardScopeState,
     onScopeChange: (DashboardScopeState) -> Unit,
     notificationAccessStore: NotificationAccessStore,
+    hostedProviderSettingsStore: HostedProviderSettingsStore,
     stack: List<DashboardRoute>,
     onOpenSettings: () -> Unit,
     onOpenBankNotifications: () -> Unit,
     onOpenModelSetup: () -> Unit,
+    onOpenHostedProviderSettings: () -> Unit,
     onOpenList: (DashboardListScope) -> Unit,
     onOpenRecord: (Long) -> Unit,
     onOpenRecordEdit: (Long) -> Unit,
@@ -492,10 +510,15 @@ private fun DashboardDestination(
             onNavigateUp = onPop,
             onOpenBankNotifications = onOpenBankNotifications,
             onOpenModelSetup = onOpenModelSetup,
+            onOpenHostedProviderSettings = onOpenHostedProviderSettings,
         )
 
         DashboardRoute.BankNotifications -> BankNotificationSettingsScreen(
             accessStore = notificationAccessStore,
+            onNavigateUp = onPop,
+        )
+        DashboardRoute.HostedProviderSettings -> HostedProviderSettingsScreen(
+            store = hostedProviderSettingsStore,
             onNavigateUp = onPop,
         )
 
@@ -541,6 +564,7 @@ private fun DashboardDestination(
 private fun DashboardRoute.routeKey(): String = when (this) {
     is DashboardRoute.Settings -> "settings"
     is DashboardRoute.BankNotifications -> "bank-notifications"
+    is DashboardRoute.HostedProviderSettings -> "hosted-provider-settings"
     is DashboardRoute.ModelSetup -> "model-setup"
     is DashboardRoute.ScopedList -> "scoped-list-${listScope.name}"
     is DashboardRoute.RecordDetail -> "record-detail-$transactionId"
@@ -754,10 +778,16 @@ private fun ChatDestination(
     onOpenManual: () -> Unit,
     onRecordTransaction: () -> Unit,
     onRecordEvent: (Long) -> Unit,
+    hostedProviderSettingsStore: HostedProviderSettingsStore,
+    createHostedWorkflowHost: (WorkflowCallerScope.AgentSession, HostedProviderConfig) -> WorkflowRunHost,
+    agentRunHistory: AgentRunHistory,
 ) {
     QuickCaptureScreen(
         queryService = queryService,
         commandService = commandService,
+        hostedProviderSettingsStore = hostedProviderSettingsStore,
+        createHostedWorkflowHost = createHostedWorkflowHost,
+        agentRunHistory = agentRunHistory,
         onOpenManual = onOpenManual,
         onRecordTransaction = onRecordTransaction,
         onRecordEvent = onRecordEvent,
@@ -774,6 +804,7 @@ private fun SettingsRoot(
     onNavigateUp: () -> Unit,
     onOpenBankNotifications: () -> Unit,
     onOpenModelSetup: () -> Unit,
+    onOpenHostedProviderSettings: () -> Unit,
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -803,6 +834,35 @@ private fun SettingsRoot(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(4.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = "HOSTED AGENT",
+                        style = MaterialTheme.typography.labelLarge,
+                        letterSpacing = 1.2.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = "Choose a supported provider, endpoint, model and credential. " +
+                            "Hosted requests need network access and send locally masked context.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    OutlinedButton(
+                        shape = MaterialTheme.shapes.small,
+                        onClick = onOpenHostedProviderSettings,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Hosted provider settings") }
+                }
+            }
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(4.dp),

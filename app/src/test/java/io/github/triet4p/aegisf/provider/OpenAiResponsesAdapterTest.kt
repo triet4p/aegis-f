@@ -233,7 +233,7 @@ class OpenAiResponsesAdapterTest {
     }
 
     @Test
-    fun `requested optional fields are sent only as configured`() = runBlocking {
+    fun `optional fields are emitted without parallel settings when there are no tools`() = runBlocking {
         val transport = FakeTransport(
             ProviderFixtures.reply(
                 """{"model":"gpt-6-luna","status":"completed",
@@ -262,7 +262,25 @@ class OpenAiResponsesAdapterTest {
         val request: JSONObject = transport.requestJson()
         assertEquals("high", request.getJSONObject("reasoning").getString("effort"))
         assertEquals(0.3, request.getDouble("temperature"), 0.0)
-        assertEquals(true, request.getBoolean("parallel_tool_calls"))
+        assertFalse(request.has("parallel_tool_calls"))
+    }
+
+    @Test
+    fun `parallel setting remains available when tools are declared`() = runBlocking {
+        val transport = FakeTransport(ProviderFixtures.reply(functionCallReply()))
+        val adapter = HostedAdapters.create(
+            ProviderFixtures.responsesConfig(
+                budget = HostedGenerationBudget(
+                    maxOutputTokens = 4_096,
+                    reasoningEffort = HostedReasoningEffort.MEDIUM,
+                    parallelToolCalls = true,
+                ),
+            ),
+            transport,
+        )
+        adapter.generate(adapter.begin("system", "probe"), listOf(ProviderFixtures.echoTool))
+
+        assertTrue(transport.requestJson().getBoolean("parallel_tool_calls"))
     }
 
     private suspend fun failureFor(body: String): HostedProviderFailure {

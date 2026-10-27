@@ -236,6 +236,30 @@ class OpenAiChatCompletionsAdapterTest {
     }
 
     @Test
+    fun `parallel tool calls are omitted from text-only requests`() = runBlocking {
+        val transport = FakeTransport(
+            ProviderFixtures.reply(
+                """{"model":"deepseek-v4.1-flash","choices":[{"message":{"role":"assistant","content":"READY"},
+                   "finish_reason":"stop"}]}""",
+            ),
+        )
+        val adapter = HostedAdapters.create(
+            ProviderFixtures.chatConfig(
+                budget = HostedGenerationBudget(
+                    maxOutputTokens = 8_192,
+                    parallelToolCalls = true,
+                ),
+            ),
+            transport,
+        )
+        val turn = ProviderFixtures.turn(adapter.generate(adapter.begin("system", "probe")))
+
+        assertEquals("READY", turn.assistantText)
+        assertFalse(transport.requestJson().has("tools"))
+        assertFalse(transport.requestJson().has("parallel_tool_calls"))
+    }
+
+    @Test
     fun `a declared reasoning budget is sent as reasoning_effort`() = runBlocking {
         val transport = FakeTransport(
             ProviderFixtures.reply(

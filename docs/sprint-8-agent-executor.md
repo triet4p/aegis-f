@@ -1,10 +1,9 @@
 # Sprint 8.9 — bounded multi-turn agent executor
 
-**Status:** Implemented and exercised on the host with the real hosted provider, the real masked
-gateway, the real typed tools/Room services and the real local Laya runtime over the pinned public
-bundle. This is the executor slice: it does not add durable run history/retry policy (S8.10),
-prompt caching/compaction (S8.11) or the settings surface (S8.12), and it is not yet wired to a
-screen (S8.14).
+**Status:** The bounded executor was first exercised on the host with real providers, the real
+masked gateway, typed tools/Room services and local Laya. S8.12 now wires it into Chat with
+user-configured hosted providers; this document's earlier host/device evidence remains historical
+and does not substitute for S8.12 Android UI verification.
 
 Source: `app/src/main/java/io/github/triet4p/aegisf/agent/BoundedWorkflowExecutor.kt`.
 
@@ -65,7 +64,16 @@ Each turn:
    resumed turn does not replay protocol-private continuation items; the summary is the seam. The
    wall-clock budget restarts at resume because waiting for a person is not agent work. A
    continuation can be resumed once, by its own executor.
-5. `user_decision_required`, `caller_scope` and `privacy_boundary_refused` are terminal: the
+5. `resumeTracked` (S8.12) is the durable variant of `resume`: the continuation is validated
+   first (ownership, single use, nonblank answer), then the run reopens from `CLARIFYING` only
+   (`reopenClarifying`; a `FAILED`/terminal run returns null). The resumed attempt inherits the
+   suspended attempt's per-command operation keys verbatim: the same key plus the same request
+   replays from the journal, while a materially different request under a reused key surfaces as
+   a conflict — so a pre-clarification effect is never duplicated and distinct resumed commands
+   never share one journal identity. This fixed the S8.12 controlled-device `resume-error`: the
+   prior code reopened the run and then requested a second `PENDING` claim that always failed on
+   the already-`RUNNING` row, reporting the resume as unavailable.
+6. `user_decision_required`, `caller_scope` and `privacy_boundary_refused` are terminal: the
    agent may not decide a user's decision, widen scope, or retry around the privacy boundary. A
    mistyped scoped token (`invalid_scoped_value`) is repair-only: typed rehydration refuses it and
    nothing is dispatched, so the model may correct it from a fresh observation.
@@ -138,7 +146,11 @@ executor remains the phone proof recorded in the S8.9 handoff; no substitute cla
   hit/miss/expiry, local compaction and provider switch preserve behavior and isolation;
   cache failure falls back safely. Actual per-turn usage (or explicit unsupported status)
   is reported; no estimated saving is ever computed as fact.
-- S8.12: the host supplies the provider configuration; no settings storage or key handling is added.
+- S8.12: `HostedProviderSettingsStore` encrypts provider profiles with AES-GCM and rotating,
+  device-local Android Keystore keys; replacing/deleting profiles destroys the previous key.
+  Each Chat run captures one immutable config, creates a fresh executor/gateway/vault, and
+  records resume attempts separately so provider changes cannot reroute the active conversation.
+  Chat exposes selected intents, cancellation, clarification, and verified effects.
 
 ## Verification
 
@@ -146,12 +158,14 @@ executor remains the phone proof recorded in the S8.9 handoff; no substitute cla
   read → update → propose → attach completion with stored effects; false success; refused
   mutation; postcondition re-read after an effect disappears; loop/turn/tool/context/time budgets;
   not-dispatched unknown/malformed calls; truncated turn; inbound raw-literal block; injected
-  authority; clarification suspend/resume; idempotent repeat; real unavailable Laya.
+  authority; clarification suspend/resume; durable `resumeTracked` reopen (validated, clarifying-only,
+  verbatim per-command keys, corrected effect, pre-clarification replay, consumed-continuation
+  refusal, failed-run refusal); idempotent repeat; real unavailable Laya.
 - `S89ExecutorLayaInstrumentedTest` (`app/src/androidTest/.../agent/`, device-only) — the
   production executor on the phone: real Room/services, the real masked gateway, the five
   typed tools, the production `LayaClassificationEngine`/`LayaInferenceLifecycle` over the
-  provisioned pinned bundle, and scripted provider turns (the app manifest declares no
-  `android.permission.INTERNET`, so this path carries no credential and opens no socket).
+  provisioned pinned bundle, and scripted provider turns at the adapter seam (this test carried no
+  credential and opened no socket; current app networking is enabled for the S8.12 hosted path).
   Full slice: synthetic read → interpretation → bounded search → propose → attach → local
   suggestion → verified `Completed` with an `EventReading`, an `ACCEPTED` link, and a
   `Classification` effect; one persisted snapshot; one journal row per mutation; draft

@@ -1,10 +1,8 @@
 # Sprint 8.5 — hosted provider adapters
 
-**Status:** Implemented provider-neutral generation plus the three native protocol adapters. This
-is protocol-slice evidence, not a model qualification: no executor (S8.9), masking boundary
-(S8.6), tool adapter (S8.7) or user settings surface (S8.12) is delivered here. The adapters are
-unwired from the UI and are exercised by unit tests and a bounded synthetic live smoke.
-
+**Status:** The provider-neutral generation contract and three native protocol adapters are in
+production use through the S8.12 settings and Chat surfaces. This document's adapter protocol
+evidence is not itself model qualification: it records earlier bounded synthetic provider probes.
 Source: `app/src/main/java/io/github/triet4p/aegisf/provider/`.
 
 ## Contract
@@ -134,10 +132,11 @@ missing Responses prerequisite for this task.
   `Incomplete("masking_blocked")` turn with no dispatchable calls when inbound model text carries
   raw literals or foreign tokens. Raw adapter calls remain for tests; production must not bypass
   the gateway.
-- No application tool adapter (S8.7), no executor policy (S8.9) and no settings
-  persistence/validation UI (S8.12). Those callers do not exist yet; nothing else may supply
-  raw content to the adapters on the production path.
-- The live smoke proves protocol behavior with synthetic text. It is not model qualification, not
-  a reliability sample and not Android-runtime evidence.
+- Production Chat supplies the adapters through `MaskedHostedGateway`, the typed application
+  tools and `BoundedWorkflowExecutor`. S8.12 settings and credential handling live in
+  `HostedProviderSettingsStore` and `HostedProviderSettingsScreen`; the provider profile is
+  validated before a synthetic connection probe can save it.
+- The live smoke recorded above proves earlier protocol behavior with synthetic text. It is not
+  model qualification, a reliability sample, or S8.12 Android UI verification.
 - The frozen S8.4 contract's Gemini `tool` role wording is contradicted by the live API; it is
   documented here rather than edited in the checkpointed contract.

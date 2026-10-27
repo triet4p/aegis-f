@@ -9,6 +9,15 @@ and no release has been tagged or published. Format follows
 
 ### Added
 
+- Added encrypted hosted-provider profiles with Gemini, OpenAI Chat Completions, and OpenAI
+  Responses presets. Profiles retain credentials only as AES-GCM ciphertext under rotating
+  Android Keystore keys; activation, replacement and deletion are explicit, and replacement/
+  deletion destroys the prior key. Profiles validate a synthetic connection against the
+  configured HTTPS route and expose generation budget and declared reasoning/parallel-call
+  settings. Chat freezes the selected configuration per run and displays progress, clarification,
+  cancellation and verified application effects; manual entry, intake and local Laya remain
+  available without hosted generation.
+
 - Added stable versioned agent context with provider prompt-cache support, bounded task
   history, and local compaction. Each run builds an identical instruction/tool/skill prefix
   from trusted host state and keys it by provider, model, configuration, tool and skill
@@ -309,12 +318,12 @@ and no release has been tagged or published. Format follows
   budget, the description is never shortened to make it fit, and the app says plainly that no
   suggestion was made, that the model was not asked, and that the chosen category and the
   other fields stay unchanged.
+- Fixed answering a hosted clarification leaving the run suspended. Continuing after the app asks for missing information now reopens the same run for the corrected turn instead of reporting that the clarification could not be resumed: a repeated or late Continue finds no suspended run and says so instead of starting a second workflow, and the Chat message now names whether the run stayed on its current attempt or hit a named connection error.
 - Resolved missing recent bank notification intake caused by listener disconnection after app updates and system process management: added automatic lifecycle rebind on app resume and review entry when notification access is granted, hooked active-notification reconciliation to app startup, resume, and review screen entry to ingest any notifications currently in the status bar, and added privacy-safe diagnostic logging (reason, state, count only) across listener and intake pipelines.
 
 ### Added
 
 - Added one shared set of commands for the app's reversible preparation work: saving a note,
-  revising its text, reading an occurrence out of it, proposing, attaching, refusing, and
   removing the link between a note and a bank notification, and asking for a category
   suggestion for a draft. Every one of them now states who is asking, which version of the
   record it was made against, and what happened, and a repeated request changes nothing

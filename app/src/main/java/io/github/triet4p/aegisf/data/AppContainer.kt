@@ -3,6 +3,19 @@ package io.github.triet4p.aegisf.data
 import android.content.Context
 import io.github.triet4p.aegisf.data.laya.LayaClassificationEngine
 import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
+import io.github.triet4p.aegisf.provider.HostedProviderSettingsStore
+import io.github.triet4p.aegisf.agent.AgentRunHistory
+import io.github.triet4p.aegisf.agent.S8AgentToolDeclarations
+import io.github.triet4p.aegisf.agent.WorkflowOperationKeySource
+import io.github.triet4p.aegisf.agent.WorkflowRunHost
+import io.github.triet4p.aegisf.agent.WorkflowSkillCatalog
+import io.github.triet4p.aegisf.privacy.MaskedHostedGateway
+import io.github.triet4p.aegisf.privacy.MaskedPromptBoundary
+import io.github.triet4p.aegisf.privacy.SensitiveVault
+import io.github.triet4p.aegisf.provider.HostedAdapters
+import io.github.triet4p.aegisf.provider.HostedProviderConfig
+import io.github.triet4p.aegisf.provider.UrlConnectionHttpTransport
+import java.util.UUID
 import java.io.File
 
 /**
@@ -145,5 +158,35 @@ class AppContainer(context: Context) {
     /** The user's bank-notification preferences: access choices, not ledger data. */
     val notificationAccessStore: NotificationAccessStore by lazy {
         NotificationAccessStore(appContext)
+    }
+
+    /** Device-local encrypted provider profiles; credentials never enter app logs or history. */
+    val hostedProviderSettingsStore: HostedProviderSettingsStore by lazy {
+        HostedProviderSettingsStore(appContext)
+    }
+
+    /** Durable hosted-run metadata remains separate from conversations and business data. */
+    val agentRunHistory: AgentRunHistory by lazy { AgentRunHistory(database) }
+
+    /**
+     * Builds a run from the selected, already validated configuration. Each call creates a new
+     * vault and adapter, so provider changes affect only later runs and never reuse a conversation.
+     */
+    fun createHostedWorkflowHost(
+        scope: WorkflowCallerScope.AgentSession,
+        config: HostedProviderConfig,
+    ): WorkflowRunHost {
+        val boundary = MaskedPromptBoundary(SensitiveVault(scope.scopeId))
+        val adapter = HostedAdapters.create(config, UrlConnectionHttpTransport())
+        return WorkflowRunHost(
+            scope = scope,
+            boundary = boundary,
+            gateway = MaskedHostedGateway(adapter, boundary),
+            declarations = S8AgentToolDeclarations.load(appContext.assets::open),
+            skills = WorkflowSkillCatalog.load(appContext.assets::open),
+            commands = workflowCommandService,
+            queries = workflowQueryService,
+            operationKeys = WorkflowOperationKeySource { UUID.randomUUID().toString() },
+        )
     }
 }

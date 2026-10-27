@@ -157,7 +157,7 @@ class OpenAiChatCompletionsAdapter internal constructor(
         request.put("max_completion_tokens", config.budget.maxOutputTokens)
         config.budget.temperature?.let { request.put("temperature", it) }
         config.budget.reasoningEffort?.let { request.put("reasoning_effort", it.wireName) }
-        config.budget.parallelToolCalls?.let { request.put("parallel_tool_calls", it) }
+        if (tools.isNotEmpty()) config.budget.parallelToolCalls?.let { request.put("parallel_tool_calls", it) }
         return request
     }
 

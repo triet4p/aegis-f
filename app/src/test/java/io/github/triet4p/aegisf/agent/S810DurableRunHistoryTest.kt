@@ -192,6 +192,26 @@ class S810DurableRunHistoryTest {
     }
 
     @Test
+    fun `request text is masked before history persistence`() = runBlocking {
+        val fixture = prepare()
+        val keyLikeValue = "SYNTHETICAPIKEY123456"
+        val userRequest = "Find notes for $keyLikeValue."
+        val request = WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+            userRequest = userRequest,
+        )
+        val expectedMasked = fixture.boundary.maskOutbound(userRequest, MaskedPath.HISTORY)
+        val admitted = history.admitRun(fixture.scope, request, fixture.boundary, 8192)
+        val storedRun = database.agentRunDao().findByRunId(admitted.runId)!!
+        val storedUserLine = history.conversationForRun(admitted.runId).single { it.role == "USER" }
+
+        assertFalse(storedRun.requestText.contains(keyLikeValue))
+        assertFalse(storedUserLine.text.contains(keyLikeValue))
+        assertEquals(expectedMasked, storedRun.requestText)
+        assertEquals(expectedMasked, storedUserLine.text)
+    }
+
+    @Test
     fun `retention prunes history and export excludes keys and mappings`() = runBlocking {
         val fixture = prepare()
         repeat(3) { index ->

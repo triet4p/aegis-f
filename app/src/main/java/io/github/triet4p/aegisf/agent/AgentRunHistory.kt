@@ -76,7 +76,7 @@ class AgentRunHistory(
             stopReason = null,
             maxOutputTokens = maxOutputTokens,
             answerDigest = null,
-            requestText = request.userRequest.take(MAX_REQUEST_CHARS),
+            requestText = maskedRequest.take(MAX_REQUEST_CHARS),
             answerText = null,
             revisionEpochMillis = now,
             createdAtEpochMillis = now,
@@ -106,7 +106,7 @@ class AgentRunHistory(
         val replayed = firstInsert == -1L
         if (!replayed) {
             attempts.insert(firstAttempt)
-            appendLine(runId, "USER", request.userRequest.take(MAX_REQUEST_CHARS), now)
+            appendLine(runId, "USER", maskedRequest.take(MAX_REQUEST_CHARS), now)
             appendLine(runId, "STATUS", "Run admitted.", now)
             return AdmittedRun(
                 runId = runId,
@@ -265,16 +265,32 @@ class AgentRunHistory(
     suspend fun reopenForRetry(
         scope: WorkflowCallerScope.AgentSession,
         runId: String,
+    ): AdmittedRun? = reopenFrom(hostScope = scope, runId = runId, fromStates = setOf("FAILED", "CLARIFYING"))
+
+    /**
+     * Reopens a suspended clarification for its next bounded resume attempt. Only a run still in
+     * `CLARIFYING` moves; a FAILED, RUNNING, or terminal run returns null so a stale, foreign,
+     * or blank continuation can never strand or rerun a failed workflow.
+     */
+    suspend fun reopenClarifying(
+        scope: WorkflowCallerScope.AgentSession,
+        runId: String,
+    ): AdmittedRun? = reopenFrom(hostScope = scope, runId = runId, fromStates = setOf("CLARIFYING"))
+
+    private suspend fun reopenFrom(
+        hostScope: WorkflowCallerScope.AgentSession,
+        runId: String,
+        fromStates: Set<String>,
     ): AdmittedRun? {
         val stored = runs.findByRunId(runId) ?: return null
-        if (stored.scopeId != scope.scopeId) return null
+        if (stored.scopeId != hostScope.scopeId) return null
         val next = stored.attempt + 1
         if (next > CanonicalAgentRetryPolicy.MAX_ATTEMPTS) return null
         val now = clock()
-        val moved = when (stored.state) {
-            "FAILED" -> runs.reopenForRetry(runId, next, now, now)
-            "CLARIFYING" -> runs.resumeClarifying(runId, next, now, now)
-            else -> 0
+        val moved = when {
+            stored.state !in fromStates -> 0
+            stored.state == "FAILED" -> runs.reopenForRetry(runId, next, now, now)
+            else -> runs.resumeClarifying(runId, next, now, now)
         }
         if (moved != 1) return null
         val key = CanonicalAgentRetryPolicy.attemptKey(runId, next)
@@ -301,7 +317,7 @@ class AgentRunHistory(
             ),
         )
         appendLine(runId, "STATUS", "The run was retried (attempt $next).", now)
-        return AdmittedRun(runId, scope.scopeId, next, key, token, replayed = false)
+        return AdmittedRun(runId, hostScope.scopeId, next, key, token, replayed = false)
     }
 
     /**

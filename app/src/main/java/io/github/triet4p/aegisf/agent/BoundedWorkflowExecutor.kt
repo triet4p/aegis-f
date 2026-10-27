@@ -336,6 +336,15 @@ class WorkflowRunContinuation internal constructor(
     internal var consumed: Boolean = false
 
     internal fun belongsTo(expected: Any): Boolean = owner === expected
+
+    /** The per-command operation keys the suspended attempt used; inherited once by one resume attempt. */
+    internal fun fixedOperationKeys(): Map<String, String> = run.fixedOperationKeys.toMap()
+
+    /** One resume carries the suspended per-command keys verbatim: the same key plus the same request replays, never a second effect. */
+    internal fun adoptFixedOperationKeys(suspended: Map<String, String>) {
+        if (suspended.isEmpty()) return
+        suspended.forEach { (name, key) -> run.fixedOperationKeys[name] = key }
+    }
 }
 
 /**
@@ -438,6 +447,38 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         history.cancelRun(runId, reason)
 
 
+
+    /**
+     * Resumes a durable clarification under a new bounded attempt; the original scope and host stay frozen.
+     *
+     * The continuation is validated before any durable transition (ownership, single use, nonblank
+     * answer), then the run is reopened from `CLARIFYING` only. The resumed attempt inherits the
+     * suspended attempt's per-command operation keys verbatim: the same key plus the same request
+     * replays from the journal, while a materially different request under a reused key surfaces
+     * as a conflict. A late or repeated resume finds no suspended row and returns null.
+     */
+    suspend fun resumeTracked(
+        history: AgentRunHistory,
+        runId: String,
+        continuation: WorkflowRunContinuation,
+        userAnswer: String,
+    ): WorkflowRunOutcome? {
+        if (!continuation.belongsTo(identity)) {
+            throw IllegalArgumentException("The continuation belongs to another executor.")
+        }
+        if (continuation.consumed) {
+            throw IllegalStateException("The continuation was already resumed.")
+        }
+        if (userAnswer.isBlank()) {
+            throw IllegalArgumentException("A resumed run needs a nonblank user answer.")
+        }
+        val suspendedKeys = continuation.fixedOperationKeys()
+        val admitted = history.reopenClarifying(host.scope, runId) ?: return null
+        continuation.adoptFixedOperationKeys(suspendedKeys)
+        val outcome = resume(continuation, userAnswer)
+        history.recordAttemptOutcome(runId, admitted.attempt, outcome, host.boundary)
+        return outcome
+    }
     /** Starts a run: trusted observations, the selected skills, then the bounded turn loop. */
     suspend fun start(request: WorkflowRunRequest): WorkflowRunOutcome =
         startInternal(request, emptyMap())
@@ -920,6 +961,10 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         }
         val signature = callSignature(call)
         val fixedKey = run.fixedOperationKeys[call.name] ?: run.fixedOperationKeys[signature]
+        // The tool adapter owns verbatim replay: under a fixed attempt key the first result row is
+        // authoritative, so the run must not namespace the key per call signature here. Distinct
+        // tool names already get distinct keys; a materially different repeat of the same tool
+        // surfaces as a same-key/different-request conflict through the journal.
         val operationKey = if (fixedKey != null) {
             fixedKey
         } else if (call.name == BoundedWorkflowToolAdapter.QUERY_DRAFT_CANDIDATES) {
@@ -1510,7 +1555,10 @@ internal class ActiveRun(
     var contextCharacters: Int = 0
     val dispatches: MutableList<DispatchRecord> = mutableListOf()
     val operationKeys: MutableMap<String, String> = mutableMapOf()
-    /** Trusted attempt keys bound to one call signature for durable retry. */
+    /**
+     * Trusted attempt keys, one per tool name, for one durable retry/resume: distinct tool names
+     * get distinct keys, and the adapter replays the journaled result verbatim under a fixed key.
+     */
     val fixedOperationKeys: MutableMap<String, String> = mutableMapOf()
     val callCounts: MutableMap<String, Int> = mutableMapOf()
     /** Stable cache identity for this run; null when the provider cannot attribute itself. */

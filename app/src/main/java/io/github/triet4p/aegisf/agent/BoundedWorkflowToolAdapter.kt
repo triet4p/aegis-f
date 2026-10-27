@@ -71,7 +71,9 @@ class BoundedWorkflowToolAdapter(
             io.github.triet4p.aegisf.provider.ToolArgumentAssessment.Complete
         ) return refusal("schema_invalid")
         return try {
-            if (!session.fixedOperationKey && name != QUERY_DRAFT_CANDIDATES &&
+            if (session.fixedOperationKey && name != QUERY_DRAFT_CANDIDATES) {
+                executeFixed(name, arguments)
+            } else if (!session.fixedOperationKey && name != QUERY_DRAFT_CANDIDATES &&
                 queries.workflowOperation(session.operationKey) != null
             ) {
                 replayOrConflict(name, arguments)
@@ -93,6 +95,23 @@ class BoundedWorkflowToolAdapter(
             refusal("invalid_arguments")
         }
     }
+
+    /**
+     * Durable resume/retry under a fixed attempt key: the command service replays the journaled
+     * result for an identical repeat and surfaces a conflict only for a materially different
+     * request. Reads still serve fresh state; no stale row authorizes an effect.
+     */
+    private suspend fun executeFixed(name: String, args: JSONObject): JSONObject {
+        return when (name) {
+            QUERY_DRAFT_CANDIDATES -> queryDrafts(args.getJSONObject("query"))
+            UPDATE_EVENT_INTERPRETATION -> updateEvent(args)
+            PROPOSE_LINK -> proposeLink(args)
+            ATTACH_LINK -> attachLink(args)
+            REQUEST_LAYA_CLASSIFICATION -> classify(args)
+            else -> refusal("unknown_tool")
+        }
+    }
+
     private suspend fun replayOrConflict(name: String, args: JSONObject): JSONObject {
         val scope = session.scope
         val result = when (name) {

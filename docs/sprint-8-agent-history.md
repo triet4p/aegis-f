@@ -24,9 +24,10 @@ Sources:
 Three stores stay separate, exactly as the frozen contract requires:
 
 1. **User-visible conversation** (`agent_conversation`): request, status, and answer lines
-   only, in display order. Agent-role text is the masked-safe line the user actually saw;
-   no raw text, no mapping, no credential, no reasoning is a column, so none can leave
-   through the conversation read.
+   only, in display order. User requests are locally masked before either the conversation line
+   or the run-row request text is persisted; agent-role text is likewise the masked-safe line
+   the user actually saw. No unmasked request, mapping, credential, or reasoning is retained
+   in these history paths.
 2. **Run/attempt journal** (`agent_runs` / `agent_run_attempts`): run identity (one-way
    request fingerprint), retry attempts, allowed effect refs (event id + revision, link
    id + state + revision, draft id + decision source), pending/completed/unknown states,
