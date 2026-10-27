@@ -3,6 +3,9 @@ package io.github.triet4p.aegisf.privacy
 import io.github.triet4p.aegisf.provider.HostedConversation
 import io.github.triet4p.aegisf.provider.HostedGenerationAdapter
 import io.github.triet4p.aegisf.provider.HostedGenerationResult
+import io.github.triet4p.aegisf.provider.HostedProtocol
+import io.github.triet4p.aegisf.provider.HostedProviderIdentity
+import io.github.triet4p.aegisf.provider.canonicalBudgetString
 import io.github.triet4p.aegisf.provider.HostedToolDeclaration
 import io.github.triet4p.aegisf.provider.HostedToolResult
 import io.github.triet4p.aegisf.provider.HostedTurn
@@ -28,6 +31,51 @@ class MaskedHostedGateway(
     val boundary: MaskedPromptBoundary,
 ) {
     val protocol = adapter.protocol
+
+    /**
+     * The wrapped adapter's value-free provider identity (protocol/host/model/budget),
+     * or null when it cannot attribute its configuration. The adapter stays private:
+     * this exposes identities only, never the transport, the credential, or raw text.
+     */
+    fun providerIdentity(): HostedProviderIdentity? =
+        try {
+            adapter.providerIdentity()
+        } catch (_: Exception) {
+            null
+        }
+
+    /**
+     * Builds this run's stable cache identity from the wrapped adapter's value-free
+     * provider identity plus the host's canonical tool-schema, selected skills and
+     * privacy-context tag. Returns null when the adapter cannot attribute its
+     * configuration; the run then reports usage honestly without a cache identity.
+     * Never carries prompt text, raw values, mappings, keys, or credentials, and never
+     * leaks the wrapped adapter: production code still cannot bypass the boundary.
+     */
+    fun cacheKeyFor(
+        declarations: List<io.github.triet4p.aegisf.provider.HostedToolDeclaration>,
+        skills: List<io.github.triet4p.aegisf.agent.WorkflowSkill>,
+        privacyScopeTag: String,
+    ): io.github.triet4p.aegisf.agent.AgentCacheKey? {
+        val identity = providerIdentity() ?: return null
+        return io.github.triet4p.aegisf.agent.AgentContextManager.cacheKey(
+            protocol = identity.protocol,
+            endpointHost = identity.endpointHost,
+            model = identity.model,
+            generationBudget = identity.budget.canonicalBudgetString(),
+            declarations = declarations,
+            skills = skills,
+            privacyScopeTag = privacyScopeTag,
+        )
+    }
+
+    /**
+     * Identity material for the local cache key. The value carries the protocol only; the
+     * host supplies provider, model, config, tool-schema, skill-schema and privacy-context
+     * identities. It never carries prompt text, raw values, mappings, or credentials, and it
+     * never leaks the wrapped adapter: production code still cannot bypass the boundary.
+     */
+    fun cacheIdentities(): MaskedGatewayIdentities = MaskedGatewayIdentities(protocol)
 
     fun begin(systemInstruction: String, userInstruction: String): MaskedConversation =
         MaskedConversation(
@@ -81,6 +129,9 @@ class MaskedHostedGateway(
         conversation = null,
     )
 }
+
+/** Value-free gateway identity for the local cache key: protocol only, never content. */
+data class MaskedGatewayIdentities(val protocol: HostedProtocol)
 
 /**
  * A provider conversation whose free text is masked and whose continuation items are intact.

@@ -27,6 +27,9 @@ class OpenAiResponsesAdapter internal constructor(
     private val transport: HttpTransport,
 ) : HostedGenerationAdapter {
     override val protocol: HostedProtocol = HostedProtocol.OPENAI_RESPONSES
+    /** Value-free identity from this adapter's validated config. */
+    override fun providerIdentity(): HostedProviderIdentity = config.identity()
+
 
     init {
         if (config.protocol != protocol) {

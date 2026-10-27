@@ -9,6 +9,15 @@ and no release has been tagged or published. Format follows
 
 ### Added
 
+- Added stable versioned agent context with provider prompt-cache support, bounded task
+  history, and local compaction. Each run builds an identical instruction/tool/skill prefix
+  from trusted host state and keys it by provider, model, configuration, tool and skill
+  versions, and privacy context — never by prompt text, raw values, mappings, keys, or
+  credentials. The agent reports actual per-turn provider usage (or an explicit unsupported
+  status, never estimated savings), keeps verified effects while re-reading mutable state
+  fresh after compaction, preserves behavior and isolation across cache misses, expiry, and
+  provider switches, and falls back safely when caching is unavailable.
+
 - Added durable agent run history with safe retry, cancel, and restart. Each caller session
   keeps a user-visible conversation (request, status, and answer lines) separate from the
   run/attempt journal (run identity, bounded attempts, allowed event/link/draft effect

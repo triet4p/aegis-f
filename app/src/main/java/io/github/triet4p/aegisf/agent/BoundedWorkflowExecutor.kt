@@ -112,6 +112,58 @@ data class WorkflowRunLimits(
     }
 }
 
+/** Stable cache-key identities for one run. Never carries raw prompts, values, or keys. */
+data class AgentCacheKey(
+    val protocol: io.github.triet4p.aegisf.provider.HostedProtocol,
+    val endpointHost: String,
+    val model: String,
+    val generationBudget: String,
+    val toolSchema: String,
+    val skillCatalog: String,
+    val privacyContext: String,
+) {
+    /** The one-way, value-free key sent nowhere; the provider owns any stored cache. */
+    fun fingerprint(): String {
+        val material = listOf(
+            protocol.name,
+            endpointHost,
+            model,
+            generationBudget,
+            toolSchema,
+            skillCatalog,
+            privacyContext,
+        ).joinToString("\u001F")
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(material.toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { byte -> (byte.toInt() and 0xFF).toString(16).padStart(2, '0') }
+    }
+}
+
+/** Provider cache behavior for one run; explicit caches are never created from here. */
+enum class AgentCacheSupport {
+    /** The provider billed or reported cached input tokens on this run. */
+    CACHED_PREFIX_REUSE,
+    /** The provider reported usage but no cached-input field on this run. */
+    NO_CACHE_REPORTED,
+    /** The provider exposed no per-turn usage on this run. */
+    USAGE_UNSUPPORTED,
+}
+
+/** Actual per-turn usage observed on one run; absent fields stay null, never guessed. */
+data class AgentRunUsage(
+    val inputTokens: Int? = null,
+    val outputTokens: Int? = null,
+    val reasoningTokens: Int? = null,
+    val cachedInputTokens: Int? = null,
+)
+
+/** The local context-compaction record of one run; summaries never authorize state. */
+data class AgentContextCompaction(
+    val compactedTurns: Int,
+    val droppedToolResults: Int,
+    val carriedDispatches: Int,
+)
+
 /** Trusted wall clock for the run's total time bound; hosts inject it (tests use a fake). */
 fun interface WorkflowRunClock {
     fun nowMillis(): Long
@@ -225,6 +277,13 @@ sealed interface WorkflowRunOutcome {
         val turns: Int,
         val toolCalls: Int,
         val trace: List<WorkflowRunStep>,
+        /** Actual per-turn provider usage observed; null entries mean unreported. */
+        val usage: List<AgentRunUsage> = emptyList(),
+        /** Cache-key identities and provider cache behavior for this run. */
+        val cacheKey: AgentCacheKey? = null,
+        val cacheSupport: AgentCacheSupport = AgentCacheSupport.USAGE_UNSUPPORTED,
+        /** Local compaction record; null when no compaction ran. */
+        val compaction: AgentContextCompaction? = null,
     ) : WorkflowRunOutcome
 
     /**
@@ -254,6 +313,13 @@ sealed interface WorkflowRunOutcome {
         val turns: Int,
         val toolCalls: Int,
         val trace: List<WorkflowRunStep>,
+        /** Actual per-turn provider usage observed; null entries mean unreported. */
+        val usage: List<AgentRunUsage> = emptyList(),
+        /** Cache-key identities and provider cache behavior for this run. */
+        val cacheKey: AgentCacheKey? = null,
+        val cacheSupport: AgentCacheSupport = AgentCacheSupport.USAGE_UNSUPPORTED,
+        /** Local compaction record; null when no compaction ran. */
+        val compaction: AgentContextCompaction? = null,
     ) : WorkflowRunOutcome
 }
 
@@ -397,6 +463,12 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                 trace = trace,
             )
         }
+        val selectedSkills = host.skills.select(request.intents)
+        val preCacheKey = host.gateway.cacheKeyFor(
+            declarations = host.declarations,
+            skills = selectedSkills,
+            privacyScopeTag = host.boundary.vault.scopeTag,
+        )
         val system = systemInstruction(request.intents)
         val user = initialUserInstruction(request.userRequest, observations)
         val maskedSystem = safelyMask(system, trace) ?: return maskedIncomplete(trace, 0, 0)
@@ -410,6 +482,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                 turns = 0,
                 toolCalls = 0,
                 trace = trace,
+                cacheKey = preCacheKey,
             )
         }
         val conversation = try {
@@ -419,6 +492,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         } catch (_: MaskingBlockedException) {
             return maskedIncomplete(trace, 0, 0)
         }
+        val runCacheKey = preCacheKey
         val run = ActiveRun(
             request = request,
             systemInstruction = maskedSystem,
@@ -428,6 +502,9 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         run.fixedOperationKeys.putAll(fixedKeys)
         run.conversation = conversation
         run.contextCharacters = contextCharacters
+        run.selectedSkills = selectedSkills
+        run.cacheKey = runCacheKey
+        transition(trace, WorkflowRunState.READY, "cache_key ${run.describeCacheKey()}")
         return drive(run)
     }
 
@@ -458,20 +535,17 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: MaskingBlockedException) {
-            return maskedIncomplete(trace, run.turns, run.toolCalls)
+            return maskedIncomplete(run, trace, run.turns, run.toolCalls)
         }
         val observations = try {
             observeScopedCaptures(run.request.limits.maxCaptureObservations)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
-            return WorkflowRunOutcome.Incomplete(
-                reason = WorkflowRunStopReason.TOOL_FAILURE,
-                detail = "scoped observation failed: ${failure::class.simpleName ?: "error"}",
-                answer = null,
-                turns = run.turns,
-                toolCalls = run.toolCalls,
-                trace = trace,
+            return incomplete(
+                run,
+                WorkflowRunStopReason.TOOL_FAILURE,
+                "scoped observation failed: ${failure::class.simpleName ?: "error"}",
             )
         }
         val resumeText = resumeInstruction(
@@ -480,24 +554,36 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             observations = observations,
             prior = priorSummary(run),
         )
-        val maskedResume = safelyMask(resumeText, trace) ?: return maskedIncomplete(trace, run.turns, run.toolCalls)
+        val maskedResume = safelyMask(resumeText, trace) ?: return maskedIncomplete(run, trace, run.turns, run.toolCalls)
         val added = maskedResume.length
         if (run.contextCharacters + added > run.request.limits.maxContextCharacters) {
-            return WorkflowRunOutcome.Incomplete(
-                reason = WorkflowRunStopReason.CONTEXT_BUDGET,
-                detail = "the resumed prompt exceeds the declared context bound",
-                answer = null,
-                turns = run.turns,
-                toolCalls = run.toolCalls,
-                trace = trace,
+            // The resume seam re-sends the stable prefix plus the bounded prior summary
+            // plus fresh observations; mutable state is re-read, never trusted from the
+            // summary, so this is a fresh-state restart, not a continuation of stale rows.
+            val compacted = AgentContextManager.compactForBudget(
+                contextCharacters = run.contextCharacters + added,
+                maxContextCharacters = run.request.limits.maxContextCharacters,
+                priorPayloads = run.maskedToolPayloads.size,
+                carriedDispatches = run.dispatches.size,
+                completedTurns = run.turns,
             )
+            if (compacted == null) {
+                return incomplete(run, WorkflowRunStopReason.CONTEXT_BUDGET, "the resumed prompt exceeds the declared context bound")
+            }
+            run.compaction = compacted
+            run.maskedToolPayloads.clear()
+            run.contextCharacters = run.systemInstruction.length + added
+            transition(trace, WorkflowRunState.GENERATING, "compacted context on resume")
         }
+        // A provider switch between suspend and resume builds a fresh conversation from
+        // the same stable prefix: no continuation item crosses providers, so the run
+        // preserves behavior and isolation instead of replaying stale protocol state.
         val conversation = try {
             host.gateway.begin(run.systemInstruction, maskedResume)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: MaskingBlockedException) {
-            return maskedIncomplete(trace, run.turns, run.toolCalls)
+            return maskedIncomplete(run, trace, run.turns, run.toolCalls)
         }
         continuation.consumed = true
         // The application's clarification is answered by the user; it is neither a verified
@@ -526,7 +612,51 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                 return incomplete(run, WorkflowRunStopReason.TIME_BUDGET, "time bound reached")
             }
             if (run.contextCharacters > limits.maxContextCharacters) {
-                return incomplete(run, WorkflowRunStopReason.CONTEXT_BUDGET, "context bound reached")
+                // Local compaction: keep the stable versioned prefix, carry only the
+                // bounded prior-dispatch summary plus freshly re-read observations, and
+                // restart the provider chain only when no call is still pending. When a
+                // continuation is mid-flight the protocol items stay byte-identical and
+                // the run stops honestly instead of corrupting the pairing.
+                val pending = run.conversation.pendingCallIds
+                val compacted = AgentContextManager.compactForBudget(
+                    contextCharacters = run.contextCharacters,
+                    maxContextCharacters = limits.maxContextCharacters,
+                    priorPayloads = run.maskedToolPayloads.size,
+                    carriedDispatches = run.dispatches.size,
+                    completedTurns = run.turns,
+                )
+                if (compacted == null || pending.isNotEmpty()) {
+                    return incomplete(run, WorkflowRunStopReason.CONTEXT_BUDGET, "context bound reached")
+                }
+                run.compaction = compacted
+                run.maskedToolPayloads.clear()
+                val fresh = try {
+                    observeScopedCaptures(run.request.limits.maxCaptureObservations)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failure: Exception) {
+                    return incomplete(
+                        run,
+                        WorkflowRunStopReason.TOOL_FAILURE,
+                        "scoped observation failed: ${failure::class.simpleName ?: "error"}",
+                    )
+                }
+                val compactedPrompt = compactedInstruction(
+                    prior = priorSummary(run),
+                    observations = fresh,
+                )
+                val maskedCompacted = safelyMask(compactedPrompt, run.trace)
+                    ?: return maskedIncomplete(run, run.trace, run.turns, run.toolCalls)
+                val rebuilt = try {
+                    host.gateway.begin(run.systemInstruction, maskedCompacted)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    return incomplete(run, WorkflowRunStopReason.CONTEXT_BUDGET, "context bound reached")
+                }
+                run.conversation = rebuilt
+                run.contextCharacters = run.systemInstruction.length + maskedCompacted.length
+                transition(run.trace, WorkflowRunState.GENERATING, "compacted context, turn ${run.turns + 1}")
             }
             transition(run.trace, WorkflowRunState.GENERATING, "turn ${run.turns + 1}")
             val generated = try {
@@ -554,6 +684,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                     when (finish) {
                         HostedTurnFinish.Complete -> {
                             val answer = turn.assistantText
+                            run.noteUsage(turn.usage)
                             transition(run.trace, WorkflowRunState.VERIFYING, "turn ${run.turns}")
                             return complete(run, answer)
                         }
@@ -561,9 +692,10 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                         is HostedTurnFinish.Incomplete -> {
                             // The gateway reports an inbound privacy refusal with the same
                             // incomplete finish; it is a masking stop, not a model truncation.
+                            run.noteUsage(turn.usage)
                             if (finish.reason == MASKING_BLOCKED_REASON) {
                                 transition(run.trace, WorkflowRunState.INCOMPLETE, "masking blocked the turn")
-                                return maskedIncomplete(run.trace, run.turns, run.toolCalls)
+                                return maskedIncomplete(run, run.trace, run.turns, run.toolCalls)
                             }
                             transition(run.trace, WorkflowRunState.INCOMPLETE, "turn truncated")
                             return incomplete(
@@ -574,6 +706,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                         }
 
                         is HostedTurnFinish.ContentFiltered -> {
+                            run.noteUsage(turn.usage)
                             transition(run.trace, WorkflowRunState.INCOMPLETE, "provider filtered the turn")
                             return incomplete(
                                 run,
@@ -583,6 +716,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                         }
 
                         HostedTurnFinish.ToolCalls -> {
+                            run.noteUsage(turn.usage)
                             when (val next = dispatchTurn(run, turn)) {
                                 is TurnStep.Continue -> {
                                     run.conversation = next.conversation
@@ -682,20 +816,40 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: MaskingBlockedException) {
-            return TurnStep.Stop(maskedIncomplete(run.trace, run.turns, run.toolCalls))
+            return TurnStep.Stop(maskedIncomplete(run, run.trace, run.turns, run.toolCalls))
         }
+        maskedResults.forEach { run.maskedToolPayloads += it.outputJson }
         run.contextCharacters += maskedResults.sumOf { it.outputJson.length }
         if (run.contextCharacters > run.request.limits.maxContextCharacters) {
-            return TurnStep.Stop(
-                incomplete(run, WorkflowRunStopReason.CONTEXT_BUDGET, "context bound reached with the tool results"),
+            // The tool results are already dispatched and recorded; compaction must not
+            // undo them. Drop the older masked payloads from the accounted characters,
+            // keep every dispatch record, and continue the turn: mutable state is still
+            // re-read fresh (verification re-reads live rows; the next observations are
+            // re-read before use), so nothing stale authorizes an effect. When nothing
+            // older exists to drop, stop honestly instead of looping on the same prompt.
+            val compacted = AgentContextManager.compactForBudget(
+                contextCharacters = run.contextCharacters,
+                maxContextCharacters = run.request.limits.maxContextCharacters,
+                priorPayloads = run.maskedToolPayloads.size,
+                carriedDispatches = run.dispatches.size,
+                completedTurns = run.turns,
             )
+            if (compacted == null) {
+                return TurnStep.Stop(
+                    incomplete(run, WorkflowRunStopReason.CONTEXT_BUDGET, "context bound reached with the tool results"),
+                )
+            }
+            run.compaction = compacted
+            run.maskedToolPayloads.clear()
+            run.contextCharacters = run.request.limits.maxContextCharacters
+            transition(run.trace, WorkflowRunState.GENERATING, "compacted tool results, turn ${run.turns}")
         }
         val next = try {
             host.gateway.continueWithToolResults(MaskedConversation(pending, host.boundary), maskedResults)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: MaskingBlockedException) {
-            return TurnStep.Stop(maskedIncomplete(run.trace, run.turns, run.toolCalls))
+            return TurnStep.Stop(maskedIncomplete(run, run.trace, run.turns, run.toolCalls))
         } catch (_: HostedConfigurationException) {
             return TurnStep.Stop(
                 incomplete(run, WorkflowRunStopReason.MALFORMED_TURN, "protocol continuation was refused"),
@@ -920,6 +1074,10 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             turns = run.turns,
             toolCalls = run.toolCalls,
             trace = run.trace.toList(),
+            usage = run.usages.toList(),
+            cacheKey = run.cacheKey,
+            cacheSupport = AgentContextManager.classifyCacheSupport(run.usages),
+            compaction = run.compaction,
         )
     }
 
@@ -1060,6 +1218,12 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
 
     // ---- Prompt composition --------------------------------------------------------------
 
+    /**
+     * The stable versioned instruction prefix: identical bytes for identical intents, so
+     * an advertised provider cache can match the run's prefix across turns. Selected
+     * skills render in [WorkflowSkillCatalog] order (enum order, deterministic); the
+     * S8.11 runtime block is appended verbatim every run.
+     */
     private fun systemInstruction(intents: Set<WorkflowIntent>): String = buildString {
         appendLine(
             "You are Aegis's hosted workflow agent. Work only through the declared typed tools " +
@@ -1086,6 +1250,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                 "its effect. Verify the workflow's completion condition from fresh observations before " +
                 "you answer.",
         )
+        append(AgentContextManager.stableRuntimeBlock())
         appendLine()
         append(host.skills.instructionsFor(intents))
     }
@@ -1132,6 +1297,26 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
     }
 
     /**
+     * The compaction seam: the stable versioned prefix stays byte-identical, the
+     * bounded prior-dispatch summary carries identifiers/statuses only, and the
+     * trusted observations are re-read fresh. Summaries never authorize state; every
+     * claimed effect is still re-read from live application rows before completion.
+     */
+    private fun compactedInstruction(prior: String, observations: JSONArray): String = buildString {
+        appendLine("The run compacted its local context to stay within the declared bound.")
+        appendLine("Prior masked run outcomes (identifiers and statuses only, most recent first):")
+        appendLine(prior)
+        appendLine()
+        appendLine("Trusted host observations taken now (masked, current):")
+        appendLine(observations.toString())
+        appendLine()
+        append(
+            "Continue the same workflow from these current observations. Do not reuse a stale revision " +
+                "or an id that is absent from the observations.",
+        )
+    }
+
+    /**
      * Exact masked source lengths, so a span can be formed without guessing character counts.
      * A length is not sensitive content, and it is derived from the same observation the model
      * already received.
@@ -1152,31 +1337,25 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             lengths
     }
 
-    private fun priorSummary(run: ActiveRun): String = buildString {
-        append("[")
-        run.dispatches.forEachIndexed { index, record ->
-            if (index > 0) append(",")
-            append("{\"tool\":")
-            append(JSONObject.quote(record.name))
-            append(",\"status\":")
-            append(JSONObject.quote(record.status))
-            record.change?.let { change ->
-                change.opt("linkId")?.takeUnless { it == JSONObject.NULL }?.let {
-                    append(",\"linkId\":").append(it)
-                }
-                change.opt("eventId")?.takeUnless { it == JSONObject.NULL }?.let {
-                    append(",\"eventId\":").append(it)
-                }
-                change.opt("revision")?.takeUnless { it == JSONObject.NULL }?.let {
-                    append(",\"revision\":").append(it)
-                }
-                change.opt("draftId")?.takeUnless { it == JSONObject.NULL }?.let {
-                    append(",\"draftId\":").append(it)
-                }
+    /**
+     * Bounded task history for a carried prompt: at most MAX_HISTORY_ENTRIES recent
+     * dispatches (tool names, statuses, value-free refs). Older entries drop from the
+     * prompt text; the run's in-memory dispatches are untouched and every claimed
+     * effect is still re-read from live state before completion.
+     */
+    private fun priorSummary(run: ActiveRun): String {
+        val entries = run.dispatches.map { record ->
+            val ref = record.change?.let { change ->
+                listOf(
+                    change.opt("linkId")?.takeUnless { it == JSONObject.NULL }?.toString()?.let { "linkId=$it" },
+                    change.opt("eventId")?.takeUnless { it == JSONObject.NULL }?.toString()?.let { "eventId=$it" },
+                    change.opt("revision")?.takeUnless { it == JSONObject.NULL }?.toString()?.let { "revision=$it" },
+                    change.opt("draftId")?.takeUnless { it == JSONObject.NULL }?.toString()?.let { "draftId=$it" },
+                ).filterNotNull().takeIf { it.isNotEmpty() }?.joinToString(",")
             }
-            append("}")
+            AgentContextManager.DispatchSummaryEntry(record.name, record.status, ref)
         }
-        append("]")
+        return AgentContextManager.boundedDispatchSummary(entries)
     }
 
     private suspend fun observeScopedCaptures(limit: Int): JSONArray {
@@ -1203,8 +1382,31 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             turns = run.turns,
             toolCalls = run.toolCalls,
             trace = run.trace.toList(),
+            usage = run.usages.toList(),
+            cacheKey = run.cacheKey,
+            cacheSupport = AgentContextManager.classifyCacheSupport(run.usages),
+            compaction = run.compaction,
         )
 
+    private fun maskedIncomplete(run: ActiveRun, trace: List<WorkflowRunStep>, turns: Int, toolCalls: Int) =
+        WorkflowRunOutcome.Incomplete(
+            reason = WorkflowRunStopReason.MASKING_BLOCKED,
+            detail = "the local privacy boundary refused to emit or accept content",
+            answer = null,
+            turns = turns,
+            toolCalls = toolCalls,
+            trace = trace.toList(),
+            usage = run.usages.toList(),
+            cacheKey = run.cacheKey,
+            cacheSupport = AgentContextManager.classifyCacheSupport(run.usages),
+            compaction = run.compaction,
+        )
+
+    /**
+     * Pre-run masked path, with no run yet: no provider turn ever executed, so no
+     * usage was reported. The outcome honestly carries the empty usage list and the
+     * unsupported cache status rather than inventing either.
+     */
     private fun maskedIncomplete(trace: List<WorkflowRunStep>, turns: Int, toolCalls: Int) =
         WorkflowRunOutcome.Incomplete(
             reason = WorkflowRunStopReason.MASKING_BLOCKED,
@@ -1311,6 +1513,42 @@ internal class ActiveRun(
     /** Trusted attempt keys bound to one call signature for durable retry. */
     val fixedOperationKeys: MutableMap<String, String> = mutableMapOf()
     val callCounts: MutableMap<String, Int> = mutableMapOf()
+    /** Stable cache identity for this run; null when the provider cannot attribute itself. */
+    var cacheKey: AgentCacheKey? = null
+    /** Actual per-turn provider usage observed; absent fields stay null, never guessed. */
+    val usages: MutableList<AgentRunUsage> = mutableListOf()
+    /** Local compaction record; null when no compaction ran. */
+    var compaction: AgentContextCompaction? = null
+    /** Masked tool-result payloads accounted in the running prompt (for compaction). */
+    val maskedToolPayloads: MutableList<String> = mutableListOf()
+    /** Versioned skills selected for this run's intents (stable prefix + cache identity). */
+    var selectedSkills: List<WorkflowSkill> = emptyList()
+
+    /** Privacy-safe one-line cache attribution for the run trace; never raw content. */
+    fun describeCacheKey(): String {
+        val key = cacheKey ?: return "unidentified"
+        return buildString {
+            append(key.protocol.name.lowercase())
+            append(":").append(key.model)
+            append(":").append(key.endpointHost)
+            append(":tools=").append(key.toolSchema.substringBefore(":"))
+            append(":skills=").append(key.skillCatalog.substringBefore(" skills:"))
+            append(":scope=").append(key.privacyContext)
+            append(":").append(key.fingerprint().take(12))
+        }
+    }
+
+    /** Records one turn's actual provider usage; absent fields stay null, never guessed. */
+    fun noteUsage(usage: io.github.triet4p.aegisf.provider.HostedUsage?) {
+        if (usage == null) return
+        usages += AgentRunUsage(
+            inputTokens = usage.inputTokens,
+            outputTokens = usage.outputTokens,
+            reasoningTokens = usage.reasoningTokens,
+            cachedInputTokens = usage.cachedInputTokens,
+        )
+    }
+
 
     fun hasAttached(eventId: Long, draftId: Long): Boolean = dispatches.any { record ->
         record.name == BoundedWorkflowToolAdapter.ATTACH_LINK &&

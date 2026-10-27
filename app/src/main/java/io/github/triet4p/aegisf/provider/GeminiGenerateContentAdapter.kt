@@ -31,6 +31,9 @@ class GeminiGenerateContentAdapter internal constructor(
 ) : HostedGenerationAdapter {
     override val protocol: HostedProtocol = HostedProtocol.GEMINI_GENERATE_CONTENT
 
+    /** Value-free identity from this adapter's validated config. */
+    override fun providerIdentity(): HostedProviderIdentity = config.identity()
+
     init {
         if (config.protocol != protocol) {
             throw HostedConfigurationException("Gemini adapter received a ${config.protocol} configuration")

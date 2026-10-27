@@ -113,3 +113,39 @@ trusted — before any replay or completion claim.
   Pinned bundle hashes verified by `run-as sha256sum`: `laya.onnx a874eb25…`,
   `laya.onnx.data 48774636…`, `laya_config.json 5049005d…`,
   `tokenizer/laya_tokenizer.bin 09b371ce…`.
+
+## S8.11 context, prompt caching and compaction (summary)
+
+Full contract lives in the executor sources (`AgentContextManager`,
+`BoundedWorkflowExecutor`, `MaskedHostedGateway.cacheKeyFor`,
+`HostedProviderIdentity`); this section records the durable-history interaction only.
+
+- The stable versioned instruction/tool/skill prefix is built per run from trusted
+  host state: the provider identity (protocol/host/model/frozen per-model budget from
+  the validated adapter config), the canonical tool schema, the selected versioned
+  skills, and the vault scope tag as the privacy context. No prompt text, raw value,
+  mapping, key, or credential ever enters the cache key; a provider switch therefore
+  starts a fresh native chain from the same stable prefix instead of replaying stale
+  continuation items.
+- Per-turn provider usage is recorded exactly as reported (input/output/reasoning/
+  cached tokens; absent fields stay null) on `Completed`/`Incomplete` outcomes, and
+  the history's safe observation carries summed totals plus the derived cache behavior
+  (`CACHED_PREFIX_REUSE` on any positive cached-input report, `NO_CACHE_REPORTED` on
+  reported usage without cached input, `USAGE_UNSUPPORTED` otherwise). No estimated
+  savings are computed or reported as fact.
+- Local compaction drops only older masked tool-result payloads from the accounted
+  prompt (drive loop and dispatch-turn paths; resume path compacts the resume seam the
+  same way). Every dispatch record stays in memory, every effect is re-read from live
+  application rows before verification, and a compaction record
+  (`compactedTurns/droppedToolResults/carriedDispatches`) is carried on the outcome and
+  the history observation. Summaries never authorize state; mutable query results are
+  always re-read by scope/revision.
+- No schema change was required: usage, cache identity, and compaction travel on the
+  in-memory outcome and inside the existing attempt `observationJson` detail object
+  (counts, derived support, fingerprint prefix, compacted count). The safe export is
+  unchanged and still excludes keys, digests, mappings, credentials, reasoning, and
+  wire detail.
+
+Proven by `S811ContextCacheTest` (11 focused tests, host, scripted provider seam) and
+the gated live smoke `S811ContextLiveSmokeTest` (real Go Chat Completions run with
+exact masked wire, per-turn usage, cache identity, and verified effects).

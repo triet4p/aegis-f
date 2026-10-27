@@ -474,6 +474,14 @@ class HostedConfigurationException(message: String) : IllegalArgumentException(m
 interface HostedGenerationAdapter {
     val protocol: HostedProtocol
 
+    /**
+     * The value-free provider identity (protocol/host/model/frozen budget) of this
+     * adapter's validated configuration, for one run's stable cache key. Null when
+     * the adapter cannot attribute its configuration; the run then reports usage
+     * honestly without a cache identity instead of inventing one.
+     */
+    fun providerIdentity(): HostedProviderIdentity? = null
+
     fun begin(systemInstruction: String, userInstruction: String): HostedConversation
 
     suspend fun generate(

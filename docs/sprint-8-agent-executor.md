@@ -129,8 +129,15 @@ executor remains the phone proof recorded in the S8.9 handoff; no substitute cla
   (see `docs/sprint-8-agent-history.md`); the in-memory trace remains the per-turn record
   while the run/attempt/conversation tables are the durable one. An operation key already
   remains safe to replay through the application journal.
-- S8.11: context is only bounded, never compacted or cached; the system/skill prefix is stable and
-  versioned so a later cache key can include it.
+- S8.11: stable versioned instruction/tool/skill prefixes (`AgentContextManager`), bounded task
+  history and minimal dynamic observations are implemented in the production executor
+  (see `docs/sprint-8-agent-history.md` S8.11 section). Cache keys carry provider/model/
+  config/tool-schema/skill-schema and privacy-context (vault scope tag) identities — never
+  prompt text, raw values, mappings, keys, or credentials. Mutable query results are
+  invalidated by scope/revision and re-read fresh; summaries never authorize state. Cache
+  hit/miss/expiry, local compaction and provider switch preserve behavior and isolation;
+  cache failure falls back safely. Actual per-turn usage (or explicit unsupported status)
+  is reported; no estimated saving is ever computed as fact.
 - S8.12: the host supplies the provider configuration; no settings storage or key handling is added.
 
 ## Verification

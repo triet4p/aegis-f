@@ -24,6 +24,9 @@ class OpenAiChatCompletionsAdapter internal constructor(
 ) : HostedGenerationAdapter {
     override val protocol: HostedProtocol = HostedProtocol.OPENAI_CHAT_COMPLETIONS
 
+    /** Value-free identity from this adapter's validated config. */
+    override fun providerIdentity(): HostedProviderIdentity = config.identity()
+
     init {
         if (config.protocol != protocol) {
             throw HostedConfigurationException("chat-completions adapter received a ${config.protocol} configuration")

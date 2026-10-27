@@ -419,15 +419,56 @@ class AgentRunHistory(
         }
     }
 
+    /**
+     * Privacy-safe attempt observation, extended for S8.11 with actual usage and cache
+     * facts. The masked line carries counts and identities only: turns, tool calls,
+     * verified effects, total input/output tokens summed from reported per-turn usage,
+     * cached input tokens summed the same way, the provider cache behavior, a stable
+     * cache fingerprint prefix (when the run carries one), and the compaction record.
+     * No raw text, no mappings, no keys, no credentials, no estimates: every number is
+     * a sum of provider-reported usage fields, and unsupported routes record zeros
+     * rather than invented savings.
+     */
     private fun safeObservation(outcome: WorkflowRunOutcome, boundary: MaskedPromptBoundary): String {
+        val usage = when (outcome) {
+            is WorkflowRunOutcome.Completed -> outcome.usage
+            is WorkflowRunOutcome.Incomplete -> outcome.usage
+            else -> emptyList()
+        }
+        val support = when (outcome) {
+            is WorkflowRunOutcome.Completed -> outcome.cacheSupport
+            is WorkflowRunOutcome.Incomplete -> outcome.cacheSupport
+            else -> null
+        }
+        val cacheFingerprint = when (outcome) {
+            is WorkflowRunOutcome.Completed -> outcome.cacheKey?.fingerprint()
+            is WorkflowRunOutcome.Incomplete -> outcome.cacheKey?.fingerprint()
+            else -> null
+        }
+        val compaction = when (outcome) {
+            is WorkflowRunOutcome.Completed -> outcome.compaction
+            is WorkflowRunOutcome.Incomplete -> outcome.compaction
+            else -> null
+        }
+        val inTotal = usage.sumOf { it.inputTokens ?: 0 }
+        val outTotal = usage.sumOf { it.outputTokens ?: 0 }
+        val cachedTotal = usage.sumOf { it.cachedInputTokens ?: 0 }
         val masked = try {
             val summary = when (outcome) {
                 is WorkflowRunOutcome.Completed ->
-                    "completed turns=${outcome.turns} tools=${outcome.toolCalls} effects=${outcome.verifiedEffects.size}"
+                    "completed turns=${outcome.turns} tools=${outcome.toolCalls} effects=${outcome.verifiedEffects.size}" +
+                        " in=$inTotal out=$outTotal cached=$cachedTotal" +
+                        " cache=${support?.name?.lowercase() ?: "na"}" +
+                        (cacheFingerprint?.let { " key=${it.take(12)}" } ?: "") +
+                        (compaction?.let { " compacted=${it.droppedToolResults}" } ?: "")
                 is WorkflowRunOutcome.Clarifying -> "clarifying field=${outcome.field}"
                 is WorkflowRunOutcome.Refused -> "refused reason=${outcome.reason}"
                 is WorkflowRunOutcome.Incomplete ->
-                    "incomplete reason=${outcome.reason.name} detail=${outcome.detail?.take(80)}"
+                    "incomplete reason=${outcome.reason.name} detail=${outcome.detail?.take(80)}" +
+                        " in=$inTotal out=$outTotal cached=$cachedTotal" +
+                        " cache=${support?.name?.lowercase() ?: "na"}" +
+                        (cacheFingerprint?.let { " key=${it.take(12)}" } ?: "") +
+                        (compaction?.let { " compacted=${it.droppedToolResults}" } ?: "")
             }
             boundary.maskOutbound(summary, MaskedPath.HISTORY)
         } catch (_: Exception) {
@@ -437,11 +478,21 @@ class AgentRunHistory(
             is WorkflowRunOutcome.Completed ->
                 JSONObject().put("turns", outcome.turns).put("toolCalls", outcome.toolCalls)
                     .put("effects", outcome.verifiedEffects.size)
+                    .put("inputTokens", inTotal).put("outputTokens", outTotal)
+                    .put("cachedInputTokens", cachedTotal)
+                    .put("cacheSupport", support?.name ?: JSONObject.NULL)
+                    .put("cacheFingerprint", cacheFingerprint?.take(16) ?: JSONObject.NULL)
+                    .put("compactedToolResults", compaction?.droppedToolResults ?: 0)
             is WorkflowRunOutcome.Clarifying -> JSONObject().put("field", outcome.field)
             is WorkflowRunOutcome.Refused -> JSONObject().put("reason", outcome.reason)
             is WorkflowRunOutcome.Incomplete ->
                 JSONObject().put("reason", outcome.reason.name)
                     .put("turns", outcome.turns).put("toolCalls", outcome.toolCalls)
+                    .put("inputTokens", inTotal).put("outputTokens", outTotal)
+                    .put("cachedInputTokens", cachedTotal)
+                    .put("cacheSupport", support?.name ?: JSONObject.NULL)
+                    .put("cacheFingerprint", cacheFingerprint?.take(16) ?: JSONObject.NULL)
+                    .put("compactedToolResults", compaction?.droppedToolResults ?: 0)
         }
         return JSONObject()
             .put("summary", masked)

@@ -45,6 +45,20 @@ android {
     }
 }
 
+// Live-gate propagation for the S8.11 one-shot smoke: the Gradle daemon does not reliably
+// inherit ad-hoc shell exports on every host, so the gate reaches the test JVM through an
+// explicit project property (command line `-P`) or the daemon environment, whichever is
+// present. Env remains the documented primary gate; `-P` is the fallback launcher on hosts
+// where daemon env inheritance is blocked. Values are gate flags and attempt ids only —
+// never credentials.
+// AFTER S8.11, Main may extend the list to other live gates or remove this block.
+tasks.withType<Test> {
+    listOf("AEGIS_S811_LIVE_SMOKE", "S811_ATTEMPT").forEach { name ->
+        val value = project.findProperty(name)?.toString() ?: System.getenv(name)
+        if (!value.isNullOrBlank()) systemProperty(name, value)
+    }
+}
+
 android.sourceSets.getByName("main").assets.srcDir(s8AgentRuntimeAssetDir.get().asFile)
 tasks.named("preBuild").configure {
     dependsOn(copyS8AgentRuntimeAssets)
