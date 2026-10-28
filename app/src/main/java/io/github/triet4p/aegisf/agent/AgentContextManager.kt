@@ -35,10 +35,10 @@ import io.github.triet4p.aegisf.provider.HostedToolDeclaration
 object AgentContextManager {
 
     /** Version of the S8.11 runtime block appended to every system instruction. */
-    const val CONTEXT_BLOCK_VERSION = "s8-agent-context/v1"
+    const val CONTEXT_BLOCK_VERSION = "s8-agent-context/v3"
 
     /** Version of the tool-schema material included in the stable cache identity. */
-    const val TOOL_SCHEMA_VERSION = "aegis-f-s8-agent-tools/v2"
+    const val TOOL_SCHEMA_VERSION = AgentInterface.TOOL_SCHEMA
 
     /** Version of the skill-catalog material included in the stable cache identity. */
     const val SKILL_CATALOG_VERSION = WorkflowSkillCatalog.SCHEMA
@@ -58,6 +58,11 @@ object AgentContextManager {
         appendLine("by scope/revision in this run; summaries never authorize state or effects.")
         appendLine("privacy_rule: the stable prefix carries versioned instructions and tool/skill")
         appendLine("schemas only — never raw values, mappings, keys, or credentials.")
+
+        appendLine("reference_rule: references are opaque host-issued aliases bound to one observation's revisions; never parse, construct or reuse one across runs, and re-observe instead of refreshing a stale binding.")
+        appendLine("mutation_identity_rule: mutation identities and the recorded operation receipt are host-owned; never supply or request one.")
+        appendLine("replay_evidence_rule: exact replay is the recorded operation alias only; report the journal no_change result and current effect verification separately.")
+        appendLine("repair_rule: repair only errors whose control permits it, using fresh authoritative masked observations. Terminal errors stop hosted work; privacy refusals are never retried with another spelling or fallback.")
     }
 
     /**
@@ -107,6 +112,7 @@ object AgentContextManager {
         endpointHost = endpointHost,
         model = model,
         generationBudget = generationBudget,
+        interfaceContract = AgentInterface.CONTRACT,
         toolSchema = TOOL_SCHEMA_VERSION + ":sha256:" + sha256Hex(canonicalToolSchema(declarations)),
         skillCatalog = canonicalSkills(skills),
         privacyContext = privacyScopeTag,

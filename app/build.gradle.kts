@@ -9,11 +9,28 @@ plugins {
 val s8AgentRuntimeAssetDir = layout.buildDirectory.dir("generated/s8-agent-runtime/assets")
 val copyS8AgentRuntimeAssets by tasks.registering(Copy::class) {
     from(
-        rootProject.file("tools/slm/s8_agent_tools_v2.json"),
-        rootProject.file("tools/slm/s8_agent_runtime_skills.json"),
+        rootProject.file("tools/slm/s8_agent_tools_v3.json"),
+        rootProject.file("tools/slm/s8_agent_runtime_skills_v3.json"),
     )
     into(s8AgentRuntimeAssetDir)
 }
+val s813QualificationAssetDir = layout.buildDirectory.dir("generated/s813-qualification/assets")
+val copyS813QualificationAssets by tasks.registering(Copy::class) {
+    from(
+        rootProject.file("tools/slm/s8_agent_fixture.json"),
+        rootProject.file("tools/slm/s8_agent_runtime_fixture_v3.json"),
+        rootProject.file("tools/slm/s8_agent_dev.json"),
+        rootProject.file("tools/slm/s8_agent_heldout.json"),
+        rootProject.file("tools/slm/s8_agent_tools.json"),
+        rootProject.file("tools/slm/s8_agent_tools_v3.json"),
+        rootProject.file("tools/slm/s8_agent_skills.json"),
+        rootProject.file("tools/slm/s8_agent_runtime_skills_v3.json"),
+        rootProject.file("tools/slm/s8_agent_scoring.json"),
+    )
+    into(s813QualificationAssetDir)
+}
+
+
 
 
 android {
@@ -31,11 +48,16 @@ android {
 
     buildTypes {
         debug {
-            if (
-                project.findProperty("S812_ANDROID_TARGET_PACKAGE")?.toString() ==
-                "io.github.triet4p.aegisf.s812evidence"
+            val targetPackage = project.findProperty("S812_ANDROID_TARGET_PACKAGE")?.toString()
+                ?: project.findProperty("S813_ANDROID_TARGET_PACKAGE")?.toString()
+            if (targetPackage == "io.github.triet4p.aegisf.s812evidence" ||
+                targetPackage == "io.github.triet4p.aegisf.s813evidence"
             ) {
-                applicationIdSuffix = ".s812evidence"
+                applicationIdSuffix = if (targetPackage.endsWith(".s812evidence")) {
+                    ".s812evidence"
+                } else {
+                    ".s813evidence"
+                }
             }
         }
     }
@@ -75,8 +97,10 @@ tasks.withType<Test> {
 }
 
 android.sourceSets.getByName("main").assets.srcDir(s8AgentRuntimeAssetDir.get().asFile)
+android.sourceSets.getByName("androidTest").assets.srcDir(s813QualificationAssetDir.get().asFile)
 tasks.named("preBuild").configure {
     dependsOn(copyS8AgentRuntimeAssets)
+    dependsOn(copyS813QualificationAssets)
 }
 
 kotlin {

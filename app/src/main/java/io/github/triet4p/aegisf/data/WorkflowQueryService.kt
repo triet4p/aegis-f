@@ -829,6 +829,24 @@ class WorkflowQueryService(
         bounds = query.bounds,
     )
 
+    /** One stored reading by id; the caller authorizes its capture before reading it. */
+    suspend fun noteEvent(eventId: Long): NoteEventEntity? = noteEventDao.findById(eventId)
+
+    /** One stored link decision by id; the caller authorizes both subjects before reading it. */
+    suspend fun linkOperation(linkId: Long): LinkOperation? =
+        contextLinkDao.findById(linkId)?.let { link ->
+            LinkOperation(
+                linkId = link.id,
+                eventId = link.eventId,
+                draftId = link.draftId,
+                state = link.state,
+                revision = link.revision,
+                evidence = link.evidence,
+                userOverride = link.userOverride,
+                createdAtEpochMillis = link.createdAtEpochMillis,
+            )
+        }
+
     /**
      * A bounded page of the stored classification results.
      *
@@ -863,6 +881,7 @@ class WorkflowQueryService(
                 idempotencyKey = operation.idempotencyKey,
                 scopeId = operation.scopeId,
                 command = operation.command,
+                payloadDigest = operation.payloadDigest,
                 outcome = operation.outcome,
                 change = decodeWorkflowChange(operation.changeSummary),
                 createdAtEpochMillis = operation.createdAtEpochMillis,
@@ -888,6 +907,7 @@ class WorkflowQueryService(
                 idempotencyKey = operation.idempotencyKey,
                 scopeId = operation.scopeId,
                 command = operation.command,
+                payloadDigest = operation.payloadDigest,
                 outcome = operation.outcome,
                 change = decodeWorkflowChange(operation.changeSummary),
                 createdAtEpochMillis = operation.createdAtEpochMillis,

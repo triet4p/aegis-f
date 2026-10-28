@@ -40,6 +40,7 @@ import io.github.triet4p.aegisf.provider.ToolCallDisposition
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.runBlocking
+import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -87,7 +88,7 @@ class S811ContextCacheTest {
             engine = LayaClassificationEngine(laya),
         )
         queries = WorkflowQueryService(database)
-        declarations = S8AgentToolDeclarations.load(context.assets::open)
+        declarations = AgentToolDeclarations.load(context.assets::open)
         skills = WorkflowSkillCatalog.load(context.assets::open)
     }
 
@@ -108,10 +109,10 @@ class S811ContextCacheTest {
         val secondAdapter = ScriptedAdapter(scripted() + { complete("done") }, usage = null)
         val secondPrompts = promptsOf(second, secondAdapter)
         assertEquals("the stable prefix must be deterministic", firstPrompts.first(), secondPrompts.first())
-        assertTrue(firstPrompts.first().contains("context_block_version: s8-agent-context/v1"))
+        assertTrue(firstPrompts.first().contains("context_block_version: s8-agent-context/v3"))
         assertTrue(firstPrompts.first().contains("mutable_state_rule"))
-        assertTrue(firstPrompts.first().contains("skill_id: s8-draft-search"))
-        assertFalse(firstPrompts.first().contains("skill_id: s8-laya-review"))
+        assertTrue(firstPrompts.first().contains("skill_id: draft-search"))
+        assertFalse(firstPrompts.first().contains("skill_id: local-review"))
 
         // Different intents select different skills: the prefix is stable per workflow, not global.
         val laya = prepare()
@@ -122,7 +123,7 @@ class S811ContextCacheTest {
             intents = setOf(WorkflowIntent.PREPARE_LAYA_REVIEW),
         )
         assertFalse(layaPrompts.first() == firstPrompts.first())
-        assertTrue(layaPrompts.first().contains("skill_id: s8-laya-review"))
+        assertTrue(layaPrompts.first().contains("skill_id: local-review"))
     }
 
     // ---- Actual usage, never estimated -------------------------------------------------
@@ -131,7 +132,7 @@ class S811ContextCacheTest {
     fun `per-turn usage is recorded exactly and classified as cached on a hit`() = runBlocking {
         val fixture = prepare()
         val script = scripted()
-        script += { toolTurn(call(BoundedWorkflowToolAdapter.QUERY_DRAFT_CANDIDATES, draftQueryArgs())) }
+        script += { toolTurn(call("list_drafts", draftQueryArgs())) }
         script += { complete("Found the synthetic drafts.") }
         val adapter = ScriptedAdapter(
             script,
@@ -154,7 +155,7 @@ class S811ContextCacheTest {
     fun `absent usage is reported unsupported never fabricated`() = runBlocking {
         val fixture = prepare()
         val script = scripted()
-        script += { toolTurn(call(BoundedWorkflowToolAdapter.QUERY_DRAFT_CANDIDATES, draftQueryArgs())) }
+        script += { toolTurn(call("list_drafts", draftQueryArgs())) }
         script += { complete("Found the synthetic drafts.") }
         val adapter = ScriptedAdapter(script, usage = null)
         val outcome = run(fixture, adapter, WorkflowRunRequest(
@@ -171,7 +172,7 @@ class S811ContextCacheTest {
     fun `usage without cached input reports no cache hit`() = runBlocking {
         val fixture = prepare()
         val script = scripted()
-        script += { toolTurn(call(BoundedWorkflowToolAdapter.QUERY_DRAFT_CANDIDATES, draftQueryArgs())) }
+        script += { toolTurn(call("list_drafts", draftQueryArgs())) }
         script += { complete("Found the synthetic drafts.") }
         val adapter = ScriptedAdapter(
             script,
@@ -276,7 +277,7 @@ class S811ContextCacheTest {
     fun `a cache miss after earlier hits still verifies the same effects`() = runBlocking {
         val fixture = prepare()
         val script = scripted()
-        script += { toolTurn(call(BoundedWorkflowToolAdapter.QUERY_DRAFT_CANDIDATES, draftQueryArgs())) }
+        script += { toolTurn(call("list_drafts", draftQueryArgs())) }
         script += { complete("Found the synthetic drafts.") }
         // First turn reports a cached prefix; the second reports none (expiry). The run
         // must still complete with the same verified behavior.
@@ -301,87 +302,56 @@ class S811ContextCacheTest {
     }
 
     @Test
-    fun `stale mutable state never survives compaction without a fresh re-read`() = runBlocking {
+    fun `compaction keeps verified effects while re-reading live state`() = runBlocking {
         val fixture = prepare()
-        var observedEventId = 0L
+        lateinit var adapter: ScriptedAdapter
         val script = scripted()
-        script += { toolTurn(call(BoundedWorkflowToolAdapter.UPDATE_EVENT_INTERPRETATION, updateArgs(fixture))) }
         script += {
-            observedEventId = queries.captureEvents(
-                io.github.triet4p.aegisf.data.CaptureEventQuery(fixture.captureId, QueryPageRequest(10, 0)),
-            ).items.single().id
-            toolTurn(
-                call(
-                    BoundedWorkflowToolAdapter.QUERY_DRAFT_CANDIDATES,
-                    JSONObject().put(
-                        "query",
-                        JSONObject()
-                            .put("reviewStatus", "PENDING")
-                            .put("onlyPossibleDuplicates", false)
-                            .put("bounds", JSONObject().put("limit", 10).put("offset", 0)),
-                    ),
-                ),
-            )
+            toolTurn(call("select_source", JSONObject()
+                .put("capture_ref", captureRef(adapter))
+                .put("quote", sourceText(adapter))
+                .put("occurrence", 1)))
         }
         script += {
-            toolTurn(
-                call(
-                    BoundedWorkflowToolAdapter.PROPOSE_LINK,
-                    JSONObject().put("eventId", observedEventId).put("draftId", fixture.draftId),
-                ),
-            )
+            val source = previousEnvelope(adapter, 1).getJSONObject("data")
+            toolTurn(call("make_time_anchor", JSONObject()
+                .put("date_ref", valueRef(source, "date"))
+                .put("time_ref", valueRef(source, "time"))
+                .put("end_date_ref", JSONObject.NULL)
+                .put("end_time_ref", JSONObject.NULL)))
         }
         script += {
-            toolTurn(
-                call(
-                    BoundedWorkflowToolAdapter.ATTACH_LINK,
-                    JSONObject()
-                        .put("eventId", observedEventId)
-                        .put("draftId", fixture.draftId)
-                        .put("expectedRevision", 0)
-                        .put("userOverride", JSONObject.NULL),
-                ),
-            )
+            val source = previousEnvelope(adapter, 2).getJSONObject("data")
+            toolTurn(call("record_event", JSONObject()
+                .put("source_ref", source.getString("source_ref"))
+                .put("summary", "Coffee")
+                .put("amount_ref", valueRef(source, "amount"))
+                .put("anchor_ref", lastEnvelope(adapter).getJSONObject("data").getString("anchor_ref"))
+                .put("merchant_ref", JSONObject.NULL)
+                .put("clarification", "none")))
         }
-        script += { complete("The synthetic event is attached to the synthetic draft.") }
-        // Measure the initial prompt in an isolated throwaway database, then set the bound
-        // just above it so the first turns fit but the accumulated tool results force a
-        // compaction. Isolation matters: a second same-text event in the real database
-        // would make the link evidence AMBIGUOUS and the attach honestly denied.
-        // Every mutation must still verify against freshly re-read state, and the link
-        // must still attach exactly once.
+        script += { complete("Stored.") }
+        adapter = ScriptedAdapter(script, usage = null)
         val initialPrompt = measureInitialPrompt(
-            intents = setOf(
-                WorkflowIntent.SEARCH_DRAFTS,
-                WorkflowIntent.INTERPRET_EVENTS,
-                WorkflowIntent.LINK_EVENT_TO_DRAFT,
-            ),
-            userRequest = "Interpret the synthetic note, find the pending draft, and attach it.",
+            fixture,
+            intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
+            userRequest = "Interpret the synthetic note.",
         )
-        val adapter = ScriptedAdapter(script, usage = null)
         val outcome = run(
             fixture,
             adapter,
             WorkflowRunRequest(
-                intents = setOf(
-                    WorkflowIntent.SEARCH_DRAFTS,
-                    WorkflowIntent.INTERPRET_EVENTS,
-                    WorkflowIntent.LINK_EVENT_TO_DRAFT,
-                ),
-                userRequest = "Interpret the synthetic note, find the pending draft, and attach it.",
-                limits = WorkflowRunLimits(maxContextCharacters = initialPrompt + 400),
+                intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
+                userRequest = "Interpret the synthetic note.",
+                limits = WorkflowRunLimits(maxContextCharacters = initialPrompt + 120),
             ),
         )
         assertTrue("compaction must preserve the verified completion, got $outcome", outcome is WorkflowRunOutcome.Completed)
         outcome as WorkflowRunOutcome.Completed
         assertTrue(outcome.compaction != null)
         assertTrue(outcome.compaction!!.droppedToolResults > 0)
-        val link = outcome.verifiedEffects.filterIsInstance<WorkflowVerifiedEffect.LinkState>().single()
-        assertEquals(ContextLinkState.ACCEPTED, link.state)
-        val stored = queries.linkOperations(
-            LinkOperationQuery(eventId = observedEventId, draftId = fixture.draftId, bounds = QueryPageRequest(1, 0)),
-        ).items.single()
-        assertEquals(ContextLinkState.ACCEPTED, stored.state)
+        assertTrue(outcome.verifiedEffects.any { it is WorkflowVerifiedEffect.EventReading })
+        assertEquals(25_000L, database.noteEventDao().findForCapture(fixture.captureId).single().amountVnd)
         assertTrue("no raw amount may leave the device", adapter.egress().none { it.contains("25,000") })
     }
 
@@ -419,7 +389,7 @@ class S811ContextCacheTest {
                 ScriptedTurn(
                     calls = listOf(
                         ScriptedCall(
-                            BoundedWorkflowToolAdapter.QUERY_DRAFT_CANDIDATES,
+                            "list_drafts",
                             draftQueryArgs().toString(),
                             ToolCallDisposition.TRUNCATED_TURN,
                         ),
@@ -443,51 +413,23 @@ class S811ContextCacheTest {
     }
 
     /**
-     * Measures the initial prompt size for a request shape in an isolated throwaway
-     * database, so link-evidence uniqueness in the real fixture is untouched.
+     * Measures the real initial prompt for the same fixture, scope and intents by running a
+     * completion-only probe against the same services. The probe dispatches no tool and
+     * writes nothing; it records exactly the system and initial user instruction that the
+     * measured run will send, so the bound is neither guessed nor shape-mismatched.
      */
-    private fun measureInitialPrompt(intents: Set<WorkflowIntent>, userRequest: String): Int {
-        val appContext = ApplicationProvider.getApplicationContext<Context>()
-        val probeDb = Room.inMemoryDatabaseBuilder(appContext, LedgerDatabase::class.java)
-            .allowMainThreadQueries()
-            .build()
-        try {
-            val probeCommands = WorkflowCommandService(
-                database = probeDb,
-                clock = SystemLedgerClock,
-                timezoneId = { "Asia/Ho_Chi_Minh" },
-                engine = LayaClassificationEngine(LayaInferenceLifecycle(File("build/s811-test-missing-model"))),
+    private fun measureInitialPrompt(
+        fixture: Fixture,
+        intents: Set<WorkflowIntent>,
+        userRequest: String,
+    ): Int {
+        val probeAdapter = ScriptedAdapter(scripted() + { complete("probe") }, usage = null)
+        runBlocking {
+            executor(fixture, probeAdapter).start(
+                WorkflowRunRequest(intents = intents, userRequest = userRequest),
             )
-            val probeQueries = WorkflowQueryService(probeDb)
-            val captureOutcome = runBlocking { probeCommands.saveCapture(
-                WorkflowCallerScope.User,
-                SaveCaptureRequest("s811-probe-capture", SOURCE),
-            ) } as WorkflowCommandOutcome.Applied
-            val captureId = (captureOutcome.change as WorkflowChange.CaptureSaved).captureId
-            val scope = WorkflowCallerScope.AgentSession("s811-probe-session", setOf(captureId), emptySet())
-            val probeBoundary = MaskedPromptBoundary(SensitiveVault(scope.scopeId))
-            val probeAdapter = ScriptedAdapter(scripted() + { complete("probe") }, usage = null)
-            val host = WorkflowRunHost(
-                scope = scope,
-                boundary = probeBoundary,
-                gateway = MaskedHostedGateway(probeAdapter, probeBoundary),
-                declarations = declarations,
-                skills = skills,
-                commands = probeCommands,
-                queries = probeQueries,
-                operationKeys = WorkflowOperationKeySource { "s811-probe-${sequence.incrementAndGet()}" },
-                clock = WorkflowRunClock { System.currentTimeMillis() },
-            )
-            runBlocking {
-                BoundedWorkflowExecutor(host).start(
-                    WorkflowRunRequest(intents = intents, userRequest = userRequest),
-                )
-            }
-            return probeAdapter.prompts.sumOf { it.length }
-        } finally {
-            WorkflowClaimGuard.reset()
-            probeDb.close()
         }
+        return probeAdapter.prompts.sumOf { it.length }
     }
 
     // ---- Harness -------------------------------------------------------------------------
@@ -576,48 +518,53 @@ class S811ContextCacheTest {
         return Fixture(captureId, draftId, scope, boundary, maskedSource)
     }
 
-    private fun updateArgs(fixture: Fixture): JSONObject {
-        val masked = fixture.maskedSource
-        val amount = token(masked, "AMT")
-        val date = token(masked, "DATE")
-        val time = token(masked, "TIME")
-        return JSONObject()
-            .put("captureId", fixture.captureId)
-            .put("expectedCaptureRevision", 0)
-            .put("expectedEventRevision", JSONObject.NULL)
-            .put("extractionVersion", "s8.11-test")
-            .put(
-                "interpretation",
-                JSONObject()
-                    .put("spanStart", 0)
-                    .put("spanEnd", masked.length)
-                    .put("normalizedText", masked)
-                    .put("maskedSpanText", masked)
-                    .put("amountVnd", amount)
-                    .put("merchant", JSONObject.NULL)
-                    .put("unresolvedReason", JSONObject.NULL)
-                    .put(
-                        "timeAnchor",
-                        JSONObject()
-                            .put("date", date)
-                            .put("time", time)
-                            .put("timezoneId", JSONObject.NULL)
-                            .put("intervalEndDate", JSONObject.NULL)
-                            .put("intervalEndTime", JSONObject.NULL),
-                    ),
-            )
+    private fun draftQueryArgs(): JSONObject = JSONObject()
+        .put("review_status", "PENDING")
+        .put("duplicates_only", false)
+        .put("cursor", JSONObject.NULL)
+
+    private fun initialObservations(adapter: ScriptedAdapter): JSONArray {
+        val prompt = adapter.prompts.last { it.contains("Trusted host observations") }
+        val lines = prompt.lines()
+        val label = lines.indexOfFirst { it.contains("Trusted host observations") }
+        check(label >= 0) { "no observation label in the prompt" }
+        val start = (label + 1 until lines.size).firstOrNull { lines[it].trimStart().startsWith("[") }
+            ?: error("no observation block in the prompt")
+        return JSONArray(lines[start].trim())
     }
 
-    private fun draftQueryArgs(): JSONObject = JSONObject().put(
-        "query",
-        JSONObject()
-            .put("reviewStatus", "PENDING")
-            .put("onlyPossibleDuplicates", false)
-            .put("bounds", JSONObject().put("limit", 10).put("offset", 0)),
-    )
+    private fun captureRef(adapter: ScriptedAdapter): String {
+        val observations = initialObservations(adapter)
+        for (index in 0 until observations.length()) {
+            val item = observations.getJSONObject(index)
+            if (item.optString("kind") == "capture") return item.getString("ref")
+        }
+        error("no capture alias in the initial observation")
+    }
 
-    private fun token(masked: String, prefix: String): String =
-        Regex("⟦$prefix-[^⟧]+⟧").find(masked)?.value ?: error("expected a $prefix token in the masked source")
+    private fun sourceText(adapter: ScriptedAdapter): String {
+        val observations = initialObservations(adapter)
+        for (index in 0 until observations.length()) {
+            val item = observations.getJSONObject(index)
+            if (item.optString("kind") == "capture") return item.getString("source_text")
+        }
+        error("no capture source text in the initial observation")
+    }
+
+    private fun lastEnvelope(adapter: ScriptedAdapter): JSONObject =
+        JSONObject(adapter.toolResultPayloads.last().single())
+
+    private fun previousEnvelope(adapter: ScriptedAdapter, turnsBack: Int): JSONObject =
+        JSONObject(adapter.toolResultPayloads[adapter.toolResultPayloads.size - turnsBack].single())
+
+    private fun valueRef(source: JSONObject, kind: String): String {
+        val values = source.getJSONArray("values")
+        for (index in 0 until values.length()) {
+            val item = values.getJSONObject(index)
+            if (item.getString("kind") == kind) return item.getString("ref")
+        }
+        error("expected a $kind alias in the selected source")
+    }
 
     private fun scripted(): MutableList<suspend () -> ScriptedTurn> = mutableListOf()
     private fun toolTurn(vararg calls: ScriptedCall) = ScriptedTurn(calls = calls.toList(), finish = HostedTurnFinish.ToolCalls)

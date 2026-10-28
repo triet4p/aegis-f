@@ -2,6 +2,14 @@
 
 **Status:** Frozen candidate contract revision `s8-workflow-contract-v2` for S8.3 trial planning; it is not a model qualification, a shipping profile decision, or an owner-approved numeric release gate. The executable fixtures and scorer under `tools/slm/s8_workflow_*` are the source of case identities, exact arguments, semantic scoring policies, and denominators. The v2 revision changes scoring only: the frozen and held-out suites, prompts, fixture, tool schema and proposed numeric targets are byte-identical to checkpoint `b26148e`, and v1 exact-argument scoring plus every v1 result remain preserved and runnable.
 
+**S8.13-pre runtime interface note.** The production agent interface is now the v3 eleven-tool,
+reference-based contract described in
+[the application tools contract](sprint-8-application-tools.md). This frozen scoring contract still
+describes the historical v2 call shapes and remains authoritative only for the existing recorded
+scores; it is not retroactively rewritten. A future qualification run requires separately approved
+v3 fixtures and scoring, including proof of the journal-backed `replay_operation` identity, and no
+historical case is awarded a retroactive PASS.
+
 ## Contract provenance and scope
 
 The missing product-contract pointer in the S8.2 dispatch was established by Main as a new deliverable. This document maps trial inputs to the current implementation, not to planned names from `docs/PLAN.md` or the former Sprint 5 Q&A benchmark.

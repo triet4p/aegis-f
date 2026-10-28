@@ -1,0 +1,219 @@
+{
+  "schema": "aegis-f-s8-agent-runtime-skills/v3",
+  "contract": "aegis-agent-interface/3",
+  "skills": [
+    {
+      "skill_id": "event-reading",
+      "skill_version": 2,
+      "trigger": "The user asks to interpret or correct captured occurrences.",
+      "tools": ["observe", "select_source", "make_time_anchor", "record_event", "ask_user"],
+      "prerequisites": [
+        "Trusted host scope grants the capture; the initial observation or observe returns current capture/event aliases and masked source text.",
+        "Every reference, view offset and value alias comes from a current observation. Aliases are opaque and are never constructed, reused across runs or parsed.",
+        "Capture-page amount/date/time aliases are display-only. record_event and make_time_anchor accept value aliases issued by select_source for the selected occurrence, or by a clarification linked to that exact subject; a capture-page alias is not occurrence evidence.",
+        "A date-only anchor is complete without a time. A time needs its grounded date. A relative date needs an exact available DATE alias, otherwise ask for an absolute date."
+      ],
+      "tool_order": [
+        "Inspect the authorized capture/current events and identify each distinct source-grounded occurrence; do not manufacture one for a no-match request.",
+        "Select the exact source quote for one occurrence. Use the amount/date/time aliases that select_source returned for that occurrence; when an anchor is needed, build it with make_time_anchor from those grounded aliases. Never pass a capture-page value alias as occurrence evidence.",
+        "Decide what is truly unresolved. Null optional merchant, date or time is normal; unresolved does not mean 'not every field is populated'.",
+        "Record one atomic reading. For several occurrences, repeat with an independent source alias for each; never reuse another occurrence's values.",
+        "On a stale error, observe, reselect and reassess. On a field error, use the named constraint and available aliases. Stop at a privacy or authority refusal.",
+        "If the occurrence or its meaning is ungrounded, ask before writing. If a grounded partial reading is useful, record known fields and then ask its primary clarification.",
+        "Finish only when each requested event is verified, or report pending clarification, no-match or a partial outcome truthfully."
+      ],
+      "branches": {
+        "normal": "A complete occurrence uses the source alias and the amount/anchor aliases select_source issued for it (or an anchor make_time_anchor built from those grounded aliases) with clarification none; an absent optional merchant stays null and is not an error.",
+        "clarification": "A grounded but incomplete occurrence is stored with missing values null and the matching clarification field, then followed by one focused ask_user question.",
+        "no_match": "Report that no supported occurrence was found; do not create a reading.",
+        "error": "On error, use the actual code, path and constraint. STALE_OBSERVATION means observe and reassess; SOURCE_QUOTE_NOT_FOUND means reselect exact text; MISSING_REQUIRED_MEANING means correct or ask.",
+        "retry": "Never resend the same failed call blindly. A correction uses fresh observations and is a new request; exact replay is only via a recorded operation alias."
+      },
+      "error_recovery": {
+        "stale_observation": "Observe the fresh capture, select the current quote and decide again; never force the old reading onto new text.",
+        "reference_kind_mismatch": "Use a value alias of the kind named by the error, issued by select_source for the selected occurrence or by its linked clarification. A capture-page value alias is display-only.",
+        "missing_required_meaning": "Preserve a grounded partial reading and ask for the missing amount, or correct a genuinely wrong selection.",
+        "privacy_refusal": "Stop hosted work. Do not retry another spelling, raw value or unmasked fallback."
+      },
+      "examples": [
+        {
+          "given": "observe issues capture alias cap_a; its capture-page value aliases are display-only and no event exists yet. select_source on the exact occurrence quote returns src_a together with that occurrence's own amount alias amt_a and its grounded date/time aliases; make_time_anchor on those aliases returns anchor_a.",
+          "arguments": {
+            "source_ref": "src_a",
+            "summary": "Lunch",
+            "amount_ref": "amt_a",
+            "anchor_ref": "anchor_a",
+            "merchant_ref": null,
+            "clarification": "none"
+          },
+          "expected": "One verified reading, interpreted status, no merchant question. The amount and anchor aliases are the ones select_source/the anchor helper issued for src_a, never the capture-page aliases."
+        },
+        {
+          "given": "select_source on the exact quote 'Taxi ride' returns src_b with no grounded amount alias.",
+          "arguments": {
+            "source_ref": "src_b",
+            "summary": "Taxi ride",
+            "amount_ref": null,
+            "anchor_ref": null,
+            "merchant_ref": null,
+            "clarification": "amount"
+          },
+          "expected": "One grounded partial reading pending clarification; follow with ask_user about the amount. Never infer zero."
+        }
+      ],
+      "completion": "Each requested occurrence has a verified current reading, or the run reports pending clarification, no-match or a partial outcome truthfully."
+    },
+    {
+      "skill_id": "draft-search",
+      "skill_version": 1,
+      "trigger": "The user asks to find stored drafts or gather bounded candidates.",
+      "tools": ["list_drafts", "observe", "ask_user"],
+      "prerequisites": [
+        "The host grants the draft scope; model text never widens it.",
+        "Filters are review status, possible-duplicate selection and the host-issued cursor. The host chooses page size."
+      ],
+      "tool_order": [
+        "Choose filters from the user's actual intent, not from an assumed transaction match.",
+        "Read a bounded page and judge relevance only from returned masked rows.",
+        "Follow next_cursor only when another page is necessary; keep the same filters.",
+        "Return candidates, clarify ambiguity, or report precisely scoped no-match."
+      ],
+      "branches": {
+        "normal": "Present rows as candidates with uncertainty intact.",
+        "clarification": "Ask which candidate or constraint the user intended when the rows are ambiguous.",
+        "no_match": "Report no candidate in the observed pages; claim whole-database absence only when scope_exhausted is true.",
+        "error": "A stale cursor means restart the bounded read; never skip or repeat rows silently.",
+        "retry": "A changed query needs explicit user intent or a fresh observation."
+      },
+      "error_recovery": {
+        "cursor_stale": "Use the returned fresh cursor or restart from the first page with the same filters.",
+        "scope_refusal": "Do not probe another identifier; use only host-granted drafts.",
+        "privacy_refusal": "Stop hosted work."
+      },
+      "examples": [
+        {
+          "given": "The initial draft page shows PENDING drafts and a next_cursor.",
+          "arguments": {
+            "review_status": "PENDING",
+            "duplicates_only": false,
+            "cursor": null
+          },
+          "expected": "One bounded page of masked draft rows with a bound next_cursor."
+        }
+      ],
+      "completion": "The user receives actual bounded candidate rows and pagination status, or a clear no-match/clarification/error outcome. No mutation is implied."
+    },
+    {
+      "skill_id": "link-event-draft",
+      "skill_version": 1,
+      "trigger": "The user asks to propose or attach an event-draft association.",
+      "tools": ["observe", "list_drafts", "inspect_link", "propose_link", "attach_link", "ask_user"],
+      "prerequisites": [
+        "Use current event and draft aliases from observations in the trusted scope.",
+        "Do not infer an association from prose, ids, dates or similar amounts. The application computes trusted evidence.",
+        "Attachment is allowed only for the exact inspected eligible pair; the agent never supplies an override."
+      ],
+      "tool_order": [
+        "Read the current event and candidate drafts.",
+        "Choose a plausible pair or clarify. Inspect its actual trusted evidence.",
+        "If no eligible pair exists, report no match or ineligibility; never change amounts or dates to force eligibility.",
+        "If only a tentative proposal was requested, propose and stop after the verified proposal.",
+        "If attachment was requested and permitted, propose, inspect the returned state, then attach the exact eligible proposal.",
+        "On ambiguity, leave unattached and ask. On stale evidence, observe and reinspect rather than retry blindly.",
+        "Finish attachment only on a verified ACCEPTED pair. No ledger confirmation is implied."
+      ],
+      "branches": {
+        "normal": "Inspect, propose, verify the proposal revision, attach, then verify ACCEPTED from a fresh read.",
+        "clarification": "Ask the user to distinguish plausible candidates; preserve any proposal without attaching.",
+        "no_match": "Leave state unchanged and report the actual ineligible reason or no candidate.",
+        "error": "A denied, stale or missing pair is not attachment; use the returned reason and fresh observation.",
+        "retry": "After a repairable stale result, reinspect current evidence; changed requests are new commands."
+      },
+      "error_recovery": {
+        "link_ineligible": "Do not attach. Report the stable reason code and leave the decision to the user.",
+        "stale_observation": "Observe the pair again and reinspect; reassess or ask if evidence changed.",
+        "user_decision_required": "Stop at the application boundary; an agent cannot override.",
+        "privacy_refusal": "Stop hosted work."
+      },
+      "examples": [
+        {
+          "given": "Observation issues event alias evt_a and draft alias draft_a. inspect_link returns pair alias pair_a with eligibility eligible.",
+          "arguments": { "pair_ref": "pair_a" },
+          "expected": "A proposal alias and actual proposal state. Attach only if the user requested attachment."
+        }
+      ],
+      "completion": "A fresh application observation shows the intended proposal, or the exact pair ACCEPTED when attachment was requested. No ledger row exists."
+    },
+    {
+      "skill_id": "local-review",
+      "skill_version": 1,
+      "trigger": "The user requests the existing local review suggestion for a stored draft.",
+      "tools": ["list_drafts", "observe", "classify_draft", "ask_user"],
+      "prerequisites": [
+        "The host grants the draft and its stored description; the model does not submit replacement text.",
+        "A remembered rule, model decision, blocked, manual or over-budget result is authoritative."
+      ],
+      "tool_order": [
+        "Identify the actual draft; clarify when several are plausible.",
+        "Call classify_draft with its current draft alias only.",
+        "Report the actual suggestion, manual, unavailable or over-budget state. Leave category choice and confirmation to the user."
+      ],
+      "branches": {
+        "normal": "Present the local suggestion as review-only and keep the draft pending.",
+        "clarification": "Ask which draft or review task the user intended.",
+        "no_match": "Report no in-scope draft; never guess an identifier.",
+        "error": "Report the actual unavailable/blocked/stale/over-budget result without a substitute prediction.",
+        "retry": "A stale draft means observe and use the fresh alias; do not bypass the revision."
+      },
+      "error_recovery": {
+        "stale_observation": "Observe the current draft and classify its current state.",
+        "model_unavailable": "Leave review manual. Do not call a hosted provider as a fallback.",
+        "input_over_budget": "Report refusal truthfully; never shorten the description to force inference."
+      },
+      "examples": [
+        {
+          "given": "The observation issues draft alias draft_a.",
+          "arguments": { "draft_ref": "draft_a" },
+          "expected": "The actual local suggestion or manual/unavailable state with a fresh draft observation."
+        }
+      ],
+      "completion": "A fresh review observation confirms the actual suggestion/manual/unavailable state; the draft remains unconfirmed and no ledger row is written."
+    },
+    {
+      "skill_id": "explicit-operation-replay",
+      "skill_version": 1,
+      "trigger": "The user explicitly requests repeat/idempotence verification, or host recovery selects a settled replayable operation.",
+      "tools": ["observe", "replay_operation"],
+      "prerequisites": [
+        "A recorded operation alias exists from this run or was re-established by the host from the journal.",
+        "A failed validation has no successful operation to replay."
+      ],
+      "tool_order": [
+        "Identify the actual recorded operation alias.",
+        "Call replay_operation with that exact alias. Never reconstruct prior arguments or copy a new entity revision.",
+        "Report the actual unchanged result, the same journal identity and current effect verification separately.",
+        "If the user's meaning changed, return to the parent workflow with fresh observations as a new correction, not a replay."
+      ],
+      "branches": {
+        "normal": "Report replayed=true, journal no_change and whether the original effect still exists now.",
+        "clarification": "Ask which recorded operation the user means if several exist.",
+        "no_match": "Report that no recorded operation is available in scope; do not invent a receipt.",
+        "error": "Pending or unknown receipts require host reconciliation; never claim success.",
+        "retry": "Do not create a new mutation key to make a lost-reference retry succeed."
+      },
+      "error_recovery": {
+        "operation_pending": "Stop and report pending; the host reconciles.",
+        "effect_unknown": "Stop and report unknown; never claim a success receipt.",
+        "reference_unavailable": "Report that the receipt cannot be re-established; retention or deletion may have revoked it."
+      },
+      "examples": [
+        {
+          "given": "A previous verified mutation returned operation alias op_a.",
+          "arguments": { "operation_ref": "op_a" },
+          "expected": "Journal no_change with the same operation identity and a separate current-effect check."
+        }
+      ],
+      "completion": "The actual journal replay result and current effect verification are reported separately; no extra business row was created."
+    }
+  ]
+}

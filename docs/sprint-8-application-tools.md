@@ -1,42 +1,213 @@
-# Sprint 8.7–8.8 — bounded workflow tools and skills
+# Sprint 8.7–8.13 — bounded workflow tools and skills
 
-S8.7 adds the Android adapter seam for the five closed S8 agent operations. It uses the existing `WorkflowQueryService` and `WorkflowCommandService`; it does not add persistence or bypass their scope, revision, idempotency, link-evidence, or Laya policies. A host creates one `BoundedWorkflowToolAdapter` with a trusted `WorkflowToolSession` containing the `AgentSession`, its S8.6 `MaskedPromptBoundary`, and a trusted operation key. The v2 model schema contains no operation-key argument and rejects extra fields. The host reuses its trusted key for an exact retry; the services' durable operation record detects changed payloads.
+S8.7 introduced the Android adapter seam for the closed S8 agent operations; S8.13-pre replaces that
+model-facing surface with the approved eleven-tool interface. The runtime still uses only the
+existing `WorkflowQueryService` and `WorkflowCommandService`: it adds no persistence, no bypass of
+scope, revision, idempotency, link-evidence or Laya policy, and no ledger, confirmation or deletion
+tool. A host creates one `AgentToolRuntime` with a trusted `AgentToolSession` containing the
+`AgentSession`, its S8.6 `MaskedPromptBoundary`, a per-run `AgentReferenceRegistry` and the loaded
+declarations. The executor loads only the declarations the selected skills require.
 
-## Tool declarations and privacy compatibility
+## Closed catalog and selective loading
 
-`tools/slm/s8_agent_tools.json` (`aegis-f-s8-agent-tools/v1`) remains unchanged for the frozen v1 development/held-out evaluation and its historical integer-value fixture calls. Its `update_event_interpretation.amountVnd` requires a raw integer, while `MaskedApplicationEffect.rehydrateInterpretation` only accepts same-session string tokens. A v1 model call therefore cannot both satisfy its schema and satisfy S8.6's typed local rehydration rule; passing an integer would also put the raw value back on the provider boundary. No raw-value compatibility path is enabled.
+The one runtime declaration file is `tools/slm/s8_agent_tools_v3.json`
+(`aegis-f-s8-agent-tools/v3`). Its contract marker is `aegis-agent-interface/3`. It contains exactly
+these eleven tools, each with a flat argument object, `additionalProperties: false`, and every
+named field listed in `required`:
 
-The application instead consumes `tools/slm/s8_agent_tools_v2.json` (`aegis-f-s8-agent-tools/v2`), the canonical declaration for the masked runtime path. Amount/date/time fields are nullable token strings; the adapter rehydrates each through the existing typed vault methods. `maskedSpanText` is required and checked against the current stored source span before `updateEventInterpretation` runs. Capture and event revisions are compared-and-set by the command service; stale requests do not overwrite state. The model-provided timezone is not used: the adapter derives it from the current stored capture. The app build copies the one v2 JSON declaration into generated assets, and `S8AgentToolDeclarations` loads it rather than maintaining a second Kotlin schema.
+| Tool | Arguments | Kind |
+| --- | ---: | --- |
+| `observe` | 1 | read |
+| `select_source` | 3 | pure preparation |
+| `list_drafts` | 3 | read |
+| `make_time_anchor` | 4 | pure preparation |
+| `record_event` | 6 | atomic business mutation |
+| `inspect_link` | 2 | read/evidence evaluation |
+| `propose_link` | 1 | atomic proposal mutation |
+| `attach_link` | 1 | atomic attachment mutation |
+| `classify_draft` | 1 | local review mutation |
+| `replay_operation` | 1 | journal-backed replay |
+| `ask_user` | 3 | conversation suspension |
 
-`spanStart` and `spanEnd` are UTF-16 offsets into that exact masked source view. The adapter verifies the copied masked span and translates those boundaries through the session vault to offsets in the original stored text; a partial token or a range that does not match the current source is refused. Persisted `NoteEventEntity` offsets therefore remain the app's original-source offsets, never model-visible token offsets.
+A field that permits a missing domain value uses explicit JSON `null`; omitted and null are not two
+spellings of the same state. Unknown enums, extra fields, blank nonblank strings and wrong primitive
+types are schema errors and are never dispatched. `WorkflowSkillCatalog` selects the host-declared
+intents' skills and `WorkflowRunHost.availableDeclarations` narrows the catalog to the union of
+their declared tools; the same subset is passed to the runtime, so a tool outside the selected
+skills is neither offered to the provider nor executable locally.
 
-The frozen contract also had no offset translation between variable-length privacy tokens and source indices: model-visible masked offsets cannot be reused as stored-source offsets. S8.7 adds this local mapping to the existing `MaskedApplicationEffect` seam instead of guessing or changing database semantics. It is consumed by the Android adapter's source observation and event update paths; the v1 fixture argument coordinates remain historical, while new masked calls use v2 coordinates.
+Declarations own field meaning, primitives, nullability, enum values, provenance and cross-field
+prerequisites. Skills own conditional workflow order and examples. The system instruction owns
+authority, evidence and truthful-completion rules. The runtime validator, the application services
+and the privacy boundary enforce every invariant; no model text can widen scope or supply a trusted
+identity.
 
-Affected consumers are the Android generated asset, declaration loader, adapter argument validation and the S8.7 masked adapter tests. The old v1 evaluation script, schema and dev/held-out fixture versions are intentionally not migrated or edited; they retain their historical raw-argument semantics and are not the runtime declaration. New masked-runtime callers must use v2.
+## References and observations
 
-Each adapter instance is bound to one operation identity. The host uses a new trusted key for a distinct mutation and reuses that key on retry; provider-supplied keys never select operation identity.
+Every wire reference is an unguessable host-issued alias (`r_` plus 24 hex characters) for one
+validated local observation. Runtime handles are never parsed for meaning, never accepted from a
+matching regex alone, and never cross an authorized session boundary. The bounded registry is
+scoped to the run, holds at most 512 handles, evicts the oldest, and is never persisted; after a
+restart the host re-establishes observations and old aliases are not current. Reference kinds are
+`capture`, `source`, `amount`, `date`, `time`, `anchor`, `draft`, `event`, `pair`, `proposal`,
+`operation` and pagination `cursor`; each field states and enforces its expected kind.
 
-## Runtime behavior
+A handle binds the observation it came from: scope, capture/event/link/review revisions, exact
+source coordinates, the complete masked typed token, or the recorded operation identity. Mutations
+compare those bindings at the application boundary and answer `STALE_OBSERVATION` without
+overwriting. A value observed on a capture page is not authorized for an occurrence merely because
+it shares a session: `record_event` accepts amount/date/time handles only from the selected source
+span or from a clarification linked to that exact subject. Capture-page value handles are display-only;
+`make_time_anchor` likewise refuses them, so a grounded anchor is built from `select_source` handles.
 
-- `observeCaptureContext(captureId)` is a host-side bounded read. It checks the capture against the trusted session before reading, then returns the actual stored capture revision, masked source text, current event readings and only links to granted drafts. Tool query responses are paged and filtered to granted draft IDs before their rows or pagination metadata leave the adapter.
-- `query_draft_candidates` reads bounded draft pages through the shared query service. It returns only the session's drafts and masks bank text, amounts, dates, times and descriptions before returning structured observations.
-- `update_event_interpretation` requires a granted capture and exact current-source span match; tokens are typed and rehydrated locally, and the command service persists the interpretation and durable operation result.
-- `propose_link` and `attach_link` use the existing commands, which compute and recheck app-owned link evidence. Agent-supplied evidence and non-null user overrides are refused. An ambiguous proposal remains unattached for user review.
-- `request_laya_classification` requires a granted draft and the exact current review description in its masked form. It invokes `WorkflowCommandService.requestClassification`, whose configured `ClassificationEngine` is the real `LayaClassificationEngine` in the application. The adapter does not synthesize a prediction and does not write a category or ledger entry.
-- For a key already present in the durable operation journal, the adapter reconstructs typed arguments and delegates to the command service's replay/conflict path rather than re-checking mutable state and silently creating a new operation. A same-key changed payload remains a conflict.
-- Unknown tool names, incomplete/schema-invalid arguments, foreign/unknown/swapped tokens, caller-scope violations, stale revisions, unsupported override decisions and privacy-boundary failures return bounded structured refusals; only the five declared names are dispatched. Confirmation, dismissal, deletion, SQL, shell, arbitrary filesystem access, plugins and device automation are not exposed.
+`select_source(capture_ref, quote, occurrence)` requires a nonblank exact contiguous copy of the
+current masked source, preserves complete masked tokens, verifies the occurrence index and token
+boundaries, and translates the masked UTF-16 span through the session vault to original-source
+offsets. It returns `source_ref`, the copied quote, any existing `event_ref` at those coordinates,
+the occurrence's value handles and safe pre-existing anchors. There is no fuzzy matching, ellipsis
+expansion or guessed offset. A span whose source changed is refused as stale.
 
-The connected S8.7 smoke uses an in-memory Room database and provisions only the pinned Apache-2.0 Laya export from test-staged source files through the existing `LayaModelProvisioner`; the app-bundled tokenizer is used. It does not read or modify the normal app package/database.
+`make_time_anchor` builds a grounded temporal selection from observed DATE/TIME handles. A time
+requires its date; an interval end date cannot precede the start; an interval end time requires
+both a grounded end date and a start time; endpoints are never swapped. A date-only anchor has no
+zone, while a timed anchor carries the trusted capture-policy zone.
 
-## Versioned workflow skills
+`list_drafts` returns one bounded host-sized page (10 rows) of the authorized stored drafts, the
+filter-bound `next_cursor`, and `scope_exhausted`. `review_status` is a required non-null enum
+(`PENDING`, `CONFIRMED`, `DISMISSED`, `ALL`); `ALL` disables only the review-state filter. A cursor
+binds the scope, filters and ordered row revisions; reuse with different filters, or after the page
+changed, returns `CURSOR_STALE` with a fresh cursor rather than silently skipping or repeating
+rows. A possible-duplicate flag is not proof of a duplicate.
 
-`tools/slm/s8_agent_runtime_skills.json` (`aegis-f-s8-agent-runtime-skills/v1`) is the S8.8 product-runtime catalog. The frozen S8.4 evaluation asset `tools/slm/s8_agent_skills.json` (`s8-agent-skills/v1`) remains byte-identical and is not the Android runtime input; its existing validator continues to consume the historical shape. The Android build copies the separately versioned runtime catalog beside the current v2 tool declarations; `WorkflowSkillCatalog` validates its closed skill IDs, versions, trigger/prerequisite/tool-order/branch/recovery/completion fields, and selects instructions from trusted `WorkflowIntent` values. A prompt receives only its selected skill instructions, never the catalog dump. Empty selection fails rather than expanding to all skills.
+## Atomic event recording
 
-The four loadable components are `s8-event-extract/1`, `s8-draft-search/1`, `s8-propose-attach/1`, and `s8-laya-review/1`. Their transitions use the actual S8.7 service/API semantics: current capture/event revisions, masked UTF-16 source offsets and same-session tokens, bounded query pages (`limit` 1–500; `offset` ≥ 0), app-computed unique/ambiguous evidence, service-returned link revisions, and review-only local classification. Skills tell the model where ambiguity requires clarification; typed tool validation, trusted scope, revisions, operation identity, masking and service policy remain deterministic application responsibilities.
+`record_event(source_ref, summary, amount_ref, anchor_ref, merchant_ref, clarification)` is one
+atomic domain write. The host owns capture/event compare-and-set, source translation, extraction
+provenance, command identity, typed rehydration, unresolved status and operation receipts.
 
-Skill text explicitly treats capture notes, draft memos, and tool-returned prose as untrusted data. They cannot install or override a skill, select authority or IDs outside observations, or grant scope. Skills do not expose confirmation or category choice. `WorkflowSkillCatalog` is a loadable product component for the S8.9 runtime; it does not execute workflows, provide a plugin surface, or add persistence. The bounded live smoke uses the selected draft-search/propose-attach skills with a single configured provider and real Room-backed service outcomes; it is not evidence for a general executor or full-model qualification.
+- `expectedEventRevision == null` now transactionally asserts that the span still holds **no**
+  reading. An event that appeared at the same coordinates is a `Changed` conflict and surfaces as
+  `STALE_OBSERVATION`; a non-null expectation requires exactly that revision. A selection whose
+  span overlaps an existing reading at *different* boundaries is refused at the mutation boundary
+  as `STALE_OBSERVATION` (`selected_span_matches_existing_reading`): a changed quote cannot become
+  a second reading of the same occurrence, and rewriting stored source boundaries is unsupported.
+  The event write transaction re-checks the same overlap atomically, so a competing writer cannot
+  slip a different-boundary reading in between observation and insert; the runtime pre-check only
+  supplies the specific repair guidance. Disjoint source-grounded occurrences remain independent,
+  and a merchant sub-span handle is still accepted only as `merchant_ref`.
+- A correction replaces the selected interpretation, but a null never silently erases a stored
+  field. When the selected reading already holds an amount, temporal anchor or merchant, the call
+  must pass that field's observed alias to keep or replace it; otherwise the host refuses with no
+  effect and names the field (`observed_reading_field_preserved_or_replaced`). Explicit removal of
+  a stored value has no wire spelling and becomes a user clarification/manual path. Nulls for
+  fields that were already absent remain valid partial readings.
+- Missing amount requires `clarification: amount`. Absent optional merchant, date or time alone is
+  normal and is not an unresolved event. The host derives the stable `unresolvedReason` template
+  from the clarification code; the model writes no arbitrary status prose.
+- A grounded partial reading may be stored and is then clarified with `ask_user`. An ungrounded or
+  materially ambiguous occurrence is clarified **before** writing, not persisted as an unresolved
+  flag.
+- Only an exact merchant substring source handle from the selected occurrence, or a clarification
+  source linked to it, is accepted as `merchant_ref`.
+- The result carries the re-read event observation, the settled effect (`applied` or `unchanged`),
+  independent verification, and the authorized `operation_ref`.
 
-The S8.8 worker artifact records actual smoke outcomes and evidence. S8.9 now consumes this adapter
-and the runtime catalog through `BoundedWorkflowExecutor` (see
-[the executor](sprint-8-agent-executor.md)); the adapter itself still executes no turn loop, and no
-skill marketplace or settings surface is included.
+Multi-event captures repeat the selection/record path with an independent source handle and
+operation identity per occurrence; a failure on the second occurrence never rolls back the first.
+
+## Links, local review and clarification
+
+`inspect_link` uses `WorkflowCommandService.inspectLinkEvidence`, the same trusted stored-row
+policy the attachment mutation uses, and returns `pair_ref`, masked evidence and `unique`,
+`ambiguous` or `ineligible` with a reason. `propose_link(pair_ref)` stores the observed tentative
+pair and can succeed for a pair that is not attachable. `attach_link(proposal_ref)` rechecks the
+revision and evidence inside the real mutation and always invokes the non-override agent path; the
+model no longer supplies `userOverride`. Ambiguous, ineligible, stale or refused pairs are never
+attached, and no tool rewrites amounts/dates to force eligibility.
+
+`classify_draft(draft_ref)` binds the authoritative stored description and review revision, calls
+the existing local Laya engine and stores the actual result. It never accepts model-copied text,
+never shortens an oversize input, never falls back to a hosted model and never treats a local
+model/unavailable state as a fabricated suggestion. A settled classification returns its journaled
+`operation_ref`, so the exact receipt can be selected for same-run replay; the call's own result is
+independently verified against the stored review state. `MODEL_UNAVAILABLE` and `INPUT_OVER_BUDGET`
+are truthful settled attempts with a verification claim for the actual manual review state, while a
+request another attempt still owns is `OPERATION_PENDING`, not a model-unavailable claim.
+
+`ask_user(subject_ref, field, question)` validates that the subject supports the requested fact,
+masks the question, and returns `outcome: clarifying`, `control: await_user`. It changes no business
+state; later calls in the same turn are not dispatched. The user answer re-enters the local masking
+boundary, becomes scoped clarification evidence (a typed handle when the answer carries exactly one
+token of the requested kind, or a linked merchant source), and the resumed run re-reads fresh
+observations before the model may correct the partial reading.
+
+## Journal-backed replay
+
+`replay_operation(operation_ref)` calls the narrow domain entry
+`WorkflowCommandService.replayOperation(scope, key, command, digest)`. The receipt must belong to
+the caller scope, name the same command family and carry the same recorded request digest; a
+pending operation is reported as pending, never as success. A settled receipt returns the recorded
+change and the actual domain `no_change` with no new row and no reconstructed payload. The result
+reports `replayed: true`, `effect: unchanged`, `journal_outcome: no_change`, and an independent
+`current_effect_matches` re-read of the historical effect. A later correction or deletion leaves
+the receipt historical: it is reported as not currently matching and is never recreated. The new
+replay wire interface intentionally changes the old literal-payload replay contract; frozen
+fixtures and their scores are preserved and are not regraded.
+
+## Uniform results and errors
+
+Every result, including a schema-invalid call that was never dispatched, uses the envelope
+`{contract, tool, outcome, dispatch, effect, verified, data, operation_ref, observations, error,
+control}`.
+
+- `outcome` is `ok`, `error` or `clarifying`; business missingness lives in `data`.
+- `dispatch` is `not_dispatched`, `dispatched` or `unknown`; `effect` is `none`, `applied`,
+  `unchanged`, `partial` or `unknown` and describes this requested action only. A failure that may
+  follow an unreadable or unsettled write (`EFFECT_UNKNOWN`, `EFFECT_NOT_VERIFIED`,
+  `OPERATION_PENDING`) is always reported as `effect: unknown` with terminal reconciliation, never
+  as `none`; the model cannot read it as a no-write guarantee and no retry minted a new key.
+- `verified` reports whether the returned effect claims were re-read from live state; it never
+  asserts that the user's whole request is done.
+- Errors carry a stable `code`, `category`, field `issues` with `path`/`constraint`/safe `expected`,
+  `retryable`, `next_action`, optional `subject_ref` and the narrowed `allowed_tools`.
+- `control.action` is `continue`, `await_user`, `reconcile` or `stop`, and is host enforced.
+
+Stable codes cover schema, unknown/foreign/mismatched references, scope refusal, stale state,
+exact-quote failure, stale cursors, temporal constraints, missing required meaning, ineligible
+links, user-only decisions, local-model unavailability/overbudget, pending or unknown operations,
+unverified effects, masking refusal, provider transient failure and provider truncation. A result
+that cannot be safely masked after a successful write is never sent to the external model: the host
+records/reconciles locally, stops hosted work and shows a sanitized local status.
+
+Repairable errors may be corrected only from fresh authoritative masked observations within the run
+budgets. `MASKING_REFUSED`, `USER_DECISION_REQUIRED`, `REFERENCE_SCOPE_REFUSED` and every other
+terminal code stop hosted dispatch; `MASKING_REFUSED` after a write triggers local reconciliation of
+the journal instead of a retry. Error text never echoes a submitted value, a token, or a
+candidate answer.
+
+## Assets, identity and affected consumers
+
+`tools/slm/s8_agent_tools_v3.json` and `tools/slm/s8_agent_runtime_skills_v3.json` are the runtime
+inputs copied into the Android assets by `app/build.gradle.kts`; `AgentToolDeclarations` and
+`WorkflowSkillCatalog` validate their schema markers, closed tool/skill IDs, versions and required
+content at load time. The five skills are `event-reading/2`, `draft-search/1`, `link-event-draft/1`,
+`local-review/1` and `explicit-operation-replay/1`; each names its tools, prerequisites, ordered
+steps, normal/clarification/no-match/error/retry branches, recovery guidance, synthetic examples and
+completion condition.
+
+The stable cache identity (`AgentContextManager.cacheKey`) includes the protocol, endpoint host,
+model, generation budget, interface contract, the canonical selected tool-schema digest, the
+selected skill catalog, and the privacy-scope tag. Changing a schema, skill, error vocabulary or
+contract version changes the identity; reordering dynamic observations does not. The same
+declarations are lowered and verified for Gemini GenerateContent, OpenAI Chat Completions and
+OpenAI Responses; lowering preserves types, nullability, enums, descriptions and constraints (with
+the provider's documented omission of `additionalProperties`, still enforced locally).
+
+Affected consumers are the Android generated assets, the declaration and skill loaders, the tool
+runtime, the executor, `AgentContextManager`, `MaskedHostedGateway`, the three provider adapters,
+`QuickCaptureScreen` through the executor, the S8.10 durable history and every migrated test and
+instrumented harness. The frozen S8.4 evaluation assets (`s8_agent_tools.json`,
+`s8_agent_tools_v2.json`, the dev/held-out fixtures and scoring) remain byte-identical historical
+inputs; they are not the runtime declaration and are not regraded. Old live harnesses that encoded
+the retired five-tool surface were removed, while their consumer-visible behavior is covered by the
+rewritten executor/runtime unit suites and the migrated device harnesses.

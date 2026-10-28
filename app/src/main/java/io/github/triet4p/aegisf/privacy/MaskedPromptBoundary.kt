@@ -129,6 +129,22 @@ data class MaskedInterpretation(
     val spanSourceEnd: Int,
 )
 
+/** Field identity for a rejected typed token; deliberately carries no submitted value. */
+internal class SensitiveTokenFieldException(
+    val fieldPath: String,
+    val expectedType: String,
+) : IllegalArgumentException()
+
+internal inline fun <T> withSensitiveTokenField(
+    fieldPath: String,
+    expectedType: String,
+    rehydrate: () -> T,
+): T = try {
+    rehydrate()
+} catch (_: TokenValidationException) {
+    throw SensitiveTokenFieldException(fieldPath, expectedType)
+}
+
 /**
  * Rehydrates validated masked arguments into the typed application commands the services own.
  *
@@ -248,9 +264,21 @@ object MaskedApplicationEffect {
             throw TokenValidationException("the source span is not usable")
         }
         verifySpanAlignment(vault, captureText, spanStart, spanEnd, maskedSpanText)
-        val amount = masked.amountToken?.let { vault.rehydrateAmount(it) }
-        val date = masked.dateToken?.let { vault.rehydrateDate(it) }
-        val time = masked.timeToken?.let { vault.rehydrateTime(it) }
+        val amount = masked.amountToken?.let { token ->
+            withSensitiveTokenField("interpretation.amountVnd", "AMT") {
+                vault.rehydrateAmount(token)
+            }
+        }
+        val date = masked.dateToken?.let { token ->
+            withSensitiveTokenField("interpretation.timeAnchor.date", "DATE") {
+                vault.rehydrateDate(token)
+            }
+        }
+        val time = masked.timeToken?.let { token ->
+            withSensitiveTokenField("interpretation.timeAnchor.time", "TIME") {
+                vault.rehydrateTime(token)
+            }
+        }
         return NoteEventInterpretation(
             spanStart = spanStart,
             spanEnd = spanEnd,

@@ -3,6 +3,7 @@ package io.github.triet4p.aegisf.data
 import android.database.sqlite.SQLiteConstraintException
 import android.util.Log
 import androidx.room.withTransaction
+import io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner
 import io.github.triet4p.aegisf.data.laya.LayaContextDecision
 import io.github.triet4p.aegisf.data.laya.LayaEffectiveContext
 import io.github.triet4p.aegisf.data.laya.LayaRuntimeContract
@@ -516,6 +517,82 @@ class WorkflowCommandService(
     }
 
     /**
+     * Evaluates one chosen pair with the same trusted evidence the attachment mutation uses.
+     *
+     * Read-only: nothing is proposed, attached, or written. An event or draft outside this
+     * caller's scope is answered exactly like a missing row, so the read never discloses the
+     * existence of a subject the caller may not touch.
+     */
+    suspend fun inspectLinkEvidence(
+        scope: WorkflowCallerScope,
+        eventId: Long,
+        draftId: Long,
+    ): LinkInspection? {
+        val event = eventDao.findById(eventId) ?: return null
+        if (!scope.mayTouchCapture(event.captureId)) return null
+        val draft = draftDao.findById(draftId) ?: return null
+        if (!scope.mayTouchDraft(draft.id)) return null
+        val evidence = linkEvidence.evidenceFor(event, draft)
+        val reason = evidence.reasons.firstOrNull()
+        return LinkInspection(
+            eventId = event.id,
+            draftId = draft.id,
+            captureId = event.captureId,
+            captureRevision = evidence.captureRevision,
+            eventRevision = evidence.eventRevision,
+            draftReviewRevision = evidence.draftReviewRevision,
+            eligibility = when {
+                reason == null -> LinkEligibility.ELIGIBLE
+                isAmbiguousLinkReason(reason) -> LinkEligibility.AMBIGUOUS
+                else -> LinkEligibility.INELIGIBLE
+            },
+            reason = reason,
+            eventAmountVnd = evidence.eventAmountVnd,
+            eventAnchorDate = evidence.eventAnchorDate,
+            draftAmountVnd = evidence.draftAmountVnd,
+            draftStatedDate = evidence.draftStatedDate,
+            candidateDraftCount = evidence.candidateDraftCount,
+            duplicatePartnerCount = evidence.duplicatePartnerCount,
+        )
+    }
+
+    /**
+     * Replays one recorded operation identity through the journal.
+     *
+     * This is the domain's narrow replay entry point: the receipt must belong to this caller
+     * scope, name the same command family, and carry the same recorded request digest. A
+     * settled receipt is answered with the change it made and no new write; a pending
+     * receipt is reported as still running, never as a success. The request payload is not
+     * re-dispatched and nothing is fabricated just because a row exists.
+     */
+    suspend fun replayOperation(
+        scope: WorkflowCallerScope,
+        idempotencyKey: String,
+        expectedCommand: String,
+        expectedDigest: String,
+    ): WorkflowCommandOutcome {
+        if (idempotencyKey.isBlank() || expectedCommand.isBlank() || expectedDigest.isBlank()) {
+            return WorkflowCommandOutcome.Failed("A replay needs a recorded operation identity.")
+        }
+        val recorded = operations.findByKey(idempotencyKey) ?: return WorkflowCommandOutcome.NotFound
+        if (recorded.scopeId != scope.scopeId ||
+            recorded.command != expectedCommand ||
+            recorded.payloadDigest != expectedDigest
+        ) {
+            return WorkflowCommandOutcome.Conflict(CONFLICT_KEY_IN_USE)
+        }
+        if (recorded.outcome == OPERATION_OUTCOME_PENDING) {
+            return WorkflowCommandOutcome.Failed(IN_PROGRESS_REASON)
+        }
+        val change = decodeWorkflowChange(recorded.changeSummary)
+            ?: return WorkflowCommandOutcome.Failed("The recorded operation holds no change.")
+        return WorkflowCommandOutcome.NoChange(
+            change = change,
+            detail = "The recorded operation already ran under this identity.",
+        )
+    }
+
+    /**
      * Refuses the association between an event and a draft.
      *
      * A refusal is the user's own decision and is not removable, so it is the user's own
@@ -826,6 +903,14 @@ class WorkflowCommandService(
                     WorkflowCommandOutcome.Failed(result.reason),
                 )
             }
+        }
+        val decision = produced.decisionOrNull()
+        if (decision != null && !decision.effectiveInput.fitsRoom) {
+            // An over-budget local request is a refusal, not a stored NO_FIT prediction.
+            return releaseWith(
+                hold,
+                WorkflowCommandOutcome.Denied(WorkflowDenialReason.MODEL_INPUT_OVER_BUDGET),
+            )
         }
         val prediction = when (produced) {
             is Produced.Remembered -> ClassificationPrediction(

@@ -215,9 +215,26 @@ internal class EventContextRepository(
             spanEnd = interpretation.spanEnd,
         )
         val existing = eventDao.findByIdentity(captureId, identity)
-        if (expectedEventRevision != null &&
-            (existing == null || existing.revision != expectedEventRevision)
-        ) {
+        if (expectedEventRevision == null) {
+            // A null expectation asserts the span holds no reading yet: an occurrence that
+            // appeared under the same source coordinates is a concurrent effect, not a
+            // silent replacement. The adapter derives this from the selected source handle.
+            if (existing != null) return@withTransaction NoteEventWriteResult.Changed
+            // A different boundary over an occurrence that already has a reading would create
+            // a second reading of the same occurrence. This lookup runs in this write
+            // transaction, so a competing writer cannot insert an overlapping span between
+            // the caller's observation and this insert: whichever transaction writes first is
+            // visible to the other, and the second is refused. Disjoint occurrences still
+            // insert independently.
+            if (eventDao.findOverlapping(
+                    captureId,
+                    interpretation.spanStart,
+                    interpretation.spanEnd,
+                ) != null
+            ) {
+                return@withTransaction NoteEventWriteResult.Changed
+            }
+        } else if (existing == null || existing.revision != expectedEventRevision) {
             return@withTransaction NoteEventWriteResult.Changed
         }
         val status = interpretationStatus(

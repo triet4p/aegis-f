@@ -1,5 +1,8 @@
 package io.github.triet4p.aegisf.provider
 
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
+import io.github.triet4p.aegisf.agent.AgentToolDeclarations
 import org.json.JSONObject
 
 /** A transport that hands back queued answers and records the exact requests it saw. */
@@ -136,4 +139,10 @@ internal object ProviderFixtures {
         status: Int = 200,
         headers: Map<String, String> = emptyMap(),
     ): HostedHttpResponse = HostedHttpResponse(status = status, headers = headers, body = body)
+}
+
+internal fun runtimeRecordEventTool(): HostedToolDeclaration {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    return AgentToolDeclarations.load(context.assets::open)
+        .single { it.name == "record_event" }
 }

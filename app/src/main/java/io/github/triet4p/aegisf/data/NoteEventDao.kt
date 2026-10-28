@@ -57,6 +57,22 @@ abstract class NoteEventDao {
     )
     abstract suspend fun findByIdentity(captureId: Long, eventIdentity: String): NoteEventEntity?
 
+    /**
+     * The first stored reading of the same capture whose span overlaps [start]..[end) without
+     * being that exact span.
+     *
+     * Two distinct occurrences have disjoint spans, so a hit is a changed boundary over an
+     * occurrence that already has a reading. Only a caller inside the write transaction may
+     * rely on this: it is the atomic guard that stops a competing writer from slipping a
+     * different overlapping boundary in between the caller's observation and its insert.
+     */
+    @Query(
+        "SELECT * FROM note_events WHERE captureId = :captureId " +
+            "AND spanStart < :end AND spanEnd > :start " +
+            "AND NOT (spanStart = :start AND spanEnd = :end) LIMIT 1",
+    )
+    abstract suspend fun findOverlapping(captureId: Long, start: Int, end: Int): NoteEventEntity?
+
     /** The same readings as [findForCapture], as a live stream of the current rows. */
     @Query("SELECT * FROM note_events WHERE captureId = :captureId ORDER BY spanStart, id")
     abstract fun observeForCapture(captureId: Long): Flow<List<NoteEventEntity>>

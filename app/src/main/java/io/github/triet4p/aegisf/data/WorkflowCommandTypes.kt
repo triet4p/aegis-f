@@ -107,6 +107,8 @@ enum class WorkflowDenialReason {
      * so the link is refused and the event stays recorded.
      */
     EVENT_ALREADY_RECORDED,
+    /** The primary review description exceeds the local classifier's measured input budget. */
+    MODEL_INPUT_OVER_BUDGET,
 }
 
 /**
@@ -359,6 +361,36 @@ data class AttachLinkRequest(
     val userOverride: String? = null,
 )
 
+/**
+ * How the app's own stored facts evaluate one observed event/draft association.
+ *
+ * [ELIGIBLE] is the only state in which another caller may attach; an ambiguous pair is the
+ * user's to resolve, and an ineligible pair has a concrete factual reason.
+ */
+enum class LinkEligibility { ELIGIBLE, AMBIGUOUS, INELIGIBLE }
+
+/**
+ * The read-only result of evaluating one chosen pair with the same trusted policy the
+ * attachment mutation applies. [reason] is a stable code from the shared policy vocabulary
+ * and is null only when the pair is eligible.
+ */
+data class LinkInspection(
+    val eventId: Long,
+    val draftId: Long,
+    val captureId: Long,
+    val captureRevision: Int,
+    val eventRevision: Int,
+    val draftReviewRevision: Int,
+    val eligibility: LinkEligibility,
+    val reason: String?,
+    val eventAmountVnd: Long?,
+    val eventAnchorDate: String?,
+    val draftAmountVnd: Long?,
+    val draftStatedDate: String?,
+    val candidateDraftCount: Int,
+    val duplicatePartnerCount: Int,
+)
+
 /** One request to refuse the association between an event and a draft. */
 data class RejectLinkRequest(
     val idempotencyKey: String,
@@ -484,6 +516,8 @@ internal fun WorkflowCommandOutcome.refusalMessage(): String? = when (this) {
             "That note was already recorded as a ledger record."
         WorkflowDenialReason.EVENT_UNAVAILABLE ->
             "That note no longer holds the occurrence it described."
+        WorkflowDenialReason.MODEL_INPUT_OVER_BUDGET ->
+            "The review text exceeds the local classification input budget and was not shortened."
         WorkflowDenialReason.CALLER_SCOPE ->
             "That item is outside what this caller may change."
         else -> "This change was refused."

@@ -675,6 +675,7 @@ class ClassificationWorkLifecycleTest {
                 idempotencyKey = "reading-race-revise",
                 captureId = captureId,
                 expectedCaptureRevision = 0,
+                expectedEventRevision = database.noteEventDao().findById(eventId)!!.revision,
                 interpretation = NoteEventInterpretation(
                     spanStart = 0,
                     spanEnd = noteText.length,

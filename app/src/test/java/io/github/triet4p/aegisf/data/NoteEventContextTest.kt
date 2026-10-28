@@ -100,6 +100,47 @@ class NoteEventContextTest {
     }
 
     @Test
+    fun `an overlapping different boundary can never be stored as a second reading`() = runTest {
+        val database = open()
+        try {
+            val captureId = captures(database).saveQuickCapture(NOTE_TEXT)
+            val first = events(database).recordEvent(
+                captureId = captureId,
+                expectedCaptureRevision = 0,
+                expectedEventRevision = null,
+                interpretation = reading(0, 10),
+                extractionVersion = EXTRACTION_VERSION,
+            )
+            assertTrue("the first reading was refused: $first", first is NoteEventWriteResult.Stored)
+
+            // The guard lives in this write transaction, not in the agent adapter, so a caller
+            // that never went through the runtime is refused just the same.
+            val overlapping = events(database).recordEvent(
+                captureId = captureId,
+                expectedCaptureRevision = 0,
+                expectedEventRevision = null,
+                interpretation = reading(0, 5),
+                extractionVersion = EXTRACTION_VERSION,
+            )
+            assertEquals(NoteEventWriteResult.Changed, overlapping)
+            assertEquals(1, events(database).eventsForCapture(captureId).size)
+
+            // A disjoint occurrence is still its own reading.
+            val disjoint = events(database).recordEvent(
+                captureId = captureId,
+                expectedCaptureRevision = 0,
+                expectedEventRevision = null,
+                interpretation = reading(20, 30),
+                extractionVersion = EXTRACTION_VERSION,
+            )
+            assertTrue("the disjoint reading was refused: $disjoint", disjoint is NoteEventWriteResult.Stored)
+            assertEquals(2, events(database).eventsForCapture(captureId).size)
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
     fun `a refused link stays refused across retries, restarts, and re-processing`() = runTest {
         val database = open()
         val query = WorkflowQueryService(database)
@@ -130,6 +171,7 @@ class NoteEventContextTest {
             events(database).recordEvent(
                 captureId = captureId,
                 expectedCaptureRevision = 0,
+                expectedEventRevision = database.noteEventDao().findById(fuelEvent.id)!!.revision,
                 interpretation = reading(fuelSpanStart(), fuelSpanEnd()),
                 extractionVersion = EXTRACTION_VERSION,
             ),
@@ -411,6 +453,7 @@ class NoteEventContextTest {
             val second = events(database).recordEvent(
                 captureId = captureId,
                 expectedCaptureRevision = 0,
+                expectedEventRevision = 0,
                 interpretation = reading(fuelSpanStart(), fuelSpanEnd()),
                 extractionVersion = EXTRACTION_VERSION,
             )
@@ -420,6 +463,7 @@ class NoteEventContextTest {
             val changed = events(database).recordEvent(
                 captureId = captureId,
                 expectedCaptureRevision = 0,
+                expectedEventRevision = 0,
                 interpretation = reading(fuelSpanStart(), fuelSpanEnd()).copy(amountVnd = 55_000L),
                 extractionVersion = EXTRACTION_VERSION,
             )

@@ -52,6 +52,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -110,59 +111,53 @@ class S810DurableDeviceInstrumentedTest {
                     "local Laya model must prepare successfully: $prepared",
                     prepared is io.github.triet4p.aegisf.data.laya.LayaInferenceOutcome.Completed,
                 )
-                val declarations = S8AgentToolDeclarations.load(context.assets::open)
+                val declarations = AgentToolDeclarations.load(context.assets::open)
                 val skills = WorkflowSkillCatalog.load(context.assets::open)
+                lateinit var adapter: ScriptedAdapter
                 val script = scripted()
                 script += {
-                    toolTurn(call(BoundedWorkflowToolAdapter.UPDATE_EVENT_INTERPRETATION, updateArgs(fixture)))
-                }
-                script += { toolTurn(call(BoundedWorkflowToolAdapter.QUERY_DRAFT_CANDIDATES, draftQueryArgs())) }
-                var observedEventId = 0L
-                script += {
-                    observedEventId = queries.captureEvents(
-                        CaptureEventQuery(fixture.captureId, QueryPageRequest(10, 0)),
-                    ).items.single().id
-                    toolTurn(
-                        call(
-                            BoundedWorkflowToolAdapter.PROPOSE_LINK,
-                            JSONObject()
-                                .put("eventId", observedEventId)
-                                .put("draftId", fixture.draftId),
-                        ),
-                    )
+                    toolTurn(call("select_source", JSONObject()
+                        .put("capture_ref", captureRef(adapter))
+                        .put("quote", sourceText(adapter))
+                        .put("occurrence", 1)))
                 }
                 script += {
-                    val revision = queries.linkOperations(
-                        LinkOperationQuery(
-                            eventId = observedEventId,
-                            draftId = fixture.draftId,
-                            bounds = QueryPageRequest(1, 0),
-                        ),
-                    ).items.single().revision
-                    toolTurn(
-                        call(
-                            BoundedWorkflowToolAdapter.ATTACH_LINK,
-                            JSONObject()
-                                .put("eventId", observedEventId)
-                                .put("draftId", fixture.draftId)
-                                .put("expectedRevision", revision)
-                                .put("userOverride", JSONObject.NULL),
-                        ),
-                    )
+                    val source = lastEnvelope(adapter).getJSONObject("data")
+                    toolTurn(call("make_time_anchor", JSONObject()
+                        .put("date_ref", valueRef(source, "date"))
+                        .put("time_ref", valueRef(source, "time"))
+                        .put("end_date_ref", JSONObject.NULL)
+                        .put("end_time_ref", JSONObject.NULL)))
                 }
                 script += {
-                    toolTurn(
-                        call(
-                            BoundedWorkflowToolAdapter.REQUEST_LAYA_CLASSIFICATION,
-                            JSONObject()
-                                .put("draftId", fixture.draftId)
-                                .put("description", maskedDescription(fixture))
-                                .put("expectedReviewRevision", 0),
-                        ),
-                    )
+                    val source = previousEnvelope(adapter, 2).getJSONObject("data")
+                    toolTurn(call("record_event", JSONObject()
+                        .put("source_ref", source.getString("source_ref"))
+                        .put("summary", "Coffee")
+                        .put("amount_ref", valueRef(source, "amount"))
+                        .put("anchor_ref", lastEnvelope(adapter).getJSONObject("data").getString("anchor_ref"))
+                        .put("merchant_ref", JSONObject.NULL)
+                        .put("clarification", "none")))
+                }
+                script += {
+                    val event = lastEnvelope(adapter).getJSONObject("data").getJSONObject("event")
+                    toolTurn(call("inspect_link", JSONObject()
+                        .put("event_ref", event.getString("ref"))
+                        .put("draft_ref", draftRef(adapter))))
+                }
+                script += {
+                    toolTurn(call("propose_link", JSONObject()
+                        .put("pair_ref", lastEnvelope(adapter).getJSONObject("data").getString("pair_ref"))))
+                }
+                script += {
+                    toolTurn(call("attach_link", JSONObject()
+                        .put("proposal_ref", lastEnvelope(adapter).getJSONObject("data").getString("proposal_ref"))))
+                }
+                script += {
+                    toolTurn(call("classify_draft", JSONObject().put("draft_ref", draftRef(adapter))))
                 }
                 script += { complete("The synthetic capture, link and local suggestion are stored.") }
-                val adapter = ScriptedAdapter(script)
+                adapter = ScriptedAdapter(script)
                 val gateway = MaskedHostedGateway(adapter, fixture.boundary)
                 val request = WorkflowRunRequest(
                     intents = setOf(
@@ -427,6 +422,57 @@ class S810DurableDeviceInstrumentedTest {
     private fun maskedDescription(fixture: Fixture): String =
         fixture.boundary.maskOutbound("Coffee", MaskedPath.CONTEXT)
 
+    private fun initialObservations(adapter: ScriptedAdapter): JSONArray {
+        val prompt = adapter.prompts.first { it.contains("Trusted host observations") }
+        val lines = prompt.lines()
+        val start = lines.indexOfFirst { it.trimStart().startsWith("[") }
+        return JSONArray(lines[start].trim())
+    }
+
+    private fun captureRef(adapter: ScriptedAdapter): String {
+        val observations = initialObservations(adapter)
+        for (index in 0 until observations.length()) {
+            val item = observations.getJSONObject(index)
+            if (item.optString("kind") == "capture") return item.getString("ref")
+        }
+        error("no capture alias in the initial observation")
+    }
+
+    private fun sourceText(adapter: ScriptedAdapter): String {
+        val observations = initialObservations(adapter)
+        for (index in 0 until observations.length()) {
+            val item = observations.getJSONObject(index)
+            if (item.optString("kind") == "capture") return item.getString("source_text")
+        }
+        error("no capture source text in the initial observation")
+    }
+
+    private fun draftRef(adapter: ScriptedAdapter): String {
+        val observations = initialObservations(adapter)
+        for (index in 0 until observations.length()) {
+            val item = observations.getJSONObject(index)
+            if (item.optString("kind") == "draft_page") {
+                return item.getJSONArray("items").getJSONObject(0).getString("ref")
+            }
+        }
+        error("no draft alias in the initial observation")
+    }
+
+    private fun lastEnvelope(adapter: ScriptedAdapter): JSONObject =
+        JSONObject(adapter.toolResultPayloads.last())
+
+    private fun previousEnvelope(adapter: ScriptedAdapter, turnsBack: Int): JSONObject =
+        JSONObject(adapter.toolResultPayloads[adapter.toolResultPayloads.size - turnsBack])
+
+    private fun valueRef(source: JSONObject, kind: String): String {
+        val values = source.getJSONArray("values")
+        for (index in 0 until values.length()) {
+            val item = values.getJSONObject(index)
+            if (item.getString("kind") == kind) return item.getString("ref")
+        }
+        error("expected a $kind alias in the selected source")
+    }
+
     private fun updateArgs(fixture: Fixture): JSONObject {
         val masked = fixture.maskedSource
         return JSONObject()
@@ -449,7 +495,6 @@ class S810DurableDeviceInstrumentedTest {
                         JSONObject()
                             .put("date", token(masked, "DATE"))
                             .put("time", token(masked, "TIME"))
-                            .put("timezoneId", JSONObject.NULL)
                             .put("intervalEndDate", JSONObject.NULL)
                             .put("intervalEndTime", JSONObject.NULL),
                     ),

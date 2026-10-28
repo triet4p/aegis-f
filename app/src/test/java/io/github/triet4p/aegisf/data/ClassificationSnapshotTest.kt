@@ -180,6 +180,7 @@ class ClassificationSnapshotTest {
             val revised = events(database).recordEvent(
                 captureId = captureId,
                 expectedCaptureRevision = 0,
+                expectedEventRevision = fuelEvent.revision,
                 interpretation = NoteEventInterpretation(
                     spanStart = fuelSpanStart(),
                     spanEnd = fuelSpanEnd(),
@@ -429,6 +430,7 @@ class ClassificationSnapshotTest {
         events(database).recordEvent(
             captureId = captureId,
             expectedCaptureRevision = 0,
+            expectedEventRevision = fuelEvent.revision,
             interpretation = NoteEventInterpretation(
                 spanStart = fuelSpanStart(),
                 spanEnd = fuelSpanEnd(),

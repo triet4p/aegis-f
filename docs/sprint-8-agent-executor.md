@@ -10,14 +10,16 @@ Source: `app/src/main/java/io/github/triet4p/aegisf/agent/BoundedWorkflowExecuto
 ## Contract
 
 One `BoundedWorkflowExecutor` is constructed from one `WorkflowRunHost`; `start` runs one request,
-`resume` continues a suspended clarification.
+`resume` continues a suspended clarification, and `startTracked`/`resumeTracked` use the existing
+durable attempt and operation journal for retry, reconciliation and process-safe replay.
 
 - `WorkflowRunHost` — trusted, host-built state: the `AgentSession` scope, the S8.6
-  `MaskedPromptBoundary`, the `MaskedHostedGateway` (the only provider path accepted), the current
-  v2 `HostedToolDeclaration` set, the versioned `WorkflowSkillCatalog`, the real
+  `MaskedPromptBoundary`, the `MaskedHostedGateway` (the only provider path accepted), the closed
+  v3 eleven-tool `HostedToolDeclaration` catalog, the versioned `WorkflowSkillCatalog`, the real
   `WorkflowCommandService`/`WorkflowQueryService`, a trusted operation-key source and a clock.
-  Construction refuses a boundary from a different session or a declaration set other than the
-  five tools.
+  Construction refuses a boundary from a different session or a declaration catalog other than
+  the closed eleven tools. Each run loads only the subset its selected skills require, and the
+  same subset is passed to the runtime, so an unrelated tool is neither offered nor executable.
 - `WorkflowRunRequest` — host-selected `WorkflowIntent`s (which load exactly those runtime
   skills), the trusted user request text and `WorkflowRunLimits`.
 - `WorkflowRunLimits` — `maxTurns`, `maxToolCalls`, `maxContextCharacters`, `maxWallClockMillis`,
@@ -39,44 +41,49 @@ tool-result text.
 Each turn:
 
 1. Budget checks (turns, wall clock, accumulated masked context) happen before a provider request.
-   The initial (and resumed) prompt carries the exact masked source length of each observed
-   capture, so a model forms a span from real offsets instead of guessing character counts;
-   the length is a count, never source content.
+   The initial prompt carries the bounded masked capture observations, a draft page when the
+   selected skills need one, and fresh journal receipts for a replay workflow; every alias in it
+   is issued by this run's registry.
 2. The masked gateway performs one generation. Provider failures are classified and stop the run
    honestly. `Incomplete`/`ContentFiltered` turns stop the run before any call in them can execute.
 3. For a tool-call turn, every pending call is answered exactly once:
-   - Only `dispatchable` (complete, schema-valid, known-tool) calls execute. Unknown, malformed,
-     schema-invalid, truncated and filtered calls are answered as `not_dispatched` observations
-     and never reach the application. Their protocol continuation item is still supplied, so the
-     protocol stays valid.
-   - A distinct mutation request mints one trusted operation key for the run; an identical repeat
-     reuses it, so the application replays the stored operation instead of writing twice. A
-     corrected request gets a new key.
-   - The actual application outcome is fed back, plus a fresh masked observation for the same
-     capture and the current draft review row for a Laya request.
+   - Only `dispatchable` (complete, schema-valid, loaded-tool) calls execute. Unknown, unloaded,
+     malformed, schema-invalid, truncated and filtered calls are answered as `not_dispatched`
+     envelopes and never reach the application. A schema-invalid result may include the
+     validator's safe field/constraint detail, never the submitted argument payload. Their
+     protocol continuation item is still supplied, so the protocol stays valid.
+   - A distinct mutation request receives one trusted host key per exact tool-plus-argument
+     signature. Exact repeats reuse that key; corrected arguments get a distinct identity. For
+     durable attempts, the first call to a mutation tool retains the existing per-tool attempt
+     seed, while later distinct signatures derive stable keys from that seed. The model never
+     supplies an operation identity; the application rejects same-key/different-payload requests.
+   - The actual runtime envelope is fed back with its fresh masked observations: the re-read
+     event, draft, pair or operation state; the settled effect; and the authorized operation
+     reference when one exists. Errors carry the stable code, field paths and constraints only.
    - If the turn's calls would exceed `maxToolCalls`, the run stops before dispatching any of
      them; a turn is never partially applied.
    - The same call repeated beyond `maxRepeatedIdenticalCalls` stops the run as `LOOP_DETECTED`.
-4. `clarification_required` from the application suspends the run after the turn's continuation is
-   valid. `resume` re-reads scoped observations and starts the resumed turn from a bounded masked
-   summary of the prior outcomes plus the user's masked answer, then continues under the same
-   turn/tool/context accounting. Because provider conversations are not persisted (S8.10), the
+4. `ask_user` suspends the run with `outcome: clarifying` and `control: await_user`; calls later
+   in the same turn are not dispatched, so nothing commits before the user answers. `resume`
+   masks the answer, registers it as scoped clarification evidence on the suspended subject,
+   re-reads fresh observations and starts the resumed turn from a bounded masked summary of prior
+   outcomes plus the answer. Because provider conversations are not persisted (S8.10), the
    resumed turn does not replay protocol-private continuation items; the summary is the seam. The
    wall-clock budget restarts at resume because waiting for a person is not agent work. A
    continuation can be resumed once, by its own executor.
 5. `resumeTracked` (S8.12) is the durable variant of `resume`: the continuation is validated
    first (ownership, single use, nonblank answer), then the run reopens from `CLARIFYING` only
-   (`reopenClarifying`; a `FAILED`/terminal run returns null). The resumed attempt inherits the
-   suspended attempt's per-command operation keys verbatim: the same key plus the same request
-   replays from the journal, while a materially different request under a reused key surfaces as
-   a conflict — so a pre-clarification effect is never duplicated and distinct resumed commands
-   never share one journal identity. This fixed the S8.12 controlled-device `resume-error`: the
-   prior code reopened the run and then requested a second `PENDING` claim that always failed on
-   the already-`RUNNING` row, reporting the resume as unavailable.
-6. `user_decision_required`, `caller_scope` and `privacy_boundary_refused` are terminal: the
-   agent may not decide a user's decision, widen scope, or retry around the privacy boundary. A
-   mistyped scoped token (`invalid_scoped_value`) is repair-only: typed rehydration refuses it and
-   nothing is dispatched, so the model may correct it from a fresh observation.
+   (`reopenClarifying`; a `FAILED`/terminal run returns null). It inherits its per-tool attempt
+   seeds and exact signature-to-key map, so an exact pre-clarification call replays with the same
+   identity while a corrected request receives a distinct one. A late or repeated resume returns
+   null.
+6. Terminal outcomes — `REFERENCE_SCOPE_REFUSED`, `USER_DECISION_REQUIRED`, `MASKING_REFUSED`,
+   pending/unknown operation, unverified effect and provider truncation — stop hosted work. A
+   masking refusal after an earlier call in the same run already applied a write is reconciled
+   locally from the journal; nothing unsafe crosses the boundary and no blind retry occurs.
+   Repairable errors return fresh authoritative masked observations and field constraints; the
+   model may correct them only from that state. A raw sensitive literal or foreign token in the
+   model's arguments fails closed before dispatch.
 
 ## Completion verification
 
@@ -89,15 +96,19 @@ mutation verifies against freshly read state:
 | Provisional link | the exact pair is `PROPOSED` with the recorded revision (unless this run later attached it) |
 | Attached link | the exact pair is `ACCEPTED` with the recorded link id and revision |
 | Laya classification | a non-stale stored snapshot for the draft with the recorded source/category and a prediction time at or after the dispatch, while the draft's review status and revision are unchanged |
+| Laya unavailable/overbudget | the actual draft review status/revision is unchanged and no fabricated snapshot exists |
+| Journal replay | the domain replay returned `no_change` for the exact scope/command/digest; `current_effect_matches` is reported separately and a superseded effect is never claimed as current |
 | Operation identity | one durable `workflow_operations` row exists for each applied/no-change mutation key |
 | No unexpected effect | no financial/confirmation/deletion tool exists; the draft stays `PENDING` |
 
-Every mutation that was attempted but did not reach `applied`/`no_change` prevents a completion, and
-the requested intents must each have their verified effect (`INTERPRET_EVENTS` → a stored reading,
-`LINK_EVENT_TO_DRAFT` → an accepted link, `PREPARE_LAYA_REVIEW` → a stored Laya snapshot). A model
-text that claims an effect the application did not record therefore ends as `Incomplete`, not as
-success. An unavailable/corrupt local model is an honest `Incomplete`; it is never replaced by a
-hosted guess.
+An unresolved mutation failure prevents completion. A later verified `applied`/`no_change` dispatch
+may supersede an earlier repairable failure only for the same mutation target; unrelated successes
+do not erase it. Every remaining recorded mutation must verify against fresh state, and the
+requested intents must each have their verified effect (`INTERPRET_EVENTS` → a stored reading,
+`LINK_EVENT_TO_DRAFT` → an accepted link, `PREPARE_LAYA_REVIEW` → a stored classification or a
+truthful unavailable/manual state, `REPLAY_OPERATION` → a verified journal replay identity). A
+model text that claims an effect the application did not record therefore ends as `Incomplete`,
+not as success.
 
 ## Privacy and authority
 
@@ -114,11 +125,12 @@ hosted guess.
 
 ## Local Laya, intake and manual work
 
-`request_laya_classification` reaches the unchanged `WorkflowCommandService.requestClassification`
-and the real `LayaClassificationEngine`/`LayaInferenceLifecycle`. Prediction stays local, review-only
-and unconfirmed. The executor exposes only suspending calls; it does no blocking work on the
-caller's thread, and nothing in notification intake or manual entry depends on it, so both keep
-working while a hosted turn waits or fails.
+`classify_draft` reaches the unchanged `WorkflowCommandService.requestClassification` with the
+authoritative stored description and bound review revision, and the real
+`LayaClassificationEngine`/`LayaInferenceLifecycle`. Prediction stays local, review-only and
+unconfirmed. The executor exposes only suspending calls; it does no blocking work on the caller's
+thread, and nothing in notification intake or manual entry depends on it, so both keep working
+while a hosted turn waits or fails.
 
 Actual local Laya is an Android ONNX Runtime session and was **not** run on this host. The pinned
 public `receptron/laya-onnx` bundle is present, and both official desktop ONNX Runtime Java

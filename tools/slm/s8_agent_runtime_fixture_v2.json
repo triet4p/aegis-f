@@ -1,0 +1,54 @@
+{
+  "schema": "aegis-f-s8-agent-runtime-fixture-projection/v2",
+  "projection_id": "S8.13-runtime-fixture-v2",
+  "authority": "Owner-approved prospective projection for S8.13 only; frozen v1 fixtures and scorer remain immutable.",
+  "base_inputs": {
+    "fixture": {
+      "path": "tools/slm/s8_agent_fixture.json",
+      "sha256": "b97b6dbdd6f7b2af613a94827d42f83940e226f9a26d01459401253d0c3c2897"
+    },
+    "dev_suite": {
+      "path": "tools/slm/s8_agent_dev.json",
+      "sha256": "75efcf720e4438f3572837b7e4adca6c2fe1aabf8627580641ff272ceb0b561d"
+    },
+    "heldout_suite": {
+      "path": "tools/slm/s8_agent_heldout.json",
+      "sha256": "5c69b6c386e1c58374a787e51880d954bb0da5f6c7610585204dd79066854091"
+    }
+  },
+  "semantic_invariants": [
+    "Frozen case IDs, prompts, source captures, event rows, event revisions, draft IDs, amount/date/time fields, expected calls/effects, privacy cases, and caller authority are unchanged.",
+    "Only the eligible Laya candidate universe is extended with the established synthetic test category name Food.",
+    "Only a8-laya-02 draft 431's review description is projected to deterministic synthetic oversized text; its identity, pending status, review revision, and all financial fields are unchanged.",
+    "The runtime projection does not change any scorer, acceptance threshold, tool declaration, or expected financial effect."
+  ],
+  "category_seeds_by_case": {
+    "a8-laya-01": [
+      {"name": "Food", "source": "existing synthetic instrumentation-test seed"}
+    ],
+    "a8-laya-02": [
+      {"name": "Food", "source": "existing synthetic instrumentation-test seed"}
+    ],
+    "a8h-laya-01": [
+      {"name": "Food", "source": "existing synthetic instrumentation-test seed"}
+    ]
+  },
+  "draft_overrides_by_case": {
+    "a8-laya-02": {
+      "431": {
+        "description_template": "Synthetic review payload segment %04d. ",
+        "repetitions": 128,
+        "generation": "For each integer 1..repetitions, format description_template with the zero-padded integer and concatenate in order."
+      }
+    }
+  },
+  "laya_budget": {
+    "max_len_tokens": 512,
+    "head_max_len_tokens": 192,
+    "structural_tokens": 4,
+    "guaranteed_primary_text_room_tokens": 316,
+    "tokenizer": "The pinned production Laya tokenizer bundled with the isolated Android app; measure the exact projected primary description at runtime.",
+    "oversize_case": "a8-laya-02",
+    "required_observation": "The exact synthetic primary description token count is greater than 316; the effective input remains unchanged, the local Laya decision is EFFECTIVE_INPUT_OVER_BUDGET, no ONNX logits/evaluation or persisted classification/operation occurs, and the user receives the refusal."
+  }
+}

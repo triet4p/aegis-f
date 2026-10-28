@@ -5,7 +5,7 @@ import io.github.triet4p.aegisf.data.laya.LayaClassificationEngine
 import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
 import io.github.triet4p.aegisf.provider.HostedProviderSettingsStore
 import io.github.triet4p.aegisf.agent.AgentRunHistory
-import io.github.triet4p.aegisf.agent.S8AgentToolDeclarations
+import io.github.triet4p.aegisf.agent.AgentToolDeclarations
 import io.github.triet4p.aegisf.agent.WorkflowOperationKeySource
 import io.github.triet4p.aegisf.agent.WorkflowRunHost
 import io.github.triet4p.aegisf.agent.WorkflowSkillCatalog
@@ -182,7 +182,7 @@ class AppContainer(context: Context) {
             scope = scope,
             boundary = boundary,
             gateway = MaskedHostedGateway(adapter, boundary),
-            declarations = S8AgentToolDeclarations.load(appContext.assets::open),
+            declarations = AgentToolDeclarations.load(appContext.assets::open),
             skills = WorkflowSkillCatalog.load(appContext.assets::open),
             commands = workflowCommandService,
             queries = workflowQueryService,

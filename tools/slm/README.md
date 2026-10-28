@@ -420,14 +420,22 @@ retry/recovery, and privacy (account masking with exact integer-VND rehydration)
 Single-turn v2 baseline and multi-turn agent metrics are never mixed.
 
 The raw integer-valued tool declaration above remains the immutable v1 evaluation
-contract. The masked Android runtime uses the versioned
-[`s8_agent_tools_v2.json`](s8_agent_tools_v2.json) declaration, with scoped token
-strings, a source-backed masked span, and host-bound operation identity excluded from
-tool arguments, described in
+contract. The frozen v2 evaluation declaration `s8_agent_tools_v2.json` also remains
+byte-identical historical evidence. The masked Android runtime now uses the versioned
+[`s8_agent_tools_v3.json`](s8_agent_tools_v3.json) declaration
+(`aegis-f-s8-agent-tools/v3`, contract `aegis-agent-interface/3`): a closed flat
+eleven-tool catalog whose arguments are primitives and host-issued opaque references,
+never raw spans, revisions or sensitive scalars, plus
+[`s8_agent_runtime_skills_v3.json`](s8_agent_runtime_skills_v3.json) with the five
+selected workflow skills. The v3 interface, references, result/error envelope and
+journal-backed `replay_operation` are described in
 [`docs/sprint-8-application-tools.md`](../../docs/sprint-8-application-tools.md).
 
-The two contracts are intentionally separate: v1 fixture calls stay byte-for-byte
-historical and are never accepted as raw-value runtime calls.
+The three contracts are intentionally separate: v1 and v2 fixtures and scores stay
+byte-for-byte historical and are never accepted as runtime calls. The v3 replay tool
+deliberately changes the wire definition of exact replay, so a future qualification
+run needs a separately approved fixture/scoring mapping; historical retry cases are
+not regraded.
 
 ```powershell
 uv run python tools/slm/s8_agent_contract.py validate

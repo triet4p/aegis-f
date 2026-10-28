@@ -1325,6 +1325,73 @@ class WorkflowCommandServiceTest {
     // --- Classification ------------------------------------------------------
 
     @Test
+    fun `over budget classification is refused without storing an operation or snapshot`() = runTest {
+        val database = open()
+        try {
+            database.categoryDao().insert(
+                CategoryEntity(
+                    name = "Food",
+                    createdAtEpochMillis = clock.now,
+                    updatedAtEpochMillis = clock.now,
+                ),
+            )
+            val draftId = storeDraft(database, "over-budget-draft", 50_000L)
+            var engineCalls = 0
+            val overBudgetEngine = object : ClassificationEngine {
+                override suspend fun classify(
+                    context: LayaEffectiveContext,
+                    categories: List<CategoryEntity>,
+                ): ClassificationEngineResult {
+                    engineCalls += 1
+                    return ClassificationEngineResult.Decided(
+                        LayaContextDecision(
+                            decision = LayaCandidatePlanner.Decision.Unknown(
+                                LayaCandidatePlanner.ManualReason.EFFECTIVE_INPUT_OVER_BUDGET,
+                            ),
+                            effectiveInput = LayaEffectiveInput(
+                                text = context.primaryText,
+                                digest = "over-budget-input",
+                                includedReadings = emptyList(),
+                                droppedReadings = context.eventReadings,
+                                tokenCount = 317,
+                                roomTokens = 316,
+                                refusal = LayaEffectiveInput.Refusal.PRIMARY_EXCEEDS_ROOM,
+                            ),
+                            evaluation = null,
+                        ),
+                    )
+                }
+            }
+            val commands = commands(database, engine = overBudgetEngine)
+            val operationKey = "classify-over-budget"
+
+            val result = commands.requestClassification(
+                WorkflowCallerScope.User,
+                ClassificationRequest(
+                    idempotencyKey = operationKey,
+                    draftId = draftId,
+                    description = BANK_MEMO,
+                ),
+            )
+
+            assertEquals(
+                WorkflowCommandOutcome.Denied(WorkflowDenialReason.MODEL_INPUT_OVER_BUDGET),
+                result,
+            )
+            assertEquals(1, engineCalls)
+            assertNull(database.workflowOperationDao().findByKey(operationKey))
+            assertNull(database.classificationSnapshotDao().findForDraft(draftId))
+            assertEquals(0L, database.transactionDao().findAll().size.toLong())
+            val draft = database.pendingBankDraftDao().findById(draftId)!!
+            assertEquals(IntakeReviewStatus.PENDING, draft.reviewStatus)
+            assertEquals(0, draft.reviewRevision)
+            assertNull(draft.reviewCategoryId)
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
     fun `a repeated classification request asks the model once`() = runTest {
         val database = open()
         try {
@@ -2482,6 +2549,7 @@ class WorkflowCommandServiceTest {
                         idempotencyKey = "event-2",
                         captureId = captureId,
                         expectedCaptureRevision = 0,
+                        expectedEventRevision = database.noteEventDao().findById(eventId)!!.revision,
                         interpretation = reading("Fuel 50,000 at 15:00", "Fuel 55,000 at 15:05"),
                         extractionVersion = EXTRACTION_VERSION,
                     ),

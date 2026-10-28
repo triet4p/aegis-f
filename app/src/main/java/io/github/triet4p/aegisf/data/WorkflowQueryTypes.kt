@@ -729,6 +729,8 @@ data class WorkflowOperation(
     val idempotencyKey: String,
     val scopeId: String,
     val command: String,
+    /** One-way digest of the recorded request; the request text itself is never stored. */
+    val payloadDigest: String,
     val outcome: String,
     val change: WorkflowChange?,
     val createdAtEpochMillis: Long,

@@ -6,6 +6,48 @@ and no release has been tagged or published. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+### Changed
+
+- Replaced the agent-facing five-tool surface with a closed eleven-tool interface using flat
+  arguments and host-issued opaque references. Agents now observe authorized state, select an
+  exact source quote, assemble a grounded time anchor, record one atomic event reading with
+  transactional expected-absence compare-and-set, inspect/propose/attach a trusted link,
+  request local Laya review of the exact stored draft, replay a recorded operation through the
+  application journal, and suspend for one scoped clarification. Every result uses one
+  structured envelope with truthful dispatch, effect and verification fields plus stable
+  repair guidance; only the declarations required by the selected skills are loaded, and the
+  system instruction, skills, declarations and cache identity now share one versioned contract.
+  Missing optional merchant/date/time is no longer treated as an unresolved event, local model
+  refusal stays manual, and a historical replay receipt is never reported as a current effect.
+  Replay now requires `replay_operation(operation_ref)`; frozen evaluation fixtures and their
+  recorded scores are preserved and are not regraded.
+
+### Fixed
+
+- Corrected the loaded `event-reading/2` skill example and guidance to match the enforced
+  provenance rules: `select_source` issues the selected occurrence's own amount/date/time aliases
+  and `make_time_anchor` builds an anchor from those aliases, while capture-page value aliases are
+  display-only and are never accepted as occurrence evidence. The skill version and cache identity
+  changed with the content; the registry, binding checks and all tool behavior are unchanged.
+
+- Fixed the redesigned agent interface's temporal, effect and correction guarantees. A same-day
+  interval now accepts an increasing end and rejects an end at or before its start (the previous
+  comparison was inverted); a failed, pending or unreadable write reports `effect: unknown` instead
+  of `none`, and classification distinguishes a request another attempt still owns from local-model
+  unavailability; a changed quote that overlaps an existing reading is refused rather than stored as
+  a duplicate reading, and a correction cannot silently erase a stored amount, temporal anchor or
+  merchant; `list_drafts` now declares and enforces the required non-null `review_status` enum with
+  `ALL`; a settled classification returns its replayable `operation_ref`. The historical v2 tool and
+  skill evaluation inputs remain byte-identical and available to their existing consumers.
+
+- Clarified that masked amount/date/time scalar fields require the complete displayed token,
+  including literal `⟦` and `⟧` delimiters; illustrative placeholders are not submit-ready.
+  Malformed typed tokens remain fail-closed and now receive field-specific shape guidance
+  without echoing submitted values. Schema-invalid calls expose only the validator's safe
+  field/constraint. The selected extraction skill is v3 so its versioned prefix cache identity
+  changes with the corrected instruction. Added local adapter regression and Gemini/OpenAI
+  tool-wire smoke coverage; qualification fixtures, scores, gates, and hosted measurement
+  counts are unchanged.
 
 ### Added
 
@@ -52,6 +94,17 @@ and no release has been tagged or published. Format follows
   write; a claim the application did not record is never reported as success. The local model
   stays local and review-only, and notification intake and manual entry never wait on hosted
   generation.
+
+- Added the S8.13 hosted qualification runner and owner-approved prospective scoring protocol.
+  It executes the frozen dev/heldout cases through the production masked executor, typed
+  application services and isolated Room state, retaining sanitized requests/results, actual
+  postconditions, per-turn usage, latency and failures separately from task-success scores.
+  Frozen fixtures and the legacy v1 scorer remain unchanged. The runner does not qualify any
+  configuration by itself. The first hosted pass remains historical; the owner-approved runtime
+  projection v2 and actual-device Laya/over-budget smoke proof are separately retained before the
+  new three-repeat hosted batch.
+  The runner can separately apply the unchanged v1 scorer to a retained actual trace, without
+  rewriting masked runtime calls or altering historical fixtures and trial evidence.
 
 - Added a bounded application-tool adapter over the shared workflow query and command services.
   Its fixed query and reversible event/context/link operations use trusted session scope,
@@ -185,6 +238,17 @@ and no release has been tagged or published. Format follows
 
 ### Changed
 
+- Introduced an owner-approved, separately versioned S8.13 runtime/evaluation fixture projection that
+  preserves all 24 case identities and safety/repair criteria while grounding the intended
+  “Yesterday” extraction targets, aligning duplicate-link amounts without inventing an event date,
+  choosing the duplicate proposal from the real deterministic query order, and making the held-out
+  bus-fare text consistent with its authoritative draft. A no-LLM preflight and isolated Android
+  smoke now prove actual local Laya distributions over legitimate category candidates, exact
+  oversized-input refusal before evaluation/effects, coherent unique attachment, duplicate
+  attachment refusal, and continued financial-mismatch refusal. Earlier fixture versions, traces,
+  scores, and qualification thresholds remain unchanged; the device smoke is a prerequisite only,
+  not a hosted score or qualification result.
+
 - Reworked the Dashboard, Quick Capture, Review and Manual surfaces around a flat, angular
   hierarchy with role-colored emphasis and dividers. The Dashboard now gives confirmed spending
   primary emphasis and consolidates confirmed income, internal transfers and Review into a
@@ -197,6 +261,17 @@ and no release has been tagged or published. Format follows
   angular segments with a visible checkmark and label.
 
 ### Fixed
+
+- Fixed S8.13 runtime contract gaps in the production tool adapter, executor feedback, and bundled
+  skills. Date-only readings no longer inherit an unanchored timezone; durable runs now reuse an
+  operation identity only for the exact same tool arguments, with distinct corrected writes
+  receiving distinct stable identities. Repairable mutation feedback carries fresh masked
+  observations, terminal masking refusals stop, and an earlier repairable error can be superseded
+  only by a later verified mutation of the same target before final postcondition verification.
+  The v2 tool schema documents field meaning, bounds, opaque-token/source/revision requirements,
+  cross-field date/interval rules, and explicit absolute user-date tokens without permitting raw
+  dates; relative targets without an available same-session token remain clarification-only.
+  Frozen fixtures, expected outcomes, and numeric gates remain unchanged.
 
 - Fixed a stored category suggestion outliving the draft state it was made for. The suggestion
   is now invalidated by the same accepted action that changes its input: the user's own category
@@ -212,6 +287,14 @@ and no release has been tagged or published. Format follows
 
 - Fixed a classification attempt resetting a newer question that was coalesced while the
   attempt was preparing; the newer context now remains queued and is classified next.
+
+- Fixed oversized review text being stored as a misleading no-fit classification. The production
+  service now refuses over-budget input before storing a classification snapshot or operation,
+  preserves the exact text, and returns a terminal agent refusal. The isolated device smoke
+  recorded actual review-only Laya distributions for eligible `Food` inputs and refused the exact
+  synthetic 1,025-token input against 316 tokens of room without an evaluation, snapshot,
+  classification operation, or ledger row; a shortened substitute was refused as a context
+  mismatch.
 
 - Fixed the Manual saved-transaction date filter to compare accepted From/Through values by
   local calendar-day boundaries instead of text, so non-zero-padded dates are ordered

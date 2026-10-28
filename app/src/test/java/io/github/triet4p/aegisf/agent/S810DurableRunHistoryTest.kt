@@ -40,6 +40,7 @@ import io.github.triet4p.aegisf.provider.ToolCallDisposition
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.runBlocking
+import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -85,7 +86,7 @@ class S810DurableRunHistoryTest {
         )
         queries = WorkflowQueryService(database)
         history = AgentRunHistory(database)
-        declarations = S8AgentToolDeclarations.load(context.assets::open)
+        declarations = AgentToolDeclarations.load(context.assets::open)
         skills = WorkflowSkillCatalog.load(context.assets::open)
     }
 
@@ -98,27 +99,39 @@ class S810DurableRunHistoryTest {
     @Test
     fun `repeated user send replays one run without duplicating the effect`() = runBlocking {
         val fixture = prepare()
+        lateinit var adapter: ScriptedAdapter
         val script = scripted()
-        script += { toolTurn(call(BoundedWorkflowToolAdapter.UPDATE_EVENT_INTERPRETATION, updateArgs(fixture))) }
-        script += { toolTurn(call(BoundedWorkflowToolAdapter.QUERY_DRAFT_CANDIDATES, draftQueryArgs())) }
-        var observedEventId = 0L
         script += {
-            observedEventId = queries.captureEvents(
-                io.github.triet4p.aegisf.data.CaptureEventQuery(fixture.captureId, QueryPageRequest(10, 0)),
-            ).items.single().id
-            toolTurn(
-                call(
-                    BoundedWorkflowToolAdapter.PROPOSE_LINK,
-                    JSONObject().put("eventId", observedEventId).put("draftId", fixture.draftId),
-                ),
-            )
+            toolTurn(call("select_source", JSONObject()
+                .put("capture_ref", captureRef(adapter))
+                .put("quote", sourceText(adapter))
+                .put("occurrence", 1)))
         }
-        script += { complete("Prepared the synthetic note and draft.") }
+        script += {
+            val source = previousEnvelope(adapter, 1).getJSONObject("data")
+            toolTurn(call("make_time_anchor", JSONObject()
+                .put("date_ref", valueRef(source, "date"))
+                .put("time_ref", valueRef(source, "time"))
+                .put("end_date_ref", JSONObject.NULL)
+                .put("end_time_ref", JSONObject.NULL)))
+        }
+        script += {
+            val source = previousEnvelope(adapter, 2).getJSONObject("data")
+            toolTurn(call("record_event", JSONObject()
+                .put("source_ref", source.getString("source_ref"))
+                .put("summary", "Coffee")
+                .put("amount_ref", valueRef(source, "amount"))
+                .put("anchor_ref", lastEnvelope(adapter).getJSONObject("data").getString("anchor_ref"))
+                .put("merchant_ref", JSONObject.NULL)
+                .put("clarification", "none")))
+        }
+        script += { complete("Prepared the synthetic reading.") }
+        adapter = ScriptedAdapter(script)
         val request = WorkflowRunRequest(
             intents = setOf(WorkflowIntent.SEARCH_DRAFTS, WorkflowIntent.INTERPRET_EVENTS),
             userRequest = "Prepare the synthetic pair.",
         )
-        val first = runTracked(fixture, ScriptedAdapter(script), request, key("run-a"))
+        val first = runTracked(fixture, adapter, request, key("run-a"))
         val secondRequest = WorkflowRunRequest(
             intents = setOf(WorkflowIntent.SEARCH_DRAFTS, WorkflowIntent.INTERPRET_EVENTS),
             userRequest = "Prepare the synthetic pair.",
@@ -127,7 +140,6 @@ class S810DurableRunHistoryTest {
         assertTrue("the repeated send must replay the same run", attempted.replayed)
         assertEquals(first, attempted.runId)
         assertEquals(1L, database.workflowOperationDao().countOf("UPDATE_EVENT"))
-        assertEquals(1L, database.workflowOperationDao().countOf("PROPOSE_LINK"))
         val conversation = history.conversationForRun(first)
         assertTrue(conversation.any { it.role == "USER" })
         assertTrue("no operation key may enter the visible conversation", conversation.none {
@@ -138,14 +150,31 @@ class S810DurableRunHistoryTest {
     @Test
     fun `interrupted update reconciles to applied instead of duplicating`() = runBlocking {
         val fixture = prepare()
+        lateinit var adapter: ScriptedAdapter
         val script = scripted()
-        script += { toolTurn(call(BoundedWorkflowToolAdapter.UPDATE_EVENT_INTERPRETATION, updateArgs(fixture))) }
+        script += {
+            toolTurn(call("select_source", JSONObject()
+                .put("capture_ref", captureRef(adapter))
+                .put("quote", sourceText(adapter))
+                .put("occurrence", 1)))
+        }
+        script += {
+            val source = previousEnvelope(adapter, 1).getJSONObject("data")
+            toolTurn(call("record_event", JSONObject()
+                .put("source_ref", source.getString("source_ref"))
+                .put("summary", "Coffee")
+                .put("amount_ref", valueRef(source, "amount"))
+                .put("anchor_ref", JSONObject.NULL)
+                .put("merchant_ref", JSONObject.NULL)
+                .put("clarification", "none")))
+        }
         script += { complete("The synthetic event is interpreted.") }
+        adapter = ScriptedAdapter(script)
         val request = WorkflowRunRequest(
             intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
             userRequest = "Interpret the synthetic note.",
         )
-        val runId = runTracked(fixture, ScriptedAdapter(script), request, key("run-b"))
+        val runId = runTracked(fixture, adapter, request, key("run-b"))
         assertEquals("one event row", 1, database.noteEventDao().findForCapture(fixture.captureId).size)
         assertEquals(1L, database.workflowOperationDao().countOf("UPDATE_EVENT"))
         val verdict = history.reconcileUncertainWrite(runId, 1)
@@ -153,25 +182,104 @@ class S810DurableRunHistoryTest {
     }
 
     @Test
-    fun `stale revision reconciles as not applied and stays conflicted`() = runBlocking {
+    fun `an exact repeated call replays without a second journal row or event`() = runBlocking {
         val fixture = prepare()
-        val update = updateArgs(fixture)
+        lateinit var adapter: ScriptedAdapter
         val script = scripted()
-        script += { toolTurn(call(BoundedWorkflowToolAdapter.UPDATE_EVENT_INTERPRETATION, update)) }
-        script += { toolTurn(call(BoundedWorkflowToolAdapter.UPDATE_EVENT_INTERPRETATION, update)) }
+        script += {
+            toolTurn(call("select_source", JSONObject()
+                .put("capture_ref", captureRef(adapter))
+                .put("quote", sourceText(adapter))
+                .put("occurrence", 1)))
+        }
+        script += {
+            val source = previousEnvelope(adapter, 1).getJSONObject("data")
+            toolTurn(call("record_event", JSONObject()
+                .put("source_ref", source.getString("source_ref"))
+                .put("summary", "Coffee")
+                .put("amount_ref", valueRef(source, "amount"))
+                .put("anchor_ref", JSONObject.NULL)
+                .put("merchant_ref", JSONObject.NULL)
+                .put("clarification", "none")))
+        }
+        script += {
+            // Exact repetition is the recorded operation alias, not a reconstructed payload.
+            val operationRef = previousEnvelope(adapter, 1).getString("operation_ref")
+            toolTurn(call("replay_operation", JSONObject().put("operation_ref", operationRef)))
+        }
         script += { complete("done") }
+        adapter = ScriptedAdapter(script)
+        val request = WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.INTERPRET_EVENTS, WorkflowIntent.REPLAY_OPERATION),
+            userRequest = "Interpret the synthetic note and confirm the exact operation.",
+        )
+        val runId = runTracked(fixture, adapter, request, key("run-c"))
+        assertEquals(1, database.noteEventDao().findForCapture(fixture.captureId).size)
+        assertEquals("one journal row per mutation key", 1L, database.workflowOperationDao().countOf("UPDATE_EVENT"))
+        val attempts = database.agentRunAttemptDao().findForRun(runId)
+        assertEquals(1, attempts.size)
+        val payload = JSONObject(adapter.toolResultPayloads.last().single())
+        assertEquals("replay_operation", payload.getString("tool"))
+        assertEquals("unchanged", payload.getString("effect"))
+        assertEquals("no_change", payload.getJSONObject("data").getString("journal_outcome"))
+        assertTrue(payload.getBoolean("verified"))
+        assertEquals(1L, database.workflowOperationDao().countOf("UPDATE_EVENT"))
+    }
+
+    @Test
+    fun `a masking refusal after an applied write stops hosted work and reconciles locally`() = runBlocking {
+        val fixture = prepare()
+        lateinit var adapter: ScriptedAdapter
+        val script = scripted()
+        script += {
+            toolTurn(call("select_source", JSONObject()
+                .put("capture_ref", captureRef(adapter))
+                .put("quote", sourceText(adapter))
+                .put("occurrence", 1)))
+        }
+        script += {
+            val source = previousEnvelope(adapter, 1).getJSONObject("data")
+            toolTurn(call("record_event", JSONObject()
+                .put("source_ref", source.getString("source_ref"))
+                .put("summary", "Coffee")
+                .put("amount_ref", valueRef(source, "amount"))
+                .put("anchor_ref", JSONObject.NULL)
+                .put("merchant_ref", JSONObject.NULL)
+                .put("clarification", "none")))
+        }
+        script += {
+            // The write is already applied when this later turn carries a raw literal.
+            toolTurn(call("observe", JSONObject().put("ref", "25,000 VND")))
+        }
+        script += { complete("This turn must never be requested.") }
+        adapter = ScriptedAdapter(script)
         val request = WorkflowRunRequest(
             intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
             userRequest = "Interpret the synthetic note.",
         )
-        // First attempt applies; the second identical replay under the same attempt key
-        // revalidates and conflicts instead of duplicating.
-        val runId = runTracked(fixture, ScriptedAdapter(script), request, key("run-c"))
-        assertEquals(1, database.noteEventDao().findForCapture(fixture.captureId).size)
-        val operations = database.workflowOperationDao().countOf("UPDATE_EVENT")
-        assertEquals("one journal row per mutation key", 1L, operations)
-        val attempts = database.agentRunAttemptDao().findForRun(runId)
-        assertEquals(1, attempts.size)
+        val admitted = history.admitRun(fixture.scope, request, fixture.boundary, 8192)
+        val outcome = BoundedWorkflowExecutor(hostOf(fixture, adapter)).startTracked(
+            request = request,
+            history = history,
+            attemptKey = admitted.attemptKey,
+            maxOutputTokens = 8192,
+        )
+        assertTrue("expected a masking stop, got $outcome", outcome is WorkflowRunOutcome.Incomplete)
+        assertEquals(
+            WorkflowRunStopReason.MASKING_BLOCKED,
+            (outcome as WorkflowRunOutcome.Incomplete).reason,
+        )
+        // The earlier call really applied; the host reconciled it locally instead of retrying.
+        val operationCount = database.workflowOperationDao().countOf("UPDATE_EVENT")
+        assertEquals(
+            "no event after masking stop; ops=$operationCount outcome=$outcome",
+            1,
+            database.noteEventDao().findForCapture(fixture.captureId).size,
+        )
+        assertEquals(1L, database.workflowOperationDao().countOf("UPDATE_EVENT"))
+        // No continuation turn was requested after the refusal.
+        assertEquals(2, adapter.prompts.size)
+        assertTrue(adapter.prompts.none { it.contains("25,000") })
     }
 
     @Test
@@ -352,48 +460,45 @@ class S810DurableRunHistoryTest {
         return Fixture(captureId, draftId, scope, boundary, maskedSource)
     }
 
-    private fun updateArgs(fixture: Fixture): JSONObject {
-        val masked = fixture.maskedSource
-        val amount = token(masked, "AMT")
-        val date = token(masked, "DATE")
-        val time = token(masked, "TIME")
-        return JSONObject()
-            .put("captureId", fixture.captureId)
-            .put("expectedCaptureRevision", 0)
-            .put("expectedEventRevision", JSONObject.NULL)
-            .put("extractionVersion", "s8.10-test")
-            .put(
-                "interpretation",
-                JSONObject()
-                    .put("spanStart", 0)
-                    .put("spanEnd", masked.length)
-                    .put("normalizedText", masked)
-                    .put("maskedSpanText", masked)
-                    .put("amountVnd", amount)
-                    .put("merchant", JSONObject.NULL)
-                    .put("unresolvedReason", JSONObject.NULL)
-                    .put(
-                        "timeAnchor",
-                        JSONObject()
-                            .put("date", date)
-                            .put("time", time)
-                            .put("timezoneId", JSONObject.NULL)
-                            .put("intervalEndDate", JSONObject.NULL)
-                            .put("intervalEndTime", JSONObject.NULL),
-                    ),
-            )
+    private fun initialObservations(adapter: ScriptedAdapter): JSONArray {
+        val prompt = adapter.prompts.first { it.contains("Trusted host observations") }
+        val lines = prompt.lines()
+        val start = lines.indexOfFirst { it.trimStart().startsWith("[") }
+        return JSONArray(lines[start].trim())
     }
 
-    private fun draftQueryArgs(): JSONObject = JSONObject().put(
-        "query",
-        JSONObject()
-            .put("reviewStatus", "PENDING")
-            .put("onlyPossibleDuplicates", false)
-            .put("bounds", JSONObject().put("limit", 10).put("offset", 0)),
-    )
+    private fun captureRef(adapter: ScriptedAdapter): String {
+        val observations = initialObservations(adapter)
+        for (index in 0 until observations.length()) {
+            val item = observations.getJSONObject(index)
+            if (item.optString("kind") == "capture") return item.getString("ref")
+        }
+        error("no capture alias in the initial observation")
+    }
 
-    private fun token(masked: String, prefix: String): String =
-        Regex("⟦$prefix-[^⟧]+⟧").find(masked)?.value ?: error("expected a $prefix token")
+    private fun sourceText(adapter: ScriptedAdapter): String {
+        val observations = initialObservations(adapter)
+        for (index in 0 until observations.length()) {
+            val item = observations.getJSONObject(index)
+            if (item.optString("kind") == "capture") return item.getString("source_text")
+        }
+        error("no capture source text in the initial observation")
+    }
+
+    private fun lastEnvelope(adapter: ScriptedAdapter): JSONObject =
+        JSONObject(adapter.toolResultPayloads.last().single())
+
+    private fun previousEnvelope(adapter: ScriptedAdapter, turnsBack: Int): JSONObject =
+        JSONObject(adapter.toolResultPayloads[adapter.toolResultPayloads.size - turnsBack].single())
+
+    private fun valueRef(source: JSONObject, kind: String): String {
+        val values = source.getJSONArray("values")
+        for (index in 0 until values.length()) {
+            val item = values.getJSONObject(index)
+            if (item.getString("kind") == kind) return item.getString("ref")
+        }
+        error("expected a $kind alias in the selected source")
+    }
 
     private fun scripted(): MutableList<suspend () -> ScriptedTurn> = mutableListOf()
     private fun toolTurn(vararg calls: ScriptedCall) =
@@ -427,9 +532,14 @@ class S810DurableRunHistoryTest {
     ) : HostedGenerationAdapter {
         override val protocol: HostedProtocol = HostedProtocol.OPENAI_CHAT_COMPLETIONS
         private var next = 0
+        val prompts = mutableListOf<String>()
+        val toolResultPayloads = mutableListOf<List<String>>()
 
-        override fun begin(systemInstruction: String, userInstruction: String): HostedConversation =
-            ScriptedConversation(protocol, emptyList())
+        override fun begin(systemInstruction: String, userInstruction: String): HostedConversation {
+            prompts += systemInstruction
+            prompts += userInstruction
+            return ScriptedConversation(protocol, emptyList())
+        }
 
         override suspend fun generate(
             conversation: HostedConversation,
@@ -469,7 +579,10 @@ class S810DurableRunHistoryTest {
         override fun continueWithToolResults(
             conversation: HostedConversation,
             results: List<HostedToolResult>,
-        ): HostedConversation = ScriptedConversation(protocol, emptyList())
+        ): HostedConversation {
+            toolResultPayloads += results.map(HostedToolResult::outputJson)
+            return ScriptedConversation(protocol, emptyList())
+        }
     }
 
     private companion object {

@@ -65,61 +65,80 @@ class S87LayaAdapterInstrumentedTest {
             val captureId = (saved.change as WorkflowChange.CaptureSaved).captureId
             var scope = WorkflowCallerScope.AgentSession("s8.7-device-session", setOf(captureId), emptySet())
             val boundary = MaskedPromptBoundary(SensitiveVault(scope.scopeId))
-            val declarations = S8AgentToolDeclarations.load(context.assets::open)
-            fun adapter(key: String) = BoundedWorkflowToolAdapter(
+            val declarations = AgentToolDeclarations.load(context.assets::open)
+            val registry = AgentReferenceRegistry(scope.scopeId)
+            fun runtimeFor(current: WorkflowCallerScope.AgentSession) = AgentToolRuntime(
                 commands,
                 queries,
-                WorkflowToolSession(scope, boundary, key),
+                AgentToolSession(current, boundary, registry),
                 declarations,
             )
+            val runtime = runtimeFor(scope)
 
-            val read = adapter("s8.7-device-read").observeCaptureContext(captureId)
-            val maskedSource = read.getString("sourceText")
+            val captureObservation = runtime.initialCaptureObservations(4).single()
+            val maskedSource = captureObservation.getString("source_text")
             assertFalse(maskedSource.contains("28,000"))
             assertFalse(maskedSource.contains("2026-10-21"))
             assertFalse(maskedSource.contains("12:30"))
             assertTrue(maskedSource.length != captureText.length)
-            val eventCall = JSONObject()
-                .put("captureId", captureId)
-                .put("expectedCaptureRevision", 0)
-                .put("expectedEventRevision", JSONObject.NULL)
-                .put("extractionVersion", "s8.7-device-smoke")
-                .put(
-                    "interpretation",
-                    JSONObject()
-                        .put("amountVnd", token(read, "AMT"))
-                        .put("merchant", JSONObject.NULL)
-                        .put("maskedSpanText", maskedSource)
-                        .put("normalizedText", maskedSource)
-                        .put("spanStart", 0)
-                        .put("spanEnd", maskedSource.length)
-                        .put(
-                            "timeAnchor",
-                            JSONObject()
-                                .put("date", token(read, "DATE"))
-                                .put("intervalEndDate", JSONObject.NULL)
-                                .put("intervalEndTime", JSONObject.NULL)
-                                .put("time", token(read, "TIME"))
-                                .put("timezoneId", JSONObject.NULL),
-                        )
-                        .put("unresolvedReason", JSONObject.NULL),
-                )
-            val interpreted = adapter("s8.7-device-event").execute(
-                BoundedWorkflowToolAdapter.UPDATE_EVENT_INTERPRETATION,
-                eventCall,
-            )
-            assertEquals("applied", interpreted.getString("status"))
+            val selected = runtime.execute(
+                "select_source",
+                JSONObject()
+                    .put("capture_ref", captureObservation.getString("ref"))
+                    .put("quote", maskedSource)
+                    .put("occurrence", 1),
+                "s8.7-device-select",
+            ).envelope
+            assertEquals("ok", selected.getString("outcome"))
+            val source = selected.getJSONObject("data")
+            fun valueRef(kind: String): String {
+                val values = source.getJSONArray("values")
+                for (index in 0 until values.length()) {
+                    if (values.getJSONObject(index).getString("kind") == kind) {
+                        return values.getJSONObject(index).getString("ref")
+                    }
+                }
+                error("missing $kind alias")
+            }
+            val anchor = runtime.execute(
+                "make_time_anchor",
+                JSONObject()
+                    .put("date_ref", valueRef("date"))
+                    .put("time_ref", valueRef("time"))
+                    .put("end_date_ref", JSONObject.NULL)
+                    .put("end_time_ref", JSONObject.NULL),
+                "s8.7-device-anchor",
+            ).envelope
+            assertEquals("ok", anchor.getString("outcome"))
+            val interpreted = runtime.execute(
+                "record_event",
+                JSONObject()
+                    .put("source_ref", source.getString("source_ref"))
+                    .put("summary", "Coffee")
+                    .put("amount_ref", valueRef("amount"))
+                    .put("anchor_ref", anchor.getJSONObject("data").getString("anchor_ref"))
+                    .put("merchant_ref", JSONObject.NULL)
+                    .put("clarification", "none"),
+                "s8.7-device-record",
+            ).envelope
+            assertEquals("ok", interpreted.getString("outcome"))
+            assertEquals("applied", interpreted.getString("effect"))
             val storedEvent = database.noteEventDao().findForCapture(captureId).single()
             assertEquals(28_000L, storedEvent.amountVnd)
             assertEquals("2026-10-21", storedEvent.anchorDate)
             assertEquals("12:30", storedEvent.anchorTime)
-            assertEquals(captureText, storedEvent.normalizedText)
+            // The stored normalized text is the agent's grounded summary, not the raw span.
+            assertEquals("Coffee", storedEvent.normalizedText)
             assertEquals(0, storedEvent.spanStart)
             assertEquals(captureText.length, storedEvent.spanEnd)
-            val reread = adapter("s8.7-device-reread").observeCaptureContext(captureId)
-                .getJSONArray("events").getJSONObject(0)
-            assertEquals(0, reread.getInt("spanStart"))
-            assertEquals(maskedSource.length, reread.getInt("spanEnd"))
+            val eventRef = interpreted.getJSONObject("data").getJSONObject("event").getString("ref")
+            val reread = runtime.execute(
+                "observe",
+                JSONObject().put("ref", eventRef),
+                "s8.7-device-reread",
+            ).envelope.getJSONObject("data").getJSONObject("observation")
+            assertTrue(reread.has("source_span"))
+            assertEquals(0, reread.getJSONObject("source_span").getInt("masked_start"))
 
             val now = System.currentTimeMillis()
             val draftId = database.pendingBankDraftDao().store(
@@ -144,14 +163,25 @@ class S87LayaAdapterInstrumentedTest {
                     createdAtEpochMillis = now,
                 ),
             )
-            scope = WorkflowCallerScope.AgentSession(scope.scopeId, scope.captureIds, setOf(draftId))
-            val proposed = adapter("s8.7-device-propose").execute(
-                BoundedWorkflowToolAdapter.PROPOSE_LINK,
-                JSONObject()
-                    .put("eventId", storedEvent.id)
-                    .put("draftId", draftId),
-            )
-            assertEquals("applied", proposed.getString("status"))
+            val widened = WorkflowCallerScope.AgentSession(scope.scopeId, scope.captureIds, setOf(draftId))
+            val linkRuntime = runtimeFor(widened)
+            val draftRef = requireNotNull(linkRuntime.initialDraftObservation())
+                .getJSONArray("items").getJSONObject(0).getString("ref")
+            val inspected = linkRuntime.execute(
+                "inspect_link",
+                JSONObject().put("event_ref", eventRef).put("draft_ref", draftRef),
+                "s8.7-device-inspect",
+            ).envelope
+            assertEquals("ok", inspected.getString("outcome"))
+            assertEquals("eligible", inspected.getJSONObject("data").getString("eligibility"))
+            val pairRef = inspected.getJSONObject("data").getString("pair_ref")
+            val proposed = linkRuntime.execute(
+                "propose_link",
+                JSONObject().put("pair_ref", pairRef),
+                "s8.7-device-propose",
+            ).envelope
+            assertEquals("ok", proposed.getString("outcome"))
+            assertEquals("PROPOSED", proposed.getJSONObject("data").getJSONObject("link").getString("state"))
             val proposedLink = queries.linkOperations(
                 LinkOperationQuery(
                     eventId = storedEvent.id,
@@ -161,15 +191,12 @@ class S87LayaAdapterInstrumentedTest {
             ).items.single()
             assertEquals(ContextLinkState.PROPOSED, proposedLink.state)
 
-            val attached = adapter("s8.7-device-attach").execute(
-                BoundedWorkflowToolAdapter.ATTACH_LINK,
-                JSONObject()
-                    .put("eventId", storedEvent.id)
-                    .put("draftId", draftId)
-                    .put("expectedRevision", proposedLink.revision)
-                    .put("userOverride", JSONObject.NULL),
-            )
-            assertEquals("applied", attached.getString("status"))
+            val attached = linkRuntime.execute(
+                "attach_link",
+                JSONObject().put("proposal_ref", proposed.getJSONObject("data").getString("proposal_ref")),
+                "s8.7-device-attach",
+            ).envelope
+            assertEquals("ok", attached.getString("outcome"))
             assertEquals(
                 ContextLinkState.ACCEPTED,
                 queries.linkOperations(
@@ -188,16 +215,13 @@ class S87LayaAdapterInstrumentedTest {
             ensurePinnedLayaModel(context)
             val prepared = lifecycle.prepare()
             assertTrue("local Laya model must prepare successfully: $prepared", prepared is LayaInferenceOutcome.Completed)
-            val maskedDescription = boundary.maskOutbound("Coffee", MaskedPath.TOOL_RESULT)
-            val classificationCall = JSONObject()
-                .put("draftId", draftId)
-                .put("description", maskedDescription)
-                .put("expectedReviewRevision", 0)
-            val classified = adapter("s8.7-device-laya").execute(
-                BoundedWorkflowToolAdapter.REQUEST_LAYA_CLASSIFICATION,
-                classificationCall,
-            )
-            assertEquals(classified.toString(), "applied", classified.getString("status"))
+            val classified = linkRuntime.execute(
+                "classify_draft",
+                JSONObject().put("draft_ref", draftRef),
+                "s8.7-device-laya",
+            ).envelope
+            assertEquals(classified.toString(), "ok", classified.getString("outcome"))
+            assertEquals("applied", classified.getString("effect"))
             val snapshot = database.classificationSnapshotDao().findForDraft(draftId)
             assertNotNull("the real local classifier must persist its model result", snapshot)
             assertNotNull("an ONNX evaluation produces a calibrated no-fit share", snapshot?.unknownShare)
@@ -211,11 +235,12 @@ class S87LayaAdapterInstrumentedTest {
                     "probabilities=${snapshot?.probabilities} unknownShare=${snapshot?.unknownShare} " +
                     "confidence=${snapshot?.confidence}",
             )
-            val retriedClassification = adapter("s8.7-device-laya").execute(
-                BoundedWorkflowToolAdapter.REQUEST_LAYA_CLASSIFICATION,
-                classificationCall,
-            )
-            assertEquals("no_change", retriedClassification.getString("status"))
+            val retriedClassification = linkRuntime.execute(
+                "classify_draft",
+                JSONObject().put("draft_ref", draftRef),
+                "s8.7-device-laya",
+            ).envelope
+            assertEquals("unchanged", retriedClassification.getString("effect"))
             assertEquals(snapshot, database.classificationSnapshotDao().findForDraft(draftId))
             assertEquals(1L, database.workflowOperationDao().countOf("REQUEST_CLASSIFICATION"))
             assertTrue(database.transactionDao().findAll().isEmpty())

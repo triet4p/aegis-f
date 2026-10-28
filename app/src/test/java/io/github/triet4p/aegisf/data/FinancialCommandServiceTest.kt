@@ -809,6 +809,7 @@ class FinancialCommandServiceTest {
                     idempotencyKey = "event-revised",
                     captureId = event.captureId,
                     expectedCaptureRevision = 0,
+                    expectedEventRevision = event.revision,
                     interpretation = NoteEventInterpretation(
                         spanStart = 0,
                         spanEnd = "Fuel 50,000".length,

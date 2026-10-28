@@ -209,6 +209,18 @@ internal const val REASON_COMPETING_CANDIDATE = "COMPETING_CANDIDATE"
 internal const val REASON_UNCERTAIN_DUPLICATE = "UNCERTAIN_DUPLICATE"
 
 /**
+ * The one shared reason vocabulary of the app's own link evidence.
+ *
+ * The inspection read and the attachment policy both derive their verdict from the same
+ * `TrustedLinkEvidence.reasons` facts and order, so the evidence a model inspects is exactly
+ * the evidence the mutation applies.
+ */
+
+/** The association is the user's to resolve: more than one stored candidate could fit. */
+internal fun isAmbiguousLinkReason(reason: String?): Boolean = reason == REASON_COMPETING_CANDIDATE ||
+    reason == REASON_UNCERTAIN_DUPLICATE
+
+/**
  * Whether a stored value is evidence this app computed.
  *
  * A value that was written by anything else — a reason a caller stated, a note, a bank

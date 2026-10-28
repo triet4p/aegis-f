@@ -3,26 +3,28 @@
   "schema": "aegis-f-s8-agent-tools/v2",
   "tools": [
     {
-      "description": "Read a bounded page of stored bank drafts. This query filters review state and possible-duplicate status only; it does not assert a match.",
+      "description": "Read one bounded page of drafts within the trusted host scope. reviewStatus and onlyPossibleDuplicates are filters, not evidence of a match. Results are masked application observations; use only returned ids/revisions and do not infer missing values, confirmation, or financial authority.",
       "mapsTo": "WorkflowQueryService.draftCandidates(DraftCandidateQuery)",
       "name": "query_draft_candidates",
       "parameters": {
         "additionalProperties": false,
         "properties": {
           "query": {
+            "description": "Required filter object for a bounded query of actual in-scope draft rows; filters do not establish an event/draft association.",
             "additionalProperties": false,
             "properties": {
               "bounds": {
+                "description": "Required page bounds; both limit and offset must be supplied.",
                 "additionalProperties": false,
                 "properties": {
                   "limit": {
-                    "description": "Maximum number of drafts in the page; integer from 1 through 500.",
+                    "description": "Required maximum page size; integer from 1 through 500 inclusive.",
                     "maximum": 500,
                     "minimum": 1,
                     "type": "integer"
                   },
                   "offset": {
-                    "description": "Zero-based page offset; non-negative integer.",
+                    "description": "Required zero-based offset; non-negative integer.",
                     "minimum": 0,
                     "type": "integer"
                   }
@@ -30,8 +32,12 @@
                 "required": ["limit", "offset"],
                 "type": "object"
               },
-              "onlyPossibleDuplicates": {"type": "boolean"},
+              "onlyPossibleDuplicates": {
+                "description": "Required boolean filter. true returns only drafts the application marks as possible duplicates; false does not assert that any returned row matches.",
+                "type": "boolean"
+              },
               "reviewStatus": {
+                "description": "Required; null disables this filter, otherwise only the exact listed application status is selected.",
                 "enum": ["PENDING", "CONFIRMED", "DISMISSED", null],
                 "type": ["string", "null"]
               }
@@ -45,37 +51,90 @@
       }
     },
     {
-      "description": "Store or revise one reading of a source span. spanStart/spanEnd are UTF-16 offsets into the exact masked source view; maskedSpanText must be copied exactly from that range. Sensitive amount/date/time values are same-session vault tokens, never raw literals. Operation identity is host-bound, not a tool argument.",
+      "description": "Store or revise one source-grounded occurrence from the current observeCaptureContext masked text. Revisions and UTF-16 offsets must come from that observation; spanStart is inclusive, spanEnd exclusive, and maskedSpanText must exactly equal the copied range. Sensitive scalar amount/date/time values are same-session opaque tokens or null. Each scalar token value is the complete displayed token, including its literal opening ⟦ and closing ⟧ delimiters; never submit only the text between them. Shapes such as ⟦AMT-…⟧, ⟦DATE-…⟧, and ⟦TIME-…⟧ are illustrative only, not valid or copyable tokens; copy an actual full token from the current masked observation. Never provide raw, reconstructed, or abbreviated literals. Amounts and times must be grounded in the source or explicit user clarification. A date token may come from the source or an explicit user-supplied absolute date clearly applying to this occurrence; do not derive a relative target unless its exact same-session DATE token is already available in masked context. If not, leave date null and clarify. A grounded occurrence may be stored with unresolved fields null; amountVnd=null requires a nonblank unresolvedReason. Clarify without writing when the occurrence/span itself is not grounded. Date-only anchors have no timezone; the adapter supplies the trusted capture timezone only for a stated time. Operation identity is host-owned; this tool does not confirm financial records.",
       "mapsTo": "WorkflowCommandService.updateEventInterpretation(scope, UpdateEventRequest)",
       "name": "update_event_interpretation",
       "parameters": {
         "additionalProperties": false,
         "properties": {
-          "captureId": {"minimum": 1, "type": "integer"},
-          "expectedCaptureRevision": {"minimum": 0, "type": "integer"},
-          "expectedEventRevision": {"minimum": 0, "type": ["integer", "null"]},
-          "extractionVersion": {"minLength": 1, "type": "string"},
+          "captureId": {
+            "description": "Required positive id of a capture granted by the host and present in the current observation; never guess or widen scope.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "expectedCaptureRevision": {
+            "description": "Required non-negative revision copied from the current observeCaptureContext result; stale revisions conflict.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "expectedEventRevision": {
+            "description": "Required nullable compare-and-set revision: null for a new reading/span, otherwise the current event revision from the same observation.",
+            "minimum": 0,
+            "type": ["integer", "null"]
+          },
+          "extractionVersion": {
+            "description": "Required non-empty provenance label for the extraction contract; it grants no authority and is not an operation key.",
+            "minLength": 1,
+            "type": "string"
+          },
           "interpretation": {
             "additionalProperties": false,
             "properties": {
-              "amountVnd": {"type": ["string", "null"]},
-              "merchant": {"type": ["string", "null"]},
-              "maskedSpanText": {"minLength": 1, "type": "string"},
-              "normalizedText": {"minLength": 1, "type": "string"},
-              "spanEnd": {"minimum": 1, "type": "integer"},
-              "spanStart": {"minimum": 0, "type": "integer"},
+              "amountVnd": {
+                "description": "Optional nullable same-session AMT token. Copy the complete token exactly as displayed, including its literal ⟦ and ⟧ delimiters; never submit only the inner text. The shape ⟦AMT-…⟧ is illustrative only, not a valid or copyable token. Use null/omit when no amount is stated or it is uncertain. Never supply a raw amount or infer it from a draft; when null, the service requires a nonblank unresolvedReason.",
+                "type": ["string", "null"]
+              },
+              "merchant": {
+                "description": "Optional nullable merchant text grounded in this source span or explicit user clarification; preserve any opaque tokens exactly and use null/omit when unstated or uncertain. Do not infer it from a draft or similar transaction.",
+                "type": ["string", "null"]
+              },
+              "maskedSpanText": {
+                "description": "Required non-empty exact copy of sourceText[spanStart:spanEnd] from the current masked observation; do not abbreviate or alter tokens.",
+                "minLength": 1,
+                "type": "string"
+              },
+              "normalizedText": {
+                "description": "Required non-empty normalized wording for this grounded occurrence; stay within its observed source meaning and preserve opaque tokens exactly.",
+                "minLength": 1,
+                "type": "string"
+              },
+              "spanEnd": {
+                "description": "Required exclusive UTF-16 end offset in the exact current masked source view; it must be greater than spanStart and no greater than sourceText.length.",
+                "minimum": 1,
+                "type": "integer"
+              },
+              "spanStart": {
+                "description": "Required inclusive UTF-16 start offset in the exact current masked source view; it must be non-negative and the range must not split an opaque token.",
+                "minimum": 0,
+                "type": "integer"
+              },
               "timeAnchor": {
+                "description": "Optional nullable date/time object. Omit or use null if no date/time is grounded; use only same-session typed tokens from source or explicit user clarification/reference. Relative dates require an explicit anchor and an exact available DATE token; never construct a raw or unavailable date.",
                 "additionalProperties": false,
                 "properties": {
-                  "date": {"type": ["string", "null"]},
-                  "intervalEndDate": {"type": ["string", "null"]},
-                  "intervalEndTime": {"type": ["string", "null"]},
-                  "time": {"type": ["string", "null"]},
-                  "timezoneId": {"type": ["string", "null"]}
+                  "date": {
+                    "description": "Optional nullable same-session DATE token. Copy the complete token exactly as displayed, including its literal ⟦ and ⟧ delimiters; never submit only the inner text. The shape ⟦DATE-…⟧ is illustrative only, not a valid or copyable token. A date-only anchor is valid and has no timezone. For relative wording, use only an exact resolved DATE token already present in masked context; otherwise leave null and clarify.",
+                    "type": ["string", "null"]
+                  },
+                  "intervalEndDate": {
+                    "description": "Optional nullable same-session DATE token for an explicitly stated interval end from source or user clarification. Copy the complete token including literal ⟦ and ⟧ delimiters, not only its inner text; ⟦DATE-…⟧ is illustrative only and not a value to submit. Requires a start date and cannot precede it.",
+                    "type": ["string", "null"]
+                  },
+                  "intervalEndTime": {
+                    "description": "Optional nullable same-session TIME token for an explicitly stated interval end from source or user clarification. Copy the complete token including literal ⟦ and ⟧ delimiters, not only its inner text; ⟦TIME-…⟧ is illustrative only and not a value to submit. Requires an interval end date and a start time.",
+                    "type": ["string", "null"]
+                  },
+                  "time": {
+                    "description": "Optional nullable same-session TIME token for an explicitly stated start wall-clock time from source or user clarification. Copy the complete token including literal ⟦ and ⟧ delimiters, not only its inner text; ⟦TIME-…⟧ is illustrative only and not a value to submit. If present it requires a start date. The timezone is host-owned and is not a model argument.",
+                    "type": ["string", "null"]
+                  }
                 },
                 "type": ["object", "null"]
               },
-              "unresolvedReason": {"type": ["string", "null"]}
+              "unresolvedReason": {
+                "description": "Optional nullable explanation of a field left unreadable/uncertain; must be nonblank when amountVnd is null. Never fill an unresolved field by inference.",
+                "type": ["string", "null"]
+              }
             },
             "required": ["spanStart", "spanEnd", "normalizedText", "maskedSpanText"],
             "type": "object"
@@ -86,45 +145,79 @@
       }
     },
     {
-      "description": "Propose an event/draft association. The app computes link evidence from stored source and draft data; caller-supplied evidence is forbidden. Operation identity is host-bound, not a tool argument.",
+      "description": "Propose a tentative pair using only current observed eventId and draftId values inside host scope. The application computes and rechecks link evidence from stored rows; never infer an association from similar text, amount, or date and never supply evidence. This does not attach, confirm a draft, or write a ledger row. The actual result includes a fresh currentPair state/revision when one exists. Operation identity is opaque and host-owned.",
       "mapsTo": "WorkflowCommandService.proposeLink(scope, ProposeLinkRequest)",
       "name": "propose_link",
       "parameters": {
         "additionalProperties": false,
         "properties": {
-          "draftId": {"minimum": 1, "type": "integer"},
-          "eventId": {"minimum": 1, "type": "integer"}
+          "draftId": {
+            "description": "Required positive id from the current bounded draft observation and trusted session scope; never guess an identifier.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "eventId": {
+            "description": "Required positive id from the current observeCaptureContext event observation and trusted session scope.",
+            "minimum": 1,
+            "type": "integer"
+          }
         },
         "required": ["eventId", "draftId"],
         "type": "object"
       }
     },
     {
-      "description": "Attach only a previously proposed pair. Agent scope is subject to the application's unchanged evidence policy; ambiguity remains for the user. Operation identity is host-bound, not a tool argument.",
+      "description": "Attach only the exact previously proposed event/draft pair after observing its currentPair state and revision. The application rechecks unique stored-row evidence; ambiguity remains for the user. userOverride must be JSON null; any non-null value is a terminal user_decision_required refusal. This creates no user confirmation or ledger transaction. The actual result includes a fresh currentPair; operation identity is opaque and host-owned.",
       "mapsTo": "WorkflowCommandService.attachLink(scope, AttachLinkRequest)",
       "name": "attach_link",
       "parameters": {
         "additionalProperties": false,
         "properties": {
-          "draftId": {"minimum": 1, "type": "integer"},
-          "eventId": {"minimum": 1, "type": "integer"},
-          "expectedRevision": {"minimum": 0, "type": "integer"},
-          "userOverride": {"type": ["string", "null"]}
+          "draftId": {
+            "description": "Required positive id of the same scoped draft in the observed proposed pair.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "eventId": {
+            "description": "Required positive id of the same scoped event in the observed proposed pair.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "expectedRevision": {
+            "description": "Required non-negative compare-and-set revision copied from the latest proposed currentPair observation; stale revisions conflict and must be refreshed.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "userOverride": {
+            "description": "Required JSON null. The agent cannot supply a user-only evidence override; any string is refused as user_decision_required.",
+            "type": ["string", "null"]
+          }
         },
         "required": ["eventId", "draftId", "expectedRevision", "userOverride"],
         "type": "object"
       }
     },
     {
-      "description": "Request the existing review-only local Laya suggestion for one draft and its masked description; this does not choose a category or write a ledger record. Operation identity is host-bound, not a tool argument.",
+      "description": "Request only the application's existing local, review-only Laya suggestion for a scoped draft. Copy its current masked description and reviewRevision from query_draft_candidates; the adapter compares the masked preview and classifies the authoritative stored description, not caller text. A mismatch returns context_mismatch with fresh masked description/revision. This does not choose a category or write a ledger record. Operation identity is opaque and host-owned.",
       "mapsTo": "WorkflowCommandService.requestClassification(scope, ClassificationRequest)",
       "name": "request_laya_classification",
       "parameters": {
         "additionalProperties": false,
         "properties": {
-          "description": {"type": "string"},
-          "draftId": {"minimum": 1, "type": "integer"},
-          "expectedReviewRevision": {"minimum": 0, "type": ["integer", "null"]}
+          "description": {
+            "description": "Required copy of the current masked classification description from the scoped draft observation; this is a freshness/context precondition, not a category instruction. On context_mismatch, use the actual fresh masked description returned by the application.",
+            "type": "string"
+          },
+          "draftId": {
+            "description": "Required positive id of a draft present in the current bounded query and granted host scope.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "expectedReviewRevision": {
+            "description": "Required non-negative compare-and-set revision copied from the current bounded draft observation; null is not valid for the agent tool because it would disable the freshness check.",
+            "minimum": 0,
+            "type": "integer"
+          }
         },
         "required": ["draftId", "description", "expectedReviewRevision"],
         "type": "object"

@@ -16,7 +16,7 @@ Sources:
 - `app/src/main/java/io/github/triet4p/aegisf/agent/AgentRunFailure.kt` — the classified
   failure vocabulary (retryable vs terminal).
 - `BoundedWorkflowExecutor.startTracked` / `startWithAttemptKey` / `cancelTracked` and
-  the per-command fixed-key path in `BoundedWorkflowToolAdapter` — the production wiring.
+  the per-command fixed-key path in `AgentToolRuntime` — the production wiring.
 - `LedgerDatabase` v13 + `MIGRATION_12_13` — populated-data migration proof below.
 
 ## Contract

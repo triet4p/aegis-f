@@ -55,6 +55,55 @@ class OpenAiResponsesAdapterTest {
     }
 
     @Test
+    fun `full token guidance survives Responses schema lowering on the wire`() = runBlocking {
+        val config = ProviderFixtures.responsesConfig()
+        val transport = FakeTransport(
+            ProviderFixtures.reply(
+                """{"model":"${config.model}","status":"completed","output":[
+                  {"id":"msg_1","type":"message","status":"completed","role":"assistant",
+                   "content":[{"type":"output_text","text":"ok"}]}]}""",
+            ),
+        )
+        val adapter = HostedAdapters.create(config, transport)
+        ProviderFixtures.turn(
+            adapter.generate(
+                adapter.begin("system instructions", "inspect the declared tool"),
+                listOf(runtimeRecordEventTool()),
+            ),
+        )
+
+        val tool = transport.requestJson().getJSONArray("tools").getJSONObject(0)
+        assertEquals("function", tool.getString("type"))
+        assertEquals("record_event", tool.getString("name"))
+        val parameters = tool.getJSONObject("parameters")
+        val fields = parameters.getJSONObject("properties")
+        assertEquals("object", parameters.getString("type"))
+        assertEquals(6, parameters.getJSONArray("required").length())
+        val requiredNames = (0 until parameters.getJSONArray("required").length())
+            .map { parameters.getJSONArray("required").getString(it) }
+        assertEquals(
+            listOf("source_ref", "summary", "amount_ref", "anchor_ref", "merchant_ref", "clarification"),
+            requiredNames,
+        )
+        assertEquals("string", fields.getJSONObject("amount_ref").getString("type"))
+        assertTrue(fields.getJSONObject("amount_ref").getBoolean("nullable"))
+        assertTrue(fields.getJSONObject("amount_ref").getString("description").contains("AMOUNT alias"))
+        assertEquals("string", fields.getJSONObject("source_ref").getString("type"))
+        assertFalse(fields.getJSONObject("source_ref").optBoolean("nullable", false))
+        assertTrue(
+            fields.getJSONObject("source_ref").getString("description")
+                .contains("expected existing reading or expected absence"),
+        )
+        val enumArray = fields.getJSONObject("clarification").getJSONArray("enum")
+        assertEquals(
+            listOf("none", "amount", "date", "time", "merchant"),
+            (0 until enumArray.length()).map { enumArray.getString(it) },
+        )
+        assertFalse(fields.getJSONObject("amount_ref").has("pattern"))
+        assertFalse(parameters.getBoolean("additionalProperties"))
+    }
+
+    @Test
     fun `continuation resends retained items and supplies one output per call id`() = runBlocking {
         val transport = FakeTransport(
             ProviderFixtures.reply(functionCallReply()),

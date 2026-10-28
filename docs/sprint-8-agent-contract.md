@@ -132,11 +132,10 @@ chaining and lifecycle per
 A run moves through: `READY` (configured, scoped, masked input) → `GENERATING` (one
 provider turn in flight) → `DISPATCHING` (executing complete validated calls) →
 `VERIFYING` (postconditions, §6) → terminal `COMPLETED` (verified), `CLARIFYING`
-(suspended for a scoped user question), `REFUSED` (unavailable action, stated boundary),
-or `INCOMPLETE` (budget/truncation, provider error, masking failure, stale conflict —
-always labelled, never silent success). A non-terminal provider turn with pending calls
-returns to `GENERATING` with the required continuation items (§2); a terminal answer is
-reported only after `VERIFYING` passes.
+or INCOMPLETE (budget/truncation, provider error, masking failure, unresolved conflict,
+or unverified effect — always labelled, never silent success). A non-terminal provider
+turn with pending calls returns to `GENERATING` with the required continuation items (§2);
+a terminal answer is reported only after `VERIFYING` passes.
 
 Turn discipline, in order, every turn:
 
@@ -147,17 +146,21 @@ Turn discipline, in order, every turn:
    arguments, non-truncated per §2). Partial/unknown/truncated calls are recorded as
    `malformed` and never dispatched; a turn with no complete call and no complete text is
    `INCOMPLETE`, not completion.
-3. Validate each complete call against the allowlist and trusted state (§5) before
-   dispatch: scope, revision, idempotency ownership, span bounds, whole-dong/time formats.
-4. Dispatch through `WorkflowCommandService` / `WorkflowQueryService` exactly once per
-   validated call; feed the actual structured observations (outcomes, stored rows,
-   errors) back as the next turn's tool results. Never claim an effect the tool result
-   did not confirm.
-5. On `Conflict` / `NeedsClarification` / `Denied` / `Failed` / `NotFound`, repair only
-   within the declared limits: re-read the authoritative row, re-validate, and either
-   retry the corrected call, ask the scoped clarification question (`CLARIFYING`), or
-   stop with the stated boundary (`REFUSED`). Skill instructions cannot grant authority
-   and never override a denial.
+3. Validate each complete call against the loaded declarations and trusted state (§5) before
+   dispatch: closed tool name, flat schema, reference kind/scope/observed revision,
+   idempotency ownership, span bindings, typed value provenance and cross-field rules.
+4. Dispatch through `AgentToolRuntime` (backed by `WorkflowCommandService` /
+   `WorkflowQueryService`) exactly once per validated call; answer every pending call with
+   the shared result envelope and feed the actual structured observations back as the next
+   turn's tool results. Never claim an effect the envelope did not confirm. An envelope whose
+   `effect` is `unknown` (a pending claim, an unreadable receipt or an unverified effect) is
+   host-reconciled, never treated as no-write and never retried under a new operation key.
+5. On an explicitly repairable `STALE_OBSERVATION`, `SOURCE_QUOTE_NOT_FOUND`, `CURSOR_STALE`,
+   `TEMPORAL_CONSTRAINT`, `MISSING_REQUIRED_MEANING`, `UNKNOWN_REFERENCE`,
+   `REFERENCE_KIND_MISMATCH` or `SUBJECT_UNAVAILABLE`, re-read the current authoritative
+   masked observation and repair only from its state/constraints, ask the scoped
+   clarification question, or stop. Scope, privacy, user-decision, masking, pending/unknown
+   operation and over-budget outcomes are terminal; no retry or skill text can bypass them.
 6. Verify postconditions (§6) before reporting `COMPLETED`.
 
 ## 4. Local/remote boundary and masking contract
@@ -174,8 +177,10 @@ The boundary MUST:
   isolation and collision handling.
 - Retain the exact semantics the workflow reasons about: **integer VND** (whole dong,
   `VndMoney` parsing/addition, no rounding or currency conversion), **dates/times**
-  (`YYYY-MM-DD` / `HH:mm`, explicit zone, relative-time resolution only against the
-  supplied frozen date context), **source spans** (exact offsets into the stored text),
+  (`YYYY-MM-DD` / `HH:mm`, trusted host timezone only when a start time is stated,
+  relative-date resolution only from an explicit user/trusted reference with an available
+  same-session DATE token; otherwise clarify, and no timezone on a date-only anchor),
+  **source spans** (exact offsets into stored text),
   and the relations the workflow needs (equality, ordering, relative-time ordering).
   Tokenization that destroys those relationships is not an acceptable implementation.
 - Preserve necessary relations in masked form (equal values mask equally within scope;
@@ -197,12 +202,19 @@ boundary behavior: masked outbound text carries no raw sensitive value; mapping-
 equality/ordering/relative-time relations survive; unknown tokens and mapping failures
 are refused; rehydrated commands carry exact integer VND, dates/times and spans.
 
-Allowed tools for the agent (closed set): the five task-relevant typed operations in
-`tools/slm/s8_agent_tools.json` — `query_draft_candidates`, `update_event_interpretation`,
-`propose_link`, `attach_link`, `request_laya_classification`. There is explicitly **no**
-financial confirmation, deletion, arbitrary SQL, shell, arbitrary filesystem access,
-general plugin system, or device automation tool. Unknown tools, `execute_sql`,
-`confirm`/`delete` shapes, and caller-supplied evidence fields never reach the API.
+Allowed tools for the agent (closed set): the eleven task-relevant operations declared by
+`tools/slm/s8_agent_tools_v3.json` (`aegis-f-s8-agent-tools/v3`, contract
+`aegis-agent-interface/3`) — `observe`, `select_source`, `list_drafts`, `make_time_anchor`,
+`record_event`, `inspect_link`, `propose_link`, `attach_link`, `classify_draft`,
+`replay_operation`, and `ask_user`. Only the subset the host-selected skills require is
+loaded for a run; an unloaded tool is neither offered nor executable. Model arguments are
+flat primitives and host-issued opaque references, never raw sensitive scalars, revisions,
+operation keys, scope or override flags. The frozen `tools/slm/s8_agent_tools.json` v1 and
+`s8_agent_tools_v2.json` v2 evaluation schemas remain unchanged historical inputs and are
+not loaded by the production Android runtime. There is explicitly **no** financial
+confirmation, deletion, arbitrary SQL, shell, arbitrary filesystem access, general plugin
+system, or device automation tool. Unknown tools, `execute_sql`, `confirm`/`delete` shapes,
+and caller-supplied evidence fields never reach the API.
 
 ## 5. Skill shape, trusted ownership, and authority
 
@@ -216,10 +228,11 @@ observable condition that ends it). The runtime loads relevant instructions per 
 never every workflow on every turn. Stable deterministic transitions belong in code;
 judgment and ambiguity stay with the model/user. Bundled skills for this contract:
 
-- `s8-event-extract/1` — occurrence interpretation and clarification;
-- `s8-draft-search/1` — bounded candidate reads;
-- `s8-propose-attach/1` — propose-then-policy-gated attach;
-- `s8-laya-review/1` — Laya-to-review preparation (review-only).
+- `event-reading/2` — grounded occurrence interpretation, atomic recording and clarification;
+- `draft-search/1` — bounded candidate reads;
+- `link-event-draft/1` — inspect, propose and policy-gated attach;
+- `local-review/1` — Laya-to-review preparation (review-only);
+- `explicit-operation-replay/1` — exact journal-backed replay of a recorded operation.
 
 ### 5.2 Trusted scope, revision and idempotency ownership
 
@@ -229,15 +242,26 @@ judgment and ambiguity stay with the model/user. Bundled skills for this contrac
   from model arguments, request bodies, notes, memos, or stored category names. Targets
   outside scope are refused (`CALLER_SCOPE`) before anything is read or written, and the
   refusal is identical whether or not the named row exists.
-- **Revisions** come from actual state the run read: `expectedCaptureRevision`,
-  `expectedEventRevision` (null for a new event), `expectedRevision` (links),
-  `expectedReviewRevision` (Laya; null leaves review state open). Stale revisions are
-  `Conflict`, never silent overwrite. Initial link revision is 0.
+- **References and revisions** come from fresh scoped observations. Every model-facing
+  reference is a host-issued opaque alias bound to the observation's scope and
+  capture/event/draft/link/review revisions; the model cannot supply or construct one.
+  `expectedEventRevision == null` is a transactional assertion that the selected span still
+  holds no reading, while a non-null value requires exactly that revision. The agent Laya
+  path binds the observed review revision through the draft reference. Stale bindings are
+  `STALE_OBSERVATION`, never silent overwrite. A changed span that overlaps an existing
+  reading is refused as `STALE_OBSERVATION` rather than stored as a second reading — the event
+  write transaction re-checks the overlap atomically, so a competing writer cannot create it
+  between observation and insert — and a correction may not null a stored amount, temporal anchor
+  or merchant without passing that field's observed alias; source-boundary rewriting and explicit
+  field removal are unsupported and become clarification/manual review. Initial link revision is 0.
 - **Idempotency keys** are minted by the trusted runtime (non-blank, ≤ 128 chars, no
-  control characters, unique within the run/case); the same key + caller + request
-  replays from the durable `workflow_operations` row (`Applied` → `NoChange`, one row,
-  equal state digests); the same key with a different caller/request is `Conflict`. A
-  started claim is held before model work and released only when that work really ends.
+  control characters); exact tool-plus-argument calls reuse their mapped identity, while
+  corrected arguments receive a distinct host identity. Durable attempts retain their
+  stable per-tool seed for the first call and derive reproducible identities for later
+  distinct calls. The same key + caller + request replays from the durable
+  `workflow_operations` row (`Applied` → `NoChange`, one row, equal state digests); the
+  same key with a different caller/request is `Conflict`. A started claim is held before
+  model work and released only when that work really ends.
 - **Link evidence** is computed by the app (`TrustedLinkEvidence`, `UNIQUE` vs
   `AMBIGUOUS`); callers state no evidence. Only the user may attach an ambiguous link;
   an agent attach needs still-current `UNIQUE` evidence bound to the exact

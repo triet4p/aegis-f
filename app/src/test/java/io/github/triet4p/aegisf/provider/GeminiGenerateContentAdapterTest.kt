@@ -69,6 +69,49 @@ class GeminiGenerateContentAdapterTest {
     }
 
     @Test
+    fun `full token guidance survives Gemini schema lowering on the wire`() = runBlocking {
+        val config = ProviderFixtures.geminiConfig()
+        val transport = FakeTransport(
+            ProviderFixtures.reply(
+                """{"modelVersion":"${config.model}","candidates":[{"content":{"role":"model","parts":[{"text":"ok"}]},"finishReason":"STOP"}]}""",
+            ),
+        )
+        val adapter = HostedAdapters.create(config, transport)
+        ProviderFixtures.turn(
+            adapter.generate(
+                adapter.begin("system instructions", "inspect the declared tool"),
+                listOf(runtimeRecordEventTool()),
+            ),
+        )
+
+        val declaration = transport.requestJson()
+            .getJSONArray("tools").getJSONObject(0)
+            .getJSONArray("functionDeclarations").getJSONObject(0)
+        val parameters = declaration.getJSONObject("parameters")
+        val fields = parameters.getJSONObject("properties")
+        assertEquals("OBJECT", parameters.getString("type"))
+        assertEquals(6, parameters.getJSONArray("required").length())
+        for (name in listOf("source_ref", "summary", "amount_ref", "anchor_ref", "merchant_ref", "clarification")) {
+            val requiredNames = (0 until parameters.getJSONArray("required").length())
+                .map { parameters.getJSONArray("required").getString(it) }
+            assertTrue("missing ${name}", requiredNames.contains(name))
+            assertTrue("missing schema for ${name}", fields.has(name))
+        }
+        assertEquals("STRING", fields.getJSONObject("amount_ref").getString("type"))
+        assertTrue(fields.getJSONObject("amount_ref").getBoolean("nullable"))
+        assertTrue(fields.getJSONObject("amount_ref").getString("description").contains("AMOUNT alias"))
+        assertEquals("STRING", fields.getJSONObject("source_ref").getString("type"))
+        assertFalse(fields.getJSONObject("source_ref").optBoolean("nullable", false))
+        assertTrue(fields.getJSONObject("source_ref").getString("description").contains("expected existing reading or expected absence"))
+        val clarification = fields.getJSONObject("clarification")
+        val enumArray = clarification.getJSONArray("enum")
+        val enum = (0 until enumArray.length()).map { enumArray.getString(it) }
+        assertEquals(listOf("none", "amount", "date", "time", "merchant"), enum)
+        assertFalse(fields.getJSONObject("amount_ref").has("pattern"))
+        assertFalse(parameters.has("additionalProperties"))
+    }
+
+    @Test
     fun `a function response continues in the accepted user turn and echoes the call id`() = runBlocking {
         val transport = FakeTransport(
             ProviderFixtures.reply(functionCallReply()),
