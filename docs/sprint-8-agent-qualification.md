@@ -596,6 +596,13 @@ of missing, duplicate and unknown cases; the live instrumentation and TEST_ONLY 
 the same identity, and collection fails on any mismatch. The selected diagnostic order is
 `a8-recover-01`, `a8-retry-01`, `a8-nomatch-01`, `a8h-nomatch-01`.
 
+Full-suite measurement selects its own new immutable identity on every Stage1 and Stage2
+command with `attempt_id`, a `-freeze-N` `snapshot_id`, and a repository-relative
+`evidence-root` under `artifacts/sprint-8/evidence`, without a diagnostic run name or case
+subset. The selected identity resolves the same 24-case suite, three non-reusable passes and
+strict freeze paths; mismatches fail before credential load, device effects or retained-output
+overwrite, and partial identities are rejected.
+
 The controlled privacy smoke runs before the other domain proofs and reports each named response
 case independently. Its raw `TEST_ONLY` JSON retains every synthetic response body, expected and
 actual protocol/channel, guard decision and outcome, safe locations, and exception stack traces;

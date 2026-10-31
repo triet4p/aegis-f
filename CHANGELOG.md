@@ -23,6 +23,10 @@ and no release has been tagged or published. Format follows
   recorded scores are preserved and are not regraded.
 
 ### Fixed
+- Fixed the S8.13 qualification harness so full-suite `run` and `score` commands accept the new
+  attempt, snapshot, and evidence-root identity and resolve the same immutable freeze before any
+  hosted call. Diagnostic invocation, fixtures, scoring, gates, and retained snapshots are unchanged.
+
 
 - Corrected the loaded `event-reading/2` skill example and guidance to match the enforced
   provenance rules: `select_source` issues the selected occurrence's own amount/date/time aliases

@@ -510,13 +510,20 @@ Laya source hashes, phone and test evidence, provider route/budget, exact case s
 non-reusable output folders.
 
 Stage2 is deliberately separate and requires Main's explicit approval reference before
-any hosted request:
+any hosted request. Each full-suite command selects the same new immutable identity with
+`--attempt-id`, `--snapshot-id` and `--evidence-root`; identity mismatches fail before any
+credential load, device effect or overwrite of retained output:
 
 ```powershell
-uv run python tools/slm/s8_agent_v3_qualification.py run --pass-number 1 --main-approval <reference>
-uv run python tools/slm/s8_agent_v3_qualification.py run --pass-number 2 --main-approval <reference>
-uv run python tools/slm/s8_agent_v3_qualification.py run --pass-number 3 --main-approval <reference>
-uv run python tools/slm/s8_agent_v3_qualification.py score
+$invocationArgs = @(
+  "--attempt-id", "<attempt-id>",
+  "--snapshot-id", "<attempt-id>-freeze-<N>",
+  "--evidence-root", "artifacts/sprint-8/evidence/<attempt-id>"
+)
+uv run python tools/slm/s8_agent_v3_qualification.py run --pass-number 1 --main-approval <reference> @invocationArgs
+uv run python tools/slm/s8_agent_v3_qualification.py run --pass-number 2 --main-approval <reference> @invocationArgs
+uv run python tools/slm/s8_agent_v3_qualification.py run --pass-number 3 --main-approval <reference> @invocationArgs
+uv run python tools/slm/s8_agent_v3_qualification.py score @invocationArgs
 ```
 
 Each full run retains all 24 case attempts and provider sidecars, including failures and

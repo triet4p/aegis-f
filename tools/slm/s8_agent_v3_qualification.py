@@ -948,6 +948,12 @@ def validated_path_component(value: Any, label: str) -> str:
 
 
 def configure_invocation(args: argparse.Namespace, *, required: bool = False) -> None:
+    global ATTEMPT_ID, SNAPSHOT_ID, EVIDENCE_ROOT, PREPARATION_ROOT, REPRODUCTION_INVOCATION
+    global DEBUG_ROOT, TEST_ONLY_PRIVACY_ROOT
+    global CASE_MAPPING_PATH, PREFLIGHT_PATH, BUILD_PATH, DEVICE_PREFLIGHT_PATH
+    global FREEZE_PATH, PATH_IDENTITY_PREFLIGHT_PATH
+    global DIAGNOSTIC_OUTPUT_DIR, DIAGNOSTIC_HOST_PATH, DIAGNOSTIC_PREFLIGHT_PATH
+    global DIAGNOSTIC_PATH_IDENTITY_PATH, DIAGNOSTIC_REMOTE_RUN_DIR
     supplied = {
         "attempt_id": getattr(args, "attempt_id", None),
         "snapshot_id": getattr(args, "snapshot_id", None),
@@ -961,6 +967,58 @@ def configure_invocation(args: argparse.Namespace, *, required: bool = False) ->
             raise RuntimeError("diagnostic launch requires explicit attempt, snapshot, run name, and case IDs")
         if evidence_root_arg is not None:
             raise RuntimeError("--evidence-root requires a complete diagnostic invocation")
+        return
+    if supplied["run_name"] is None and supplied["case_ids"] is None:
+        # Full-suite (non-diagnostic) invocation selection: an explicit attempt ID,
+        # snapshot ID, and evidence root without a diagnostic run name or case
+        # subset. This selects the complete 24-case suite and its three passes;
+        # no reproduction or diagnostic identity is recorded. Strict freeze and
+        # path checks must match this identity before any credential load or
+        # device effect, and any partial identity is rejected here.
+        if (supplied["attempt_id"] is None or supplied["snapshot_id"] is None or
+                evidence_root_arg is None):
+            raise RuntimeError("full-suite invocation requires explicit attempt ID, snapshot ID, and evidence root")
+        attempt_id = validated_path_component(supplied["attempt_id"], "attempt ID")
+        snapshot_id = validated_path_component(supplied["snapshot_id"], "snapshot ID")
+        freeze_match = re.search(r"-freeze-(\d+)$", snapshot_id)
+        if freeze_match is None:
+            raise RuntimeError("snapshot ID must end with its explicit -freeze-N number")
+        evidence_rel = PurePosixPath(str(evidence_root_arg).replace("\\", "/"))
+        if (evidence_rel.is_absolute() or ".." in evidence_rel.parts or
+                evidence_rel.parts[:3] != ("artifacts", "sprint-8", "evidence") or
+                len(evidence_rel.parts) < 4):
+            raise RuntimeError("--evidence-root must be a repository-relative artifacts/sprint-8/evidence child")
+        evidence_root = ROOT.joinpath(*evidence_rel.parts)
+        evidence_base = ROOT / "artifacts/sprint-8/evidence"
+        if not evidence_root.resolve(strict=False).is_relative_to(evidence_base.resolve(strict=False)):
+            raise RuntimeError("--evidence-root must remain inside artifacts/sprint-8/evidence")
+        for candidate in (evidence_base, *evidence_root.parents, evidence_root):
+            if candidate.exists() and candidate.is_symlink():
+                raise RuntimeError("refusing a symlinked evidence-root path")
+        ATTEMPT_ID = attempt_id
+        SNAPSHOT_ID = snapshot_id
+        EVIDENCE_ROOT = evidence_root
+        PREPARATION_ROOT = EVIDENCE_ROOT / f"snapshot-{freeze_match.group(1)}"
+        REPRODUCTION_INVOCATION = None
+        DEBUG_ROOT = EVIDENCE_ROOT / "debug" / SNAPSHOT_ID
+        TEST_ONLY_PRIVACY_ROOT = (
+            ROOT / "artifacts/sprint-8/test-only" / ATTEMPT_ID / SNAPSHOT_ID / "preflight-privacy-smoke"
+        )
+        CASE_MAPPING_PATH = PREPARATION_ROOT / "case-mapping.json"
+        PREFLIGHT_PATH = PREPARATION_ROOT / "preflight-static.json"
+        BUILD_PATH = PREPARATION_ROOT / "build.json"
+        DEVICE_PREFLIGHT_PATH = PREPARATION_ROOT / "device-preflight-host.json"
+        FREEZE_PATH = PREPARATION_ROOT / "freeze.json"
+        PATH_IDENTITY_PREFLIGHT_PATH = PREPARATION_ROOT / "path-identity-preflight.json"
+        DIAGNOSTIC_OUTPUT_DIR = PREPARATION_ROOT / CANDIDATE / DIAGNOSTIC_RUN_NAME
+        DIAGNOSTIC_HOST_PATH = PREPARATION_ROOT / CANDIDATE / f"{DIAGNOSTIC_RUN_NAME}.host.json"
+        DIAGNOSTIC_PREFLIGHT_PATH = PREPARATION_ROOT / CANDIDATE / f"{DIAGNOSTIC_RUN_NAME}.preflight.json"
+        DIAGNOSTIC_PATH_IDENTITY_PATH = (
+            PREPARATION_ROOT / CANDIDATE / f"{DIAGNOSTIC_RUN_NAME}.path-identity.json"
+        )
+        DIAGNOSTIC_REMOTE_RUN_DIR = (
+            f"files/{ATTEMPT_ID}/{SNAPSHOT_ID}/{CANDIDATE}/{DIAGNOSTIC_RUN_NAME}"
+        )
         return
     if not all(value is not None for value in supplied.values()):
         raise RuntimeError("attempt, snapshot, run name, and case IDs must be supplied together")
@@ -992,12 +1050,6 @@ def configure_invocation(args: argparse.Namespace, *, required: bool = False) ->
         run_name=run_name,
         case_ids=case_ids,
     )
-    global ATTEMPT_ID, SNAPSHOT_ID, EVIDENCE_ROOT, PREPARATION_ROOT, REPRODUCTION_INVOCATION
-    global DEBUG_ROOT, TEST_ONLY_PRIVACY_ROOT
-    global CASE_MAPPING_PATH, PREFLIGHT_PATH, BUILD_PATH, DEVICE_PREFLIGHT_PATH
-    global FREEZE_PATH, PATH_IDENTITY_PREFLIGHT_PATH
-    global DIAGNOSTIC_OUTPUT_DIR, DIAGNOSTIC_HOST_PATH, DIAGNOSTIC_PREFLIGHT_PATH
-    global DIAGNOSTIC_PATH_IDENTITY_PATH, DIAGNOSTIC_REMOTE_RUN_DIR
     ATTEMPT_ID = invocation.attempt_id
     SNAPSHOT_ID = invocation.snapshot_id
     EVIDENCE_ROOT = evidence_root
@@ -5715,6 +5767,88 @@ def selfcheck_report() -> dict[str, Any]:
         for name, value in previous_configuration.items():
             globals()[name] = value
     check("runner_configuration_round_trips_all_invocation_parameters", configuration_valid)
+    full_suite_valid = False
+    full_suite_mismatch_rejected = False
+    full_suite_partial_rejected = False
+    full_suite_diagnostic_run_name_rejected = False
+    try:
+        configure_invocation(argparse.Namespace(
+            attempt_id="S8.13-harness-a27",
+            snapshot_id="S8.13-harness-a27-freeze-34",
+            run_name=None,
+            case_ids=None,
+            evidence_root="artifacts/sprint-8/evidence/S8.13-harness-a27",
+        ))
+        configured_arguments = dict(instrumentation_identity_args())
+        frozen_identity = {
+            "attempt_id": ATTEMPT_ID,
+            "snapshot_id": SNAPSHOT_ID,
+            "candidate": CANDIDATE,
+            "evidence_output_root": evidence_path(PREPARATION_ROOT),
+        }
+        full_suite_valid = (
+            REPRODUCTION_INVOCATION is None and
+            current_diagnostic_identity() is None and
+            frozen_identity == {
+                "attempt_id": "S8.13-harness-a27",
+                "snapshot_id": "S8.13-harness-a27-freeze-34",
+                "candidate": CANDIDATE,
+                "evidence_output_root": evidence_path(ROOT / "artifacts/sprint-8/evidence/S8.13-harness-a27/snapshot-34"),
+            } and
+            configured_arguments.get("S813_ATTEMPT_ID") == "S8.13-harness-a27" and
+            configured_arguments.get("S813_SNAPSHOT_ID") == "S8.13-harness-a27-freeze-34" and
+            "S813_RUN_NAME" not in configured_arguments and
+            "S813_CASE_IDS" not in configured_arguments
+        )
+    finally:
+        for name, value in previous_configuration.items():
+            globals()[name] = value
+    check("full_suite_configuration_selects_complete_suite_without_diagnostic_identity", full_suite_valid)
+    try:
+        configure_invocation(argparse.Namespace(
+            attempt_id="S8.13-harness-a27",
+            snapshot_id="S8.13-harness-a27-no-freeze-number",
+            run_name=None,
+            case_ids=None,
+            evidence_root="artifacts/sprint-8/evidence/S8.13-harness-a27",
+        ))
+    except RuntimeError:
+        full_suite_mismatch_rejected = True
+    finally:
+        for name, value in previous_configuration.items():
+            globals()[name] = value
+    check("full_suite_snapshot_without_freeze_number_is_rejected", full_suite_mismatch_rejected)
+    try:
+        configure_invocation(argparse.Namespace(
+            attempt_id="S8.13-harness-a27",
+            snapshot_id=None,
+            run_name=None,
+            case_ids=None,
+            evidence_root="artifacts/sprint-8/evidence/S8.13-harness-a27",
+        ))
+    except RuntimeError:
+        full_suite_partial_rejected = True
+    finally:
+        for name, value in previous_configuration.items():
+            globals()[name] = value
+    check("full_suite_partial_identity_is_rejected_before_selection", full_suite_partial_rejected)
+    try:
+        configure_invocation(argparse.Namespace(
+            attempt_id="S8.13-harness-a27",
+            snapshot_id="S8.13-harness-a27-freeze-34",
+            run_name="S8.13-live-a27",
+            case_ids=None,
+            evidence_root="artifacts/sprint-8/evidence/S8.13-harness-a27",
+        ))
+    except RuntimeError:
+        full_suite_diagnostic_run_name_rejected = True
+    finally:
+        for name, value in previous_configuration.items():
+            globals()[name] = value
+    check(
+        "mixed_full_suite_and_diagnostic_identity_is_rejected",
+        full_suite_diagnostic_run_name_rejected,
+    )
     try:
         validated_reproduction_run_name("../reused")
     except RuntimeError:
@@ -5832,6 +5966,7 @@ def main() -> int:
     run_parser.add_argument("--pass-number", type=int, choices=(1, 2, 3), required=True)
     run_parser.add_argument("--main-approval", required=True, help="exact reference to Main's explicit Stage2 authorization")
     run_parser.add_argument("--timeout-seconds", type=int, default=21_600)
+    add_invocation_arguments(run_parser)
     diagnostic_parser = commands.add_parser(
         "diagnostic-onecase",
         help="run only the frozen a8-laya-02 diagnostic in its separate folder",
@@ -5848,6 +5983,7 @@ def main() -> int:
     reproduce_parser.add_argument("--timeout-seconds", type=int, default=3600)
     score_parser = commands.add_parser("score", help="score the three retained runs and require per-case semantic review")
     score_parser.add_argument("--semantic-reviews", type=Path)
+    add_invocation_arguments(score_parser)
     selfcheck_parser = commands.add_parser(
         "selfcheck",
         help="deterministically exercise the adjudication contract without device or provider",
