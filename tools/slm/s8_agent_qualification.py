@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Build, execute, and collect isolated S8.13 hosted qualification runs.
+"""Retained utilities for the isolated S8.13 evidence package.
 
-Keys are loaded in-process from the existing S8 trial loader and passed only as a
-transient instrumentation argument. This runner never writes a key or raw command
-line to evidence. All app installation and instrumentation targets the verified
-S8.13 evidence package; it never clears or changes the base application.
+This module keeps the shared build, smoke, freeze-batch, recovery and legacy-v1
+scoring helpers that the v3 qualification runner imports. It does not launch a
+hosted run: the only accepted full-suite entry point is
+``s8_agent_v3_qualification.py run``, which reads the credential from a one-shot
+process-memory socket after strict identity validation. No key or raw command
+line is written to evidence, and installation/instrumentation targets only the
+isolated S8.13 evidence package; the base application is never cleared or changed.
 """
 from __future__ import annotations
 
@@ -14,7 +17,6 @@ import io
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 import tarfile
@@ -762,133 +764,6 @@ def action_recover_device_evidence(args: argparse.Namespace) -> int:
     return 0
 
 
-def action_run(args: argparse.Namespace) -> int:
-    profile, pass_number = args.profile, args.pass_number
-    if profile not in PROFILES or pass_number not in (1, 2, 3):
-        raise RuntimeError("unsupported current qualification candidate or pass")
-    batch, candidate_config = frozen_batch(profile)
-    output_dir = EVIDENCE / profile / f"pass-{pass_number}"
-    if output_dir.exists():
-        raise RuntimeError(f"refusing to overwrite retained run evidence: {output_dir}")
-    apk_ids = verify_apks()
-    from s8_trials import load_hosted_key
-
-    key_name = PROFILES[profile]
-    key = load_hosted_key(key_name)
-    if not key:
-        write_json(EVIDENCE / profile / f"pass-{pass_number}.preflight.json", {
-            "task_id": "S8.13", "attempt_id": ATTEMPT_ID,
-            "batch_id": BATCH_ID,
-            "profile": profile, "pass": pass_number,
-            "attempt_status": "configuration_unavailable", "credential_available": False,
-            "endpoint_attempted": False, "occurred_at": utc_now(),
-        })
-        raise RuntimeError(f"required process-local credential {key_name} is unavailable; no endpoint attempt made")
-    keys = (key,)
-    device = adb("get-state").stdout.strip()
-    if device != "device":
-        raise RuntimeError(f"the assigned phone is not ready (state={device!r})")
-    model = adb("shell", "getprop", "ro.product.model").stdout.strip()
-    release = adb("shell", "getprop", "ro.build.version.release").stdout.strip()
-    if model != "ALT-LX2" or release != "14":
-        raise RuntimeError(f"refusing unrecognized phone; observed model={model!r}, Android={release!r}")
-    for apk in (APP_APK, TEST_APK):
-        result = adb("install", "-r", str(apk), timeout=240)
-        if "Success" not in result.stdout:
-            raise RuntimeError(f"isolated APK install not confirmed: {redact(result.stdout, keys)}")
-    stage_laya()
-    args_list = [
-        str(ADB), "-s", DEVICE_SERIAL, "shell", "am", "instrument", "-w",
-        "-e", "class", "io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest",
-        "-e", "S813_PROFILE", profile,
-        "-e", "S813_PASS", str(pass_number),
-        "-e", "S813_ATTEMPT_ID", ATTEMPT_ID,
-        "-e", "S813_BATCH_ID", BATCH_ID,
-        "-e", "S813_SNAPSHOT_ID", BATCH_SNAPSHOT_ID,
-        "-e", key_name, key,
-        f"{TEST_PACKAGE}/{apk_ids['test_runner']}",
-    ]
-    started = utc_now()
-    try:
-        result = subprocess.run(args_list, cwd=ROOT, env=build_environment(), text=True, capture_output=True,
-                                timeout=args.timeout_seconds)
-        run_code = result.returncode
-        run_stdout = redact(result.stdout, keys)
-        run_stderr = redact(result.stderr, keys)
-        qualification_class_passed = (
-            run_code == 0 and
-            "io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest:." in run_stdout and
-            "OK (1 test)" in run_stdout
-        )
-        if qualification_class_passed and "FAILURES!!!" in run_stdout:
-            instrument_status = "qualification_class_passed; unrelated_instrumented_test_failed"
-        elif qualification_class_passed:
-            instrument_status = "OK (1 test)"
-        else:
-            instrument_status = "instrumentation_failed"
-    except subprocess.TimeoutExpired as failure:
-        run_code = 124
-        run_stdout = redact((failure.stdout or "").decode("utf-8", "replace") if isinstance(failure.stdout, bytes) else (failure.stdout or ""), keys)
-        run_stderr = redact((failure.stderr or "").decode("utf-8", "replace") if isinstance(failure.stderr, bytes) else (failure.stderr or ""), keys)
-        instrument_status = "host_timeout; device process outcome may be incomplete"
-    except Exception as failure:
-        run_code = 125
-        run_stdout = ""
-        run_stderr = redact(f"{type(failure).__name__}: {failure}", keys)
-        instrument_status = "host_runner_error; device outcome may be incomplete"
-    finally:
-        key = ""  # release the only application-level reference before artifact serialization
-    collected: list[str] = []
-    collect_error = None
-    device_run_validation = None
-    finished = utc_now()
-    host_binding = {
-        "task_id": "S8.13",
-        "attempt_id": ATTEMPT_ID,
-        "batch_id": BATCH_ID,
-        "batch_sha256": sha256_file(BATCH_PATH),
-        "batch_snapshot_id": BATCH_SNAPSHOT_ID,
-        "device_serial": DEVICE_SERIAL,
-        "device_model": model,
-        "android_release": release,
-        "verified_packages": apk_ids,
-        "app_apk_sha256": sha256_file(APP_APK),
-        "test_apk_sha256": sha256_file(TEST_APK),
-        "started_at": started,
-        "finished_at": finished,
-        "instrumentation_exit_code": run_code,
-        "instrumentation_status": instrument_status,
-    }
-    try:
-        collected = pull_evidence(profile, pass_number)
-        device_run_validation = validate_device_run_evidence(
-            output_dir,
-            profile,
-            pass_number,
-            batch,
-            host_binding,
-        )
-    except Exception as failure:  # keep sanitized runner result even when app files are unavailable
-        collect_error = f"{type(failure).__name__}: {str(failure)[:1000]}"
-    record = {
-        **host_binding,
-        "protocol": candidate_config["protocol"],
-        "max_output_tokens_per_turn": candidate_config["max_output_tokens_per_turn"],
-        "stdout_redacted": run_stdout[-12000:],
-        "stderr_redacted": run_stderr[-12000:],
-        "collected_files": collected,
-        "collection_error": collect_error,
-        "device_run_validation": device_run_validation,
-        "credential_recorded": False,
-        "isolated_base_package_mutated": False,
-    }
-    write_json(EVIDENCE / profile / f"pass-{pass_number}.host.json", record)
-    print(json.dumps({"profile": profile, "pass": pass_number, "instrumentation_status": instrument_status,
-                      "exit_code": run_code, "collected_files": len(collected), "collection_error": collect_error,
-                      "credential_recorded": False}, indent=2))
-    return 0 if instrument_status == "OK (1 test)" and collect_error is None else 1
-
-
 def case_index() -> dict[str, str]:
     suites = {
         "dev": json.loads((ROOT / "tools/slm/s8_agent_dev.json").read_text(encoding="utf-8")),
@@ -1336,25 +1211,17 @@ def main() -> int:
     recover_parser.add_argument("--pass-number", required=True, type=int, choices=(1, 2, 3))
     legacy_parser.add_argument("--profile", required=True, choices=sorted(PROFILES))
     legacy_parser.add_argument("--pass-number", type=int, required=True, choices=(1, 2, 3))
-    run_parser = commands.add_parser("run", help="execute one real 24-case configuration pass")
-    run_parser.add_argument("--profile", required=True, choices=sorted(PROFILES))
-    run_parser.add_argument("--pass-number", type=int, required=True, choices=(1, 2, 3))
-    run_parser.add_argument("--timeout-seconds", type=int, default=10_800)
     args = parser.parse_args()
+    actions = {
+        "build": action_build,
+        "report": action_report,
+        "smoke": action_smoke,
+        "freeze-batch": action_freeze_batch,
+        "recover-device-evidence": action_recover_device_evidence,
+        "legacy-v1-score": action_legacy_v1_score,
+    }
     try:
-        if args.command == "build":
-            return action_build(args)
-        if args.command == "report":
-            return action_report(args)
-        if args.command == "smoke":
-            return action_smoke(args)
-        if args.command == "freeze-batch":
-            return action_freeze_batch(args)
-        if args.command == "recover-device-evidence":
-            return action_recover_device_evidence(args)
-        if args.command == "legacy-v1-score":
-            return action_legacy_v1_score(args)
-        return action_run(args)
+        return actions[args.command](args)
     except Exception as failure:
         print(f"S8.13 runner stopped safely: {type(failure).__name__}: {str(failure)[:1500]}", file=sys.stderr)
         return 2

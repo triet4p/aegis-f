@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
-"""Freeze and run the owner-approved three-case S8.13 repair diagnostic."""
+"""Freeze the owner-approved three-case S8.13 repair diagnostic snapshot.
+
+The diagnostic is launched only from the freeze-bound v3 runner
+(``s8_agent_v3_qualification.py diagnostic-onecase`` or ``reproduce-blocked``);
+this tool retains only its build, preflight and freeze steps.
+"""
 from __future__ import annotations
 
 import argparse
 import hashlib
-import io
 import json
-import subprocess
 import sys
-import tarfile
-from datetime import datetime, timedelta, timezone
-from pathlib import Path, PurePosixPath
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import s8_agent_qualification as qualification
@@ -358,317 +360,19 @@ def action_freeze(_: argparse.Namespace) -> int:
     return 0
 
 
-def _fresh_batch() -> dict[str, Any]:
-    batch = load_json(BATCH_PATH)
-    if (batch.get("task_id") != "S8.13" or batch.get("attempt_id") != ATTEMPT_ID
-            or batch.get("batch_id") != BATCH_ID or batch.get("snapshot_id") != SNAPSHOT_ID
-            or batch.get("measurement_scope", {}).get("selected_case_ids") != list(CASE_IDS)
-            or batch.get("measurement_scope", {}).get("case_count_per_model") != 3
-            or batch.get("measurement_scope", {}).get("total_case_executions") != 6
-            or batch.get("source_sha256") != {path: sha256_file(ROOT / path) for path in SOURCE_PATHS}
-            or batch.get("preflight", {}).get("sha256") != sha256_file(PREFLIGHT_PATH)
-            or batch.get("device_preflight", {}).get("sha256") != sha256_file(DEVICE_PREFLIGHT_PATH)):
-        raise RuntimeError("diagnostic snapshot identity, source hashes, or nested preflight checksums changed")
-    build = batch.get("isolated_build", {})
-    packages = qualification.verify_apks()
-    if (build.get("app_apk_sha256") != sha256_file(APP_APK)
-            or build.get("test_apk_sha256") != sha256_file(TEST_APK)
-            or packages.get("app") != PACKAGE or packages.get("test") != TEST_PACKAGE
-            or packages.get("test_target") != PACKAGE
-            or packages.get("test_runner") != "androidx.test.runner.AndroidJUnitRunner"):
-        raise RuntimeError("current isolated APK identity or digest differs from the frozen diagnostic")
-    return batch
-
-
-def _validate_recovered_run(
-    directory: Path, profile: str, host: dict[str, Any], batch: dict[str, Any],
-) -> dict[str, Any]:
-    if (host.get("task_id") != "S8.13" or host.get("attempt_id") != ATTEMPT_ID
-            or host.get("batch_id") != BATCH_ID or host.get("snapshot_id") != SNAPSHOT_ID
-            or host.get("batch_sha256") != sha256_file(BATCH_PATH)):
-        raise RuntimeError("host record does not bind to the frozen diagnostic snapshot")
-    packages = qualification.verify_apks()
-    build = batch["isolated_build"]
-    if (host.get("device_serial") != DEVICE_SERIAL
-            or host.get("device_model") != "ALT-LX2" or host.get("android_release") != "14"
-            or host.get("verified_packages") != packages
-            or packages.get("app") != PACKAGE or packages.get("test") != TEST_PACKAGE
-            or packages.get("test_target") != PACKAGE
-            or packages.get("test_runner") != "androidx.test.runner.AndroidJUnitRunner"
-            or host.get("app_apk_sha256") != build.get("app_apk_sha256")
-            or host.get("test_apk_sha256") != build.get("test_apk_sha256")):
-        raise RuntimeError("host run, device identity, isolated APK identity, or APK hash mismatch")
-    live_path = directory / "live-run.json"
-    if not live_path.is_file():
-        raise RuntimeError("isolated device evidence lacks live-run.json")
-    live = load_json(live_path)
-    if (live.get("task") != "S8.13" or live.get("attempt_id") != ATTEMPT_ID
-            or live.get("batch_id") != BATCH_ID or live.get("profile") != profile
-            or str(live.get("pass")) != "1"
-            or live.get("runtime_fixture_projection") != batch["runtime_projection"]["id"]
-            or live.get("measurement_scope") != "diagnostic_subset"
-            or live.get("case_ids") != list(CASE_IDS)
-            or live.get("expected_cases") != 3 or live.get("recorded_cases") != 3):
-        raise RuntimeError("device run did not execute exactly the frozen diagnostic case identities once")
-    input_hashes = live.get("input_sha256", {})
-    projection = batch["runtime_projection"]
-    if input_hashes.get("runtime_projection") != projection["sha256"]:
-        raise RuntimeError("device run loaded a different runtime fixture projection")
-    for name, item in projection["base_inputs"].items():
-        if input_hashes.get(name) != item["sha256"]:
-            raise RuntimeError(f"device run did not load the frozen {name} base input")
-    expected = set(CASE_IDS)
-    case_files = {
-        path.name.removesuffix(".json") for path in directory.glob("*.json")
-        if path.name != "live-run.json" and not path.name.endswith(".provider-attempts.json")
-    }
-    if case_files != expected:
-        raise RuntimeError("collected evidence files do not exactly match the three selected cases")
-    live_cases = {row.get("case_id"): row for row in live.get("cases", []) if isinstance(row, dict)}
-    if set(live_cases) != expected:
-        raise RuntimeError("live-run case records do not exactly match the three selected cases")
-    sidecar_ids = {path.name.removesuffix(".provider-attempts.json")
-                   for path in directory.glob("*.provider-attempts.json")}
-    if not sidecar_ids <= expected:
-        raise RuntimeError("provider sidecars include a case outside the diagnostic subset")
-    case_attempts = {}
-    for case_id in CASE_IDS:
-        case_record = load_json(directory / f"{case_id}.json")
-        if case_record.get("case_id") != case_id:
-            raise RuntimeError(f"case record identity mismatch for {case_id}")
-        case_attempts[case_id] = case_record.get("attempt_status")
-        sidecar_path = directory / f"{case_id}.provider-attempts.json"
-        if sidecar_path.exists() and load_json(sidecar_path).get("case_id") != case_id:
-            raise RuntimeError(f"provider sidecar identity mismatch for {case_id}")
-    started_host = datetime.fromisoformat(host["started_at"].replace("Z", "+00:00"))
-    finished_host = datetime.fromisoformat(host["finished_at"].replace("Z", "+00:00"))
-    started_device = datetime.fromisoformat(live["started_at"].replace("Z", "+00:00"))
-    finished_device = datetime.fromisoformat(live["finished_at"].replace("Z", "+00:00"))
-    tolerance = timedelta(seconds=120)
-    if (finished_device < started_device
-            or abs((started_device - started_host).total_seconds()) > tolerance.total_seconds()
-            or abs((finished_device - finished_host).total_seconds()) > tolerance.total_seconds()):
-        raise RuntimeError("device run timestamps are stale or outside the host invocation window")
-    if host.get("instrumentation_status") != "OK (1 test)" or host.get("instrumentation_exit_code") != 0:
-        raise RuntimeError("instrumentation did not complete the selected class")
-    return {
-        "profile": profile,
-        "pass": 1,
-        "live_run_path": str(live_path.relative_to(ROOT)).replace("\\", "/"),
-        "live_run_sha256": sha256_file(live_path),
-        "runtime_projection_sha256": input_hashes["runtime_projection"],
-        "selected_case_ids": list(CASE_IDS),
-        "case_count": len(case_files),
-        "sidecar_count": len(sidecar_ids),
-        "case_attempt_statuses": case_attempts,
-        "safety_stop": live.get("safety_stop"),
-        "verified_packages": packages,
-        "app_apk_sha256": build["app_apk_sha256"],
-        "test_apk_sha256": build["test_apk_sha256"],
-        "snapshot_id": SNAPSHOT_ID,
-        "batch_sha256": host["batch_sha256"],
-    }
-
-
-def _pull_evidence(profile: str, destination: Path) -> list[str]:
-    remote = f"files/{ATTEMPT_ID}/{profile}/pass-1"
-    if destination.exists():
-        raise RuntimeError(f"refusing to overwrite retained diagnostic evidence: {destination}")
-    result = subprocess.run(
-        [str(qualification.ADB), "-s", DEVICE_SERIAL, "exec-out", "run-as", PACKAGE,
-         "tar", "-cf", "-", remote],
-        cwd=ROOT, env=qualification.build_environment(), capture_output=True, timeout=300,
-    )
-    if result.returncode:
-        detail = result.stderr.decode("utf-8", "replace")[-2000:]
-        raise RuntimeError(f"could not collect isolated diagnostic evidence: {detail}")
-    destination.mkdir(parents=True)
-    written: list[str] = []
-    with tarfile.open(fileobj=io.BytesIO(result.stdout), mode="r:*") as archive:
-        prefix = PurePosixPath(remote)
-        for member in archive.getmembers():
-            member_path = PurePosixPath(member.name)
-            relative = member_path.relative_to(prefix) if member_path == prefix or prefix in member_path.parents else None
-            if relative is None or str(relative) in (".", "") or member.isdir():
-                continue
-            if member.issym() or member.islnk() or not member.isfile() or ".." in relative.parts:
-                raise RuntimeError(f"refusing unsafe diagnostic archive member: {member.name}")
-            target = destination.joinpath(*relative.parts)
-            target.parent.mkdir(parents=True, exist_ok=True)
-            if target.exists():
-                raise RuntimeError(f"refusing to overwrite retained diagnostic evidence: {target}")
-            source = archive.extractfile(member)
-            if source is None:
-                raise RuntimeError(f"could not read diagnostic evidence member: {member.name}")
-            target.write_bytes(source.read())
-            written.append(str(target.relative_to(ROOT)).replace("\\", "/"))
-    return written
-
-
-def _device_is_ready(frozen_device: dict[str, Any]) -> dict[str, Any]:
-    current = _device_snapshot()
-    if (current.get("connected") is not True
-            or current.get("device_serial") != frozen_device.get("serial")
-            or current.get("device_model") != frozen_device.get("model")
-            or current.get("android_release") != frozen_device.get("android_release")):
-        raise RuntimeError("assigned phone disconnected or no longer matches the frozen device identity")
-    return current
-
-
-def action_run(args: argparse.Namespace) -> int:
-    profile = args.profile
-    if profile not in CANDIDATES:
-        raise RuntimeError("candidate is outside the frozen diagnostic")
-    batch = _fresh_batch()
-    output_dir = EVIDENCE / profile / "pass-1"
-    host_path = EVIDENCE / profile / "pass-1.host.json"
-    if output_dir.exists() or host_path.exists():
-        raise RuntimeError(f"refusing to repeat or overwrite the sole diagnostic run for {profile}")
-    if profile == "candidate-a":
-        if any((EVIDENCE / name / "pass-1.host.json").exists()
-               for name in ("candidate-a", "candidate-b")):
-            raise RuntimeError("candidate A must be the first and only A run")
-    else:
-        candidate_a_host = EVIDENCE / "candidate-a" / "pass-1.host.json"
-        candidate_a_evidence = EVIDENCE / "candidate-a" / "pass-1"
-        if not candidate_a_host.is_file() or not candidate_a_evidence.is_dir():
-            raise RuntimeError("candidate B is permitted only after the single candidate A run is retained")
-        candidate_a = load_json(candidate_a_host)
-        candidate_a_live = load_json(candidate_a_evidence / "live-run.json")
-        if (candidate_a.get("instrumentation_status") != "OK (1 test)"
-                or candidate_a.get("device_run_validation") is None
-                or candidate_a_live.get("safety_stop") is not None):
-            raise RuntimeError("candidate A produced a blocking failure; stop all further hosted calls")
-
-    apk_ids = qualification.verify_apks()
-    from s8_trials import load_hosted_key
-
-    key_name = PROFILES[profile]
-    key = load_hosted_key(key_name)
-    if not key:
-        raise RuntimeError(f"required process-local credential {key_name} is unavailable; no endpoint attempt made")
-    keys = (key,)
-    frozen_device = batch["device_preflight"]
-    device = _device_is_ready(frozen_device)
-    for apk in (APP_APK, TEST_APK):
-        result = qualification.adb("install", "-r", str(apk), timeout=240, keys=keys)
-        if "Success" not in result.stdout:
-            raise RuntimeError(f"isolated APK install not confirmed: {qualification.redact(result.stdout, keys)}")
-    installed_app_path = qualification.adb("shell", "pm", "path", PACKAGE).stdout.strip()
-    installed_test_path = qualification.adb("shell", "pm", "path", TEST_PACKAGE).stdout.strip()
-    if not installed_app_path.startswith("package:") or not installed_test_path.startswith("package:"):
-        raise RuntimeError("isolated app/test package was not installed before hosted instrumentation")
-
-    args_list = [
-        str(qualification.ADB), "-s", DEVICE_SERIAL, "shell", "am", "instrument", "-w",
-        "-e", "class", "io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest",
-        "-e", "S813_PROFILE", profile,
-        "-e", "S813_PASS", "1",
-        "-e", "S813_ATTEMPT_ID", ATTEMPT_ID,
-        "-e", "S813_BATCH_ID", BATCH_ID,
-        "-e", "S813_SNAPSHOT_ID", SNAPSHOT_ID,
-        "-e", "S813_CASE_IDS", ",".join(CASE_IDS),
-        "-e", key_name, key,
-        f"{TEST_PACKAGE}/{apk_ids['test_runner']}",
-    ]
-    started = utc_now()
-    try:
-        try:
-            result = subprocess.run(args_list, cwd=ROOT, env=qualification.build_environment(),
-                                    text=True, capture_output=True, timeout=args.timeout_seconds)
-            exit_code = result.returncode
-            stdout = qualification.redact(result.stdout, keys)
-            stderr = qualification.redact(result.stderr, keys)
-            class_passed = (exit_code == 0
-                            and "io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest:." in stdout
-                            and "OK (1 test)" in stdout)
-            instrumentation_status = "OK (1 test)" if class_passed else "instrumentation_failed"
-        except subprocess.TimeoutExpired as failure:
-            exit_code = 124
-            stdout_value = failure.stdout.decode("utf-8", "replace") if isinstance(failure.stdout, bytes) else (failure.stdout or "")
-            stderr_value = failure.stderr.decode("utf-8", "replace") if isinstance(failure.stderr, bytes) else (failure.stderr or "")
-            stdout = qualification.redact(stdout_value, keys)
-            stderr = qualification.redact(stderr_value, keys)
-            instrumentation_status = "host_timeout; device process outcome may be incomplete"
-        finally:
-            key = ""
-    except Exception as failure:
-        exit_code = 125
-        stdout = ""
-        stderr = qualification.redact(f"{type(failure).__name__}: {failure}", keys)
-        instrumentation_status = "host_runner_error; device process outcome may be incomplete"
-
-    finished = utc_now()
-    host = {
-        "task_id": "S8.13",
-        "attempt_id": ATTEMPT_ID,
-        "batch_id": BATCH_ID,
-        "snapshot_id": SNAPSHOT_ID,
-        "batch_sha256": sha256_file(BATCH_PATH),
-        "candidate": profile,
-        "model": CANDIDATES[profile]["model"],
-        "provider_route": CANDIDATES[profile]["route"],
-        "protocol": CANDIDATES[profile]["protocol"],
-        "max_output_tokens_per_turn": CANDIDATES[profile]["max_output_tokens_per_turn"],
-        "device_serial": DEVICE_SERIAL,
-        "device_model": device["device_model"],
-        "android_release": device["android_release"],
-        "installed_isolated_packages": {
-            "app": installed_app_path,
-            "test": installed_test_path,
-        },
-        "verified_packages": apk_ids,
-        "app_apk_sha256": sha256_file(APP_APK),
-        "test_apk_sha256": sha256_file(TEST_APK),
-        "started_at": started,
-        "finished_at": finished,
-        "instrumentation_exit_code": exit_code,
-        "instrumentation_status": instrumentation_status,
-        "stdout_redacted": stdout[-12000:],
-        "stderr_redacted": stderr[-12000:],
-        "credential_recorded": False,
-        "base_application_mutated": False,
-        "device_data_cleared": False,
-        "laya_staged": False,
-        "planned_case_ids": list(CASE_IDS),
-        "planned_case_count": 3,
-    }
-    collected: list[str] = []
-    collection_error = None
-    validation = None
-    try:
-        collected = _pull_evidence(profile, output_dir)
-        validation = _validate_recovered_run(output_dir, profile, host, batch)
-    except Exception as failure:
-        collection_error = f"{type(failure).__name__}: {str(failure)[:1000]}"
-    host["collected_files"] = collected
-    host["collection_error"] = collection_error
-    host["device_run_validation"] = validation
-    write_json(host_path, host)
-    print(json.dumps({"profile": profile, "instrumentation_status": instrumentation_status,
-                      "exit_code": exit_code, "collected_files": len(collected),
-                      "collection_error": collection_error, "validation": validation,
-                      "credential_recorded": False}, indent=2))
-    return 0 if instrumentation_status == "OK (1 test)" and collection_error is None else 1
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("build", help="build and verify the isolated app and instrumentation APKs")
     subparsers.add_parser("preflight", help="validate exact subset inputs, process-only credentials, and device")
     subparsers.add_parser("freeze", help="freeze the immutable exact-three-case diagnostic snapshot")
-    run_parser = subparsers.add_parser("run", help="execute one candidate's exact three-case diagnostic once")
-    run_parser.add_argument("--profile", required=True, choices=sorted(CANDIDATES))
-    run_parser.add_argument("--timeout-seconds", type=int, default=10800)
     args = parser.parse_args()
-    if args.command == "build":
-        return action_build(args)
-    if args.command == "preflight":
-        return action_preflight(args)
-    if args.command == "freeze":
-        return action_freeze(args)
-    return action_run(args)
+    actions = {
+        "build": action_build,
+        "preflight": action_preflight,
+        "freeze": action_freeze,
+    }
+    return actions[args.command](args)
 
 
 if __name__ == "__main__":

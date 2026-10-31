@@ -383,6 +383,145 @@ def relative(path: Path) -> str:
 def evidence_path(path: Path) -> str:
     return path.resolve(strict=False).as_posix()
 
+
+FROZEN_FULL_SUITE_IDENTITY_CONTRACT = "aegis-s813-frozen-full-suite-identity/v1"
+FROZEN_IDENTITY_FIELDS = (
+    "contract",
+    "attempt_id",
+    "batch_id",
+    "snapshot_id",
+    "candidate",
+    "pass",
+    "fixture_id",
+    "fixture_sha256",
+    "scoring_sha256",
+    "case_order_sha256",
+    "case_count",
+    "app_apk_sha256",
+    "test_apk_sha256",
+    "max_output_tokens",
+    "max_turns_per_case",
+    "max_tool_calls_per_case",
+    "max_context_characters",
+    "max_wall_clock_millis",
+    "max_repeated_identical_calls",
+    "max_capture_observations",
+    "debug_root_relative",
+)
+
+
+def frozen_identity_case_order_sha256(case_ids: list[str]) -> str:
+    return sha256_bytes(json.dumps(list(case_ids), separators=(",", ":")).encode("utf-8"))
+
+
+def frozen_identity_canonical(record: dict[str, Any]) -> str:
+    return "\n".join(f"{field}={record[field]}" for field in FROZEN_IDENTITY_FIELDS)
+
+
+def frozen_full_suite_identity(
+    *,
+    attempt_id: str,
+    batch_id: str,
+    snapshot_id: str,
+    profile: str,
+    pass_number: int,
+    fixture_id: str,
+    fixture_sha256: str,
+    scoring_sha256: str,
+    case_ids: list[str],
+    app_apk_sha256: str,
+    test_apk_sha256: str,
+    max_output_tokens: int,
+) -> dict[str, Any]:
+    """Build the single frozen identity of one complete repetition.
+
+    Every value is either a freeze/build-record value or a launch path component; the device
+    re-derives the fixture, scorer, case order and installed APK digests and must reproduce this
+    exact record and digest before it reads the credential socket.
+    """
+    if pass_number not in (1, 2, 3):
+        raise RuntimeError("the frozen complete-suite identity requires repetition 1, 2, or 3")
+    if len(case_ids) != 24 or len(set(case_ids)) != len(case_ids):
+        raise RuntimeError("the frozen identity requires the complete 24-case order")
+    record = {
+        "contract": FROZEN_FULL_SUITE_IDENTITY_CONTRACT,
+        "attempt_id": attempt_id,
+        "batch_id": batch_id,
+        "snapshot_id": snapshot_id,
+        "candidate": profile,
+        "pass": str(pass_number),
+        "fixture_id": fixture_id,
+        "fixture_sha256": fixture_sha256,
+        "scoring_sha256": scoring_sha256,
+        "case_order_sha256": frozen_identity_case_order_sha256(case_ids),
+        "case_count": len(case_ids),
+        "app_apk_sha256": app_apk_sha256,
+        "test_apk_sha256": test_apk_sha256,
+        "max_output_tokens": max_output_tokens,
+        "max_turns_per_case": RUN_LIMITS["max_turns_per_case"],
+        "max_tool_calls_per_case": RUN_LIMITS["max_tool_calls_per_case"],
+        "max_context_characters": RUN_LIMITS["max_context_characters"],
+        "max_wall_clock_millis": RUN_LIMITS["max_wall_clock_millis"],
+        "max_repeated_identical_calls": RUN_LIMITS["max_repeated_identical_calls"],
+        "max_capture_observations": RUN_LIMITS["max_capture_observations"],
+        "debug_root_relative": f"files/{attempt_id}/debug/{snapshot_id}/pass-{pass_number}",
+    }
+    record["digest"] = sha256_bytes(frozen_identity_canonical(record).encode("utf-8"))
+    return record
+
+
+def frozen_identity_arguments(identity: dict[str, Any]) -> list[tuple[str, str]]:
+    return [
+        ("S813_FIXTURE_ID", identity["fixture_id"]),
+        ("S813_FIXTURE_SHA256", identity["fixture_sha256"]),
+        ("S813_SCORING_SHA256", identity["scoring_sha256"]),
+        ("S813_CASE_ORDER_SHA256", identity["case_order_sha256"]),
+        ("S813_APP_APK_SHA256", identity["app_apk_sha256"]),
+        ("S813_TEST_APK_SHA256", identity["test_apk_sha256"]),
+        ("S813_FROZEN_IDENTITY_SHA256", identity["digest"]),
+    ]
+
+
+def frozen_identity_from_freeze(freeze: dict[str, Any], pass_number: int) -> dict[str, Any]:
+    """Read the frozen identity strictly from the frozen record (build-record APK hashes included)."""
+    return frozen_full_suite_identity(
+        attempt_id=ATTEMPT_ID,
+        batch_id=BATCH_ID,
+        snapshot_id=SNAPSHOT_ID,
+        profile=CANDIDATE,
+        pass_number=pass_number,
+        fixture_id=freeze["fixture_id"],
+        fixture_sha256=freeze["fixture_sha256"],
+        scoring_sha256=freeze["scoring_sha256"],
+        case_ids=list(freeze["case_ids_in_run_order"]),
+        app_apk_sha256=freeze["app_apk_sha256"],
+        test_apk_sha256=freeze["test_apk_sha256"],
+        max_output_tokens=freeze["max_output_tokens_per_turn"],
+    )
+
+
+def frozen_identity_from_build(
+    build: dict[str, Any],
+    mapping: dict[str, Any],
+    pass_number: int = 1,
+) -> dict[str, Any]:
+    """The same identity derived before freezing, from the real build record and case mapping."""
+    return frozen_full_suite_identity(
+        attempt_id=ATTEMPT_ID,
+        batch_id=BATCH_ID,
+        snapshot_id=SNAPSHOT_ID,
+        profile=CANDIDATE,
+        pass_number=pass_number,
+        fixture_id=FIXTURE_ID,
+        fixture_sha256=sha256_file(ROOT / FIXTURE_PATH),
+        scoring_sha256=sha256_file(ROOT / SCORING_PATH),
+        case_ids=[row["case_id"] for row in mapping["cases"]],
+        app_apk_sha256=build["app_apk_sha256"],
+        test_apk_sha256=build["test_apk_sha256"],
+        max_output_tokens=MAX_OUTPUT_TOKENS,
+    )
+
+
 def safe_response_json_location(value: Any) -> bool:
     if not isinstance(value, str):
         return False
@@ -1695,6 +1834,93 @@ def assert_debug_proof(record: dict[str, Any]) -> None:
     missing = [name for name in required_true if record.get(name) is not True]
     if missing:
         raise RuntimeError(f"debug capture proof is incomplete: {', '.join(missing)}")
+
+
+REQUIRED_IDENTITY_SMOKE_NEGATIVES = frozenset({
+    "legacy_a7_identity",
+    "legacy_a22_migration_identity",
+    "wrong_batch",
+    "wrong_candidate",
+    "snapshot_not_bound_to_attempt",
+    "snapshot_without_freeze_number",
+    "complete_pass_with_case_ids",
+    "unknown_pass",
+    "wrong_fixture_id",
+    "wrong_fixture_sha256",
+    "wrong_scoring_sha256",
+    "wrong_case_order_sha256",
+    "wrong_case_order",
+    "wrong_app_apk_sha256",
+    "wrong_test_apk_sha256",
+    "wrong_identity_digest",
+    "wrong_per_turn_output_budget",
+    "missing_identity_digest",
+    "wrong_debug_root",
+    "missing_debug_root",
+    "missing_credential_port",
+    "non_numeric_credential_port",
+    "out_of_range_credential_port",
+})
+
+
+def assert_frozen_identity_smoke(
+    record: dict[str, Any],
+    expected_identity: dict[str, Any],
+    expected_credential_sha256: str,
+) -> None:
+    """Require the on-device proof of the freeze-bound complete-suite launch contract."""
+    required_true = (
+        "accepted_identity_verified",
+        "run_directory_absent",
+        "debug_root_absent",
+        "legacy_run_directory_rejected",
+        "legacy_identity_rejected",
+        "diagnostic_mode_identified",
+        "reproduction_mode_identified",
+        "closed_port_rejected_before_effect",
+        "credential_loaded_over_socket",
+        "credential_sha256_matches_expected",
+    )
+    if (record.get("TEST_ONLY") is not True or
+            record.get("identity_contract") != FROZEN_FULL_SUITE_IDENTITY_CONTRACT or
+            record.get("attempt_id") != ATTEMPT_ID or
+            record.get("batch_id") != BATCH_ID or
+            record.get("snapshot_id") != SNAPSHOT_ID or
+            record.get("profile") != PROFILE or
+            record.get("pass") != "1" or
+            record.get("measurement_scope") != "full_fixture" or
+            record.get("case_count") != 24 or
+            record.get("frozen_identity") != expected_identity or
+            record.get("run_directory_relative") != f"{ATTEMPT_ID}/{SNAPSHOT_ID}/{PROFILE}/pass-1" or
+            record.get("debug_root_relative") != expected_identity["debug_root_relative"] or
+            record.get("credential_transport") != "one_shot_socket" or
+            record.get("credential_recorded") is not False or
+            record.get("credential_material_recorded") is not False or
+            record.get("hosted_provider_calls") != 0 or
+            record.get("endpoint_attempted") is not False):
+        raise RuntimeError("TEST_ONLY freeze-bound identity smoke is not bound to the current launch")
+    if not isinstance(expected_credential_sha256, str) or len(expected_credential_sha256) != 64:
+        raise RuntimeError("the TEST_ONLY synthetic credential digest is missing")
+    missing = [name for name in required_true if record.get(name) is not True]
+    if missing:
+        raise RuntimeError(f"freeze-bound identity smoke is incomplete: {', '.join(missing)}")
+    negatives = record.get("negative_cases")
+    if not isinstance(negatives, list) or not negatives:
+        raise RuntimeError("freeze-bound identity smoke retained no negative binding results")
+    if record.get("negative_case_count") != len(negatives):
+        raise RuntimeError("freeze-bound identity smoke negative count is inconsistent")
+    names: set[str] = set()
+    for row in negatives:
+        if (not isinstance(row, dict) or not isinstance(row.get("name"), str) or
+                row.get("rejected_before_effect") is not True):
+            raise RuntimeError("freeze-bound identity smoke has an unproven negative binding")
+        names.add(row["name"])
+    if not REQUIRED_IDENTITY_SMOKE_NEGATIVES <= names:
+        raise RuntimeError(
+            "freeze-bound identity smoke omits negative bindings: "
+            f"{sorted(REQUIRED_IDENTITY_SMOKE_NEGATIVES - names)}"
+        )
+
 def assert_response_location_smoke_raw_report(record: dict[str, Any]) -> None:
     """Require the full TEST_ONLY per-subcase privacy smoke trace, including failed runs."""
     invocation = REPRODUCTION_INVOCATION
@@ -1830,6 +2056,8 @@ def action_device_preflight(_: argparse.Namespace) -> int:
     build = strict_build()
     if DEVICE_PREFLIGHT_PATH.exists():
         raise RuntimeError("refusing to overwrite retained device preflight host evidence")
+    _, case_mapping = strict_static_preflight()
+    frozen_identity = frozen_identity_from_build(build, case_mapping)
     expected_packages = {
         "app": PACKAGE,
         "test": TEST_PACKAGE,
@@ -1941,6 +2169,50 @@ def action_device_preflight(_: argparse.Namespace) -> int:
         "io.github.triet4p.aegisf.agent.S813DebugCaptureInstrumentedTest",
         invocation_args, timeout=900, packages=packages,
     )
+    # TEST-ONLY synthetic credential: a locally generated non-secret value served over a one-shot
+    # loopback socket. No hosted provider call is made by this smoke.
+    synthetic_credential = f"TEST-ONLY-SYNTHETIC-CREDENTIAL-{os.urandom(16).hex()}"
+    synthetic_credential_sha256 = sha256_bytes(synthetic_credential.encode("utf-8"))
+    synthetic_server = OneShotCredentialServer(synthetic_credential)
+    identity_smoke: dict[str, Any] = {}
+    try:
+        adb("reverse", f"tcp:{synthetic_server.port}", f"tcp:{synthetic_server.port}",
+            keys=(synthetic_credential,))
+        synthetic_server.start()
+        identity_smoke = run_instrumentation(
+            "io.github.triet4p.aegisf.agent.S813FrozenFullSuiteIdentityInstrumentedTest",
+            [
+                ("S813_PROFILE", PROFILE),
+                ("S813_PASS", "1"),
+                ("S813_ATTEMPT_ID", ATTEMPT_ID),
+                ("S813_BATCH_ID", BATCH_ID),
+                ("S813_SNAPSHOT_ID", SNAPSHOT_ID),
+                ("S813_MAX_OUTPUT_TOKENS", str(MAX_OUTPUT_TOKENS)),
+                ("S813_DEBUG_ROOT", full_suite_debug_device_root(1)),
+                ("S813_CREDENTIAL_PORT", str(synthetic_server.port)),
+                ("S813_TEST_ONLY_CREDENTIAL_SHA256", synthetic_credential_sha256),
+                *frozen_identity_arguments(frozen_identity),
+            ],
+            timeout=900,
+            redact_keys=(synthetic_credential,),
+            packages=packages,
+        )
+    except Exception as failure:
+        identity_smoke = {
+            "class": "io.github.triet4p.aegisf.agent.S813FrozenFullSuiteIdentityInstrumentedTest",
+            "exit_code": 125,
+            "timed_out": False,
+            "status": "host_runner_error",
+            "failure_type": type(failure).__name__,
+            "failure_detail_redacted": legacy.redact(str(failure), (synthetic_credential,))[:1000],
+        }
+    finally:
+        try:
+            adb("reverse", "--remove", f"tcp:{synthetic_server.port}", check=False,
+                keys=(synthetic_credential,))
+        finally:
+            synthetic_server.close()
+    identity_smoke_served = synthetic_server.served
     destination = PREPARATION_ROOT / "device-preflight"
     collected: list[str] = []
     collection_error = None
@@ -1978,6 +2250,41 @@ def action_device_preflight(_: argparse.Namespace) -> int:
     else:
         privacy_smoke_collection_error = "TEST_ONLY response-location report root was not created on the isolated phone"
     collected.extend(privacy_smoke_collected)
+    identity_smoke_files: list[str] = []
+    identity_smoke_record: dict[str, Any] = {}
+    identity_smoke_collection_error = None
+    identity_smoke_validation_error = None
+    identity_smoke_remote = f"files/{ATTEMPT_ID}/debug/{SNAPSHOT_ID}/preflight-identity-smoke"
+    identity_smoke_destination = destination / "identity-smoke"
+    identity_smoke_summary = identity_smoke_destination / "summary.json"
+    if identity_smoke["status"] != "OK (1 test)":
+        identity_smoke_validation_error = "freeze-bound identity smoke instrumentation did not pass"
+    elif not identity_smoke_served:
+        identity_smoke_validation_error = (
+            "the freeze-bound identity smoke never consumed the one-shot credential socket"
+        )
+    elif remote_exists(identity_smoke_remote):
+        try:
+            identity_smoke_files = pull_remote_tree(
+                identity_smoke_remote,
+                identity_smoke_destination,
+                forbidden_values=(synthetic_credential,),
+            )
+            if not identity_smoke_summary.is_file():
+                identity_smoke_validation_error = "freeze-bound identity smoke summary was not collected"
+            else:
+                identity_smoke_record = json_load(identity_smoke_summary)
+                assert_frozen_identity_smoke(
+                    identity_smoke_record, frozen_identity, synthetic_credential_sha256,
+                )
+        except Exception as failure:
+            identity_smoke_validation_error = f"{type(failure).__name__}: {str(failure)[:1000]}"
+    else:
+        identity_smoke_collection_error = (
+            "freeze-bound identity smoke root was not created on the isolated phone"
+        )
+    collected.extend(identity_smoke_files)
+    synthetic_credential = ""
     if collection_error is None:
         try:
             domain, smoke_record, selection_record = assert_device_preflight_outputs(destination)
@@ -2020,15 +2327,20 @@ def action_device_preflight(_: argparse.Namespace) -> int:
     if not base_unchanged:
         validation_error = validation_error or "base application package identity changed during isolated preflight"
     selection_status = selection.get("status") if selection is not None else None
-    expected_tests = "OK (4 classes; 5 tests)" if invocation is not None else "OK (3 classes; 4 tests)"
+    expected_tests = "OK (5 classes; 6 tests)" if invocation is not None else "OK (4 classes; 5 tests)"
     successful = (
         (selection is None or selection_status == "OK (1 test)") and
         smoke["status"] == "OK (1 test)" and controlled["status"] == "OK (1 test)" and
-        debug_proof["status"] == "OK (2 tests)" and debug_proof_error is None and
+        debug_proof["status"] == "OK (2 tests)" and
+        identity_smoke["status"] == "OK (1 test)" and identity_smoke_served and
+        debug_proof_error is None and
         collection_error is None and validation_error is None and
-        privacy_smoke_collection_error is None and privacy_smoke_validation_error is None
+        privacy_smoke_collection_error is None and privacy_smoke_validation_error is None and
+        identity_smoke_collection_error is None and identity_smoke_validation_error is None
     )
-    preflight_instrumentation = ([selection] if selection is not None else []) + [smoke, controlled, debug_proof]
+    preflight_instrumentation = (
+        ([selection] if selection is not None else []) + [smoke, controlled, debug_proof, identity_smoke]
+    )
     status = expected_tests if successful else "preflight_failed"
     selection_path = (
         destination / "preflight" / invocation.run_name / "selection.json"
@@ -2056,6 +2368,18 @@ def action_device_preflight(_: argparse.Namespace) -> int:
         "path_identity_preflight": device_path_identity,
         "instrumentation": preflight_instrumentation,
         "debug_capture_contract": DEBUG_CAPTURE_CONTRACT,
+        "frozen_identity": frozen_identity,
+        "frozen_identity_smoke": identity_smoke,
+        "frozen_identity_smoke_path": (
+            relative(identity_smoke_summary) if identity_smoke_record else None
+        ),
+        "frozen_identity_smoke_sha256": (
+            sha256_file(identity_smoke_summary) if identity_smoke_summary.is_file() else None
+        ),
+        "frozen_identity_smoke_credential_sha256": synthetic_credential_sha256,
+        "frozen_identity_smoke_credential_channel_served": identity_smoke_served,
+        "frozen_identity_smoke_collection_error": identity_smoke_collection_error,
+        "frozen_identity_smoke_validation_error": identity_smoke_validation_error,
         "debug_proof_path": relative(proof_destination) if debug_proof_record else None,
         "debug_proof_summary_sha256": (
             sha256_file(proof_destination / "summary.json") if debug_proof_record else None
@@ -2106,6 +2430,10 @@ def action_device_preflight(_: argparse.Namespace) -> int:
         "executor_selection_preflight": host["executor_selection_preflight"],
         "executor_selected_case_ids": host["executor_selected_case_ids"],
         "debug_proof": host["debug_proof_path"],
+        "frozen_identity_smoke": host["frozen_identity_smoke_path"],
+        "frozen_identity_smoke_credential_channel_served": identity_smoke_served,
+        "frozen_identity_smoke_collection_error": identity_smoke_collection_error,
+        "frozen_identity_smoke_validation_error": identity_smoke_validation_error,
         "collection_error": collection_error,
         "device_evidence_validation_error": validation_error,
         "test_only_privacy_smoke_raw_report": host["test_only_privacy_smoke_raw_report"],
@@ -2122,6 +2450,8 @@ def strict_device_preflight(build: dict[str, Any]) -> tuple[dict[str, Any], dict
     if not DEVICE_PREFLIGHT_PATH.is_file():
         raise RuntimeError("actual isolated-phone Laya and controlled Room/service preflight is required")
     host = json_load(DEVICE_PREFLIGHT_PATH)
+    _, case_mapping = strict_static_preflight()
+    expected_frozen_identity = frozen_identity_from_build(build, case_mapping)
     raw_report_path, raw_report = validated_test_only_privacy_smoke_report()
     raw_report_hash = sha256_file(raw_report_path)
     destination = PREPARATION_ROOT / "device-preflight"
@@ -2158,13 +2488,16 @@ def strict_device_preflight(build: dict[str, Any]) -> tuple[dict[str, Any], dict
     )
     expected_selection_path = relative(selection_path) if selection_path is not None else None
     expected_selection_sha256 = sha256_file(selection_path) if selection_path and selection_path.is_file() else None
-    expected_status = "OK (4 classes; 5 tests)" if invocation is not None else "OK (3 classes; 4 tests)"
+    expected_status = "OK (5 classes; 6 tests)" if invocation is not None else "OK (4 classes; 5 tests)"
+    identity_smoke_summary = destination / "identity-smoke" / "summary.json"
     package_identity = {
         "app": PACKAGE,
         "test": TEST_PACKAGE,
         "test_target": PACKAGE,
         "test_runner": "androidx.test.runner.AndroidJUnitRunner",
     }
+    if not identity_smoke_summary.is_file():
+        raise RuntimeError("freeze-bound identity smoke summary is missing from the retained preflight")
     if (host.get("task_id") != "S8.13" or host.get("attempt_id") != ATTEMPT_ID or
             host.get("batch_id") != BATCH_ID or host.get("snapshot_id") != SNAPSHOT_ID or
             host.get("reproduction_invocation") != reproduction_invocation_record(invocation) or
@@ -2193,6 +2526,13 @@ def strict_device_preflight(build: dict[str, Any]) -> tuple[dict[str, Any], dict
             host.get("local_laya_and_link_smoke") != "PASS" or
             host.get("instrumentation_status") != expected_status or
             host.get("debug_capture_contract") != DEBUG_CAPTURE_CONTRACT or
+            host.get("frozen_identity") != expected_frozen_identity or
+            host.get("frozen_identity_smoke_path") != relative(identity_smoke_summary) or
+            host.get("frozen_identity_smoke_sha256") != sha256_file(identity_smoke_summary) or
+            relative(identity_smoke_summary) not in host.get("collected_files", []) or
+            host.get("frozen_identity_smoke_credential_channel_served") is not True or
+            host.get("frozen_identity_smoke_collection_error") is not None or
+            host.get("frozen_identity_smoke_validation_error") is not None or
             host.get("debug_proof_error") is not None or
             host.get("debug_proof_path") != relative(proof_directory) or
             host.get("debug_proof_summary_sha256") != sha256_file(proof_summary) or
@@ -2205,6 +2545,11 @@ def strict_device_preflight(build: dict[str, Any]) -> tuple[dict[str, Any], dict
             host.get("laya_smoke_sha256") != sha256_file(smoke_path) or
             (selection is None) != (invocation is None)):
         raise RuntimeError("device preflight identity, APK binding, or retained evidence hash is stale")
+    assert_frozen_identity_smoke(
+        json_load(identity_smoke_summary),
+        expected_frozen_identity,
+        host.get("frozen_identity_smoke_credential_sha256"),
+    )
     return host, domain, smoke
 
 
@@ -2821,11 +3166,15 @@ def validate_live_run(path: Path, freeze: dict[str, Any], pass_number: int) -> s
         return "live_run_unparseable"
     cases = live.get("cases", [])
     recorded_ids = [row.get("case_id") for row in cases if isinstance(row, dict)]
+    expected_identity = frozen_identity_from_freeze(freeze, pass_number)
     checks = (
         live.get("task") == "S8.13",
         live.get("attempt_id") == ATTEMPT_ID,
         live.get("batch_id") == BATCH_ID,
         live.get("snapshot_id") == SNAPSHOT_ID,
+        live.get("frozen_full_suite_identity") == expected_identity,
+        live.get("credential_transport") == "one_shot_socket",
+        live.get("credential_source") == "process_memory_socket",
         live.get("run_directory") == f"{ATTEMPT_ID}/{SNAPSHOT_ID}/{CANDIDATE}/pass-{pass_number}",
         live.get("pass") == str(pass_number),
         live.get("profile") == PROFILE,
@@ -3281,6 +3630,7 @@ def action_run(args: argparse.Namespace) -> int:
     preflight_path = preflight_record_path_for_pass(pass_number)
     path_identity_path = run_path_identity_path_for_pass(pass_number)
     remote = remote_run_dir_for_pass(pass_number)
+    frozen_identity = frozen_identity_from_freeze(freeze, pass_number)
     path_identity = static_run_path_identity()
     if freeze.get("path_identity") != path_identity:
         raise RuntimeError("selected freeze does not bind the calculated snapshot path identity")
@@ -3391,8 +3741,9 @@ def action_run(args: argparse.Namespace) -> int:
                 ("S813_SNAPSHOT_ID", SNAPSHOT_ID),
                 ("S813_MAX_OUTPUT_TOKENS", str(MAX_OUTPUT_TOKENS)),
                 ("S813_DEBUG_ROOT", full_suite_debug_device_root(pass_number)),
-                ("S813_DEBUG_FIXTURE_SHA256", freeze["fixture_sha256"]),
+                ("S813_FIXTURE_SHA256", freeze["fixture_sha256"]),
                 ("S813_CREDENTIAL_PORT", str(server.port)),
+                *frozen_identity_arguments(frozen_identity),
             ],
             timeout=args.timeout_seconds,
             redact_keys=secret_values,
@@ -3495,6 +3846,7 @@ def action_run(args: argparse.Namespace) -> int:
         "protocol": PROTOCOL,
         "max_output_tokens_per_turn": MAX_OUTPUT_TOKENS,
         "turn_budgets": RUN_LIMITS,
+        "frozen_full_suite_identity": frozen_identity,
         "install_results": install_results,
         "instrumentation": instrumentation,
         "instrumentation_status": instrumentation["status"],
@@ -3610,7 +3962,7 @@ def action_reproduce_blocked(args: argparse.Namespace) -> int:
                 ("S813_PASS", "reproduction"),
                 ("S813_MAX_OUTPUT_TOKENS", str(MAX_OUTPUT_TOKENS)),
                 ("S813_DEBUG_ROOT", device_debug_root),
-                ("S813_DEBUG_FIXTURE_SHA256", freeze["fixture_sha256"]),
+                ("S813_FIXTURE_SHA256", freeze["fixture_sha256"]),
                 ("S813_CREDENTIAL_PORT", str(server.port)),
                 *instrumentation_identity_args(),
             ],
@@ -6315,6 +6667,54 @@ def selfcheck_report() -> dict[str, Any]:
     check("adjudication_version_matches_scoring_contract",
           scoring_version == ADJUDICATION_VERSION,
           {"scorer": ADJUDICATION_VERSION, "scoring_contract": scoring_version})
+
+    identity_args = dict(
+        attempt_id="S8.13-harness-a27",
+        batch_id=BATCH_ID,
+        snapshot_id="S8.13-harness-a27-freeze-34",
+        profile=CANDIDATE,
+        pass_number=1,
+        fixture_id=FIXTURE_ID,
+        fixture_sha256="f" * 64,
+        scoring_sha256="s" * 64,
+        case_ids=[row["case_id"] for row in mapped_cases],
+        app_apk_sha256="a" * 64,
+        test_apk_sha256="b" * 64,
+        max_output_tokens=MAX_OUTPUT_TOKENS,
+    )
+    base_identity = frozen_full_suite_identity(**identity_args)
+    identity_variants = {
+        "attempt_id": {**identity_args, "attempt_id": "S8.13-harness-a28"},
+        "batch_id": {**identity_args, "batch_id": "S8.13-v3-interface-qualification-batch-22"},
+        "snapshot_id": {**identity_args, "snapshot_id": "S8.13-harness-a27-freeze-35"},
+        "candidate": {**identity_args, "profile": "candidate-a"},
+        "pass": {**identity_args, "pass_number": 2},
+        "fixture_id": {**identity_args, "fixture_id": "S8.13-unfrozen-fixture"},
+        "fixture_sha256": {**identity_args, "fixture_sha256": "g" * 64},
+        "scoring_sha256": {**identity_args, "scoring_sha256": "t" * 64},
+        "case_order": {**identity_args, "case_ids": list(reversed(identity_args["case_ids"]))},
+        "app_apk_sha256": {**identity_args, "app_apk_sha256": "c" * 64},
+        "test_apk_sha256": {**identity_args, "test_apk_sha256": "d" * 64},
+        "max_output_tokens": {**identity_args, "max_output_tokens": 8192},
+    }
+    identity_variant_digests = {
+        name: frozen_full_suite_identity(**variant)["digest"]
+        for name, variant in identity_variants.items()
+    }
+    check(
+        "frozen_full_suite_identity_digest_binds_every_launch_field",
+        base_identity["digest"] ==
+        sha256_bytes(frozen_identity_canonical(base_identity).encode("utf-8")) and
+        len(set(identity_variant_digests.values()) | {base_identity["digest"]}) ==
+        len(identity_variants) + 1 and
+        base_identity["case_count"] == 24 and
+        base_identity["debug_root_relative"] ==
+        "files/S8.13-harness-a27/debug/S8.13-harness-a27-freeze-34/pass-1",
+        {
+            "digest": base_identity["digest"],
+            "variant_digests": identity_variant_digests,
+        },
+    )
 
     return {
         "result": "PASS" if all(entry["passed"] for entry in checks) else "FAIL",

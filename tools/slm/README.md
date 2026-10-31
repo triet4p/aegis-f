@@ -467,6 +467,13 @@ preserved 16 dev and 8 held-out case IDs to v3 intents, allowed tools, observabl
 inputs, expected business rows, repair/replay conditions, and rationale. Historical v1/v2
 fixtures, score files, runs, and denominators are never overwritten or regraded.
 
+Only [`s8_agent_v3_qualification.py`](s8_agent_v3_qualification.py) exposes the hosted launch
+commands. [`s8_agent_qualification.py`](s8_agent_qualification.py) and
+[`s8_agent_repair_diagnostic.py`](s8_agent_repair_diagnostic.py) retain only their build,
+preflight, freeze, recovery and legacy-scoring steps; their retired `run` commands and the raw
+credential instrumentation argument were removed, so `run` is rejected by argument parsing
+before any credential load or device command.
+
 Run Stage1 in order:
 
 ```powershell
@@ -542,10 +549,29 @@ result.
 ### TEST-ONLY synthetic debug capture (full-suite passes)
 
 Full-suite `run` commands send the existing runner instrumentation path the pass-scoped
-synthetic debug roots (`S813_DEBUG_ROOT`, `S813_DEBUG_FIXTURE_SHA256`); no fake diagnostic
+synthetic debug roots (`S813_DEBUG_ROOT`, `S813_FIXTURE_SHA256`); no fake diagnostic
 invocation is used. The freeze binds the capture contract, the frozen 24-case order, and the
-three per-pass local/device roots, and `run` refuses to dispatch unless they match. Collection
-pulls each pass tree with the same no-overwrite rule as run evidence, validates every raw file
+three per-pass local/device roots, and `run` refuses to dispatch unless they match.
+
+A complete repetition is a single freeze-bound identity, not just a batch/profile pair. The
+device re-derives the frozen fixture and scorer digests, the frozen 24-case order and the
+SHA-256 of its own installed isolated app and test APKs, then requires the host binding
+arguments (`S813_FIXTURE_ID`, `S813_FIXTURE_SHA256`, `S813_SCORING_SHA256`,
+`S813_CASE_ORDER_SHA256`, `S813_APP_APK_SHA256`, `S813_TEST_APK_SHA256`) plus
+`S813_FROZEN_IDENTITY_SHA256`, the digest of that exact launch record, before it reads the
+one-shot credential socket. Attempt, frozen batch, candidate, the attempt's own `-freeze-N`
+snapshot, the pass-scoped debug root and the `pass-<N>` run directory are all bound; a complete
+repetition may not select `S813_CASE_IDS`, and the retired pre-v3 attempt identities are
+rejected outright. The accepted test APK digest is read from the recorded
+`snapshot-N/build.json` build record, so a rebuilt test APK is accepted only through a new real
+build record and every retained freeze (43, 55 and earlier) stays valid rather than being
+rewritten. `device-preflight` also runs the TEST-ONLY
+`S813FrozenFullSuiteIdentityInstrumentedTest` proof: it accepts the same fresh identity, loads a
+locally generated non-secret credential over a real one-shot loopback socket, and records that
+the legacy identity, wrong batch/candidate/snapshot, wrong fixture/scorer/case-order/APK digests,
+wrong identity digest, wrong per-turn budget, wrong or missing debug root, missing or closed
+credential port, invalid pass mode and case-ID masquerade are all rejected before the credential
+read and before any run or debug root is created. It makes no hosted provider call. Collection pulls each pass tree with the same no-overwrite rule as run evidence, validates every raw file
 (per-expected case/session/exchanges/turns/effects, including errors), marks unrun cases
 explicitly, and preserves the primary error alongside any surfaced collection error. Raw trees
 stay gitignored TEST-ONLY payloads outside tracked reports; production redaction is unchanged.

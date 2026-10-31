@@ -36,6 +36,22 @@ and no release has been tagged or published. Format follows
 - Fixed the S8.13 full-suite `run` launch contract so the pre-credential path-identity record
   resolves the frozen pass paths by repetition index and binds the launch-time device identity
   before any credential load or endpoint attempt.
+- Fixed the S8.13 device launch contract so a complete qualification pass is a single
+  freeze-bound identity: the device re-derives the frozen fixture and scorer digests, the 24-case
+  order and the installed isolated app/test APK digests, and accepts only the attempt's own
+  `-freeze-N` snapshot, frozen batch and candidate, pass-scoped debug root and one-shot socket
+  credential before any run or capture evidence is created. The retired pre-v3 attempt identities
+  and the raw credential argument are no longer accepted, and a rebuilt test APK is bound through
+  its recorded build while retained freezes remain unchanged. The actual-device preflight now
+  proves that contract on the phone with a synthetic non-secret socket credential, including the
+  rejection of every wrong binding before the credential read; no hosted call or scoring change is
+  involved.
+- Removed the retired raw-key `run` commands from the legacy S8.13 harness runners
+  (`s8_agent_qualification.py`, `s8_agent_repair_diagnostic.py`). Their obsolete attempt
+  identities, dead device/collection helpers and unused imports are gone, and `run` is now
+  rejected by argument parsing before any credential load or device command; the freeze-bound
+  `s8_agent_v3_qualification.py` remains the only hosted launch entry point. Retained historical
+  evidence, fixtures, scoring, gates, budgets and production behaviour are unchanged.
 
 
 - Corrected the loaded `event-reading/2` skill example and guidance to match the enforced

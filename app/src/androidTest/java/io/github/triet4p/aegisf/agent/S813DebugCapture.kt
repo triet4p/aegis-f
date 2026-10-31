@@ -255,6 +255,15 @@ internal class S813DebugCapture private constructor(
                 "debug capture root does not match the invocation identity"
             }
         }
+        if (provenance.pass in setOf("1", "2", "3")) {
+            val expectedRoot = File(
+                appFilesRoot,
+                "${provenance.attemptId}/debug/${provenance.snapshotId}/pass-${provenance.pass}",
+            ).canonicalFile
+            require(root.canonicalFile == expectedRoot) {
+                "debug capture root does not match the freeze-bound pass identity"
+            }
+        }
     }
 
     private fun requireGate(vault: SensitiveVault) {

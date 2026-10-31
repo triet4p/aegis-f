@@ -64,10 +64,6 @@ import io.github.triet4p.aegisf.provider.HostedTurnFinish
 import io.github.triet4p.aegisf.provider.HttpTransport
 import io.github.triet4p.aegisf.provider.UrlConnectionHttpTransport
 import java.io.File
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.net.InetSocketAddress
-import java.net.Socket
 import java.io.DataInputStream
 import java.io.FileInputStream
 import java.security.MessageDigest
@@ -497,26 +493,27 @@ class S813QualificationInstrumentedTest {
     @Test
     fun runFrozenDevAndHeldoutSuites() = runBlocking {
         val args = InstrumentationRegistry.getArguments()
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val instrumentationContext = InstrumentationRegistry.getInstrumentation().context
+        val instrumentationArguments = s813InstrumentationArguments(args)
         val profile = requireNotNull(args.getString("S813_PROFILE"))
         val pass = requireNotNull(args.getString("S813_PASS"))
-        val v3Reproduction = pass == "reproduction"
-        val attemptId = if (v3Reproduction) {
-            requireNotNull(args.getString("S813_ATTEMPT_ID")) { "diagnostic attempt ID is required" }
-        } else {
-            args.getString("S813_ATTEMPT_ID") ?: "S8.13-replan-a7"
-        }
-        val batchId = if (v3Reproduction) {
-            requireNotNull(args.getString("S813_BATCH_ID")) { "diagnostic batch ID is required" }
-        } else {
-            args.getString("S813_BATCH_ID") ?: "S8.13-runtime-fixture-v3-batch-03"
-        }
-        val snapshotId = requireNotNull(args.getString("S813_SNAPSHOT_ID"))
         val rawCaseIds = args.getString("S813_CASE_IDS")
-        val legacyV3Identity = attemptId == LEGACY_V3_ATTEMPT_ID &&
-            batchId == V3_BATCH_ID &&
-            snapshotId == LEGACY_V3_SNAPSHOT_ID
-        val v3Migration = legacyV3Identity && rawCaseIds == null
-        val v3Diagnostic = legacyV3Identity && rawCaseIds == V3_DIAGNOSTIC_CASE_IDS.joinToString(",")
+        val mode = s813QualificationMode(pass, rawCaseIds)
+        val fullSuite = mode == S813QualificationMode.FULL_SUITE
+        val v3Diagnostic = mode == S813QualificationMode.DIAGNOSTIC
+        val v3Reproduction = mode == S813QualificationMode.REPRODUCTION
+        val launch = s813FreezeBoundQualificationLaunch(
+            attemptId = args.getString("S813_ATTEMPT_ID"),
+            batchId = args.getString("S813_BATCH_ID"),
+            snapshotId = args.getString("S813_SNAPSHOT_ID"),
+            profile = profile,
+            expectedProfile = S813_QUALIFICATION_CANDIDATE,
+            expectedBatchId = S813_QUALIFICATION_BATCH_ID,
+        )
+        val attemptId = launch.attemptId
+        val batchId = launch.batchId
+        val snapshotId = launch.snapshotId
         val reproductionRunName = if (v3Reproduction) {
             s813ValidatedPathComponent(args.getString("S813_RUN_NAME"))
         } else {
@@ -524,11 +521,6 @@ class S813QualificationInstrumentedTest {
         }
         val selectionOnly = args.getString("S813_SELECTION_ONLY") == "true"
         if (v3Reproduction) {
-            s813ValidatedPathComponent(attemptId)
-            s813ValidatedPathComponent(snapshotId)
-            require(profile == GO_PROFILE && batchId == V3_BATCH_ID) {
-                "diagnostic reproduction requires the frozen DeepSeek candidate and batch"
-            }
             require(rawCaseIds != null && reproductionRunName != null) {
                 "diagnostic reproduction requires explicit run name and ordered case IDs"
             }
@@ -536,30 +528,15 @@ class S813QualificationInstrumentedTest {
                 "the synthetic reproduction requires the test-only debug capture root"
             }
         }
-        if (v3Migration) {
-            require(profile == GO_PROFILE)
-        } else if (v3Diagnostic) {
-            require(profile == GO_PROFILE && pass == "diagnostic")
-        } else if (v3Reproduction) {
-            require(profile == GO_PROFILE && pass == "reproduction")
-        } else if (rawCaseIds != null) {
-            require(attemptId == DIAGNOSTIC_ATTEMPT_ID)
-            require(batchId == DIAGNOSTIC_BATCH_ID)
-            require(snapshotId == DIAGNOSTIC_SNAPSHOT_ID)
-            require(rawCaseIds == DIAGNOSTIC_CASE_IDS.joinToString(","))
-        } else {
-            require(attemptId == "S8.13-replan-a7")
-            require(batchId == "S8.13-runtime-fixture-v3-batch-03")
-            require(snapshotId == LEGACY_SNAPSHOT_ID)
+        if (v3Diagnostic) {
+            require(rawCaseIds == V3_DIAGNOSTIC_CASE_IDS.joinToString(",")) {
+                "the one-case diagnostic requires its exact frozen case ID"
+            }
         }
-        require(
-            profile in PROFILE_IDS &&
-                (pass in setOf("1", "2", "3") || (v3Diagnostic && pass == "diagnostic") ||
-                    (v3Reproduction && pass == "reproduction")),
-        )
+        if (fullSuite) {
+            s813RequirePassScopedDebugRoot(context, launch, pass, args.getString("S813_DEBUG_ROOT"))
+        }
         require(!selectionOnly || v3Reproduction) { "selection-only mode is reserved for explicit diagnostic preflight" }
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        val instrumentationContext = InstrumentationRegistry.getInstrumentation().context
         val inputHashes = JSONObject()
         val rawInputs = mutableMapOf<String, String>()
         fun readInput(name: String, key: String): JSONObject {
@@ -570,20 +547,13 @@ class S813QualificationInstrumentedTest {
         }
         val fixture = readInput("s8_agent_fixture.json", "fixture")
         val projection = readInput("s8_agent_runtime_fixture_v3.json", "runtime_projection")
-        val qualificationFixture = if (v3Migration || v3Diagnostic || v3Reproduction) {
-            readInput("s8_agent_v3_qualification_fixture.json", "qualification_fixture")
-        } else {
-            null
+        val qualificationFixture = readInput("s8_agent_v3_qualification_fixture.json", "qualification_fixture")
+        val qualificationScoring = readInput("s8_agent_v3_qualification_scoring.json", "qualification_scoring")
+        require(qualificationScoring.getJSONObject("adjudication").getString("version") == S813_ADJUDICATION_VERSION) {
+            "the frozen scoring adjudication contract does not match this runtime"
         }
-        val qualificationScoring = if (v3Migration || v3Diagnostic || v3Reproduction) {
-            readInput("s8_agent_v3_qualification_scoring.json", "qualification_scoring")
-        } else {
-            null
-        }
-        if (v3Migration || v3Diagnostic || v3Reproduction) {
-            require(qualificationScoring?.getJSONObject("adjudication")?.getString("version") == S813_ADJUDICATION_VERSION) {
-                "the frozen scoring adjudication contract does not match this runtime"
-            }
+        require(qualificationScoring.getString("fixture_id") == qualificationFixture.getString("fixture_id")) {
+            "the frozen scorer is not bound to the frozen qualification fixture"
         }
         val dev = readInput("s8_agent_dev.json", "dev_suite")
         val heldout = readInput("s8_agent_heldout.json", "heldout_suite")
@@ -612,30 +582,59 @@ class S813QualificationInstrumentedTest {
                 caseRows[original.getString("id")] = original
             }
         }
-        val mappedCaseIds = qualificationFixture?.let(::s813KnownDiagnosticCaseIds)
-        val requestedCaseIds = if (v3Reproduction) {
-            val selected = s813DiagnosticCaseIds(rawCaseIds, requireNotNull(mappedCaseIds))
-            require(selected.all(caseRows::containsKey)) { "diagnostic case is not in the frozen suites" }
-            selected
+        val frozenCaseIds = s813FrozenCaseOrder(qualificationFixture)
+        val mappedCaseIds = s813KnownDiagnosticCaseIds(qualificationFixture)
+        val requestedCaseIds = if (v3Reproduction || v3Diagnostic) {
+            s813DiagnosticCaseIds(rawCaseIds, mappedCaseIds).also { selected ->
+                require(selected.all(caseRows::containsKey)) { "diagnostic case is not in the frozen suites" }
+            }
         } else {
-            rawCaseIds?.split(',')?.map(String::trim)
+            null
         }
-        val runCaseIds = requestedCaseIds ?: caseRows.keys.toList()
+        require(!fullSuite || caseRows.keys.toList() == frozenCaseIds) {
+            "the business fixtures and the frozen qualification case order disagree"
+        }
+        val runCaseIds = requestedCaseIds ?: frozenCaseIds
         require(
-            if (requestedCaseIds == null) {
-                runCaseIds.size == 24
+            if (fullSuite) {
+                runCaseIds == frozenCaseIds
             } else if (v3Diagnostic) {
-                runCaseIds.size == 1
-            } else if (v3Reproduction) {
-                runCaseIds.isNotEmpty()
+                runCaseIds == V3_DIAGNOSTIC_CASE_IDS
             } else {
-                runCaseIds == DIAGNOSTIC_CASE_IDS
+                runCaseIds.isNotEmpty()
             },
         )
         val rows = JSONArray().apply {
             runCaseIds.forEach { id -> put(requireNotNull(caseRows[id]) { "selected case is not in frozen inputs" }) }
         }
         require(rows.length() == runCaseIds.size) { "selected case identities must be unique and available" }
+        val maxOutputTokens = s813RequiredIntArgument(instrumentationArguments, "S813_MAX_OUTPUT_TOKENS")
+        require(maxOutputTokens == S813_QUALIFICATION_MAX_OUTPUT_TOKENS) {
+            "the v3 qualification requires the frozen per-turn output budget"
+        }
+        val frozenBinding = if (fullSuite) {
+            s813FrozenFullSuiteBinding(
+                launch = launch,
+                pass = pass,
+                fixtureId = requireNotNull(qualificationFixture.getString("fixture_id")),
+                fixtureSha256 = requireNotNull(
+                    inputHashes.optString("qualification_fixture").takeIf { it.isNotEmpty() },
+                ),
+                scoringSha256 = requireNotNull(
+                    inputHashes.optString("qualification_scoring").takeIf { it.isNotEmpty() },
+                ),
+                caseIds = runCaseIds,
+                appApkSha256 = s813InstalledPackageApkSha256(context, context.packageName),
+                testApkSha256 = s813InstalledPackageApkSha256(
+                    instrumentationContext,
+                    instrumentationContext.packageName,
+                ),
+                maxOutputTokens = maxOutputTokens,
+                args = instrumentationArguments,
+            )
+        } else {
+            null
+        }
         if (selectionOnly) {
             val runName = requireNotNull(reproductionRunName)
             val selectedExecutorCaseIds = (0 until rows.length()).map {
@@ -693,17 +692,7 @@ class S813QualificationInstrumentedTest {
                 .toString(2))
             return@runBlocking
         }
-        val credentialName = if (profile == GO_PROFILE) GO_KEY else GOOGLE_KEY
-        val maxOutputTokens = args.getString("S813_MAX_OUTPUT_TOKENS")?.toIntOrNull() ?: 8192
-        if (v3Migration || v3Diagnostic || v3Reproduction) require(maxOutputTokens == V3_MAX_OUTPUT_TOKENS)
-        val credential = if (v3Migration || v3Diagnostic || v3Reproduction) {
-            val credentialPort = requireNotNull(args.getString("S813_CREDENTIAL_PORT")) {
-                "the hosted run requires the one-shot process-memory credential channel"
-            }.toInt()
-            readCredential(credentialPort)
-        } else {
-            requireNotNull(args.getString(credentialName)) { "required hosted credential unavailable" }
-        }
+        val credential = s813ReadOneShotCredential(s813RequiredCredentialPort(instrumentationArguments))
         require(credential.isNotBlank())
         if (rows.toString().contains(credential)) error("credential unexpectedly overlaps fixture data")
         val provider = providerConfig(profile, credential, maxOutputTokens)
@@ -732,7 +721,7 @@ class S813QualificationInstrumentedTest {
                     pass = pass,
                     fixtureId = qualification.getString("fixture_id"),
                     fixtureSha256 = requireNotNull(inputHashes.optString("qualification_fixture").takeIf { it.isNotEmpty() }),
-                    expectedFixtureSha256 = requireNotNull(args.getString("S813_DEBUG_FIXTURE_SHA256")) {
+                    expectedFixtureSha256 = requireNotNull(args.getString("S813_FIXTURE_SHA256")) {
                         "debug capture requires the frozen fixture digest"
                     },
                     runName = reproductionRunName,
@@ -810,8 +799,8 @@ class S813QualificationInstrumentedTest {
                 delay(if (provider.protocol == HostedProtocol.GEMINI_GENERATE_CONTENT) 8_000L else 2_000L)
             }
         }
-        val maxTurnsPerCase = if (v3Migration || v3Diagnostic || v3Reproduction) 10 else 6
-        val maxToolCallsPerCase = if (v3Migration || v3Diagnostic || v3Reproduction) 12 else 8
+        val maxTurnsPerCase = 10
+        val maxToolCallsPerCase = 12
         val report = JSONObject()
             .put("task", "S8.13")
             .put("profile", profile)
@@ -821,12 +810,15 @@ class S813QualificationInstrumentedTest {
             .put("run_name", reproductionRunName ?: JSONObject.NULL)
             .put("batch_id", batchId)
             .put("runtime_fixture_projection", projection.getString("projection_id"))
-            .put("qualification_fixture_id", qualificationFixture?.getString("fixture_id") ?: JSONObject.NULL)
-            .put("qualification_scoring_version", qualificationScoring?.getString("scoring_version") ?: JSONObject.NULL)
+            .put("qualification_fixture_id", qualificationFixture.getString("fixture_id"))
+            .put("qualification_scoring_version", qualificationScoring.getString("scoring_version"))
             .put("adjudication_version", S813_ADJUDICATION_VERSION)
             .put("pass", pass)
             .put("transport_protocol", protocolEvidenceLabel(provider.protocol))
             .put("max_output_tokens_per_turn", provider.budget.maxOutputTokens)
+            .put("credential_transport", "one_shot_socket")
+            .put("credential_source", "process_memory_socket")
+            .put("frozen_full_suite_identity", frozenBinding?.toJson() ?: JSONObject.NULL)
             .put("run_limits", JSONObject()
                 .put("max_turns_per_case", maxTurnsPerCase)
                 .put("max_tool_calls_per_case", maxToolCallsPerCase)
@@ -841,7 +833,7 @@ class S813QualificationInstrumentedTest {
             .put("recorded_cases", outcomes.length())
             .put("case_ids", JSONArray(runCaseIds))
             .put("measurement_scope", when {
-                requestedCaseIds == null -> "full_fixture"
+                fullSuite -> "full_fixture"
                 v3Reproduction -> "reproduction_subset"
                 else -> "diagnostic_subset"
             })
@@ -1619,15 +1611,6 @@ class S813QualificationInstrumentedTest {
         capabilities = HostedProviderCapabilities(true, true, true, true, maxOutputTokens),
     )
 
-    private fun readCredential(port: Int): String {
-        Socket().use { socket ->
-            socket.connect(InetSocketAddress("127.0.0.1", port), 10_000)
-            return BufferedReader(InputStreamReader(socket.getInputStream(), Charsets.UTF_8)).use {
-                requireNotNull(it.readLine()) { "credential channel returned no value" }
-            }.also { require(it.isNotBlank()) { "credential channel returned an empty value" } }
-        }
-    }
-
     private fun ensurePinnedLayaModel(context: Context) {
         val provisioner = LayaModelProvisioner(context.filesDir) { context.assets.open("laya/laya_tokenizer.bin") }
         val source = File(context.filesDir, "s8-public-laya-source")
@@ -2017,22 +2000,10 @@ class S813QualificationInstrumentedTest {
     private fun JSONArray.longSet(): Set<Long> = buildSet { for (i in 0 until length()) add(getLong(i)) }
 
     private companion object {
-        const val GOOGLE_KEY = "GOOGLE_AI_STUDIO_KEY"
-        const val GO_KEY = "OPENCODE_GO_API_KEY"
         const val GOOGLE_PROFILE = "candidate-a"
-        const val GO_PROFILE = "candidate-b"
-        const val V3_BATCH_ID = "S8.13-v3-interface-qualification-batch-21"
-        const val LEGACY_V3_ATTEMPT_ID = "S8.13-replan-a22"
-        const val LEGACY_V3_SNAPSHOT_ID = "S8.13-v3-interface-a22-freeze-29"
-        const val V3_MAX_OUTPUT_TOKENS = 384_000
+        const val GO_PROFILE = S813_QUALIFICATION_CANDIDATE
         const val V3_DIAGNOSTIC_CASE_ID = "a8-laya-02"
         val V3_DIAGNOSTIC_CASE_IDS = listOf(V3_DIAGNOSTIC_CASE_ID)
-        const val LEGACY_SNAPSHOT_ID = "S8.13-runtime-fixture-v3-batch-03-freeze-02"
-        const val DIAGNOSTIC_ATTEMPT_ID = "S8.13-replan-a9"
-        const val DIAGNOSTIC_BATCH_ID = "S8.13-repair-diagnostic-batch-01"
-        val DIAGNOSTIC_CASE_IDS = listOf("a8-recover-01", "a8-retry-01", "a8h-retry-01")
-        val PROFILE_IDS = setOf(GOOGLE_PROFILE, GO_PROFILE)
-        const val DIAGNOSTIC_SNAPSHOT_ID = "S8.13-repair-diagnostic-batch-01-freeze-01"
     }
 }
 private val safeUsageFieldNames = setOf(
