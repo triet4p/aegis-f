@@ -268,6 +268,7 @@ private suspend fun validateConnection(profile: SavedHostedProvider): String {
                 "Provider rejected the configured model or generation settings (HTTP ${failure.status})."
             }
             is HostedProviderFailure.Redirected -> "Endpoint redirected the request; credentials were not forwarded."
+            is HostedProviderFailure.PrivacyBlocked -> "Provider response was refused by the local privacy boundary."
             is HostedProviderFailure.ModelMismatch -> "Provider returned a different model than configured."
             is HostedProviderFailure.ProviderState, is HostedProviderFailure.InvalidResponse ->
                 "Provider response was not valid for the configured protocol."

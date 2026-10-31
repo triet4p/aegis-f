@@ -7,6 +7,7 @@ import io.github.triet4p.aegisf.data.ClassificationRequest
 import io.github.triet4p.aegisf.data.ContextLinkState
 import io.github.triet4p.aegisf.data.DraftCandidateQuery
 import io.github.triet4p.aegisf.data.IntakeReviewStatus
+import io.github.triet4p.aegisf.data.LinkEligibility
 import io.github.triet4p.aegisf.data.LinkOperation
 import io.github.triet4p.aegisf.data.LinkOperationQuery
 import io.github.triet4p.aegisf.data.NoteEventEntity
@@ -391,6 +392,12 @@ class AgentToolRuntime(
                     .put("next_cursor", nextCursor ?: JSONObject.NULL)
                     .put("scope_exhausted", !more && !scan.truncated),
             ),
+            noEffectClaim = AgentNoEffectClaim.DraftScope(
+                reviewStatus = reviewStatus?.name,
+                duplicatesOnly = duplicatesOnly,
+                draftIds = page.map { it.id },
+                scopeExhausted = !more && !scan.truncated,
+            ),
         )
     }
 
@@ -487,18 +494,6 @@ class AgentToolRuntime(
     private suspend fun recordEvent(arguments: JSONObject, operationKey: String): AgentToolExecution {
         val source = registry.resolve(arguments.getString("source_ref"), AgentReferenceKind.SOURCE, "$.source_ref")
         val capture = requireCapture(source.captureId)
-        if (source.captureRevision != capture.revision) {
-            val fresh = captureObservation(capture)
-            throw AgentToolException(
-                AgentErrorCode.STALE_OBSERVATION,
-                "$.source_ref",
-                "observed_revision_matches_current",
-                JSONObject().put("fresh_observation_required", true),
-                "The selected source changed. Inspect the fresh capture before choosing a new span.",
-                subjectRef = fresh.getString("ref"),
-                observations = listOf(fresh),
-            )
-        }
         val current = findEventAt(capture.id, source.spanStart!!, source.spanEnd!!)
         if (!bindingStillValid(source, current)) {
             val fresh = captureObservation(capture)
@@ -617,7 +612,9 @@ class AgentToolRuntime(
             UpdateEventRequest(
                 idempotencyKey = operationKey,
                 captureId = capture.id,
-                expectedCaptureRevision = source.captureRevision,
+                expectedCaptureRevision = requireNotNull(source.captureRevision) {
+                    "source reference has no observed capture revision"
+                },
                 expectedEventRevision = source.eventRevision,
                 extractionVersion = AgentInterface.EXTRACTION_VERSION,
                 interpretation = interpretation,
@@ -677,7 +674,11 @@ class AgentToolRuntime(
                 effectClaim = AgentEffectClaim.EventReading(row.id, capture.id, row.revision),
             )
         }
-        is WorkflowCommandOutcome.Conflict -> staleFrom("$.source_ref", capture)
+        is WorkflowCommandOutcome.Conflict -> staleFrom(
+            "$.source_ref",
+            requireCapture(capture.id),
+            constraint = "workflow_command_compare_and_set",
+        )
         is WorkflowCommandOutcome.NeedsClarification -> AgentErrorCode.MISSING_REQUIRED_MEANING.asIssue(
             "$.${fieldPathFor(result.field)}",
             "domain_field_constraint",
@@ -729,6 +730,12 @@ class AgentToolRuntime(
                         .put("duplicate_partner_count", inspection.duplicatePartnerCount)
                     ),
                 observations = listOf(pair),
+            ),
+            noEffectClaim = AgentNoEffectClaim.PairInspection(
+                eventId = event.id,
+                draftId = draft.id,
+                eventRevision = event.revision,
+                eligibility = inspection.eligibility.name,
             ),
         )
     }
@@ -1419,6 +1426,64 @@ class AgentToolRuntime(
         // historical effect is still present is reported separately as currentEffectMatches and
         // never silently asserted as current.
         is AgentEffectClaim.Replay -> true
+    }
+
+    /**
+     * Re-reads one absence claim from live application state.
+     *
+     * A draft-scope claim must still return exactly the same in-scope rows under the same bound
+     * filter. A pair claim must still be a stored-evidence non-eligible pair with the observed
+     * event revision and no stored proposal or attachment for that pair now. Anything that moved
+     * makes the claim false, so the run reports `Incomplete` instead of an unproved absence.
+     */
+    suspend fun verifyNoEffect(claim: AgentNoEffectClaim): Boolean {
+        return when (claim) {
+            is AgentNoEffectClaim.DraftScope -> {
+                val status = when (val raw = claim.reviewStatus) {
+                    null -> null
+                    else -> IntakeReviewStatus.entries.firstOrNull { it.name == raw } ?: return false
+                }
+                val scan = visibleDrafts(DraftFilter(status, claim.duplicatesOnly))
+                scan.rows.map { it.id }.sorted() == claim.draftIds.sorted()
+            }
+
+            is AgentNoEffectClaim.PairInspection -> {
+                val event = queries.noteEvent(claim.eventId) ?: return false
+                if (event.revision != claim.eventRevision) return false
+                if (claim.eligibility == LinkEligibility.ELIGIBLE.name) return false
+                pairIsUnattachableNow(claim.eventId, claim.draftId)
+            }
+        }
+    }
+
+    /**
+     * Re-reads every inspected candidate of one event: each pair is still unattachable under
+     * the stored evidence policy and still has no proposal or attachment.
+     */
+    suspend fun verifyLinkAbsence(
+        eventId: Long,
+        inspections: List<AgentNoEffectClaim.PairInspection>,
+    ): Boolean {
+        if (inspections.isEmpty()) return false
+        if (inspections.any { it.eventId != eventId }) return false
+        return inspections.all { verifyNoEffect(it) }
+    }
+
+    private suspend fun pairIsUnattachableNow(eventId: Long, draftId: Long): Boolean {
+        val draft = queries.draftCandidate(draftId) ?: return false
+        val inspection = commands.inspectLinkEvidence(scope, eventId, draft.id) ?: return false
+        if (inspection.eligibility == LinkEligibility.ELIGIBLE) return false
+        val links = queries.linkOperations(
+            LinkOperationQuery(
+                eventId = eventId,
+                draftId = draft.id,
+                bounds = QueryPageRequest(10, 0),
+            ),
+        )
+        return links.items.none { link ->
+            link.eventId == eventId && link.draftId == draft.id &&
+                (link.state == ContextLinkState.PROPOSED || link.state == ContextLinkState.ACCEPTED)
+        }
     }
 
     private suspend fun snapshotMatches(
@@ -2140,12 +2205,16 @@ class AgentToolRuntime(
         }
     }
 
-    private suspend fun staleFrom(path: String, capture: CaptureMessageEntity): Nothing {
+    private suspend fun staleFrom(
+        path: String,
+        capture: CaptureMessageEntity,
+        constraint: String = "observed_revision_matches_current",
+    ): Nothing {
         val fresh = captureObservation(capture)
         throw AgentToolException(
             AgentErrorCode.STALE_OBSERVATION,
             path,
-            "observed_revision_matches_current",
+            constraint,
             JSONObject().put("fresh_observation_required", true),
             "The selected state changed. Inspect the fresh observation before choosing a new span.",
             subjectRef = fresh.getString("ref"),

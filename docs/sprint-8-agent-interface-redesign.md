@@ -582,7 +582,10 @@ Truthful completion:
 - No tool grants financial confirmation, deletion, arbitrary SQL/shell/filesystem
   access or user-only evidence overrides. Local Laya is review-only.
 - Privacy or authority refusal is not an invitation to try another spelling,
-  endpoint, raw value or fallback model.
+  endpoint, raw value or fallback model. The host — never the model — may re-issue one
+  refused turn under the bounded masking-repair rule (`s8-agent-masking-repair/v1`,
+  context `s8-agent-context/v5`): only a pre-dispatch `UNKNOWN_TOKEN`, exactly once per run,
+  with the refused response discarded whole and a fixed shape-only notice appended.
 ```
 
 Do not repeat field-level token syntax or temporal combinations in this global block. Those belong to the relevant declarations. If a selected skill contradicts global authority or actual tool availability, stop with a local contract/configuration error rather than ask the model to pick which instruction is true. Within an authorized user task, current observations may change facts, not authority.
@@ -667,3 +670,23 @@ No tests, smoke runs, provider requests or device checks were executed for this 
 5. Approve a separately versioned evaluation mapping preserving business intents; run small hosted diagnostics first, then full qualification only when justified.
 
 Do not mix a partially migrated interface into the old six-case snapshot or regrade earlier attempts. This document and its decisions are design input, not S8.13-pre completion or permission to start implementation.
+
+## Follow-on v3-interface qualification mapping
+
+The approved interface was implemented and accepted at the exact S8.13-pre checkpoint
+`194e05125b76ded44ea52ccb76b3d16ee8af1e65`; this document remains the design rationale,
+not a claim about qualification results. Exact journal replay now consumes the host-issued
+`operation_ref`, and event writes forward the selected source's observed capture/event
+revisions to the transactional service CAS. A conflict has no write effect and must return
+a fresh masked capture observation before a corrected source can be selected.
+
+The current qualification migration is separately versioned in
+[`tools/slm/s8_agent_v3_qualification_fixture.json`](../tools/slm/s8_agent_v3_qualification_fixture.json),
+[`tools/slm/s8_agent_v3_qualification_scoring.json`](../tools/slm/s8_agent_v3_qualification_scoring.json),
+and [`tools/slm/s8_agent_v3_qualification.py`](../tools/slm/s8_agent_v3_qualification.py).
+It retains the 16/8 case identities and gates, maps each case's prior lineage to the v3
+workflow, and replaces only the replay wire condition with the exact operation receipt and
+real journal no-change proof. Existing fixtures, scores and attempts remain byte-identical.
+For a10, the snapshot03 static mapping preflight passed with zero hosted calls; actual phone
+domain preflight and final freeze are separate prerequisites, and no qualification claim is
+made from the static mapping alone.

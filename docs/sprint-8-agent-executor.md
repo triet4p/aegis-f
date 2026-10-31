@@ -118,6 +118,27 @@ not as success.
 - Inbound assistant text and tool arguments are scanned by the gateway before dispatch; a raw
   literal or foreign/unknown token turns the turn into `INCOMPLETE(masking_blocked)` with no
   calls. The S8.7 adapter still validates every token, span and scope locally before a command.
+- The decoded-response guard classifies channels explicitly (`ResponseChannel`). Provider
+  reasoning/thinking — Chat Completions `message.reasoning_content`/`reasoning`, Gemini `thought`
+  parts and `thoughtSignature`, Responses `type: "reasoning"` items — is never guard input: it is
+  not displayed, rehydrated or treated as authority, so invented token notation or a
+  sensitive-looking value inside it cannot refuse a valid response. A thought-marked Gemini part
+  contributes no tool call even when it carries schema-valid `functionCall` bytes; only
+  ordinary parts dispatch. The model's answer and its tool-call arguments stay guarded in the
+  decoded body, again in `maskTurnOrBlock` before publication/dispatch, and (arguments) again
+in the tool runtime. Retained continuation items keep protocol pairing (`thoughtSignature`,
+item `id`/`type`/`status`, `call_id`, opaque `encrypted_content`) byte-identical while plaintext
+reasoning prose (`thought` text, Responses `summary`/`content`/`text`) is dropped, so a raw
+literal inside reasoning never rides the next request. Reasoning is never promoted into the answer.
+- Every model turn carries the run's authoritative issued-token inventory
+  (`s8-agent-token-inventory/v1`): `SensitiveVault.issuedTokens()` rendered as token plus kind only,
+  in mint order, never a raw value or rehydration mapping. The executor appends it to the initial
+  prompt, the resumed clarification prompt, the compacted prompt, the tool-result continuation
+  (native host tail after the tool outputs) and the masking-repair notice, re-rendering after any
+  masking that may have minted tokens. The list is complete, so an absent value always means "not
+  issued"; if the prompt plus inventory cannot fit `maxContextCharacters`, the run stops with
+  `CONTEXT_BUDGET` rather than dropping entries. The stable versioned prefix is untouched and the
+  prompt-block version is part of the cache identity.
 - Scope, operation identities and tool declarations are host values. Capture notes, draft memos
   and tool-returned prose are explicitly untrusted data in the system instruction and the bundled
   skills; nothing can select a skill, change scope/revisions/keys, or grant authority.

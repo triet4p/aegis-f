@@ -456,3 +456,186 @@ failures. Proposed numeric targets are not owner-approved gates; exact
 authority/financial correctness and the masking boundary are mandatory constraints.
 The app-side boundary is pinned by
 `app/src/test/.../S84AgentContractTest.kt` against the real Room services.
+
+## S8.13 v3-interface qualification migration
+
+The S8.13-pre v3 tool contract has a separate, immutable qualification fixture and scorer:
+[`s8_agent_v3_qualification_fixture.json`](s8_agent_v3_qualification_fixture.json),
+[`s8_agent_v3_qualification_scoring.json`](s8_agent_v3_qualification_scoring.json), and
+[`s8_agent_v3_qualification.py`](s8_agent_v3_qualification.py). The migration maps the
+preserved 16 dev and 8 held-out case IDs to v3 intents, allowed tools, observable fixture
+inputs, expected business rows, repair/replay conditions, and rationale. Historical v1/v2
+fixtures, score files, runs, and denominators are never overwritten or regraded.
+
+Run Stage1 in order:
+
+```powershell
+uv run python tools/slm/s8_agent_v3_qualification.py preflight
+uv run python tools/slm/s8_agent_v3_qualification.py build
+uv run python tools/slm/s8_agent_v3_qualification.py device-preflight
+uv run python tools/slm/s8_agent_v3_qualification.py freeze
+```
+
+The no-argument Stage1 commands above preserve the full-suite path. For a diagnostic
+subset, pass the same explicit invocation to every Stage1 command; `--case-ids` is an
+ordered list and the runner rejects partial identity, duplicate IDs and IDs absent from
+the frozen mapping:
+
+```powershell
+$diagnosticArgs = @(
+  "--attempt-id", "S8.13-harness-a27",
+  "--snapshot-id", "S8.13-v3-interface-harness-a27-freeze-34",
+  "--run-name", "S8.13-live-a27",
+  "--case-ids", "a8-recover-01", "a8-retry-01", "a8-nomatch-01", "a8h-nomatch-01",
+  "--evidence-root", "artifacts/sprint-8/evidence/S8.13-harness-a27"
+)
+uv run python tools/slm/s8_agent_v3_qualification.py preflight @diagnosticArgs
+uv run python tools/slm/s8_agent_v3_qualification.py build @diagnosticArgs
+uv run python tools/slm/s8_agent_v3_qualification.py device-preflight @diagnosticArgs
+uv run python tools/slm/s8_agent_v3_qualification.py freeze @diagnosticArgs
+```
+
+The selection-only Android instrumentation uses the real fixture mapping and executor
+input construction, records the requested order, and exits before credential loading.
+The same identity and ordered IDs are required by the live diagnostic, debug capture and
+collector. That run is diagnostic only and does not change the full-suite denominator or
+score.
+
+The static no-network preflight validates all 24 mappings. The actual-device step retains
+evidence for source-grounded multi-event writes, exact operation replay, service CAS
+conflict/fresh-observation repair, local Laya candidates and exact over-budget refusal,
+and real unique/ambiguous/mismatched link-policy outcomes. The freeze binds the
+source/schema/skills/fixture/scoring hashes, isolated app and test APK hashes, pinned local
+Laya source hashes, phone and test evidence, provider route/budget, exact case set and three
+non-reusable output folders.
+
+Stage2 is deliberately separate and requires Main's explicit approval reference before
+any hosted request:
+
+```powershell
+uv run python tools/slm/s8_agent_v3_qualification.py run --pass-number 1 --main-approval <reference>
+uv run python tools/slm/s8_agent_v3_qualification.py run --pass-number 2 --main-approval <reference>
+uv run python tools/slm/s8_agent_v3_qualification.py run --pass-number 3 --main-approval <reference>
+uv run python tools/slm/s8_agent_v3_qualification.py score
+```
+
+Each full run retains all 24 case attempts and provider sidecars, including failures and
+truncations. The scorer reports actual postconditions, tool/effect traces, masking, repair,
+turns, latency, usage/cache support, provider-returned cost fields, and unknown quota without
+imputation. Each case still requires independent semantic review; a valid JSON record is
+not a quality claim or qualification result.
+
+### TEST-ONLY synthetic debug capture (`reproduce-blocked`)
+
+The qualification evidence contract deliberately stores provider bodies redacted, which makes a
+privacy-guard refusal of the model's own reasoning text undiagnosable after the fact. The owner
+authorized full test observability for the synthetic fixtures only:
+
+```powershell
+uv run python tools/slm/s8_agent_v3_qualification.py reproduce-blocked @diagnosticArgs --main-approval <reference>
+```
+
+`reproduce-blocked` requires the complete explicit attempt, snapshot, run name, ordered case list
+and evidence root; it has no old-case or old-snapshot fallback. The frozen candidate must bind the
+same selection and debug-capture contract, and Main must approve that exact new freeze before any
+hosted request. The run is a diagnostic subset, not a qualification pass, and scores no gate. It
+retains, per turn and before the runtime refusal takes effect:
+
+- the exact provider request and response bodies, assistant text/reasoning and tool calls;
+- the privacy-guard verdict, refusal stage and any tool arguments/results;
+- the per-turn issued synthetic token set plus per-token classification (issued, near miss,
+  invented, fixture-proven synthetic value) so an unknown-token refusal is decidable without a
+  vault map.
+
+Guardrails: raw payloads live in a separate gitignored `TEST_ONLY` root outside the tracked
+evidence tree; the recorder only opens inside the isolated `io.github.triet4p.aegisf.s813evidence`
+package for the frozen fixture digest and the synthetic `s813cand…` vault scope; it never accepts
+HTTP header values (names only), scans every record against the in-memory credential and fails
+closed before writing. The inbound guard itself is unchanged: unknown/foreign tokens are still
+rejected, no reasoning is accepted or ignored, and the runtime refusal plus zero effects stand.
+
+The local no-network response-location smoke uses the separate raw-root convention for
+synthetic fixtures: each named case is appended to a `TEST_ONLY` JSON report with its exact input
+body, expected and actual protocol/channel, guard decision and outcome, safe field locations, and
+any exception stack trace. Results are persisted case by case; one error does not prevent later
+independent response checks, and the aggregate fails with the named cases. The phone writes the
+report under `files/<attempt>/debug/<snapshot>/preflight-privacy-smoke/`; the host collector pulls
+it into the gitignored `artifacts/sprint-8/test-only/<attempt>/<snapshot>/preflight-privacy-smoke/`
+root outside candidate evidence and source roots, whether the controlled instrumentation exits
+successfully or not, and records its path and hash. Freeze validates that exact report's identity
+and all 39 cases, then binds only its path/hash; raw bodies remain excluded from source/freeze
+contents and from the compact domain summary. The three provider-reasoning-only cases expect
+acceptance under the existing reasoning exemption; the usage-counter variant still requires
+recognized numeric `usage.total_tokens`. Content/tool/key refusals, malformed-protocol errors and
+unknown or foreign-token controls remain unchanged. No runtime or policy change is made.
+
+
+### a21 bounded masking repair and no-effect settlement
+
+Batch `S8.13-v3-interface-qualification-batch-20` / snapshot
+`S8.13-v3-interface-a21-freeze-27` is a new candidate, not a regrade. It keeps the token shape and
+every semantic scan and adds:
+
+- one host-issued repair of a pre-dispatch `UNKNOWN_TOKEN` response
+  (`s8-agent-masking-repair/v1`, instruction block `s8-agent-context/v5`): the refused response and
+  its calls are discarded whole, the attempt is charged to the turn budget, one fixed bracket-free
+  notice is appended, and the replacement response is fully rescanned. Every other refusal stays
+  terminal, and no spelling/endpoint/model fallback exists;
+- a typed, host-verified no-effect settlement (`WorkflowVerifiedEffect.NoEffect`: empty search,
+  link no-match, policy refusal) that requires a complete scoped re-read, unchanged revisions and
+  zero mutation dispatches; an unproved absence stays `Incomplete:REQUIRED_EFFECT_MISSING`;
+- scoring `aegis-f-s8-agent-v3-qualification-scoring/v7` /
+  `s8.13-quality-vs-safety-adjudication/v4`, which compares the outcome kind before its `:REASON`
+  suffix, accepts exactly one terminal suspending `ask_user` without a tool result only for an
+  authoritative `Clarifying` run with the mapped field and no later dispatch, compares only the
+  declared search filter keys, and counts successful clarification suspensions only.
+
+The new `checks/check_a21_contract.py` under the a21 evidence root is a deterministic pre-build
+gate over those literals/version identities plus the unchanged fixture digest and approved gates;
+it is not an application test, and the behavioral proof is the unit-test suite and the scorer's own
+`selfcheck`.
+
+
+
+### a22 diagnostic plumbing
+
+Batch `S8.13-v3-interface-qualification-batch-21` / snapshot
+`S8.13-v3-interface-a22-freeze-29` is a new candidate; it preserves the existing token, guard,
+no-effect and business contracts. The scorer's `REPRODUCTION_RUN_NAME` is passed explicitly to the
+instrumented harness and bound into the path-identity record and freeze. The host and device reject
+an existing reproduction directory instead of overwriting retained evidence.
+
+The live stop rule and scorer discount only the single indexed pre-dispatch `UNKNOWN_TOKEN` refusal
+when its replacement is immediately accepted with the configured model identity, every request is
+HTTP 200, the current masking guard passes, and unsafe-effect counters are zero. A second or
+non-eligible refusal, later provider failure, non-200 response, model mismatch, masking failure or
+unsafe effect remains a stop/failure. Scoring v8 / adjudication v5 applies prospectively to that
+attempt; the approved gates and retained scores are unchanged.
+
+The proposed single diagnostic contains only the three previously skipped cases
+(`a8-nomatch-01`, `a8h-nomatch-01`, `a8-link-02`). It does not rerun or splice in the retained a21
+`a8-adv-03` repair evidence and is not a qualification pass. Hosted calls require Main's explicit
+approval of the exact frozen candidate and proposal.
+
+### a23 guard-channel scope and issued-token inventory
+
+The owner-approved revision scopes the inbound guard to channels that can leak or act: the model's
+user-visible answer (checked before publication) and its tool-call arguments (checked before
+dispatch and again in the typed tool runtime). Provider reasoning/thinking — Chat Completions
+`reasoning_content`/`reasoning`, Gemini `thought` parts and `thoughtSignature`, Responses
+`type: "reasoning"` items — is not guard input, so invented token notation inside it can no longer
+produce `UNKNOWN_TOKEN`, `FOREIGN_TOKEN` or a decoded-sensitive refusal by itself. Malformed
+envelopes, duplicate keys, depth limits, metadata and usage-counter validation, unknown/foreign
+token rejection, CAS, source-span grounding, cancellation and effect verification are unchanged.
+
+Every model turn also carries the run's complete issued-token inventory
+(`s8-agent-token-inventory/v1`): opaque token plus kind, in mint order, never a raw value or
+rehydration mapping. The host renders it after masking the initial prompt, the clarification
+prompt, the compacted prompt, each tool-result continuation and the masking-repair notice, so a
+value absent from the list is not issued. It is never filtered or truncated; a prompt that cannot
+fit it stops with `CONTEXT_BUDGET`.
+
+The qualification scoring contract advances to `aegis-f-s8-agent-v3-qualification-scoring/v9`
+(adjudication stays `s8.13-quality-vs-safety-adjudication/v5`) so the masking-integrity scope names
+the guard channels and states that provider reasoning is excluded. All approved gates, denominators,
+case mappings and retained measurements are unchanged, and no earlier attempt is rescored.

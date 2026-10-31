@@ -109,10 +109,16 @@ class S811ContextCacheTest {
         val secondAdapter = ScriptedAdapter(scripted() + { complete("done") }, usage = null)
         val secondPrompts = promptsOf(second, secondAdapter)
         assertEquals("the stable prefix must be deterministic", firstPrompts.first(), secondPrompts.first())
-        assertTrue(firstPrompts.first().contains("context_block_version: s8-agent-context/v3"))
+        assertTrue(firstPrompts.first().contains("context_block_version: s8-agent-context/v6"))
+        assertTrue(firstPrompts.first().contains("token_syntax_rule"))
+        assertTrue(firstPrompts.first().contains("token_inventory_rule"))
         assertTrue(firstPrompts.first().contains("mutable_state_rule"))
         assertTrue(firstPrompts.first().contains("skill_id: draft-search"))
         assertFalse(firstPrompts.first().contains("skill_id: local-review"))
+        assertTrue(
+            "the initial prompt must stay a small fraction of the 160000-character turn budget",
+            firstPrompts.first().length < 40_000,
+        )
 
         // Different intents select different skills: the prefix is stable per workflow, not global.
         val laya = prepare()
@@ -124,6 +130,125 @@ class S811ContextCacheTest {
         )
         assertFalse(layaPrompts.first() == firstPrompts.first())
         assertTrue(layaPrompts.first().contains("skill_id: local-review"))
+    }
+
+    @Test
+    fun `token syntax rule stays inside the measured context budget`() {
+        val stable = AgentContextManager.stableRuntimeBlock()
+        assertTrue(stable.contains("context_block_version: s8-agent-context/v6"))
+        val lines = stable.lines()
+        val start = lines.indexOfFirst { it.startsWith("token_syntax_rule") }
+        val end = lines.indexOfFirst { it.startsWith("reference_rule") }
+        assertTrue("the token-syntax invariant must be present", start >= 0 && end > start)
+        assertTrue(
+            "the inventory rule must state that the current list is authoritative",
+            lines.subList(start, end).any { it.startsWith("token_inventory_rule") },
+        )
+        val ruleCharacters = lines.subList(start, end).sumOf(String::length)
+        assertTrue("the token rule must stay a short invariant, was $ruleCharacters", ruleCharacters in 1..600)
+        assertTrue("the stable runtime block must stay a small fraction of the turn budget, was ${stable.length}",
+            stable.length < 6_000)
+        // The measured budget behavior is unchanged: compaction only above the limit and only when
+        // an older payload exists to drop.
+        assertNull(AgentContextManager.compactForBudget(159_999, 160_000, 1, 1, 1))
+        assertTrue(AgentContextManager.compactForBudget(160_001, 160_000, 1, 1, 1) != null)
+        assertNull(AgentContextManager.compactForBudget(160_001, 160_000, 0, 0, 1))
+    }
+
+    // ---- Authoritative issued-token inventory ---------------------------------------------
+
+    @Test
+    fun `the issued token inventory is versioned complete and value free`() {
+        val vault = SensitiveVault("s8.11-inventory-block")
+        assertTrue(AgentContextManager.tokenInventoryBlock(vault.issuedTokens()).contains("0 token(s)"))
+        val amount = vault.maskText("25,000 VND").substringBefore(' ')
+        val date = vault.maskText("2026-10-22").substringBefore(' ')
+        val block = AgentContextManager.tokenInventoryBlock(vault.issuedTokens())
+        assertTrue(block.contains(AgentContextManager.TOKEN_INVENTORY_VERSION))
+        assertTrue(block.contains("$amount kind=AMOUNT"))
+        assertTrue(block.contains("$date kind=DATE"))
+        assertTrue(block.contains("2 token(s)"))
+        // No raw value, canonical form or rehydration hint is ever rendered.
+        assertFalse(block.contains("25,000"))
+        assertFalse(block.contains("25000"))
+        assertFalse(block.contains("2026-10-22"))
+        assertEquals(2, vault.issuedTokens().size)
+        // Repeating an already mapped value does not extend the list.
+        vault.maskText("25,000 VND")
+        assertEquals(2, vault.issuedTokens().size)
+    }
+
+    @Test
+    fun `every turn carries the complete current issued token inventory`() = runBlocking {
+        val fixture = prepare()
+        val script = scripted()
+        script += { toolTurn(call("list_drafts", draftQueryArgs())) }
+        script += { complete("Found the synthetic drafts.") }
+        val adapter = ScriptedAdapter(script, usage = null)
+        val outcome = run(fixture, adapter, WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+            userRequest = "Find the pending drafts.",
+        ))
+        assertTrue("expected a verified completion, got $outcome", outcome is WorkflowRunOutcome.Completed)
+        val initial = adapter.userInstructions().single()
+        val initialTokens = tokenInventoryOf(initial)
+        assertTrue("the initial turn must list the run inventory", initialTokens.isNotEmpty())
+        val continuation = adapter.inventoryNotices.single()
+        val continuationTokens = tokenInventoryOf(continuation)
+        assertTrue(
+            "the continuation keeps every token issued for the initial prompt",
+            continuationTokens.containsAll(initialTokens),
+        )
+        assertEquals(
+            "each turn lists exactly the run's issued tokens, in issuance order",
+            fixture.boundary.vault.issuedTokens().map { it.token },
+            continuationTokens,
+        )
+        assertFalse(initial.contains("25,000"))
+        assertFalse(continuation.contains("25,000"))
+    }
+
+    @Test
+    fun `a new run and provider switch never inherit another run's inventory`() = runBlocking {
+        val first = prepare()
+        val firstAdapter = ScriptedAdapter(scripted() + { complete("first done") }, usage = null)
+        run(first, firstAdapter, WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+            userRequest = "Find the pending drafts.",
+        ))
+        val firstTokens = tokenInventoryOf(firstAdapter.userInstructions().single())
+        assertTrue(firstTokens.isNotEmpty())
+
+        val second = prepare()
+        val secondAdapter = ScriptedAdapter(
+            scripted() + { complete("second done") },
+            usage = null,
+            protocol = HostedProtocol.OPENAI_RESPONSES,
+            identity = HostedProviderIdentity(
+                protocol = HostedProtocol.OPENAI_RESPONSES,
+                endpointHost = "scripted.local",
+                model = MODEL,
+                budget = io.github.triet4p.aegisf.provider.HostedGenerationBudget(maxOutputTokens = 8_192),
+            ),
+        )
+        run(
+            second,
+            secondAdapter,
+            WorkflowRunRequest(
+                intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+                userRequest = "Find the pending drafts.",
+            ),
+            protocol = HostedProtocol.OPENAI_RESPONSES,
+        )
+        val secondPrompt = secondAdapter.userInstructions().single()
+        val secondTokens = tokenInventoryOf(secondPrompt)
+        assertTrue(secondTokens.isNotEmpty())
+        assertTrue("another run's tokens must never be listed", secondTokens.none { it in firstTokens })
+        assertEquals(
+            "the switched run lists exactly its own issued tokens",
+            second.boundary.vault.issuedTokens().map { it.token },
+            secondTokens,
+        )
     }
 
     // ---- Actual usage, never estimated -------------------------------------------------
@@ -221,6 +346,11 @@ class S811ContextCacheTest {
         assertFalse(base.fingerprint() == otherModel.fingerprint())
         assertFalse(base.fingerprint() == otherScope.fingerprint())
         assertFalse(base.fingerprint() == otherSkills.fingerprint())
+        assertEquals(AgentContextManager.CONTEXT_BLOCK_VERSION, base.promptContract)
+        assertFalse(
+            "a prompt-contract change must invalidate the identity",
+            base.fingerprint() == base.copy(promptContract = "s8-agent-context/other").fingerprint(),
+        )
         assertFalse("no raw value may enter the identity", base.fingerprint().contains("25,000"))
         val rendered = AgentContextManager.canonicalToolSchema(declarations)
         assertFalse(rendered.contains("25,000"))
@@ -332,27 +462,65 @@ class S811ContextCacheTest {
         }
         script += { complete("Stored.") }
         adapter = ScriptedAdapter(script, usage = null)
-        val initialPrompt = measureInitialPrompt(
-            fixture,
-            intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
-            userRequest = "Interpret the synthetic note.",
-        )
         val outcome = run(
             fixture,
             adapter,
             WorkflowRunRequest(
                 intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
                 userRequest = "Interpret the synthetic note.",
-                limits = WorkflowRunLimits(maxContextCharacters = initialPrompt + 120),
+                limits = WorkflowRunLimits(maxContextCharacters = runBoundForCompaction(fixture)),
             ),
         )
         assertTrue("compaction must preserve the verified completion, got $outcome", outcome is WorkflowRunOutcome.Completed)
         outcome as WorkflowRunOutcome.Completed
-        assertTrue(outcome.compaction != null)
+        assertTrue("compaction must fire under the sized bound, got " + outcome.compaction, outcome.compaction != null)
         assertTrue(outcome.compaction!!.droppedToolResults > 0)
         assertTrue(outcome.verifiedEffects.any { it is WorkflowVerifiedEffect.EventReading })
         assertEquals(25_000L, database.noteEventDao().findForCapture(fixture.captureId).single().amountVnd)
         assertTrue("no raw amount may leave the device", adapter.egress().none { it.contains("25,000") })
+        // The post-compaction turns still carry the complete issued-token inventory.
+        val notices = adapter.inventoryNotices
+        assertTrue("compaction must never drop the inventory", notices.isNotEmpty())
+        assertTrue(notices.all { it.contains(AgentContextManager.TOKEN_INVENTORY_VERSION) })
+        assertEquals(
+            "the last continuation lists exactly the run's issued tokens",
+            fixture.boundary.vault.issuedTokens().map { it.token },
+            tokenInventoryOf(notices.last()),
+        )
+        assertTrue(
+            "the initial turn already carried an inventory",
+            tokenInventoryOf(adapter.userInstructions().first()).isNotEmpty(),
+        )
+    }
+
+    /**
+     * Behavioral bound for the compaction test: the measured stable prompt plus one fresh
+     * turn of results and the complete inventory must fit, while the full three-turn
+     * cumulative chain must force the drive loop through real compaction. A probe turn
+     * against this fixture measures exactly one turn of fresh payloads plus the run's
+     * current inventory; the bound sits 1 char below the cumulative total so compaction
+     * is exercised deterministically, never by magic constant.
+     */
+    private fun runBoundForCompaction(fixture: Fixture): Int {
+        val initialPrompt = measureInitialPrompt(
+            fixture,
+            intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
+            userRequest = "Interpret the synthetic note.",
+        )
+        val probeScript = scripted()
+        probeScript += { toolTurn(call("select_source", draftQueryArgs())) }
+        probeScript += { complete("probe") }
+        val probe = ScriptedAdapter(probeScript, usage = null)
+        runBlocking {
+            executor(fixture, probe).start(WorkflowRunRequest(
+                intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
+                userRequest = "Interpret the synthetic note.",
+            ))
+        }
+        val oneFreshPayload = probe.toolResultPayloads.flatten().sumOf { it.length }
+        val probeInventory = AgentContextManager.tokenInventoryBlock(fixture.boundary.vault.issuedTokens()).length
+        check(oneFreshPayload > 0 && probeInventory > 0) { "the fixture must mint masked payloads and inventory" }
+        return initialPrompt + 2 * oneFreshPayload + 2 * probeInventory - 1
     }
 
     @Test
@@ -366,6 +534,85 @@ class S811ContextCacheTest {
         )
         assertNull("no older payload means no compaction can help", decision)
     }
+
+    @Test
+    fun `inventory-driven overflow drops stale payloads and never resets the counter`() = runBlocking {
+        val fixture = prepare()
+        lateinit var adapter: ScriptedAdapter
+        val script = scripted()
+        script += { toolTurn(call("list_drafts", draftQueryArgs())) }
+        script += { toolTurn(call("list_drafts", draftQueryArgs())) }
+        script += { complete("Found the synthetic drafts.") }
+        adapter = ScriptedAdapter(script, usage = null)
+        val initialPrompt = measureInitialPrompt(
+            fixture,
+            intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+            userRequest = "Find the pending drafts.",
+        )
+        // Drive the second tool-result continuation over budget while the fresh chain (stable
+        // prompt plus current results plus the complete inventory) still fits. The probe measures
+        // one masked payload and the current inventory against the same fixture.
+        val probeScript = scripted()
+        probeScript += { toolTurn(call("list_drafts", draftQueryArgs())) }
+        probeScript += { complete("probe") }
+        val probe = ScriptedAdapter(probeScript, usage = null)
+        run(fixture, probe, WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+            userRequest = "Find the pending drafts.",
+        ))
+        val onePayload = probe.toolResultPayloads.flatten().sumOf { it.length }
+        val inventoryNow = AgentContextManager.tokenInventoryBlock(fixture.boundary.vault.issuedTokens()).length
+        assertTrue("the fixture must mint masked payloads and inventory", onePayload > 0 && inventoryNow > 0)
+        val runningTotal = initialPrompt + 2 * onePayload + inventoryNow
+        val freshChain = initialPrompt + onePayload + inventoryNow
+        assertTrue("the probe must overflow the small bound", runningTotal > freshChain)
+        val bound = runningTotal - 1
+        assertTrue("the fresh chain must still fit", freshChain <= bound)
+        val outcome = run(
+            fixture,
+            adapter,
+            WorkflowRunRequest(
+                intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+                userRequest = "Find the pending drafts.",
+                limits = WorkflowRunLimits(maxContextCharacters = bound),
+            ),
+        )
+        assertTrue("expected a verified completion, got $outcome", outcome is WorkflowRunOutcome.Completed)
+        outcome as WorkflowRunOutcome.Completed
+        assertTrue("overflow must record a real compaction", outcome.compaction != null)
+        assertTrue(outcome.compaction!!.droppedToolResults > 0)
+        val lastInventory = tokenInventoryOf(adapter.inventoryNotices.last())
+        assertEquals(
+            "the continuation lists exactly the run's issued tokens",
+            fixture.boundary.vault.issuedTokens().map { it.token },
+            lastInventory,
+        )
+        assertEquals(lastInventory.distinct().size, lastInventory.size)
+    }
+
+    @Test
+    fun `an oversized complete inventory stops before any provider request`() = runBlocking {
+        val fixture = prepare()
+        val adapter = ScriptedAdapter(scripted() + { complete("unreachable") }, usage = null)
+        // Mint enough tokens that the initial prompt plus the complete inventory cannot fit.
+        repeat(120) { index -> fixture.boundary.maskOutbound("Dinner ${(10_000 + index * 1_000)} VND.", MaskedPath.CONTEXT) }
+        val inventoryLength =
+            AgentContextManager.tokenInventoryBlock(fixture.boundary.vault.issuedTokens()).length
+        assertTrue("inventory must exceed the small bound, was $inventoryLength", inventoryLength > 4_096)
+        val outcome = run(
+            fixture,
+            adapter,
+            WorkflowRunRequest(
+                intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+                userRequest = "Find the pending drafts.",
+                limits = WorkflowRunLimits(maxContextCharacters = 4_096),
+            ),
+        )
+        outcome as WorkflowRunOutcome.Incomplete
+        assertEquals(WorkflowRunStopReason.CONTEXT_BUDGET, outcome.reason)
+        assertEquals("no provider request may exist when the inventory cannot fit", 0, adapter.nextCountForTest())
+    }
+
 
     @Test
     fun `bounded history keeps the most recent dispatch entries only`() {
@@ -554,6 +801,16 @@ class S811ContextCacheTest {
     private fun lastEnvelope(adapter: ScriptedAdapter): JSONObject =
         JSONObject(adapter.toolResultPayloads.last().single())
 
+    /** The tokens listed by the host inventory block of one prompt, in listed order. */
+    private fun tokenInventoryOf(text: String): List<String> {
+        val start = text.indexOf("issued_mask_token_inventory")
+        if (start < 0) return emptyList()
+        return Regex("⟦[^\\s⟦⟧]+⟧")
+            .findAll(text.substring(start))
+            .map { it.value }
+            .toList()
+    }
+
     private fun previousEnvelope(adapter: ScriptedAdapter, turnsBack: Int): JSONObject =
         JSONObject(adapter.toolResultPayloads[adapter.toolResultPayloads.size - turnsBack].single())
 
@@ -614,8 +871,15 @@ class S811ContextCacheTest {
         ),
     ) : HostedGenerationAdapter {
         private var next = 0
+        fun nextCountForTest(): Int = next
         val prompts = mutableListOf<String>()
         val toolResultPayloads = mutableListOf<List<String>>()
+        /** Issued-token inventories appended to tool-result continuations, in order. */
+        val inventoryNotices = mutableListOf<String>()
+
+        /** Every user instruction this adapter was asked to start a turn with, in order. */
+        fun userInstructions(): List<String> =
+            prompts.filterIndexed { index, _ -> index % 2 == 1 }
 
         override fun providerIdentity(): HostedProviderIdentity? = identity
 
@@ -665,8 +929,10 @@ class S811ContextCacheTest {
         override fun continueWithToolResults(
             conversation: HostedConversation,
             results: List<HostedToolResult>,
+            hostNotice: String?,
         ): HostedConversation {
             toolResultPayloads += results.map(HostedToolResult::outputJson)
+            if (hostNotice != null) inventoryNotices += hostNotice
             return ScriptedConversation(protocol, emptyList())
         }
 

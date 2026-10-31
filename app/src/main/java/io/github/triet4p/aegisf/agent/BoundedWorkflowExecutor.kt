@@ -2,6 +2,7 @@ package io.github.triet4p.aegisf.agent
 
 import io.github.triet4p.aegisf.data.ContextLinkState
 import io.github.triet4p.aegisf.data.IntakeReviewStatus
+import io.github.triet4p.aegisf.data.LinkEligibility
 import io.github.triet4p.aegisf.data.PredictionSource
 import io.github.triet4p.aegisf.data.WorkflowCallerScope
 import io.github.triet4p.aegisf.data.WorkflowCommandService
@@ -15,6 +16,7 @@ import io.github.triet4p.aegisf.privacy.SensitiveVault
 import io.github.triet4p.aegisf.provider.HostedConfigurationException
 import io.github.triet4p.aegisf.provider.HostedGenerationResult
 import io.github.triet4p.aegisf.provider.HostedProviderFailure
+import io.github.triet4p.aegisf.provider.HostedResponsePrivacyRefusal
 import io.github.triet4p.aegisf.provider.HostedToolCall
 import io.github.triet4p.aegisf.provider.HostedToolDeclaration
 import io.github.triet4p.aegisf.provider.HostedToolResult
@@ -107,6 +109,8 @@ data class AgentCacheKey(
     val model: String,
     val generationBudget: String,
     val interfaceContract: String,
+    /** Version of the runtime prompt/context block the system instruction carries. */
+    val promptContract: String,
     val toolSchema: String,
     val skillCatalog: String,
     val privacyContext: String,
@@ -119,6 +123,7 @@ data class AgentCacheKey(
             model,
             generationBudget,
             interfaceContract,
+            promptContract,
             toolSchema,
             skillCatalog,
             privacyContext,
@@ -207,17 +212,48 @@ class WorkflowRunHost(
         )
 }
 
+/**
+ * The trusted host's settlement basis for one request. Names a contract, never content.
+ *
+ * [REQUIRED_EFFECT] (the default and the only production default) requires the selected
+ * intents' effects; a truthful absence is still verified where the workflow can settle with
+ * none, but a missing required action stays `Incomplete`.
+ *
+ * [NO_EFFECT_AUTHORIZED] is set only when the trusted host has already classified the request
+ * as outside the declared tool catalog (a policy refusal). It authorizes a *verified* zero
+ * effect settlement, never a claimed one: the run must still produce an answer, dispatch no
+ * mutation, and prove that nothing was written.
+ */
+enum class WorkflowSettlement {
+    REQUIRED_EFFECT,
+    NO_EFFECT_AUTHORIZED,
+}
+
 /** One trusted user request and the host-selected workflow intents it needs. */
 data class WorkflowRunRequest(
     val intents: Set<WorkflowIntent>,
     val userRequest: String,
     val limits: WorkflowRunLimits = WorkflowRunLimits(),
+    val settlement: WorkflowSettlement = WorkflowSettlement.REQUIRED_EFFECT,
 ) {
     init {
         require(intents.isNotEmpty()) { "At least one trusted workflow intent is required." }
         require(userRequest.isNotBlank()) { "A run needs a nonblank user request." }
     }
 }
+
+/**
+ * The content-free chronology of the one bounded masking repair opportunity.
+ *
+ * [attempt] is the 1-based provider attempt that was refused, [reason] the safe refusal
+ * category, and [outcome] the bounded repair state (`reissued` or `terminal`). It never
+ * carries refused text, a token, a raw value, reasoning or a foreign identifier.
+ */
+data class MaskingRepairRecord(
+    val attempt: Int,
+    val reason: String,
+    val outcome: String,
+)
 
 /** One entry of the privacy-safe run trace: a state and bounded identifiers, never content. */
 data class WorkflowRunStep(val state: WorkflowRunState, val detail: String? = null)
@@ -258,6 +294,59 @@ sealed interface WorkflowVerifiedEffect {
         val operationKey: String,
         val currentEffectMatches: Boolean,
     ) : WorkflowVerifiedEffect
+
+    /**
+     * A truthful settlement that stored nothing.
+     *
+     * Every variant is re-read from authoritative application state before the run may report
+     * completion, and none of them claims an effect. They are kept as their own kind so the run
+     * history, the UI and qualification never present a refusal or an empty result as a
+     * successful mutation.
+     */
+    sealed interface NoEffect : WorkflowVerifiedEffect {
+        val intent: WorkflowIntent
+
+        /** Stable, content-free name used by durable history, the UI and qualification. */
+        val kindName: String
+
+        /** A complete bounded draft read over the authorized scope returned no row. */
+        data class EmptySearch(
+            override val intent: WorkflowIntent,
+            val filterKeys: List<String>,
+        ) : NoEffect {
+            override val kindName: String get() = "empty_search"
+            override fun toString(): String =
+                "No effect: no stored draft matched the bounded search (${filterKeys.joinToString(",")})"
+        }
+
+        /**
+         * The whole authorized draft scope was read and every examined candidate was
+         * unattachable, and no link exists for the pair now.
+         */
+        data class LinkNoMatch(
+            override val intent: WorkflowIntent,
+            val eventId: Long,
+            val eventRevision: Int,
+            val candidatesExamined: Int,
+        ) : NoEffect {
+            override val kindName: String get() = "link_no_match"
+            override fun toString(): String =
+                "No effect: event $eventId stayed unlinked; $candidatesExamined candidate(s) examined"
+        }
+
+        /**
+         * The trusted host declared the request outside the declared catalog; the run
+         * dispatched no mutation and its answer is the refusal. Zero effects were written.
+         */
+        data class PolicyRefusal(
+            override val intent: WorkflowIntent,
+            val declaredTools: List<String>,
+        ) : NoEffect {
+            override val kindName: String get() = "policy_refusal"
+            override fun toString(): String =
+                "No effect: refused as outside the declared catalog (${declaredTools.joinToString(",")})"
+        }
+    }
 }
 
 /** The settled outcome of one bounded run. */
@@ -272,6 +361,8 @@ sealed interface WorkflowRunOutcome {
         val cacheKey: AgentCacheKey? = null,
         val cacheSupport: AgentCacheSupport = AgentCacheSupport.USAGE_UNSUPPORTED,
         val compaction: AgentContextCompaction? = null,
+        /** Content-free chronology of any bounded masking repair this run used. */
+        val maskingRepairs: List<MaskingRepairRecord> = emptyList(),
     ) : WorkflowRunOutcome
 
     data class Clarifying(
@@ -279,12 +370,14 @@ sealed interface WorkflowRunOutcome {
         val field: String?,
         val continuation: WorkflowRunContinuation,
         val trace: List<WorkflowRunStep>,
+        val maskingRepairs: List<MaskingRepairRecord> = emptyList(),
     ) : WorkflowRunOutcome
 
     data class Refused(
         val reason: String,
         val answer: String?,
         val trace: List<WorkflowRunStep>,
+        val maskingRepairs: List<MaskingRepairRecord> = emptyList(),
     ) : WorkflowRunOutcome
 
     data class Incomplete(
@@ -298,6 +391,8 @@ sealed interface WorkflowRunOutcome {
         val cacheKey: AgentCacheKey? = null,
         val cacheSupport: AgentCacheSupport = AgentCacheSupport.USAGE_UNSUPPORTED,
         val compaction: AgentContextCompaction? = null,
+        val privacyRefusal: HostedResponsePrivacyRefusal? = null,
+        val maskingRepairs: List<MaskingRepairRecord> = emptyList(),
     ) : WorkflowRunOutcome
 }
 
@@ -473,11 +568,13 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         val user = initialUserInstruction(request.userRequest, observations)
         val maskedSystem = safelyMask(system, trace) ?: return maskedIncomplete(trace, 0, 0)
         val maskedUser = safelyMask(user, trace) ?: return maskedIncomplete(trace, 0, 0)
-        val contextCharacters = maskedSystem.length + maskedUser.length
+        // Rendered after masking so the list already contains every token this prompt minted.
+        val userWithInventory = maskedUser + "\n\n" + tokenInventory()
+        val contextCharacters = maskedSystem.length + userWithInventory.length
         if (contextCharacters > request.limits.maxContextCharacters) {
             return WorkflowRunOutcome.Incomplete(
                 reason = WorkflowRunStopReason.CONTEXT_BUDGET,
-                detail = "the initial prompt exceeds the declared context bound",
+                detail = "the initial prompt and issued-token inventory exceed the declared context bound",
                 answer = null,
                 turns = 0,
                 toolCalls = 0,
@@ -486,7 +583,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             )
         }
         val conversation = try {
-            host.gateway.begin(maskedSystem, maskedUser)
+            host.gateway.begin(maskedSystem, userWithInventory)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: MaskingBlockedException) {
@@ -580,7 +677,10 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             prior = priorSummary(run),
         )
         val maskedResume = safelyMask(resumeText, trace) ?: return maskedIncomplete(run, trace, run.turns, run.toolCalls)
-        val added = maskedResume.length
+        // The clarification observations may have minted new tokens; the inventory is rendered
+        // after masking so this turn carries the complete current list.
+        val resumeWithInventory = maskedResume + "\n\n" + tokenInventory()
+        val added = resumeWithInventory.length
         if (run.contextCharacters + added > run.request.limits.maxContextCharacters) {
             val compacted = AgentContextManager.compactForBudget(
                 contextCharacters = run.contextCharacters + added,
@@ -597,8 +697,15 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             run.contextCharacters = run.systemInstruction.length + added
             transition(trace, WorkflowRunState.GENERATING, "compacted context on resume")
         }
+        if (run.systemInstruction.length + added > run.request.limits.maxContextCharacters) {
+            return incomplete(
+                run,
+                WorkflowRunStopReason.CONTEXT_BUDGET,
+                "the resumed prompt and issued-token inventory exceed the declared context bound",
+            )
+        }
         val conversation = try {
-            host.gateway.begin(run.systemInstruction, maskedResume)
+            host.gateway.begin(run.systemInstruction, resumeWithInventory)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: MaskingBlockedException) {
@@ -637,6 +744,11 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                 }
                 run.compaction = compacted
                 run.maskedToolPayloads.clear()
+                // The running count already includes the answered turns' results and per-turn
+                // inventories that the rebuilt conversation drops. Reset it to the stable
+                // prefix first; the compacted prompt length is charged below, so the counter
+                // again equals exactly what the next request carries.
+                run.contextCharacters = run.systemInstruction.length
                 val fresh = try {
                     initialObservations(run.runtime, run.request)
                 } catch (cancelled: CancellationException) {
@@ -654,15 +766,27 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                 )
                 val maskedCompacted = safelyMask(compactedPrompt, run.trace)
                     ?: return maskedIncomplete(run, run.trace, run.turns, run.toolCalls)
+                // Re-read observations can mint tokens, so the compacted turn re-renders the
+                // complete current inventory instead of carrying a stale one.
+                val compactedWithInventory = maskedCompacted + "\n\n" + tokenInventory()
+                if (run.systemInstruction.length + compactedWithInventory.length >
+                    limits.maxContextCharacters
+                ) {
+                    return incomplete(
+                        run,
+                        WorkflowRunStopReason.CONTEXT_BUDGET,
+                        "the compacted prompt and issued-token inventory exceed the declared context bound",
+                    )
+                }
                 val rebuilt = try {
-                    host.gateway.begin(run.systemInstruction, maskedCompacted)
+                    host.gateway.begin(run.systemInstruction, compactedWithInventory)
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
                     return incomplete(run, WorkflowRunStopReason.CONTEXT_BUDGET, "context bound reached")
                 }
                 run.conversation = rebuilt
-                run.contextCharacters = run.systemInstruction.length + maskedCompacted.length
+                run.contextCharacters = run.systemInstruction.length + compactedWithInventory.length
                 transition(run.trace, WorkflowRunState.GENERATING, "compacted context, turn ${run.turns + 1}")
             }
             transition(run.trace, WorkflowRunState.GENERATING, "turn ${run.turns + 1}")
@@ -676,12 +800,68 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                 return incomplete(run, WorkflowRunStopReason.MALFORMED_TURN, "provider contract refused the turn")
             }
             when (generated) {
-                is HostedGenerationResult.ProviderFailure ->
+                is HostedGenerationResult.ProviderFailure -> {
+                    val privacyBlocked = generated.failure as? HostedProviderFailure.PrivacyBlocked
+                    if (privacyBlocked != null) {
+                        val refusal = privacyBlocked.refusal
+                        // The refused attempt is charged to the turn budget: it was a real
+                        // provider exchange, and a repair must never buy free turns.
+                        run.turns += 1
+                        transition(
+                            run.trace,
+                            WorkflowRunState.GENERATING,
+                            "masking refused attempt ${run.turns}: ${refusal.reason.name.lowercase()}",
+                        )
+                        if (!run.repairUsed && MaskingRepairPolicy.eligible(refusal.reason)) {
+                            // The re-issued turn keeps the current inventory as its last element.
+                            val repairNotice = MaskingRepairPolicy.NOTICE + "\n\n" + tokenInventory()
+                            val repaired = try {
+                                host.gateway.withRepairNotice(run.conversation, repairNotice)
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (_: Exception) {
+                                null
+                            }
+                            if (repaired != null) {
+                                // Exactly one repair per run: the refused response and every call
+                                // it carried are discarded whole (a blocked response never reaches
+                                // dispatch), and only the fixed shape-only notice is appended.
+                                run.repairUsed = true
+                                run.maskingRepairs += MaskingRepairRecord(
+                                    attempt = run.turns,
+                                    reason = refusal.reason.name,
+                                    outcome = "reissued",
+                                )
+                                run.conversation = repaired
+                                run.contextCharacters += repairNotice.length
+                                transition(
+                                    run.trace,
+                                    WorkflowRunState.GENERATING,
+                                    "masking repair 1: re-issued the turn with the fixed notice",
+                                )
+                                continue
+                            }
+                        }
+                        run.maskingRepairs += MaskingRepairRecord(
+                            attempt = run.turns,
+                            reason = refusal.reason.name,
+                            outcome = "terminal",
+                        )
+                        transition(run.trace, WorkflowRunState.INCOMPLETE, "masking blocked the response")
+                        return maskedIncomplete(
+                            run,
+                            run.trace,
+                            run.turns,
+                            run.toolCalls,
+                            refusal,
+                        )
+                    }
                     return incomplete(
                         run,
                         WorkflowRunStopReason.PROVIDER_FAILURE,
                         providerFailureCode(generated.failure),
                     )
+                }
 
                 is HostedGenerationResult.Turn -> {
                     run.turns += 1
@@ -827,6 +1007,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                     field = ask.field,
                     continuation = continuation,
                     trace = run.trace.toList(),
+                    maskingRepairs = run.maskingRepairs.toList(),
                 ),
             )
         }
@@ -837,28 +1018,27 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         } catch (_: MaskingBlockedException) {
             return TurnStep.Stop(maskedIncomplete(run, run.trace, run.turns, run.toolCalls))
         }
+        // Honest cumulative charging: the provider conversation accumulates every turn (all
+        // three adapters resend prior items), so each turn adds its masked results plus this
+        // turn's freshly rendered, complete inventory. Nothing is shed here and no counter is
+        // reset: when the running total exceeds the bound, the drive loop compacts before the
+        // next provider request by rebuilding a fresh conversation from the stable prefix plus
+        // a bounded prior summary and re-read observations (verified effects survive in the
+        // dispatch record, never in dropped wire bytes), or stops CONTEXT_BUDGET when even the
+        // compacted prompt cannot fit. A mid-turn stop here would abandon answered calls, so
+        // this path never stops: the loop owns the budget gate before any request is sent.
         maskedResults.forEach { run.maskedToolPayloads += it.outputJson }
         run.contextCharacters += maskedResults.sumOf { it.outputJson.length }
-        if (run.contextCharacters > run.request.limits.maxContextCharacters) {
-            val compacted = AgentContextManager.compactForBudget(
-                contextCharacters = run.contextCharacters,
-                maxContextCharacters = run.request.limits.maxContextCharacters,
-                priorPayloads = run.maskedToolPayloads.size,
-                carriedDispatches = run.dispatches.size,
-                completedTurns = run.turns,
-            )
-            if (compacted == null) {
-                return TurnStep.Stop(
-                    incomplete(run, WorkflowRunStopReason.CONTEXT_BUDGET, "context bound reached with the tool results"),
-                )
-            }
-            run.compaction = compacted
-            run.maskedToolPayloads.clear()
-            run.contextCharacters = run.request.limits.maxContextCharacters
-            transition(run.trace, WorkflowRunState.GENERATING, "compacted tool results, turn ${run.turns}")
-        }
+        // New observations are masked above and can mint tokens, so the continuation turn gets a
+        // freshly rendered, complete inventory as its last element.
+        val inventory = tokenInventory()
+        run.contextCharacters += inventory.length
         val next = try {
-            host.gateway.continueWithToolResults(MaskedConversation(pending, host.boundary), maskedResults)
+            host.gateway.continueWithToolResults(
+                MaskedConversation(pending, host.boundary),
+                maskedResults,
+                inventory,
+            )
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: MaskingBlockedException) {
@@ -883,6 +1063,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                     field = ask.field,
                     continuation = continuation,
                     trace = run.trace.toList(),
+                    maskingRepairs = run.maskingRepairs.toList(),
                 ),
             )
         }
@@ -1013,6 +1194,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             targetKey = targetKey,
             claim = execution.effectClaim,
             dispatchedAtMillis = host.clock.nowMillis(),
+            noEffectClaim = execution.noEffectClaim,
         )
         val clarification = if (envelope.optJSONObject("control")?.optString("action") == "await_user") {
             CallClarification(
@@ -1044,7 +1226,12 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             AgentErrorCode.USER_DECISION_REQUIRED,
             AgentErrorCode.REFERENCE_SCOPE_REFUSED -> {
                 transition(run.trace, WorkflowRunState.REFUSED, "application boundary: ${code.name}")
-                WorkflowRunOutcome.Refused(reason = code.name, answer = null, trace = run.trace.toList())
+                WorkflowRunOutcome.Refused(
+                    reason = code.name,
+                    answer = null,
+                    trace = run.trace.toList(),
+                    maskingRepairs = run.maskingRepairs.toList(),
+                )
             }
             else -> {
                 transition(run.trace, WorkflowRunState.INCOMPLETE, "terminal tool outcome: $tool:${code.name}")
@@ -1181,15 +1368,22 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                 )
             }
         }
+        val noEffects = verifyNoEffectSettlements(run, verified)
         val missing = run.request.intents.filter { intent ->
             when (intent) {
-                WorkflowIntent.INTERPRET_EVENTS -> verified.none { it is WorkflowVerifiedEffect.EventReading }
-                WorkflowIntent.LINK_EVENT_TO_DRAFT -> verified.none { it is WorkflowVerifiedEffect.LinkState }
+                WorkflowIntent.INTERPRET_EVENTS ->
+                    verified.none { it is WorkflowVerifiedEffect.EventReading } &&
+                        noEffects[intent] == null
+                WorkflowIntent.LINK_EVENT_TO_DRAFT ->
+                    verified.none { it is WorkflowVerifiedEffect.LinkState } &&
+                        noEffects[intent] == null
                 WorkflowIntent.PREPARE_LAYA_REVIEW -> verified.none {
                     it is WorkflowVerifiedEffect.Classification || it is WorkflowVerifiedEffect.ClassificationUnavailable
-                }
+                } && noEffects[intent] == null
                 WorkflowIntent.SEARCH_DRAFTS -> false
-                WorkflowIntent.REPLAY_OPERATION -> verified.none { it is WorkflowVerifiedEffect.ReplayIdentity }
+                WorkflowIntent.REPLAY_OPERATION ->
+                    verified.none { it is WorkflowVerifiedEffect.ReplayIdentity } &&
+                        noEffects[intent] == null
             }
         }
         if (missing.isNotEmpty()) {
@@ -1200,10 +1394,15 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                 missing.joinToString(",") { it.name.lowercase() },
             )
         }
-        transition(run.trace, WorkflowRunState.COMPLETED, "${verified.size} verified effect(s)")
+        val reported = verified + noEffects.values
+        transition(
+            run.trace,
+            WorkflowRunState.COMPLETED,
+            "${reported.size} verified effect(s), ${noEffects.size} no-effect settlement(s)",
+        )
         return WorkflowRunOutcome.Completed(
             answer = answer,
-            verifiedEffects = verified,
+            verifiedEffects = reported,
             turns = run.turns,
             toolCalls = run.toolCalls,
             trace = run.trace.toList(),
@@ -1211,7 +1410,114 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             cacheKey = run.cacheKey,
             cacheSupport = AgentContextManager.classifyCacheSupport(run.usages),
             compaction = run.compaction,
+            maskingRepairs = run.maskingRepairs.toList(),
         )
+    }
+
+    /**
+     * Derives the truthful no-effect settlements of this run from its own read-only route.
+     *
+     * Nothing here is parsed from model text and no case or prompt is special-cased. A
+     * settlement is accepted only when:
+     *
+     * - no mutation tool was dispatched at all, so the run wrote nothing;
+     * - the draft scope read was complete (the last page reported the scope exhausted) and the
+     *   live re-read under the same bound filter still returns exactly the observed rows;
+     * - for a link no-match, the whole in-scope candidate set was inspected for the event, every
+     *   inspection reported a non-eligible stored-evidence result, and no link row exists for
+     *   the pair now (the event revision is re-read too);
+     * - for a policy refusal, the trusted host already declared the request outside the declared
+     *   catalog and the run produced an answer with zero mutation.
+     *
+     * Anything less stays `Incomplete`: an unproved absence is never reported as a result.
+     */
+    private suspend fun verifyNoEffectSettlements(
+        run: ActiveRun,
+        verified: List<WorkflowVerifiedEffect>,
+    ): Map<WorkflowIntent, WorkflowVerifiedEffect.NoEffect> {
+        val settled = LinkedHashMap<WorkflowIntent, WorkflowVerifiedEffect.NoEffect>()
+        if (run.dispatches.any { it.name in MUTATION_TOOLS }) return settled
+        // A settlement is only ever reported for an intent that has no verified effect: the
+        // evidence list must never contain both a mutation and a "no effect" for one intent.
+        val satisfied = run.request.intents.filter { intent -> claimSatisfied(intent, verified) }.toSet()
+        val claims = run.dispatches.mapNotNull { it.noEffectClaim }
+        val scopes = claims.filterIsInstance<AgentNoEffectClaim.DraftScope>()
+        val exhausted = scopes.lastOrNull { it.scopeExhausted }
+        val sameFilter = exhausted?.let { last ->
+            scopes.filter { it.reviewStatus == last.reviewStatus && it.duplicatesOnly == last.duplicatesOnly }
+        }.orEmpty()
+        val scopeIds = sameFilter.flatMap { it.draftIds }.distinct().sorted()
+        val scopeComplete = exhausted != null &&
+            run.runtime.verifyNoEffect(
+                AgentNoEffectClaim.DraftScope(
+                    reviewStatus = exhausted.reviewStatus,
+                    duplicatesOnly = exhausted.duplicatesOnly,
+                    draftIds = scopeIds,
+                    scopeExhausted = true,
+                ),
+            )
+        if (scopeComplete && exhausted != null) {
+            if (WorkflowIntent.SEARCH_DRAFTS in run.request.intents &&
+                WorkflowIntent.SEARCH_DRAFTS !in satisfied &&
+                scopeIds.isEmpty()
+            ) {
+                settled[WorkflowIntent.SEARCH_DRAFTS] = WorkflowVerifiedEffect.NoEffect.EmptySearch(
+                    intent = WorkflowIntent.SEARCH_DRAFTS,
+                    filterKeys = draftFilterKeys(exhausted),
+                )
+            }
+            if (WorkflowIntent.LINK_EVENT_TO_DRAFT in run.request.intents &&
+                WorkflowIntent.LINK_EVENT_TO_DRAFT !in satisfied
+            ) {
+                val inspections = claims.filterIsInstance<AgentNoEffectClaim.PairInspection>()
+                val match = inspections.groupBy { it.eventId }.entries.firstOrNull { (eventId, inspected) ->
+                    inspected.all { it.eligibility != LinkEligibility.ELIGIBLE.name } &&
+                        inspected.map { it.draftId }.toSet().containsAll(scopeIds) &&
+                        run.runtime.verifyLinkAbsence(eventId, inspected)
+                }
+                if (match != null) {
+                    settled[WorkflowIntent.LINK_EVENT_TO_DRAFT] = WorkflowVerifiedEffect.NoEffect.LinkNoMatch(
+                        intent = WorkflowIntent.LINK_EVENT_TO_DRAFT,
+                        eventId = match.key,
+                        eventRevision = match.value.first().eventRevision,
+                        candidatesExamined = match.value.map { it.draftId }.distinct().size,
+                    )
+                }
+            }
+        }
+        if (run.request.settlement == WorkflowSettlement.NO_EFFECT_AUTHORIZED) {
+            val declaredTools = run.availableDeclarations.map { it.name }
+            for (intent in run.request.intents) {
+                if (intent in satisfied) continue
+                settled.putIfAbsent(
+                    intent,
+                    WorkflowVerifiedEffect.NoEffect.PolicyRefusal(
+                        intent = intent,
+                        declaredTools = declaredTools,
+                    ),
+                )
+            }
+        }
+        return settled
+    }
+
+    /** Whether the run already holds a verified effect that settles [intent]. */
+    private fun claimSatisfied(
+        intent: WorkflowIntent,
+        verified: List<WorkflowVerifiedEffect>,
+    ): Boolean = when (intent) {
+        WorkflowIntent.INTERPRET_EVENTS -> verified.any { it is WorkflowVerifiedEffect.EventReading }
+        WorkflowIntent.LINK_EVENT_TO_DRAFT -> verified.any { it is WorkflowVerifiedEffect.LinkState }
+        WorkflowIntent.PREPARE_LAYA_REVIEW -> verified.any {
+            it is WorkflowVerifiedEffect.Classification || it is WorkflowVerifiedEffect.ClassificationUnavailable
+        }
+        WorkflowIntent.SEARCH_DRAFTS -> false
+        WorkflowIntent.REPLAY_OPERATION -> verified.any { it is WorkflowVerifiedEffect.ReplayIdentity }
+    }
+
+    private fun draftFilterKeys(claim: AgentNoEffectClaim.DraftScope): List<String> = buildList {
+        claim.reviewStatus?.let { add("review_status=$it") }
+        add("duplicates_only=${claim.duplicatesOnly}")
     }
 
     /**
@@ -1379,6 +1685,14 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         return AgentContextManager.boundedDispatchSummary(entries)
     }
 
+    /**
+     * The authoritative issued-token list for the next model turn, rendered from this run's
+     * own vault. It is value-free (tokens and kinds only), complete for the run, and never
+     * carries a rehydration mapping or another run's token.
+     */
+    private fun tokenInventory(): String =
+        AgentContextManager.tokenInventoryBlock(host.boundary.vault.issuedTokens())
+
     // ---- Helpers -------------------------------------------------------------------------
 
     private fun transition(trace: MutableList<WorkflowRunStep>, state: WorkflowRunState, detail: String? = null) {
@@ -1397,21 +1711,29 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             cacheKey = run.cacheKey,
             cacheSupport = AgentContextManager.classifyCacheSupport(run.usages),
             compaction = run.compaction,
+            maskingRepairs = run.maskingRepairs.toList(),
         )
 
-    private fun maskedIncomplete(run: ActiveRun, trace: List<WorkflowRunStep>, turns: Int, toolCalls: Int) =
-        WorkflowRunOutcome.Incomplete(
-            reason = WorkflowRunStopReason.MASKING_BLOCKED,
-            detail = "the local privacy boundary refused to emit or accept content",
-            answer = null,
-            turns = turns,
-            toolCalls = toolCalls,
-            trace = trace.toList(),
-            usage = run.usages.toList(),
-            cacheKey = run.cacheKey,
-            cacheSupport = AgentContextManager.classifyCacheSupport(run.usages),
-            compaction = run.compaction,
-        )
+    private fun maskedIncomplete(
+        run: ActiveRun,
+        trace: List<WorkflowRunStep>,
+        turns: Int,
+        toolCalls: Int,
+        privacyRefusal: HostedResponsePrivacyRefusal? = null,
+    ) = WorkflowRunOutcome.Incomplete(
+        reason = WorkflowRunStopReason.MASKING_BLOCKED,
+        detail = "the local privacy boundary refused to emit or accept content",
+        answer = null,
+        turns = turns,
+        toolCalls = toolCalls,
+        trace = trace.toList(),
+        usage = run.usages.toList(),
+        cacheKey = run.cacheKey,
+        cacheSupport = AgentContextManager.classifyCacheSupport(run.usages),
+        compaction = run.compaction,
+        privacyRefusal = privacyRefusal,
+        maskingRepairs = run.maskingRepairs.toList(),
+    )
 
     /** Pre-run masked path, with no run yet: no provider turn ever executed. */
     private fun maskedIncomplete(trace: List<WorkflowRunStep>, turns: Int, toolCalls: Int) =
@@ -1456,6 +1778,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         is HostedProviderFailure.Redirected -> "redirected:${failure.status}"
         is HostedProviderFailure.ProviderState -> "provider_state:${boundedReason(failure.code)}"
         is HostedProviderFailure.ModelMismatch -> "model_mismatch"
+        is HostedProviderFailure.PrivacyBlocked -> "masking_blocked"
         is HostedProviderFailure.InvalidResponse -> "invalid_response"
     }
 
@@ -1489,6 +1812,8 @@ internal data class DispatchRecord(
     val targetKey: String?,
     val claim: AgentEffectClaim?,
     val dispatchedAtMillis: Long,
+    /** What a read-only call actually observed about an absence; re-verified at completion. */
+    val noEffectClaim: AgentNoEffectClaim? = null,
 )
 
 /** The mutable state of one run while it is executing. */
@@ -1521,6 +1846,10 @@ internal class ActiveRun(
     val maskedToolPayloads: MutableList<String> = mutableListOf()
     /** Versioned skills selected for this run's intents (stable prefix + cache identity). */
     var selectedSkills: List<WorkflowSkill> = emptyList()
+    /** True once this run spent its one bounded masking repair opportunity. */
+    var repairUsed: Boolean = false
+    /** Content-free chronology of the refused attempt and the repair it triggered. */
+    val maskingRepairs: MutableList<MaskingRepairRecord> = mutableListOf()
 
     /** Privacy-safe one-line cache attribution for the run trace; never raw content. */
     fun describeCacheKey(): String {

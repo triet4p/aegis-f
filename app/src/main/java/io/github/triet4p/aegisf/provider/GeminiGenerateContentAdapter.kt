@@ -34,6 +34,10 @@ class GeminiGenerateContentAdapter internal constructor(
     /** Value-free identity from this adapter's validated config. */
     override fun providerIdentity(): HostedProviderIdentity = config.identity()
 
+    /** Root metadata this validated configuration may receive; Gemini has no Go route. */
+    override fun responseMetadataPolicy(): HostedResponseMetadataPolicy =
+        config.responseMetadataPolicy()
+
     init {
         if (config.protocol != protocol) {
             throw HostedConfigurationException("Gemini adapter received a ${config.protocol} configuration")
@@ -75,6 +79,18 @@ class GeminiGenerateContentAdapter internal constructor(
     override suspend fun generate(
         conversation: HostedConversation,
         tools: List<HostedToolDeclaration>,
+    ): HostedGenerationResult = generateWithResponseGuard(conversation, tools, null)
+
+    override suspend fun generateGuarded(
+        conversation: HostedConversation,
+        tools: List<HostedToolDeclaration>,
+        responseGuard: HostedResponsePrivacyGuard,
+    ): HostedGenerationResult = generateWithResponseGuard(conversation, tools, responseGuard)
+
+    private suspend fun generateWithResponseGuard(
+        conversation: HostedConversation,
+        tools: List<HostedToolDeclaration>,
+        responseGuard: HostedResponsePrivacyGuard?,
     ): HostedGenerationResult {
         val state = conversation as? Conversation
             ?: throw HostedConfigurationException("conversation belongs to another protocol")
@@ -109,8 +125,23 @@ class GeminiGenerateContentAdapter internal constructor(
                 HostedProviderFailure.Transport(exception.message?.take(MAX_TRANSPORT_DETAIL)),
             )
         }
-        if (response.status !in 200..299) {
-            return HostedGenerationResult.ProviderFailure(
+        if (responseGuard != null) {
+            when (val scan = responseGuard.scan(response.body, response.status)) {
+                HostedResponsePrivacyResult.Accepted,
+                is HostedResponsePrivacyResult.AcceptedWithValidatedCounters,
+                is HostedResponsePrivacyResult.AcceptedWithValidatedMetadata -> Unit
+                is HostedResponsePrivacyResult.Refused ->
+                    return HostedGenerationResult.ProviderFailure(
+                        HostedProviderFailure.PrivacyBlocked(scan.refusal),
+                    )
+                is HostedResponsePrivacyResult.ProtocolError ->
+                    return HostedGenerationResult.ProviderFailure(
+                        HostedProviderFailure.InvalidResponse(scan.reason.safeDetail()),
+                    )
+            }
+        }
+        val result = if (response.status !in 200..299) {
+            HostedGenerationResult.ProviderFailure(
                 ProviderFailures.classify(
                     status = response.status,
                     body = response.body,
@@ -118,13 +149,26 @@ class GeminiGenerateContentAdapter internal constructor(
                     authentication = config.authentication,
                 ),
             )
+        } else {
+            try {
+                parseTurn(response.body, state, tools)
+            } catch (_: InvalidProviderUsageException) {
+                HostedGenerationResult.ProviderFailure(
+                    HostedProviderFailure.InvalidResponse("invalid provider usage counter"),
+                )
+            }
         }
-        return parseTurn(response.body, state, tools)
+        return if (responseGuard == null) {
+            result.withRawResponseForPrivacyScan(response.body)
+        } else {
+            result
+        }
     }
 
     override fun continueWithToolResults(
         conversation: HostedConversation,
         results: List<HostedToolResult>,
+        hostNotice: String?,
     ): HostedConversation {
         val state = conversation as? Conversation
             ?: throw HostedConfigurationException("conversation belongs to another protocol")
@@ -140,10 +184,38 @@ class GeminiGenerateContentAdapter internal constructor(
             pending.wireId?.let { part.put("id", it) }
             parts.put(JSONObject().put("functionResponse", part))
         }
+        // The host tail rides in the same user content as the function responses, so the
+        // turn alternation stays exactly model -> user and no extra unmatched call appears.
+        if (hostNotice != null) {
+            if (hostNotice.isBlank()) throw HostedConfigurationException("a host notice must not be blank")
+            parts.put(JSONObject().put("text", hostNotice))
+        }
         val toolTurn = JSONObject().put("role", "user").put("parts", parts)
         return Conversation(
             systemInstruction = state.systemInstruction,
             contents = state.contents + toolTurn,
+            pending = emptyList(),
+        )
+    }
+
+    override fun appendUserNotice(
+        conversation: HostedConversation,
+        notice: String,
+    ): HostedConversation {
+        val state = conversation as? Conversation
+            ?: throw HostedConfigurationException("conversation belongs to another protocol")
+        if (state.pending.isNotEmpty()) {
+            throw HostedConfigurationException(
+                "a notice cannot be appended while ${state.pending.size} tool result(s) are pending",
+            )
+        }
+        if (notice.isBlank()) throw HostedConfigurationException("a notice must not be blank")
+        val noticeTurn = JSONObject()
+            .put("role", "user")
+            .put("parts", JSONArray().put(JSONObject().put("text", notice)))
+        return Conversation(
+            systemInstruction = state.systemInstruction,
+            contents = state.contents + noticeTurn,
             pending = emptyList(),
         )
     }
@@ -242,10 +314,18 @@ class GeminiGenerateContentAdapter internal constructor(
             if (part.optBoolean("thought", false)) return@mapNotNull null
             part.optString("text").takeIf { it.isNotEmpty() }
         }.joinToString(separator = "").ifBlank { null }
-
         val rawCalls = mutableListOf<RawToolCall>()
+        var thoughtCallSeen = false
         for ((index, part) in parts.withIndex()) {
             if (!part.has("functionCall")) continue
+            // A thought-marked part is provider reasoning, never tool authority: it contributes
+            // no dispatchable call even when it carries schema-valid functionCall bytes. The part
+            // stays in the retained model content with its thought flag and thoughtSignature, so
+            // the thinking-model continuation keeps its required signature.
+            if (part.optBoolean("thought", false)) {
+                thoughtCallSeen = true
+                continue
+            }
             val call = part.optJSONObject("functionCall")
                 ?: return HostedGenerationResult.ProviderFailure(
                     HostedProviderFailure.InvalidResponse("functionCall part was not an object"),
@@ -265,6 +345,15 @@ class GeminiGenerateContentAdapter internal constructor(
                 )
             }
             rawCalls.add(RawToolCall(wireId ?: "gemini-call-$index", name, arguments, wireId))
+        }
+        if (thoughtCallSeen && rawCalls.isEmpty() && text == null) {
+            return unfinishedTurn(
+                reportedModel = reportedModel,
+                reason = "thought_only_function_call",
+                text = null,
+                rawCalls = emptyList(),
+                tools = tools,
+            )
         }
         if (ToolCallAssembly.duplicateCallIds(rawCalls).isNotEmpty()) {
             return HostedGenerationResult.ProviderFailure(
@@ -300,7 +389,7 @@ class GeminiGenerateContentAdapter internal constructor(
                 val nextConversation = if (rawCalls.isNotEmpty() && content != null) {
                     Conversation(
                         systemInstruction = state.systemInstruction,
-                        contents = state.contents + content.deepCopy(),
+                        contents = state.contents + scrubbedModelContent(content),
                         pending = pending,
                     )
                 } else {
@@ -369,16 +458,28 @@ class GeminiGenerateContentAdapter internal constructor(
             conversation = null,
         ),
     )
-
-    private fun usageOf(root: JSONObject): HostedUsage? {
-        val usage = root.optJSONObject("usageMetadata") ?: return null
-        return HostedUsage(
-            inputTokens = usage.positiveInt("promptTokenCount"),
-            outputTokens = usage.positiveInt("candidatesTokenCount"),
-            reasoningTokens = usage.positiveInt("thoughtsTokenCount"),
-            cachedInputTokens = usage.positiveInt("cachedContentTokenCount"),
-        )
+    /**
+     * The retained model content with thought prose removed but protocol structure intact.
+     *
+     * Thought-marked parts keep their `thought` flag and `thoughtSignature` (a thinking model
+     * requires the signature on the next turn) while any `text` they carried is dropped: that
+     * prose was reasoning, never the answer, and must not ride the outbound continuation. Parts
+     * without `thought: true` pass through byte-identical, so call/result pairing is unchanged.
+     */
+    private fun scrubbedModelContent(content: JSONObject): JSONObject {
+        val copy = content.deepCopy()
+        val parts = copy.optJSONArray("parts") ?: return copy
+        for (index in 0 until parts.length()) {
+            val part = parts.optJSONObject(index) ?: continue
+            if (!part.optBoolean("thought", false)) continue
+            part.remove("text")
+        }
+        return copy
     }
+
+
+    private fun usageOf(root: JSONObject): HostedUsage? =
+        HostedUsageContract.parse(protocol, root)
 
     private sealed interface FinishSignal {
         data object Complete : FinishSignal
@@ -413,9 +514,3 @@ class GeminiGenerateContentAdapter internal constructor(
     }
 }
 
-/** Reads a nonnegative token count, treating a missing field as unknown rather than zero. */
-internal fun JSONObject.positiveInt(name: String): Int? {
-    if (!has(name) || isNull(name)) return null
-    val value = optInt(name, -1)
-    return if (value >= 0) value else null
-}

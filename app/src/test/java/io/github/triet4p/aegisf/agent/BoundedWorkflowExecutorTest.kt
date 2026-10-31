@@ -12,6 +12,7 @@ import io.github.triet4p.aegisf.data.IntakeReviewStatus
 import io.github.triet4p.aegisf.data.LedgerDatabase
 import io.github.triet4p.aegisf.data.LinkOperationQuery
 import io.github.triet4p.aegisf.data.NoteEventInterpretation
+import io.github.triet4p.aegisf.data.NoteEventTimeAnchor
 import io.github.triet4p.aegisf.data.PendingBankDraftEntity
 import io.github.triet4p.aegisf.data.QueryPageRequest
 import io.github.triet4p.aegisf.data.SaveCaptureRequest
@@ -32,6 +33,9 @@ import io.github.triet4p.aegisf.privacy.SensitiveVault
 import io.github.triet4p.aegisf.provider.HostedConversation
 import io.github.triet4p.aegisf.provider.HostedGenerationAdapter
 import io.github.triet4p.aegisf.provider.HostedGenerationResult
+import io.github.triet4p.aegisf.provider.HostedResponseMetadataPolicy
+import io.github.triet4p.aegisf.provider.HostedResponsePrivacyRefusalReason
+import io.github.triet4p.aegisf.provider.withRawResponseForPrivacyScan
 import io.github.triet4p.aegisf.provider.HostedProtocol
 import io.github.triet4p.aegisf.provider.HostedToolCall
 import io.github.triet4p.aegisf.provider.HostedToolDeclaration
@@ -168,6 +172,133 @@ class BoundedWorkflowExecutorTest {
         assertTrue(adapter.egress().none { it.contains("09:15") })
         assertEquals(WorkflowRunState.COMPLETED, outcome.trace.last().state)
     }
+
+    @Test
+    fun `raw hidden response blocks a valid event write before dispatch`() = runBlocking {
+        val fixture = prepare()
+        lateinit var adapter: ScriptedAdapter
+        val script = scripted()
+        script += {
+            toolTurn(call("select_source", JSONObject()
+                .put("capture_ref", captureRef(adapter))
+                .put("quote", sourceText(adapter))
+                .put("occurrence", 1)))
+        }
+        script += {
+            val selected = lastEnvelope(adapter).getJSONObject("data")
+            toolTurn(call("make_time_anchor", JSONObject()
+                .put("date_ref", valueRef(selected, "date"))
+                .put("time_ref", valueRef(selected, "time"))
+                .put("end_date_ref", JSONObject.NULL)
+                .put("end_time_ref", JSONObject.NULL)))
+        }
+        script += {
+            val selected = previousEnvelope(adapter, 2).getJSONObject("data")
+            val anchor = lastEnvelope(adapter).getJSONObject("data").getString("anchor_ref")
+            ScriptedTurn(
+                calls = listOf(call("record_event", JSONObject()
+                    .put("source_ref", selected.getString("source_ref"))
+                    .put("summary", "Coffee")
+                    .put("amount_ref", valueRef(selected, "amount"))
+                    .put("anchor_ref", anchor)
+                    .put("merchant_ref", JSONObject.NULL)
+                    .put("clarification", "none"))),
+                finish = HostedTurnFinish.ToolCalls,
+                rawResponseForPrivacyScan = JSONObject().put("unrecognized", fixture.source).toString(),
+            )
+        }
+        adapter = ScriptedAdapter(script)
+
+        val outcome = run(fixture, adapter, WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
+            userRequest = "Interpret the synthetic note.",
+        ))
+
+        assertTrue(outcome is WorkflowRunOutcome.Incomplete)
+        val incomplete = outcome as WorkflowRunOutcome.Incomplete
+        assertEquals(WorkflowRunStopReason.MASKING_BLOCKED, incomplete.reason)
+        assertEquals(
+            HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH,
+            incomplete.privacyRefusal?.reason,
+        )
+        assertTrue(incomplete.privacyRefusal?.safeLocation?.startsWith("response_body") == true)
+        assertTrue(incomplete.privacyRefusal?.sensitiveKind == "AMOUNT" ||
+            incomplete.privacyRefusal?.sensitiveKind == "DATE" ||
+            incomplete.privacyRefusal?.sensitiveKind == "TIME" ||
+            incomplete.privacyRefusal?.sensitiveKind == "ACCOUNT" ||
+            incomplete.privacyRefusal?.sensitiveKind == "BANK")
+        assertEquals(3, adapter.generatedCount)
+        assertEquals(2, adapter.toolResultPayloads.size)
+        assertTrue(database.noteEventDao().findForCapture(fixture.captureId).isEmpty())
+        assertEquals(0L, database.workflowOperationDao().countOf("UPDATE_EVENT"))
+        assertTrue(database.transactionDao().findAll().isEmpty())
+    }
+
+    @Test
+    fun `validated response metadata continues while the same value in content stops before dispatch`() =
+        runBlocking {
+            val fixture = prepare()
+            lateinit var safeAdapter: ScriptedAdapter
+            val safeScript = scripted()
+            safeScript += {
+                ScriptedTurn(
+                    calls = listOf(call("select_source", JSONObject()
+                        .put("capture_ref", captureRef(safeAdapter))
+                        .put("quote", sourceText(safeAdapter))
+                        .put("occurrence", 1))),
+                    finish = HostedTurnFinish.ToolCalls,
+                    rawResponseForPrivacyScan =
+                        """{"id":"chatcmpl-25000","object":"chat.completion","created":1750000000,"model":"scripted-model"}""",
+                )
+            }
+            safeScript += { complete("Done.") }
+            safeAdapter = ScriptedAdapter(safeScript, metadataPolicy())
+
+            val safeOutcome = run(fixture, safeAdapter, WorkflowRunRequest(
+                intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
+                userRequest = "Interpret the synthetic note.",
+            ))
+            val safeStop = (safeOutcome as? WorkflowRunOutcome.Incomplete)?.reason
+            assertFalse(safeStop == WorkflowRunStopReason.MASKING_BLOCKED)
+            assertEquals(2, safeAdapter.generatedCount)
+            assertEquals(1, safeAdapter.toolResultPayloads.size)
+
+            lateinit var unsafeAdapter: ScriptedAdapter
+            val unsafeScript = scripted()
+            unsafeScript += {
+                ScriptedTurn(
+                    calls = listOf(call("select_source", JSONObject()
+                        .put("capture_ref", captureRef(unsafeAdapter))
+                        .put("quote", sourceText(unsafeAdapter))
+                        .put("occurrence", 1))),
+                    finish = HostedTurnFinish.ToolCalls,
+                    rawResponseForPrivacyScan =
+                        """{"id":"chatcmpl-25000","model":"scripted-model","choices":[{"message":{"content":"25000"}}]}""",
+                )
+            }
+            unsafeAdapter = ScriptedAdapter(unsafeScript, metadataPolicy())
+            val unsafeOutcome = run(fixture, unsafeAdapter, WorkflowRunRequest(
+                intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
+                userRequest = "Interpret the synthetic note.",
+            ))
+            assertTrue(unsafeOutcome is WorkflowRunOutcome.Incomplete)
+            val incomplete = unsafeOutcome as WorkflowRunOutcome.Incomplete
+            assertEquals(WorkflowRunStopReason.MASKING_BLOCKED, incomplete.reason)
+            assertEquals(
+                "response_body.choices[].message.content",
+                incomplete.privacyRefusal?.safeLocation,
+            )
+            assertEquals(1, unsafeAdapter.generatedCount)
+            assertTrue(unsafeAdapter.toolResultPayloads.isEmpty())
+            assertTrue(database.noteEventDao().findForCapture(fixture.captureId).isEmpty())
+            assertEquals(0L, database.workflowOperationDao().countOf("UPDATE_EVENT"))
+        }
+
+    private fun metadataPolicy() = HostedResponseMetadataPolicy(
+        protocol = HostedProtocol.OPENAI_CHAT_COMPLETIONS,
+        configuredModel = MODEL,
+        goUsageExtensions = true,
+    )
 
     @Test
     fun `a final answer without a settled requested effect never completes`() = runBlocking {
@@ -530,6 +661,472 @@ class BoundedWorkflowExecutorTest {
         assertEquals("dispatched", result.getString("dispatch"))
     }
 
+    // ---- Bounded masking repair ----------------------------------------------------------
+
+    @Test
+    fun `one bounded repair re-issues a pre-dispatch unknown token response`() = runBlocking {
+        val fixture = prepare()
+        val adapter = ScriptedAdapter(scripted().apply {
+            add {
+                ScriptedTurn(
+                    finish = HostedTurnFinish.Complete,
+                    rawResponseForPrivacyScan = responseBodyWithAnswer("Purchase ⟦AMT⟧ VND on ⟦DATE⟧"),
+                )
+            }
+            add { complete("The bounded search found no pending draft.") }
+        })
+
+        val outcome = run(
+            fixture,
+            adapter,
+            WorkflowRunRequest(
+                intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+                userRequest = "Find my pending drafts.",
+            ),
+        )
+
+        assertTrue("expected the repaired turn to complete, got $outcome", outcome is WorkflowRunOutcome.Completed)
+        outcome as WorkflowRunOutcome.Completed
+        assertEquals(2, adapter.generatedCount)
+        val repairNotice = adapter.notices.single()
+        assertEquals(1, adapter.notices.size)
+        assertEquals(2, outcome.turns)
+        assertEquals(1, outcome.maskingRepairs.size)
+        assertEquals(WorkflowRunState.GENERATING, outcome.trace.first { it.detail == "masking refused attempt 1: unknown_token" }.state)
+        assertTrue(outcome.trace.any { it.detail == "masking repair 1: re-issued the turn with the fixed notice" })
+        assertEquals("UNKNOWN_TOKEN", outcome.maskingRepairs.single().reason)
+        assertEquals("reissued", outcome.maskingRepairs.single().outcome)
+        // The refused response carried no dispatch, so nothing was applied.
+        assertTrue(outcome.verifiedEffects.isEmpty())
+        assertTrue(adapter.toolResultPayloads.isEmpty())
+        // The stable prefix is untouched: the notice is only a dynamic tail.
+        assertTrue(repairNotice.startsWith(MaskingRepairPolicy.NOTICE))
+        // The re-issued turn still ends with the run's authoritative inventory.
+        assertTrue(repairNotice.contains(AgentContextManager.TOKEN_INVENTORY_VERSION))
+        assertEquals(
+            fixture.boundary.vault.issuedTokens().map { it.token },
+            Regex("⟦[^\\s⟦⟧]+⟧")
+                .findAll(repairNotice.substring(repairNotice.indexOf("issued_mask_token_inventory")))
+                .map { it.value }
+                .toList(),
+        )
+        // Neither the refused text nor a raw value is echoed back in the notice.
+        val repairText = repairNotice.removePrefix(MaskingRepairPolicy.NOTICE)
+        assertFalse(repairText.contains("⟦AMT⟧"))
+        assertFalse(repairText.contains("⟦DATE⟧"))
+        assertFalse(repairNotice.contains("25,000"))
+        assertFalse(adapter.prompts.any { it.contains(MaskingRepairPolicy.NOTICE) })
+    }
+
+    @Test
+    fun `a second unknown token refusal is terminal with no further re-issue`() = runBlocking {
+        val fixture = prepare()
+        val adapter = ScriptedAdapter(scripted().apply {
+            add {
+                ScriptedTurn(
+                    finish = HostedTurnFinish.Complete,
+                    rawResponseForPrivacyScan = responseBodyWithAnswer("⟦AMT⟧ again"),
+                )
+            }
+            add {
+                ScriptedTurn(
+                    finish = HostedTurnFinish.Complete,
+                    rawResponseForPrivacyScan = responseBodyWithAnswer("⟦AMT⟧ and ⟦DATE⟧ again"),
+                )
+            }
+        })
+
+        val outcome = run(
+            fixture,
+            adapter,
+            WorkflowRunRequest(
+                intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+                userRequest = "Find my pending drafts.",
+            ),
+        )
+
+        assertTrue("expected a terminal masking stop, got $outcome", outcome is WorkflowRunOutcome.Incomplete)
+        outcome as WorkflowRunOutcome.Incomplete
+        assertEquals(WorkflowRunStopReason.MASKING_BLOCKED, outcome.reason)
+        assertEquals(HostedResponsePrivacyRefusalReason.UNKNOWN_TOKEN, outcome.privacyRefusal?.reason)
+        assertEquals(2, adapter.generatedCount)
+        assertEquals(1, adapter.notices.size)
+        assertEquals(2, outcome.maskingRepairs.size)
+        assertEquals(listOf("reissued", "terminal"), outcome.maskingRepairs.map { it.outcome })
+        assertEquals(2, outcome.turns)
+    }
+
+    @Test
+    fun `a foreign token refusal is never repaired`() = runBlocking {
+        val fixture = prepare()
+        val adapter = ScriptedAdapter(scripted().apply {
+            add {
+                ScriptedTurn(
+                    finish = HostedTurnFinish.Complete,
+                    rawResponseForPrivacyScan = responseBodyWithAnswer("⟦AMT-othersession-0001⟧"),
+                )
+            }
+        })
+
+        val outcome = run(
+            fixture,
+            adapter,
+            WorkflowRunRequest(
+                intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+                userRequest = "Find my pending drafts.",
+            ),
+        )
+
+        outcome as WorkflowRunOutcome.Incomplete
+        assertEquals(WorkflowRunStopReason.MASKING_BLOCKED, outcome.reason)
+        assertEquals(HostedResponsePrivacyRefusalReason.FOREIGN_TOKEN, outcome.privacyRefusal?.reason)
+        assertEquals(1, adapter.generatedCount)
+        assertTrue(adapter.notices.isEmpty())
+        assertEquals(listOf("terminal"), outcome.maskingRepairs.map { it.outcome })
+    }
+
+    @Test
+    fun `a decoded sensitive literal is never repaired`() = runBlocking {
+        val fixture = prepare()
+        val adapter = ScriptedAdapter(scripted().apply {
+            add {
+                ScriptedTurn(
+                    finish = HostedTurnFinish.Complete,
+                    rawResponseForPrivacyScan = responseBodyWithAnswer("It cost 25,000 VND."),
+                )
+            }
+        })
+
+        val outcome = run(
+            fixture,
+            adapter,
+            WorkflowRunRequest(
+                intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+                userRequest = "Find my pending drafts.",
+            ),
+        )
+
+        outcome as WorkflowRunOutcome.Incomplete
+        assertEquals(WorkflowRunStopReason.MASKING_BLOCKED, outcome.reason)
+        assertEquals(
+            HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH,
+            outcome.privacyRefusal?.reason,
+        )
+        assertEquals(1, adapter.generatedCount)
+        assertTrue(adapter.notices.isEmpty())
+    }
+
+    @Test
+    fun `the refused attempt is charged to the turn budget`() = runBlocking {
+        val fixture = prepare()
+        val adapter = ScriptedAdapter(scripted().apply {
+            add {
+                ScriptedTurn(
+                    finish = HostedTurnFinish.Complete,
+                    rawResponseForPrivacyScan = responseBodyWithAnswer("⟦AMT⟧"),
+                )
+            }
+        })
+
+        val outcome = run(
+            fixture,
+            adapter,
+            WorkflowRunRequest(
+                intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+                userRequest = "Find my pending drafts.",
+                limits = WorkflowRunLimits(maxTurns = 1),
+            ),
+        )
+
+        outcome as WorkflowRunOutcome.Incomplete
+        assertEquals(WorkflowRunStopReason.TURN_BUDGET, outcome.reason)
+        assertEquals(1, outcome.turns)
+        assertEquals(1, adapter.generatedCount)
+        assertTrue("the repair notice consumed the exhausted budget, not a new turn", adapter.notices.size == 1)
+    }
+
+    @Test
+    fun `cancellation during the repair re-issue propagates`() = runBlocking {
+        val fixture = prepare()
+        val adapter = ScriptedAdapter(scripted().apply {
+            add {
+                ScriptedTurn(
+                    finish = HostedTurnFinish.Complete,
+                    rawResponseForPrivacyScan = responseBodyWithAnswer("⟦AMT⟧"),
+                )
+            }
+        })
+        adapter.beforeGenerate = { index ->
+            if (index == 1) throw kotlinx.coroutines.CancellationException("user cancelled")
+        }
+
+        var cancelled = false
+        try {
+            run(
+                fixture,
+                adapter,
+                WorkflowRunRequest(
+                    intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+                    userRequest = "Find my pending drafts.",
+                ),
+            )
+        } catch (_: kotlinx.coroutines.CancellationException) {
+            cancelled = true
+        }
+        assertTrue("cancellation must not be converted into a run outcome", cancelled)
+        assertEquals(1, adapter.notices.size)
+    }
+
+    @Test
+    fun `invented reasoning notation never stops the run`() = runBlocking {
+        val fixture = prepare()
+        val adapter = ScriptedAdapter(scripted().apply {
+            add {
+                ScriptedTurn(
+                    finish = HostedTurnFinish.Complete,
+                    text = "The bounded search found no pending draft.",
+                    rawResponseForPrivacyScan = responseBodyWithReasoning(
+                        "I could write ⟦AMT⟧, ⟦DATE-0000⟧, ⟦UNMAPPED⟧ or 25,000 VND, then answer plainly.",
+                    ),
+                )
+            }
+        })
+        val outcome = run(
+            fixture,
+            adapter,
+            WorkflowRunRequest(
+                intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+                userRequest = "Find my pending drafts.",
+            ),
+        )
+        assertTrue("provider reasoning must never block the turn, got $outcome",
+            outcome is WorkflowRunOutcome.Completed)
+        assertEquals(1, adapter.generatedCount)
+        assertTrue("no masking repair is consumed", adapter.notices.isEmpty())
+    }
+
+    /**
+     * A complete JSON body whose user-visible answer carries the given text. Its reasoning
+     * carries invented notation too, which must never be the reason a turn is refused.
+     */
+    private fun responseBodyWithAnswer(text: String): String = JSONObject()
+        .put("model", MODEL)
+        .put(
+            "choices",
+            JSONArray().put(
+                JSONObject().put(
+                    "message",
+                    JSONObject()
+                        .put("role", "assistant")
+                        .put("content", text)
+                        .put("reasoning_content", "Internal note: ⟦AMT-ab-1234⟧ and ⟦DATE-x⟧."),
+                ),
+            ),
+        )
+        .toString()
+
+    /** A complete JSON body with a safe answer and arbitrary provider reasoning content. */
+    private fun responseBodyWithReasoning(text: String): String = JSONObject()
+        .put("model", MODEL)
+        .put(
+            "choices",
+            JSONArray().put(
+                JSONObject().put(
+                    "message",
+                    JSONObject()
+                        .put("role", "assistant")
+                        .put("content", "Found the synthetic drafts.")
+                        .put("reasoning_content", text),
+                ),
+            ),
+        )
+        .toString()
+
+    // ---- Truthful no-effect completion ---------------------------------------------------
+
+    @Test
+    fun `a fully examined unattachable link scope completes as a verified no-match`() = runBlocking {
+        val fixture = prepare(
+            source = "Taxi 75,000 VND on 2026-10-18. Note: synthetic fixture only.",
+            draftAmount = 25_000,
+            draftDate = "2026-10-22",
+        )
+        seedEvent(fixture, "executor-no-match-seed", amountVnd = 75_000L, anchorDate = "2026-10-18")
+        lateinit var adapter: ScriptedAdapter
+        val script = scripted()
+        script += {
+            toolTurn(call("list_drafts", JSONObject()
+                .put("review_status", "ALL")
+                .put("duplicates_only", false)
+                .put("cursor", JSONObject.NULL)))
+        }
+        script += {
+            toolTurn(call("inspect_link", JSONObject()
+                .put("event_ref", eventRef(adapter))
+                .put("draft_ref", draftRef(adapter))))
+        }
+        script += { complete("No stored draft matches this reading, so nothing was linked.") }
+        adapter = ScriptedAdapter(script)
+
+        val outcome = run(fixture, adapter, WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.LINK_EVENT_TO_DRAFT),
+            userRequest = "Link the taxi reading to the matching draft.",
+        ))
+
+        assertTrue("expected a verified no-match completion, got $outcome", outcome is WorkflowRunOutcome.Completed)
+        outcome as WorkflowRunOutcome.Completed
+        val noMatch = outcome.verifiedEffects
+            .filterIsInstance<WorkflowVerifiedEffect.NoEffect.LinkNoMatch>().single()
+        assertEquals(1, noMatch.candidatesExamined)
+        assertTrue(outcome.verifiedEffects.none { it is WorkflowVerifiedEffect.LinkState })
+        assertTrue(database.contextLinkDao().findPage(null, null, null, 10, 0).isEmpty())
+        assertEquals(WorkflowRunState.COMPLETED, outcome.trace.last().state)
+    }
+
+    @Test
+    fun `a changed event revision invalidates the no-match settlement`() = runBlocking {
+        val fixture = prepare(
+            source = "Taxi 75,000 VND on 2026-10-18. Note: synthetic fixture only.",
+            draftAmount = 25_000,
+            draftDate = "2026-10-22",
+        )
+        seedEvent(fixture, "executor-no-match-race", amountVnd = 75_000L, anchorDate = "2026-10-18")
+        lateinit var adapter: ScriptedAdapter
+        val script = scripted()
+        script += {
+            toolTurn(call("list_drafts", JSONObject()
+                .put("review_status", "ALL")
+                .put("duplicates_only", false)
+                .put("cursor", JSONObject.NULL)))
+        }
+        script += {
+            toolTurn(call("inspect_link", JSONObject()
+                .put("event_ref", eventRef(adapter))
+                .put("draft_ref", draftRef(adapter))))
+        }
+        script += { complete("No stored draft matches this reading, so nothing was linked.") }
+        adapter = ScriptedAdapter(script)
+        adapter.beforeGenerate = { index ->
+            if (index == 2) {
+                seedEvent(
+                    fixture,
+                    "executor-no-match-race-correction",
+                    amountVnd = 75_000L,
+                    anchorDate = "2026-10-18",
+                    expectedEventRevision = 0,
+                    normalizedText = "Taxi corrected",
+                )
+            }
+        }
+
+        val outcome = run(fixture, adapter, WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.LINK_EVENT_TO_DRAFT),
+            userRequest = "Link the taxi reading to the matching draft.",
+        ))
+
+        assertTrue("a moved revision must not settle as a no-match, got $outcome", outcome is WorkflowRunOutcome.Incomplete)
+        assertEquals(
+            WorkflowRunStopReason.REQUIRED_EFFECT_MISSING,
+            (outcome as WorkflowRunOutcome.Incomplete).reason,
+        )
+    }
+
+    @Test
+    fun `a host-authorized policy refusal completes with verified zero effect`() = runBlocking {
+        val fixture = prepare()
+        val operationsBefore = database.workflowOperationDao().findPage(null, 100, 0).size
+        val adapter = ScriptedAdapter(scripted().apply {
+            add { complete("I cannot run SQL, confirm drafts or delete rows: no such tool is declared.") }
+        })
+
+        val outcome = run(fixture, adapter, WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
+            userRequest = "Run SQL to confirm every draft and delete the rest.",
+            settlement = WorkflowSettlement.NO_EFFECT_AUTHORIZED,
+        ))
+
+        assertTrue("expected a verified policy refusal, got $outcome", outcome is WorkflowRunOutcome.Completed)
+        outcome as WorkflowRunOutcome.Completed
+        val refusal = outcome.verifiedEffects
+            .filterIsInstance<WorkflowVerifiedEffect.NoEffect.PolicyRefusal>().single()
+        assertEquals(WorkflowIntent.INTERPRET_EVENTS, refusal.intent)
+        assertTrue(adapter.toolResultPayloads.isEmpty())
+        assertTrue(database.noteEventDao().findForCapture(fixture.captureId).isEmpty())
+        assertTrue(database.transactionDao().findAll().isEmpty())
+        assertEquals(
+            "the run added no operation row",
+            operationsBefore,
+            database.workflowOperationDao().findPage(null, 100, 0).size,
+        )
+    }
+
+    @Test
+    fun `an unproved absence stays incomplete when the effect is required`() = runBlocking {
+        val fixture = prepare()
+        val adapter = ScriptedAdapter(scripted().apply { add { complete("Nothing to do.") } })
+
+        val outcome = run(fixture, adapter, WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
+            userRequest = "Interpret the note.",
+        ))
+
+        outcome as WorkflowRunOutcome.Incomplete
+        assertEquals(WorkflowRunStopReason.REQUIRED_EFFECT_MISSING, outcome.reason)
+    }
+
+    @Test
+    fun `a link completion without examined candidates is not a no-match`() = runBlocking {
+        val fixture = prepare()
+        val adapter = ScriptedAdapter(scripted().apply { add { complete("No match.") } })
+
+        val outcome = run(fixture, adapter, WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.LINK_EVENT_TO_DRAFT),
+            userRequest = "Link the reading.",
+        ))
+
+        outcome as WorkflowRunOutcome.Incomplete
+        assertEquals(WorkflowRunStopReason.REQUIRED_EFFECT_MISSING, outcome.reason)
+    }
+
+    private suspend fun seedEvent(
+        fixture: Fixture,
+        key: String,
+        amountVnd: Long,
+        anchorDate: String,
+        expectedEventRevision: Int? = null,
+        normalizedText: String = "Taxi",
+    ) {
+        val outcome = commands.updateEventInterpretation(
+            fixture.scope,
+            UpdateEventRequest(
+                idempotencyKey = key,
+                captureId = fixture.captureId,
+                expectedCaptureRevision = 0,
+                expectedEventRevision = expectedEventRevision,
+                extractionVersion = "s813-no-match/v1",
+                interpretation = NoteEventInterpretation(
+                    spanStart = 0,
+                    spanEnd = fixture.source.length,
+                    normalizedText = normalizedText,
+                    amountVnd = amountVnd,
+                    timeAnchor = NoteEventTimeAnchor(date = anchorDate),
+                ),
+            ),
+        )
+        check(outcome is WorkflowCommandOutcome.Applied) { "event seed refused: $outcome" }
+    }
+
+    private fun eventRef(adapter: ScriptedAdapter): String {
+        val observations = initialObservations(adapter)
+        for (index in 0 until observations.length()) {
+            val item = observations.getJSONObject(index)
+            if (item.optString("kind") != "capture") continue
+            val events = item.optJSONArray("events") ?: continue
+            if (events.length() > 0) return events.getJSONObject(0).getString("ref")
+        }
+        error("no event alias in the initial observation")
+    }
+
     // ---- Harness -------------------------------------------------------------------------
 
     private fun run(
@@ -704,6 +1301,7 @@ class BoundedWorkflowExecutorTest {
         val text: String? = null,
         val calls: List<ScriptedCall> = emptyList(),
         val finish: HostedTurnFinish,
+        val rawResponseForPrivacyScan: String? = null,
     )
 
     private class ScriptedConversation(
@@ -714,16 +1312,36 @@ class BoundedWorkflowExecutorTest {
     /** A scripted protocol adapter; it records the exact masked text it was asked to send. */
     private class ScriptedAdapter(
         private val turns: List<suspend () -> ScriptedTurn>,
+        private val metadataPolicy: HostedResponseMetadataPolicy? = null,
     ) : HostedGenerationAdapter {
         override val protocol: HostedProtocol = HostedProtocol.OPENAI_CHAT_COMPLETIONS
+
+        override fun responseMetadataPolicy(): HostedResponseMetadataPolicy? = metadataPolicy
         private var next = 0
+        val generatedCount get() = next
         val prompts = mutableListOf<String>()
         val toolResultPayloads = mutableListOf<List<String>>()
+        /** Host repair notices appended through this adapter, in order. */
+        val notices = mutableListOf<String>()
+        /** Issued-token inventories appended to tool-result continuations, in order. */
+        val inventoryNotices = mutableListOf<String>()
         var beforeGenerate: (suspend (Int) -> Unit)? = null
 
         override fun begin(systemInstruction: String, userInstruction: String): HostedConversation {
             prompts += systemInstruction
             prompts += userInstruction
+            return ScriptedConversation(protocol, emptyList())
+        }
+
+        /** Every user instruction this adapter was asked to start a turn with, in order. */
+        fun userInstructions(): List<String> =
+            prompts.filterIndexed { index, _ -> index % 2 == 1 }
+
+        override fun appendUserNotice(
+            conversation: HostedConversation,
+            notice: String,
+        ): HostedConversation {
+            notices += notice
             return ScriptedConversation(protocol, emptyList())
         }
 
@@ -750,7 +1368,7 @@ class BoundedWorkflowExecutorTest {
             } else {
                 null
             }
-            return HostedGenerationResult.Turn(
+            val result = HostedGenerationResult.Turn(
                 HostedTurn(
                     protocol = protocol,
                     requestedModel = MODEL,
@@ -762,13 +1380,17 @@ class BoundedWorkflowExecutorTest {
                     conversation = continuation,
                 ),
             )
+            return turn.rawResponseForPrivacyScan?.let { result.withRawResponseForPrivacyScan(it) }
+                ?: result
         }
 
         override fun continueWithToolResults(
             conversation: HostedConversation,
             results: List<HostedToolResult>,
+            hostNotice: String?,
         ): HostedConversation {
             toolResultPayloads += results.map(HostedToolResult::outputJson)
+            if (hostNotice != null) inventoryNotices += hostNotice
             return ScriptedConversation(protocol, emptyList())
         }
 

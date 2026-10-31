@@ -110,10 +110,15 @@ class WorkflowSkillCatalog private constructor(
 
         private val EXPECTED_IDS = WorkflowSkillId.entries.associateBy(WorkflowSkillId::wireId)
         private val EXPECTED_VERSIONS = mapOf(
-            // Version 2 corrects the loaded example to source-issued value/anchor aliases.
-            WorkflowSkillId.EVENT_READING to 2,
+            // Version 3 teaches the stated-merchant source selection that record_event accepts.
+            // Version 4 adds focused select_source/record_event fewshots: only an explicitly named
+            // seller-or-place counterparty is a merchant; a product/item/activity description is
+            // never promoted, and an absent or uncertain merchant stays null without clarification.
+            WorkflowSkillId.EVENT_READING to 4,
             WorkflowSkillId.DRAFT_SEARCH to 1,
-            WorkflowSkillId.LINK_EVENT_DRAFT to 1,
+            // Version 2 states that eligibility governs attachment only: an ambiguous pair may
+            // still be recorded as one tentative proposal before the user is asked to choose.
+            WorkflowSkillId.LINK_EVENT_DRAFT to 2,
             WorkflowSkillId.LOCAL_REVIEW to 1,
             WorkflowSkillId.OPERATION_REPLAY to 1,
         )

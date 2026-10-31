@@ -797,11 +797,17 @@ def action_run(args: argparse.Namespace) -> int:
         if "Success" not in result.stdout:
             raise RuntimeError(f"isolated APK install not confirmed: {redact(result.stdout, keys)}")
     stage_laya()
-    args_list = [str(ADB), "-s", DEVICE_SERIAL, "shell", "am", "instrument", "-w",
-                 "-e", "class", "io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest",
-                 "-e", "S813_PROFILE", profile, "-e", "S813_PASS", str(pass_number),
-                 "-e", key_name, key,
-                 f"{TEST_PACKAGE}/{apk_ids['test_runner']}"]
+    args_list = [
+        str(ADB), "-s", DEVICE_SERIAL, "shell", "am", "instrument", "-w",
+        "-e", "class", "io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest",
+        "-e", "S813_PROFILE", profile,
+        "-e", "S813_PASS", str(pass_number),
+        "-e", "S813_ATTEMPT_ID", ATTEMPT_ID,
+        "-e", "S813_BATCH_ID", BATCH_ID,
+        "-e", "S813_SNAPSHOT_ID", BATCH_SNAPSHOT_ID,
+        "-e", key_name, key,
+        f"{TEST_PACKAGE}/{apk_ids['test_runner']}",
+    ]
     started = utc_now()
     try:
         result = subprocess.run(args_list, cwd=ROOT, env=build_environment(), text=True, capture_output=True,

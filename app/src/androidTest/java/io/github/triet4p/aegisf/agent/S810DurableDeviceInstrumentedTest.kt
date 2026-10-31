@@ -601,6 +601,7 @@ class S810DurableDeviceInstrumentedTest {
         override fun continueWithToolResults(
             conversation: HostedConversation,
             results: List<HostedToolResult>,
+            hostNotice: String?,
         ): HostedConversation {
             toolResultPayloads += results.map(HostedToolResult::outputJson)
             return ScriptedConversation(protocol, emptyList())

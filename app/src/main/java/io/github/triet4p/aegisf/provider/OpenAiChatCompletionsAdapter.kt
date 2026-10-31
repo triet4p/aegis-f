@@ -27,6 +27,10 @@ class OpenAiChatCompletionsAdapter internal constructor(
     /** Value-free identity from this adapter's validated config. */
     override fun providerIdentity(): HostedProviderIdentity = config.identity()
 
+    /** Root metadata and Go-route accounting this validated configuration may receive. */
+    override fun responseMetadataPolicy(): HostedResponseMetadataPolicy =
+        config.responseMetadataPolicy()
+
     init {
         if (config.protocol != protocol) {
             throw HostedConfigurationException("chat-completions adapter received a ${config.protocol} configuration")
@@ -58,6 +62,18 @@ class OpenAiChatCompletionsAdapter internal constructor(
     override suspend fun generate(
         conversation: HostedConversation,
         tools: List<HostedToolDeclaration>,
+    ): HostedGenerationResult = generateWithResponseGuard(conversation, tools, null)
+
+    override suspend fun generateGuarded(
+        conversation: HostedConversation,
+        tools: List<HostedToolDeclaration>,
+        responseGuard: HostedResponsePrivacyGuard,
+    ): HostedGenerationResult = generateWithResponseGuard(conversation, tools, responseGuard)
+
+    private suspend fun generateWithResponseGuard(
+        conversation: HostedConversation,
+        tools: List<HostedToolDeclaration>,
+        responseGuard: HostedResponsePrivacyGuard?,
     ): HostedGenerationResult {
         val state = conversation as? Conversation
             ?: throw HostedConfigurationException("conversation belongs to another protocol")
@@ -92,8 +108,23 @@ class OpenAiChatCompletionsAdapter internal constructor(
                 HostedProviderFailure.Transport(exception.message?.take(MAX_TRANSPORT_DETAIL)),
             )
         }
-        if (response.status !in 200..299) {
-            return HostedGenerationResult.ProviderFailure(
+        if (responseGuard != null) {
+            when (val scan = responseGuard.scan(response.body, response.status)) {
+                HostedResponsePrivacyResult.Accepted,
+                is HostedResponsePrivacyResult.AcceptedWithValidatedCounters,
+                is HostedResponsePrivacyResult.AcceptedWithValidatedMetadata -> Unit
+                is HostedResponsePrivacyResult.Refused ->
+                    return HostedGenerationResult.ProviderFailure(
+                        HostedProviderFailure.PrivacyBlocked(scan.refusal),
+                    )
+                is HostedResponsePrivacyResult.ProtocolError ->
+                    return HostedGenerationResult.ProviderFailure(
+                        HostedProviderFailure.InvalidResponse(scan.reason.safeDetail()),
+                    )
+            }
+        }
+        val result = if (response.status !in 200..299) {
+            HostedGenerationResult.ProviderFailure(
                 ProviderFailures.classify(
                     status = response.status,
                     body = response.body,
@@ -101,13 +132,26 @@ class OpenAiChatCompletionsAdapter internal constructor(
                     authentication = config.authentication,
                 ),
             )
+        } else {
+            try {
+                parseTurn(response.body, state, tools)
+            } catch (_: InvalidProviderUsageException) {
+                HostedGenerationResult.ProviderFailure(
+                    HostedProviderFailure.InvalidResponse("invalid provider usage counter"),
+                )
+            }
         }
-        return parseTurn(response.body, state, tools)
+        return if (responseGuard == null) {
+            result.withRawResponseForPrivacyScan(response.body)
+        } else {
+            result
+        }
     }
 
     override fun continueWithToolResults(
         conversation: HostedConversation,
         results: List<HostedToolResult>,
+        hostNotice: String?,
     ): HostedConversation {
         val state = conversation as? Conversation
             ?: throw HostedConfigurationException("conversation belongs to another protocol")
@@ -117,7 +161,31 @@ class OpenAiChatCompletionsAdapter internal constructor(
                 .put("role", "tool")
                 .put("tool_call_id", pending.callId)
                 .put("content", answers.getValue(pending.callId).outputJson)
+        } + hostNoticeMessages(hostNotice)
+        return Conversation(messages, emptyList())
+    }
+
+    /** The host tail is one ordinary user message after the tool outputs. */
+    private fun hostNoticeMessages(hostNotice: String?): List<JSONObject> {
+        if (hostNotice == null) return emptyList()
+        if (hostNotice.isBlank()) throw HostedConfigurationException("a host notice must not be blank")
+        return listOf(JSONObject().put("role", "user").put("content", hostNotice))
+    }
+
+    override fun appendUserNotice(
+        conversation: HostedConversation,
+        notice: String,
+    ): HostedConversation {
+        val state = conversation as? Conversation
+            ?: throw HostedConfigurationException("conversation belongs to another protocol")
+        if (state.pending.isNotEmpty()) {
+            throw HostedConfigurationException(
+                "a notice cannot be appended while ${state.pending.size} tool result(s) are pending",
+            )
         }
+        if (notice.isBlank()) throw HostedConfigurationException("a notice must not be blank")
+        val messages = state.messages +
+            JSONObject().put("role", "user").put("content", notice)
         return Conversation(messages, emptyList())
     }
 
@@ -343,17 +411,8 @@ class OpenAiChatCompletionsAdapter internal constructor(
         }
     }
 
-    private fun usageOf(root: JSONObject): HostedUsage? {
-        val usage = root.optJSONObject("usage") ?: return null
-        val reasoning = usage.optJSONObject("completion_tokens_details")
-        val cached = usage.optJSONObject("prompt_tokens_details")
-        return HostedUsage(
-            inputTokens = usage.positiveInt("prompt_tokens"),
-            outputTokens = usage.positiveInt("completion_tokens"),
-            reasoningTokens = reasoning?.positiveInt("reasoning_tokens"),
-            cachedInputTokens = cached?.positiveInt("cached_tokens"),
-        )
-    }
+    private fun usageOf(root: JSONObject): HostedUsage? =
+        HostedUsageContract.parse(protocol, root)
 
     private sealed interface FinishSignal {
         data object Complete : FinishSignal

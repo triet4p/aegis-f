@@ -30,6 +30,10 @@ class OpenAiResponsesAdapter internal constructor(
     /** Value-free identity from this adapter's validated config. */
     override fun providerIdentity(): HostedProviderIdentity = config.identity()
 
+    /** Root metadata and Go-route accounting this validated configuration may receive. */
+    override fun responseMetadataPolicy(): HostedResponseMetadataPolicy =
+        config.responseMetadataPolicy()
+
 
     init {
         if (config.protocol != protocol) {
@@ -63,6 +67,18 @@ class OpenAiResponsesAdapter internal constructor(
     override suspend fun generate(
         conversation: HostedConversation,
         tools: List<HostedToolDeclaration>,
+    ): HostedGenerationResult = generateWithResponseGuard(conversation, tools, null)
+
+    override suspend fun generateGuarded(
+        conversation: HostedConversation,
+        tools: List<HostedToolDeclaration>,
+        responseGuard: HostedResponsePrivacyGuard,
+    ): HostedGenerationResult = generateWithResponseGuard(conversation, tools, responseGuard)
+
+    private suspend fun generateWithResponseGuard(
+        conversation: HostedConversation,
+        tools: List<HostedToolDeclaration>,
+        responseGuard: HostedResponsePrivacyGuard?,
     ): HostedGenerationResult {
         val state = conversation as? Conversation
             ?: throw HostedConfigurationException("conversation belongs to another protocol")
@@ -97,8 +113,23 @@ class OpenAiResponsesAdapter internal constructor(
                 HostedProviderFailure.Transport(exception.message?.take(MAX_TRANSPORT_DETAIL)),
             )
         }
-        if (response.status !in 200..299) {
-            return HostedGenerationResult.ProviderFailure(
+        if (responseGuard != null) {
+            when (val scan = responseGuard.scan(response.body, response.status)) {
+                HostedResponsePrivacyResult.Accepted,
+                is HostedResponsePrivacyResult.AcceptedWithValidatedCounters,
+                is HostedResponsePrivacyResult.AcceptedWithValidatedMetadata -> Unit
+                is HostedResponsePrivacyResult.Refused ->
+                    return HostedGenerationResult.ProviderFailure(
+                        HostedProviderFailure.PrivacyBlocked(scan.refusal),
+                    )
+                is HostedResponsePrivacyResult.ProtocolError ->
+                    return HostedGenerationResult.ProviderFailure(
+                        HostedProviderFailure.InvalidResponse(scan.reason.safeDetail()),
+                    )
+            }
+        }
+        val result = if (response.status !in 200..299) {
+            HostedGenerationResult.ProviderFailure(
                 ProviderFailures.classify(
                     status = response.status,
                     body = response.body,
@@ -106,13 +137,26 @@ class OpenAiResponsesAdapter internal constructor(
                     authentication = config.authentication,
                 ),
             )
+        } else {
+            try {
+                parseTurn(response.body, state, tools)
+            } catch (_: InvalidProviderUsageException) {
+                HostedGenerationResult.ProviderFailure(
+                    HostedProviderFailure.InvalidResponse("invalid provider usage counter"),
+                )
+            }
         }
-        return parseTurn(response.body, state, tools)
+        return if (responseGuard == null) {
+            result.withRawResponseForPrivacyScan(response.body)
+        } else {
+            result
+        }
     }
 
     override fun continueWithToolResults(
         conversation: HostedConversation,
         results: List<HostedToolResult>,
+        hostNotice: String?,
     ): HostedConversation {
         val state = conversation as? Conversation
             ?: throw HostedConfigurationException("conversation belongs to another protocol")
@@ -123,9 +167,40 @@ class OpenAiResponsesAdapter internal constructor(
                 .put("call_id", pending.callId)
                 .put("output", answers.getValue(pending.callId).outputJson)
         }
+        // The host tail follows the function outputs as one native user message item.
+        val tail = hostNotice?.let { notice ->
+            if (notice.isBlank()) throw HostedConfigurationException("a host notice must not be blank")
+            listOf(
+                JSONObject()
+                    .put("role", "user")
+                    .put("content", JSONArray().put(JSONObject().put("type", "input_text").put("text", notice))),
+            )
+        } ?: emptyList()
         return Conversation(
             instructions = state.instructions,
-            input = state.input + outputs,
+            input = state.input + outputs + tail,
+            pending = emptyList(),
+        )
+    }
+
+    override fun appendUserNotice(
+        conversation: HostedConversation,
+        notice: String,
+    ): HostedConversation {
+        val state = conversation as? Conversation
+            ?: throw HostedConfigurationException("conversation belongs to another protocol")
+        if (state.pending.isNotEmpty()) {
+            throw HostedConfigurationException(
+                "a notice cannot be appended while ${state.pending.size} tool result(s) are pending",
+            )
+        }
+        if (notice.isBlank()) throw HostedConfigurationException("a notice must not be blank")
+        val message = JSONObject()
+            .put("role", "user")
+            .put("content", JSONArray().put(JSONObject().put("type", "input_text").put("text", notice)))
+        return Conversation(
+            instructions = state.instructions,
+            input = state.input + message,
             pending = emptyList(),
         )
     }
@@ -342,7 +417,7 @@ class OpenAiResponsesAdapter internal constructor(
         val nextConversation = if (rawCalls.isNotEmpty()) {
             Conversation(
                 instructions = state.instructions,
-                input = state.input + (0 until output.length()).mapNotNull { output.optJSONObject(it)?.deepCopy() },
+                input = state.input + scrubbedOutputItems(output),
                 pending = rawCalls.map { PendingCall(it.callId, it.name) },
             )
         } else {
@@ -362,15 +437,29 @@ class OpenAiResponsesAdapter internal constructor(
         )
     }
 
-    private fun usageOf(root: JSONObject): HostedUsage? {
-        val usage = root.optJSONObject("usage") ?: return null
-        return HostedUsage(
-            inputTokens = usage.positiveInt("input_tokens"),
-            outputTokens = usage.positiveInt("output_tokens"),
-            reasoningTokens = usage.optJSONObject("output_tokens_details")?.positiveInt("reasoning_tokens"),
-            cachedInputTokens = usage.optJSONObject("input_tokens_details")?.positiveInt("cached_tokens"),
-        )
-    }
+    /**
+     * The retained output items with reasoning prose removed but protocol structure intact.
+     *
+     * Responses continuation is stateless: the resent items must keep every `type`, `id`,
+     * `call_id`, `status` and pairing field byte-identical so call/result association survives.
+     * A `type: "reasoning"` item keeps its identity and status fields plus the opaque
+     * `encrypted_content` blob verbatim: that blob is provider continuation state, never
+     * plaintext reasoning, and the S8.5 live capture shows continuations must keep their
+     * required items while the Chat live capture proves reasoning prose needs no retention.
+     * Only plaintext reasoning prose (`summary`, `content`, `text`) is dropped so a mapped
+     * raw literal inside reasoning never rides the outbound continuation. Message and
+     * function_call items pass through byte-identical.
+     */
+    private fun scrubbedOutputItems(output: JSONArray): List<JSONObject> =
+        (0 until output.length()).mapNotNull { index ->
+            val copy = output.optJSONObject(index)?.deepCopy() ?: return@mapNotNull null
+            if (copy.optString("type") != "reasoning") return@mapNotNull copy
+            for (key in listOf("summary", "content", "text")) copy.remove(key)
+            copy
+        }
+
+    private fun usageOf(root: JSONObject): HostedUsage? =
+        HostedUsageContract.parse(protocol, root)
 
     private companion object {
         const val AUTO_TOOL_CHOICE = "auto"

@@ -25,7 +25,8 @@ Source: `app/src/main/java/io/github/triet4p/aegisf/provider/`.
   parallel-call setting are sent only when the capabilities declare them. There is no shared
   2048-token cap. Truncation is an incomplete outcome, never a completed answer.
 - `HostedToolDeclaration` — one portable name, description and JSON-Schema argument object.
-- `HostedGenerationAdapter` — `begin`, `generate`, `continueWithToolResults`. Adapters never
+- `HostedGenerationAdapter` — `begin`, `generate`, `continueWithToolResults`,
+  `appendUserNotice`. Adapters never
   execute a call.
 - `HostedTurn` / `HostedToolCall` / `HostedGenerationResult` / `HostedProviderFailure` — the parsed
   turn, per-call dispatch eligibility, and the classified failure vocabulary.
@@ -52,6 +53,29 @@ S8.4 draft:
 The Chat adapter also deliberately does not retain the gateway's `reasoning_content`: the live
 exchange continues correctly without it, and hidden reasoning must not enter stored conversation
 state.
+
+### Response channels and the host tail
+
+The decoded-body privacy guard is channel-aware. Provider reasoning/thinking — Gemini `thought`
+parts and `thoughtSignature`, Chat Completions `reasoning_content`/`reasoning`, Responses items with
+`type: "reasoning"` (including their `summary` and `encrypted_content`) — is classified explicitly
+and is **not** guard input: it is never displayed, rehydrated or treated as authority, so invented
+notation inside it cannot refuse a valid response. A Gemini part with `thought: true` contributes
+no `functionCall` to the parsed turn even when its call bytes are schema-valid; only ordinary
+parts dispatch. Answer text and tool-call `arguments`/`args` stay guarded, and the parsed answer
+is checked again before publication and the parsed argument text again before dispatch. Retained
+continuation items keep protocol pairing (`thoughtSignature`, item `id`/`type`/`status`, `call_id`)
+byte-identical, including the opaque Responses `encrypted_content` continuation blob, while plaintext
+reasoning prose (Gemini `thought` text, Chat `reasoning_content`/`reasoning`, Responses `summary`/
+`content`/`text`) is dropped, so a raw literal inside reasoning never rides the next provider request;
+the pairing (`call_id`, `tool_call_id`, Gemini `id`, model/assistant message) is unchanged and
+remains fully valid per protocol. Reasoning is never promoted into answer text.
+
+`continueWithToolResults` also carries the host's issued-token inventory tail and lowers it
+natively after the tool outputs: an extra `role: "user"` message for Chat Completions, an extra
+`input_text` user item for Responses, and an extra `text` part inside the same `user`
+function-response turn for Gemini. The next model turn therefore always sees the run's current
+inventory without creating an unmatched call or an extra turn alternation.
 
 ## Argument assembly and dispatch eligibility
 
@@ -80,10 +104,11 @@ repeated answer, so a required continuation item cannot be dropped silently.
 `Redirected` (3xx — never followed, because the credential would be replayed against another
 host), `ProviderState` (a 2xx payload reporting failed/cancelled/non-terminal, or a provider
 finish code), `ModelMismatch` (the echoed model differs from the configured one), and
-`InvalidResponse` (a 2xx payload that does not satisfy the protocol schema). Failure details are
-bounded and censored of the configured credential. Model problems (malformed arguments, schema
-violations, unknown tools) are per-call dispositions, and application tool outcomes remain S8.7's
-vocabulary.
+`InvalidResponse` (a 2xx payload that does not satisfy the protocol schema, including a malformed
+usage counter). Failure details are bounded and censored of the configured credential; the
+pre-parser privacy guard reports invalid counters with a safe protocol-error reason, not as a
+decoded-sensitive refusal. Model problems (malformed arguments, schema violations, unknown tools)
+are per-call dispositions, and application tool outcomes remain S8.7's vocabulary.
 
 ## Live protocol evidence
 
@@ -128,10 +153,26 @@ missing Responses prerequisite for this task.
   or transport-failed turn is returned classified and is not retried here.
 - Masking boundary (S8.6) is the only supported production caller: `MaskedHostedGateway` masks
   system/user instructions and tool-result JSON before `begin`/`continueWithToolResults`, keeps the
-  protocol's required continuation items byte-identical, and returns an
-  `Incomplete("masking_blocked")` turn with no dispatchable calls when inbound model text carries
-  raw literals or foreign tokens. Raw adapter calls remain for tests; production must not bypass
-  the gateway.
+  protocol's required continuation items byte-identical, and scans decoded keys, strings and
+  numeric leaves across the complete strict provider JSON before adapter status parsing or protocol
+  decoding. Three things can be treated as technical metadata, and each only after schema
+  validation against the adapter's own validated configuration (`HostedResponseMetadataPolicy`):
+  the protocol-declared root fields (opaque provider-assigned `id`/`responseId` as bounded nonempty
+  printable ASCII, the configured `model`/`modelVersion` echo, the fixed `object` discriminator,
+  and the nonnegative integer `created`/`created_at` timestamp), the exact protocol usage-counter
+  paths, and — only when the configured endpoint is exactly the OpenCode Go Zen route — the two
+  documented `usage.opencode.allowance`/`list_cost` USD amounts as finite nonnegative JSON numbers.
+  Nothing else is exempt: usage containers, unknown fields, sensitive keys, arbitrary nested
+  `id`/`model`/`usage` lookalikes, model content, reasoning and tool arguments stay fully scanned,
+  and the same values under any of those paths remain blocked. Wrong-type, negative, non-finite,
+  fractional-timestamp, malformed-id or off-route metadata values are safe protocol errors;
+  duplicate keys, malformed/trailing JSON and unsupported roots fail closed as
+  `Incomplete("masking_blocked")` with no dispatchable calls or continuation. Privacy refusals carry
+  a fixed reason, optional sensitive-kind label, node type and allowlisted structural path, while a
+  schema-validated exemption reports only its kind, path and node type. Local evidence records
+  neither response values nor reasoning; serialized-body matches are diagnostic only. Known
+  session-scoped tokens remain allowed; raw adapter calls remain for tests; production must not
+  bypass the gateway.
 - Production Chat supplies the adapters through `MaskedHostedGateway`, the typed application
   tools and `BoundedWorkflowExecutor`. S8.12 settings and credential handling live in
   `HostedProviderSettingsStore` and `HostedProviderSettingsScreen`; the provider profile is

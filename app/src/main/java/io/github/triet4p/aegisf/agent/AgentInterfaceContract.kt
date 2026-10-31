@@ -329,9 +329,40 @@ data class AgentToolExecution(
     val effectClaim: AgentEffectClaim? = null,
     val clarificationField: String? = null,
     val clarificationQuestion: String? = null,
+    /**
+     * What a read-only call actually observed about an absence, re-verified by the executor
+     * before any no-effect settlement. Null when the call observed nothing about absence.
+     */
+    val noEffectClaim: AgentNoEffectClaim? = null,
 ) {
     val outcome: String get() = envelope.optString("outcome", "")
     val code: String? get() = envelope.optJSONObject("error")?.optString("code")
+}
+
+/**
+ * A content-free claim that one read-only call observed an absence, kept only so the executor
+ * can re-read live state before reporting a truthful no-effect completion.
+ *
+ * The claim carries host facts (identifiers, revisions, a bounded filter and the stored-evidence
+ * eligibility) and never model text, a raw value or a token. It is not an authority by itself:
+ * [AgentToolRuntime.verifyNoEffect] re-reads the application state behind every field.
+ */
+sealed interface AgentNoEffectClaim {
+    /** One bounded draft page read under the declared filter over the trusted scope. */
+    data class DraftScope(
+        val reviewStatus: String?,
+        val duplicatesOnly: Boolean,
+        val draftIds: List<Long>,
+        val scopeExhausted: Boolean,
+    ) : AgentNoEffectClaim
+
+    /** One inspected event/draft pair and the eligibility the stored evidence actually gave. */
+    data class PairInspection(
+        val eventId: Long,
+        val draftId: Long,
+        val eventRevision: Int,
+        val eligibility: String,
+    ) : AgentNoEffectClaim
 }
 
 /**

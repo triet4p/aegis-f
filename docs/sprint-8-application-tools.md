@@ -65,7 +65,12 @@ current masked source, preserves complete masked tokens, verifies the occurrence
 boundaries, and translates the masked UTF-16 span through the session vault to original-source
 offsets. It returns `source_ref`, the copied quote, any existing `event_ref` at those coordinates,
 the occurrence's value handles and safe pre-existing anchors. There is no fuzzy matching, ellipsis
-expansion or guessed offset. A span whose source changed is refused as stale.
+expansion or guessed offset. A span whose source changed is refused as stale. It is also how an
+explicitly named counterparty becomes evidence: a second selection on that exact seller-or-place
+substring inside the same capture returns a source handle accepted only as `merchant_ref`, so an
+explicitly named counterparty is recorded from source instead of retyped, while an occurrence that
+names no counterparty, or whose candidate wording is uncertain, stays null. A product, item or
+activity description is not a merchant.
 
 `make_time_anchor` builds a grounded temporal selection from observed DATE/TIME handles. A time
 requires its date; an interval end date cannot precede the start; an interval end time requires
@@ -190,7 +195,7 @@ candidate answer.
 `tools/slm/s8_agent_tools_v3.json` and `tools/slm/s8_agent_runtime_skills_v3.json` are the runtime
 inputs copied into the Android assets by `app/build.gradle.kts`; `AgentToolDeclarations` and
 `WorkflowSkillCatalog` validate their schema markers, closed tool/skill IDs, versions and required
-content at load time. The five skills are `event-reading/2`, `draft-search/1`, `link-event-draft/1`,
+content at load time. The five skills are `event-reading/4`, `draft-search/1`, `link-event-draft/2`,
 `local-review/1` and `explicit-operation-replay/1`; each names its tools, prerequisites, ordered
 steps, normal/clarification/no-match/error/retry branches, recovery guidance, synthetic examples and
 completion condition.

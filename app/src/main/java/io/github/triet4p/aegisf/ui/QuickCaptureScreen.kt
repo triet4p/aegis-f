@@ -70,6 +70,7 @@ import io.github.triet4p.aegisf.agent.WorkflowIntent
 import io.github.triet4p.aegisf.agent.WorkflowRunHost
 import io.github.triet4p.aegisf.agent.WorkflowRunOutcome
 import io.github.triet4p.aegisf.agent.WorkflowRunRequest
+import io.github.triet4p.aegisf.agent.WorkflowVerifiedEffect
 import io.github.triet4p.aegisf.data.DraftCandidateQuery
 import io.github.triet4p.aegisf.data.IntakeReviewStatus
 import io.github.triet4p.aegisf.provider.HostedProviderConfig
@@ -323,9 +324,19 @@ internal fun QuickCaptureScreen(
                         when (val outcome = agentOutcome) {
                             is WorkflowRunOutcome.Completed -> {
                                 Text(outcome.answer, style = MaterialTheme.typography.bodyMedium)
+                                val noEffects = outcome.verifiedEffects
+                                    .filterIsInstance<WorkflowVerifiedEffect.NoEffect>()
+                                val changes = outcome.verifiedEffects
+                                    .filterNot { it is WorkflowVerifiedEffect.NoEffect }
                                 Text(
-                                    if (outcome.verifiedEffects.isEmpty()) "Verified application changes: none."
-                                    else "Verified application changes: " + outcome.verifiedEffects.joinToString { it.toString() },
+                                    when {
+                                        noEffects.isNotEmpty() && changes.isEmpty() ->
+                                            "Verified result: no application change. " +
+                                                noEffects.joinToString { it.toString() }
+                                        outcome.verifiedEffects.isEmpty() -> "Verified application changes: none."
+                                        else -> "Verified application changes: " +
+                                            changes.joinToString { it.toString() }
+                                    },
                                     color = MaterialTheme.colorScheme.primary,
                                 )
                             }

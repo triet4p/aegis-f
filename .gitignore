@@ -61,6 +61,14 @@ __pycache__/
 /artifacts/sprint-5/workers/S5.1-a3-raw/
 /artifacts/sprint-5/workers/S5.1-a4-raw/
 
+# TEST-ONLY synthetic full-body debug payloads for the S8.13 diagnosis. Owner-authorized test
+# observability only: never tracked, never part of a checkpoint, excluded from scored evidence.
+/artifacts/sprint-8/evidence/S8.13-replan-a16/debug/
+
+# S8.13 synthetic TEST_ONLY response bodies stay local, outside frozen sources and exports.
+/artifacts/sprint-8/test-only/
+/artifacts/sprint-8/evidence/S8.13-harness-a29/debug/
+
 # Legacy model research and records exposing local device/home identifiers stay user-local.
 /artifacts/sprint-5/handoffs/S5.1-a2-device-blocked.md
 /artifacts/sprint-5/handoffs/S5.1-a3-blocked.md

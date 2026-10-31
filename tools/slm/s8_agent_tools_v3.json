@@ -22,7 +22,7 @@
     },
     {
       "name": "select_source",
-      "description": "Select the exact occurrence a reading is about without model-counted offsets. The host verifies the quote against the current masked source, checks protected-token boundaries, translates it to exact stored offsets and binds the capture revision plus the existing reading at that span, or its expected absence. Pure preparation: no event or ledger write. Returns the source alias, the copied quote, the existing event alias if any, the value aliases inside that occurrence and any already-trusted anchor. Do not call when no occurrence is grounded.",
+    "description": "Select the exact occurrence a reading is about without model-counted offsets, or select one exact merchant substring inside that occurrence. The host verifies the quote against the current masked source, checks protected-token boundaries, translates it to exact stored offsets and binds the capture revision plus the existing reading at that span, or its expected absence. Pure preparation: no event or ledger write. Returns the source alias, the copied quote, the existing event alias if any, the value aliases inside that occurrence and any already-trusted anchor. When the occurrence names a transaction counterparty as its seller or place, call it again with that exact merchant substring taken from the same capture and pass the returned source alias as record_event merchant_ref; a merchant handle must lie inside the recorded occurrence. A product, item or activity description is not a merchant. Do not call when no occurrence is grounded.",
       "mapsTo": "MaskedApplicationEffect.sourceOffsetsForMaskedSpan + capture/event read",
       "parameters": {
         "type": "object",
@@ -103,7 +103,7 @@
     },
     {
       "name": "record_event",
-      "description": "Atomically store or correct one grounded reading of the occurrence selected by source_ref. The host derives capture/event compare-and-set, source translation, extraction provenance, operation identity and unresolved status; the model supplies meaning, observed value aliases and the primary clarification need. A grounded partial reading is allowed, but an ungrounded or materially ambiguous occurrence is not: ask_user about occurrence or meaning before writing. Optional missing merchant/date/time alone is not an unresolved event. Returns the actual event observation, an operation alias and independently verified effect status. Creates no ledger row.",
+    "description": "Atomically store or correct one grounded reading of the occurrence selected by source_ref. The host derives capture/event compare-and-set, source translation, extraction provenance, operation identity and unresolved status; the model supplies meaning, observed value aliases and the primary clarification need. A grounded partial reading is allowed, but an ungrounded or materially ambiguous occurrence is not: ask_user about occurrence or meaning before writing. An absent or uncertain optional merchant alone is not clarification-required and not a failed reading by itself; record it as null rather than promoting a product, item or activity description. Returns the actual event observation, an operation alias and independently verified effect status. Creates no ledger row.",
       "mapsTo": "WorkflowCommandService.updateEventInterpretation(scope, UpdateEventRequest)",
       "parameters": {
         "type": "object",
@@ -118,7 +118,7 @@
           "summary": {
             "type": "string",
             "minLength": 1,
-            "description": "Nonblank concise normalized meaning grounded in that source and any authorized clarification. Preserve displayed privacy aliases if included; prefer not to repeat optional sensitive values. Not an instruction, operation label or guessed merchant."
+            "description": "Nonblank concise normalized meaning grounded in that source and any authorized clarification. Preserve displayed privacy aliases if included; prefer not to repeat optional sensitive values. Not an instruction, operation label, guessed merchant, or promoted product, item or activity description."
           },
           "amount_ref": {
             "type": ["string", "null"],
@@ -130,19 +130,19 @@
           },
           "merchant_ref": {
             "type": ["string", "null"],
-            "description": "Source alias for an exact merchant substring of this occurrence, or the host-issued clarification source alias linked to it; JSON null when the optional merchant is unstated."
+            "description": "Source alias for the exact seller-or-place substring named as the transaction counterparty inside this occurrence, or the host-issued clarification source alias linked to it; JSON null when that counterparty is absent or uncertain. Obtain it with select_source on that exact merchant substring inside this occurrence: an explicitly named counterparty is recorded, not dropped, while an absent or uncertain one stays null. Never use a product, item or activity description."
           },
           "clarification": {
             "type": "string",
             "enum": ["none", "amount", "date", "time", "merchant"],
-            "description": "Primary material field that needs user input. none means no blocking interpretation ambiguity, not that every optional field is present. A missing amount requires amount. Uncertain occurrence or meaning is handled by ask_user before writing."
+            "description": "Primary material field that needs user input. none means no blocking interpretation ambiguity, not that every optional field is present. A missing amount requires amount. Absence or uncertainty of the optional merchant alone stays none with merchant_ref null. Uncertain occurrence or meaning is handled by ask_user before writing."
           }
         }
       }
     },
     {
       "name": "inspect_link",
-      "description": "Evaluate one chosen event/draft pair with the application's own stored-link evidence policy. Read-only. Matching prose or an amount does not authorize attachment: the application computes eligibility and returns eligible, ambiguous or ineligible with a stable reason and a bound pair alias. The same policy is rechecked inside proposal and attachment. No effect.",
+      "description": "Evaluate one chosen event/draft pair with the application's own stored-link evidence policy. Read-only. Matching prose or an amount does not authorize attachment: the application computes eligibility and returns eligible, ambiguous or ineligible with a stable reason and a bound pair alias. Eligibility governs attachment only: ambiguous means the user must choose. A tentative proposal for the inspected pair is still allowed; the host rechecks the same stored evidence and both revisions when recording it. No effect.",
       "mapsTo": "WorkflowCommandService.inspectLinkEvidence (shared LinkEvidencePolicy)",
       "parameters": {
         "type": "object",
@@ -164,7 +164,7 @@
     },
     {
       "name": "propose_link",
-      "description": "Persist exactly the inspected pair as a tentative proposal, not an attachment. The host rechecks scope, both subject revisions and the same trusted evidence the inspection used. Returns a proposal alias, its actual state, eligibility, operation alias and a fresh pair observation. A proposal may exist without being attachable, and proposing never attaches.",
+      "description": "Persist exactly the inspected pair as a tentative proposal, not an attachment. The host rechecks scope, both subject revisions and the same trusted evidence the inspection used. Returns a proposal alias, its actual state, eligibility, operation alias and a fresh pair observation. A proposal may exist without being attachable, and proposing never attaches. Ambiguous eligibility never blocks a proposal; only attachment needs eligibility.",
       "mapsTo": "WorkflowCommandService.proposeLink(scope, ProposeLinkRequest)",
       "parameters": {
         "type": "object",
@@ -242,7 +242,7 @@
           "subject_ref": {
             "type": "string",
             "minLength": 1,
-            "description": "Authorized capture, source, event, draft or pair alias identifying what needs clarification."
+            "description": "Authorized alias identifying what needs clarification. The host requires the subject kind to match the chosen field: amount, date, time and merchant accept a source or event alias; occurrence accepts a capture or source alias; candidate accepts a draft or pair alias; meaning accepts any of those five kinds. A mismatch is refused before any clarification is stored."
           },
           "field": {
             "type": "string",

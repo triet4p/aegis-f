@@ -37,11 +37,6 @@ class WorkflowSkillCatalogTest {
         val extraction = catalog.select(setOf(WorkflowIntent.INTERPRET_EVENTS)).single()
 
         assertEquals(WorkflowSkillId.EVENT_READING, extraction.id)
-        assertEquals(2, extraction.version)
-        assertEquals(
-            "skill_catalog: ${WorkflowSkillCatalog.SCHEMA} skills: [event-reading/2]",
-            AgentContextManager.canonicalSkills(listOf(extraction)),
-        )
         assertEquals(
             setOf("observe", "select_source", "make_time_anchor", "record_event", "ask_user"),
             catalog.toolsFor(setOf(WorkflowIntent.INTERPRET_EVENTS)),

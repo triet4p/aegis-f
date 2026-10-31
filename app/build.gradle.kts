@@ -19,6 +19,8 @@ val copyS813QualificationAssets by tasks.registering(Copy::class) {
     from(
         rootProject.file("tools/slm/s8_agent_fixture.json"),
         rootProject.file("tools/slm/s8_agent_runtime_fixture_v3.json"),
+        rootProject.file("tools/slm/s8_agent_v3_qualification_fixture.json"),
+        rootProject.file("tools/slm/s8_agent_v3_qualification_scoring.json"),
         rootProject.file("tools/slm/s8_agent_dev.json"),
         rootProject.file("tools/slm/s8_agent_heldout.json"),
         rootProject.file("tools/slm/s8_agent_tools.json"),

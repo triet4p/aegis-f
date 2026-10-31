@@ -15,6 +15,14 @@ enum class SensitiveKind(val prefix: String) {
     BANK("BANK"),
 }
 
+/**
+ * One value this vault has already issued: the opaque token and the kind of value it stands for.
+ *
+ * It deliberately carries no canonical value, no first surface and no position, so a list of
+ * these can be handed back to the model without rehydrating anything.
+ */
+data class IssuedMaskToken(val token: String, val kind: SensitiveKind)
+
 /** Masking refused to produce outbound text; no request was emitted. The reason names no raw value. */
 class MaskingBlockedException(message: String) : IllegalStateException(message)
 
@@ -52,6 +60,8 @@ class SensitiveVault(
         val kind: SensitiveKind,
         val canonical: String,
         val firstSurface: String,
+        /** Mint order inside this scope, so an issued-token list is stable and complete. */
+        val order: Int,
     )
 
     private val lock = Any()
@@ -61,6 +71,20 @@ class SensitiveVault(
 
     /** How many distinct raw values are currently mapped; exposed for capacity tests. */
     fun entryCount(): Int = synchronized(lock) { byToken.size }
+
+    /**
+     * Every token this vault has issued, in mint order, with only its kind.
+     *
+     * This is the authoritative inventory the host hands the model on every turn: it is
+     * complete for this run (never truncated, never filtered), carries no canonical value or
+     * first surface, and cannot be used to rehydrate anything. A token minted after this call
+     * appears in the next inventory; a token from another vault never appears at all.
+     */
+    fun issuedTokens(): List<IssuedMaskToken> = synchronized(lock) {
+        byToken.entries
+            .sortedBy { it.value.order }
+            .map { IssuedMaskToken(it.key, it.value.kind) }
+    }
 
     /**
      * Masks every sensitive literal in free text, longest match first, without overlap.
@@ -146,6 +170,24 @@ class SensitiveVault(
             return byToken.values.any { entry ->
                 entry.firstSurface in stripped || entry.canonical in stripped
             }
+        }
+    }
+    /**
+     * The kinds whose mapped surfaces occur in [text], without returning the surfaces,
+     * canonical values, tokens, or match lengths. Intended for safe boundary diagnostics.
+     */
+    fun scanLeakKinds(text: String): Set<SensitiveKind> {
+        if (text.isEmpty()) return emptySet()
+        val stripped = TOKEN_PATTERN.replace(text, " ")
+        synchronized(lock) {
+            if (byToken.isEmpty()) return emptySet()
+            val kinds = mutableSetOf<SensitiveKind>()
+            for (entry in byToken.values) {
+                if (entry.firstSurface in stripped || entry.canonical in stripped) {
+                    kinds.add(entry.kind)
+                }
+            }
+            return kinds
         }
     }
 
@@ -239,7 +281,7 @@ class SensitiveVault(
             sequence += 1
             val token = "⟦${kind.prefix}-$scopeTag-%04d⟧".format(sequence)
             byRaw[kind to canonical] = token
-            byToken[token] = Entry(kind, canonical, surface)
+            byToken[token] = Entry(kind, canonical, surface, sequence)
             return token
         }
     }

@@ -143,10 +143,12 @@ class GeminiGenerateContentAdapterTest {
         assertEquals(3, contents.length())
         assertEquals("user", contents.getJSONObject(0).getString("role"))
         assertEquals("model", contents.getJSONObject(1).getString("role"))
+        val retainedPart = contents.getJSONObject(1).getJSONArray("parts").getJSONObject(0)
         assertEquals(
             "sig",
-            contents.getJSONObject(1).getJSONArray("parts").getJSONObject(0).getString("thoughtSignature"),
+            retainedPart.getString("thoughtSignature"),
         )
+        assertFalse("thought prose must not ride the continuation", retainedPart.has("text"))
         assertEquals("user", contents.getJSONObject(2).getString("role"))
         val functionResponse = contents.getJSONObject(2).getJSONArray("parts").getJSONObject(0)
             .getJSONObject("functionResponse")

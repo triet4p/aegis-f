@@ -161,6 +161,14 @@ Turn discipline, in order, every turn:
    masked observation and repair only from its state/constraints, ask the scoped
    clarification question, or stop. Scope, privacy, user-decision, masking, pending/unknown
    operation and over-budget outcomes are terminal; no retry or skill text can bypass them.
+   Exactly one owner-approved exception exists: a complete response refused as `UNKNOWN_TOKEN`
+   before any call in it was dispatched may be re-issued once per run by the host
+   (`s8-agent-masking-repair/v1`, instruction block `s8-agent-context/v5`). The refused response
+   and every call it carried are discarded whole, the refused attempt is charged to the turn
+   budget, one fixed shape-only notice is appended as a dynamic tail, and the replacement
+   response is fully rescanned. A second `UNKNOWN_TOKEN` or any foreign-token, raw-literal,
+   decoded-sensitive, malformed-JSON or metadata refusal stays terminal, and there is no
+   spelling, raw-value, endpoint, protocol or model fallback.
 6. Verify postconditions (§6) before reporting `COMPLETED`.
 
 ## 4. Local/remote boundary and masking contract
@@ -190,9 +198,22 @@ The boundary MUST:
   never accept arbitrary model text as a mapping key or authority. Inbound token
   references are validated against the scoped mapping; unknown tokens are refused, not
   guessed.
+- Scope the inbound guard to the channels that can leak or act: the model's user-visible
+  answer is checked before publication and its tool-call arguments before dispatch.
+  Provider reasoning/thinking is not guard input — it is never displayed, rehydrated or
+  authority — so invented notation inside it cannot refuse an otherwise valid response;
+  a thought-marked Gemini part contributes no tool call, and any reasoning prose kept in
+  the protocol's own continuation items carries no plaintext reasoning (opaque pairing
+  state — Gemini `thoughtSignature`, Responses `encrypted_content` — stays; `thought`
+  text and Responses `summary`/`content` are dropped), so no raw literal inside reasoning
+  rides the next request. Every model turn carries the run's complete issued-token
+  inventory (opaque tokens and kinds only, never raw values or mappings), rendered after
+  new observations, clarification, compaction and repair, so a value absent from the list
+  is unauthorized.
 - Exclude credentials, mappings, transient reasoning and sensitive continuation data
   from logs/history/export by default. Sensitive continuation data, where a protocol
-  requires it, stays protected, task-scoped and retention-bounded.
+  requires it, stays protected, task-scoped and retention-bounded; plaintext reasoning
+  prose is never retained.
 - Disclose the selected endpoint and residual contextual exposure before real-data
   cloud use. Masking is data minimization, not anonymity and not a no-remote-processing
   claim. No silent inference upload; no bundled developer keys.
@@ -228,7 +249,7 @@ observable condition that ends it). The runtime loads relevant instructions per 
 never every workflow on every turn. Stable deterministic transitions belong in code;
 judgment and ambiguity stay with the model/user. Bundled skills for this contract:
 
-- `event-reading/2` — grounded occurrence interpretation, atomic recording and clarification;
+- `event-reading/4` — grounded occurrence interpretation, atomic recording, exact explicitly named seller-or-place counterparty selection and clarification; absent or uncertain merchant stays null and is not clarification-required;
 - `draft-search/1` — bounded candidate reads;
 - `link-event-draft/1` — inspect, propose and policy-gated attach;
 - `local-review/1` — Laya-to-review preparation (review-only);

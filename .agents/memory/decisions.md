@@ -126,3 +126,166 @@
 **Alternatives considered:** Leak the expected keys/text into the prompt or the tool schema; accept any arguments for the idempotent calls; drop or rewrite the affected cases; keep v1 in place and declare the suite unmeasurable; regrade old results as if they had been scored under v2.
 **Reason:** The S8.3-a2 discriminator proved two calls with the same real Room effect scored differently only because of literals the model cannot know. The owner approved a semantic rubric that preserves every authority, scope and money/time constraint, keeps cases and denominators immutable, and forbids a retroactive PASS. Versioning plus hash-bound results is the only way to keep the v1 record honest while future samples are scored comparably.
 **Consequences:** S8.3 must rerun against the frozen v2 revision and supply a binding block, a stored reading per event call, and one replay probe per profile; v1 and v2 scores can never be mixed in one report; any later loosening of an exact constraint needs a new versioned contract rather than an edit to v2.
+
+## [2026-10-25] Treat the hosted Gemma/Gemini comparison as a bounded experiment, not a product migration
+
+**Decision:** Evaluate `gemma-4-26b-a4b-it` and `gemini-3.5-flash-lite` through the Google AI Studio endpoint with the unchanged frozen S8.2 v2 cases, prompts, fixture and application boundary, synthetic fixture data only, three independent full-suite passes per model, and one frozen request configuration per model in `tools/slm/s8_hosted_request_config.json`. The transport is recorded as a distinct provider/output adapter (`google-function-call-v1`) from the on-device `s8-native-parser-v1` path, and no product code, runtime selection or cloud wiring is changed by the experiment.
+**Alternatives considered:** Keep S8.3 closed at the local 1/10–2/10 results; migrate the product to a cloud provider first and evaluate afterwards; run the hosted models through the local native text-envelope templates for superficial comparability; reuse the local llama.cpp sampler settings verbatim even where the API has no equivalent (repeat penalty); evaluate a substitute model when a requested identifier is unavailable.
+**Reason:** The owner authorized a hosted comparison specifically to learn whether a larger model can execute the actual permitted workflow before deciding anything about a cloud-first product. Reusing the frozen contract and the real Room command/query services is the only way that comparison answers that question, while a one-turn hosted request with structured function calls is what the provider actually supports — pretending it is the local envelope protocol would measure an adapter that does not exist. Three passes are required because a single sample cannot separate capability from sampling noise, and the requested identifiers were verified live rather than assumed available.
+**Consequences:** Hosted numbers stay a separate, clearly labelled transport in every results document and are not a privacy-safe production claim; the local device results remain the shipping evidence and are unchanged; production data still requires redaction/tokenization that preserves exact amount/date mappings through tool calls and results, which this experiment does not implement; any adoption or runtime migration needs a separate owner decision and a new task, not a reinterpretation of these scores.
+
+## [2026-10-25] Replace generative SLM delivery with a privacy-bounded hosted workflow agent
+
+**Decision:** By explicit owner direction, replace local generative SLM delivery with user-configured hosted LLMs through Gemini, OpenAI Chat Completions and Responses adapters, coordinated by a domain-specific multi-turn harness, bundled workflow skills and a mandatory local masking boundary; retain local Laya and offline non-agent functionality.
+**Alternatives considered:** Continue local SLM runtime/profile integration; switch to a larger hosted model without improving the one-turn harness; build a general-purpose coding-agent framework.
+**Reason:** Local trials had weak workflow results and phone latency/resource costs. Hosted baselines improved tool choice but exposed argument/revision, truncated-output and one-turn orchestration limitations, so those results describe tested model-plus-harness configurations rather than intrinsic model limits. The owner prioritizes capability and user experience over avoiding inexpensive hosted requests; reported prices/free quotas are planning assumptions, not guarantees.
+**Consequences:** Sprint 8 is replanned around adequate model-specific budgets, real tool-result turns, ordered skill branches, verified postconditions, safe retry/restart journals, explicit history retention and provider-aware prompt caching. Mask all outbound context/history/tool results locally, preserve exact local values and workflow relationships through validated scoped mappings, and disclose residual contextual exposure. Users configure endpoint/model/key without bundled developer credentials or silent substitution. Remove obsolete SLM product paths without deleting user files; preserve historical trials/FAILs and all financial authority boundaries. S8.3 baseline closure needs reassessment under its explicitly revised criterion and the existing Bronze checkpoint boundary; agent qualification moves to S8.13–S8.14, not a retroactive PASS. Production hosted inference supersedes the earlier evaluation-only restriction only through implemented masking, secure credentials and explicit user consent.
+
+## [2026-10-27] Scope OpenCode session metadata to first-party runs
+
+**Decision:** Send `x-opencode-session` and the app `User-Agent` only to `opencode.ai`, deriving the session header from a per-run local scope id (and a fresh id for settings probes).
+**Alternatives considered:** Persist provider-specific headers in each profile; send OpenCode metadata to every hosted endpoint; omit the metadata.
+**Reason:** Actual Android OpenCode Go settings probes were rejected before the metadata was present and all three UI validation/save probes succeeded after adding it. The previously verified live Go probes also used both headers. A per-run id stays stable across a workflow's turns, while exact-host gating avoids sending OpenCode-specific metadata to unrelated endpoints.
+**Consequences:** No persisted profile/schema change; OpenCode requests carry the local run id and fixed app user agent in the frozen config, while Gemini and custom non-OpenCode origins remain header-free. Additional first-party origins need explicit evidence before they are included.
+
+## [2026-10-28] Bind durable mutation identities to exact tool requests
+
+**Decision:** Keep the executor's existing exact tool-plus-arguments signature map as the authority for operation identity in durable attempts. Preserve the current per-tool attempt seed for that tool's first request, reuse its mapped key only for an exact replay, and derive stable distinct keys from the seed and signature for later changed requests. The model never supplies these identities; the service continues rejecting the same key with a different payload.
+
+**Alternatives considered:** Reuse one operation key for every request to a tool within an attempt; mint a fresh random key per call, which cannot be reproduced after restart; accept a model-supplied idempotency key; remove the first per-tool seed and break existing durable identity behavior.
+
+**Reason:** A single per-tool key makes two distinct writes conflict, while changing the key on an exact replay would defeat idempotence across retries and process restarts. The executor already distinguishes calls by their exact signature in ordinary runs; using that same map in durable mode keeps the existing convention and preserves the service's payload-mismatch protection.
+
+**Consequences:** Exact repeats map to one durable journal row, distinct writes and corrected retries in the same run have distinct reproducible keys, and a reused key with changed payload remains a service conflict. No model authority, hosted interface, or retry budget changes.
+
+## [2026-10-28] Design the agent interface around domain decisions rather than internal DTOs
+
+**Decision:** Document a proposed S8.13-pre interface using flat primitive arguments and observation-bound references, host-owned invariants, atomic event writes, conditional skills and structured errors; this is design direction only, not owner approval to implement or change qualification semantics.
+
+**Alternatives considered:** Expand descriptions around the current nested service request; split event persistence into per-field setters; hide complex objects in JSON strings; hard-code every workflow including candidate selection; require the model to reconstruct an old mutation payload for every explicit replay.
+
+**Reason:** Actual S8.13 traces show malformed scalar tokens, changed replay arguments and unnecessary unresolved status despite correct final event values. More prose alone leaves the model managing offsets, revisions and bookkeeping already known to the host. Conversely, field setters introduce partial writes and hard-coded candidate choice removes a necessary semantic decision.
+
+**Consequences:** [The direct Main design](../../docs/sprint-8-agent-interface-redesign.md) specifies eleven selectively loaded tools, retains one deliberate six-argument atomic event write, and separates global authority, field contracts, workflow guidance and service enforcement. Observation-reference lifecycle, expected-absence CAS, a narrow journal-backed replay API and cursor consistency require implementation/validation. The replay wire/evaluation change needs explicit approval; existing exact-request identity decisions and historical scores remain authoritative until an approved cutover. No runtime, provider or database change is authorized by this record.
+
+## [2026-10-29] Refuse unsupported event-boundary rewrites and silent field removal
+
+**Decision:** At the `record_event` mutation boundary, reject (a) an expected-absence source selection whose span overlaps an existing reading in the same capture at different boundaries, as `STALE_OBSERVATION` with a fresh capture observation, and (b) a correction that supplies null for an amount, temporal anchor or merchant the selected reading already holds, as `MISSING_REQUIRED_MEANING` naming every erased field. Two disjoint source-grounded occurrences remain independent, merchant sub-span handles remain valid only as `merchant_ref`, and partial-reading resume (a previously absent field) is unchanged.
+
+**Alternatives considered:** Binding an overlapping selection to the existing event and replacing its reading (silently relocates the occurrence); creating a second reading and leaving the first (silent duplicate); merging nulls with stored values (silent partial replacement, contradicts full-replacement semantics); adding a removal flag or a new error code to the approved wire contract.
+
+**Reason:** Event identity is exact source span, and this interface deliberately does not rewrite stored boundaries. The design's version is full replacement, so absence may not silently erase stored data; with no removal argument, the safe outcome is a named refusal leading to clarification/manual review. The reviewer confirmed both refusal contracts as consistent with design §4.3 and §6.5.
+
+**Consequences:** A model that selects a different quote or omits a stored field receives a repairable, effect-none error and no write; the user path for a genuine value removal is clarification/manual, not a model silent edit. Landed with behavioral tests over real Room services; no schema field, new error code or historical fixture changed.
+ 
+## [2026-10-29] Scan provider response bodies before protocol parsing
+
+**Decision:** The masked gateway supplies a session-bound full-response guard to every hosted adapter. Each production adapter applies it to the raw response body immediately after receipt and before status classification, parsing, provider-error detail extraction, or continuation assembly. A refusal is a terminal `PrivacyBlocked` result that the workflow executor maps to `MASKING_BLOCKED`.
+
+**Alternatives considered:** Check only parsed assistant text and tool arguments; scan inside the qualification recorder only; allow the executor to repair/retry the blocked response; persist raw bodies to diagnose the historical false-negative location.
+
+**Reason:** Provider protocols may carry unparsed content such as hidden reasoning/signatures or opaque items that can contain mapped source values. A recorder-only check would leave product execution exposed, and an unsafe response must not trigger another provider turn or any tool dispatch. The previous attempt retained only a redacted body marker and boolean, so it cannot support retrospective field attribution.
+
+**Consequences:** Full-response scanning precedes parser handling for Chat Completions, Gemini, and Responses; parsed text/arguments keep their existing boundary checks. Diagnostic evidence records only mapped kinds and allowlisted structural paths. Raw response content remains ephemeral and redacted from wrapper stringification; historical pass-1 data is preserved without regrading.
+
+## [2026-10-29] Scan decoded provider JSON and reject duplicate keys
+
+**Decision:** Keep the terminal response guard before protocol parsing, but scan every decoded JSON string key/value and numeric leaf; reject duplicate object keys, invalid JSON, and unsupported response roots before any status parsing, tool dispatch, or continuation.
+
+**Alternatives considered:** Keep matching the serialized body (which matches Unicode-escape hex digits that are not decoded content); use the existing object-building parser (which keeps only the last duplicate key value); or skip metadata/reasoning/unknown fields to avoid false positives.
+
+**Reason:** Controlled actual-vault evidence proves a serialization-only false positive from a `\\uXXXX` escape and shows that last-value-wins parsing hides an earlier duplicate value. The approved privacy contract concerns decoded values and keys across the complete response, including metadata, reasoning, and unknown fields; duplicate or malformed JSON cannot be allowed to discard a possible earlier value.
+
+**Consequences:** The fail-closed `PrivacyBlocked` path and no-continuation/no-dispatch behavior remain. A duplicate-preserving streaming JSON reader rejects ambiguous object keys and scans all semantic leaves; invalid or unsupported bodies are refused with the existing sanitized privacy failure. The account-detection rules, mapped values, token stripping, outbound masking, and historical qualification results remain unchanged.
+
+## [2026-10-29] Preserve typed safe privacy refusal diagnostics
+
+**Decision:** Carry a value-free response-guard refusal reason, sensitive-kind label when relevant, and allowlisted structural location from the scanner through the provider adapter and workflow executor into local evidence.
+
+**Alternatives considered:** Keep only the generic `MASKING_BLOCKED` stop; persist response text for diagnosis; or let each layer independently infer its own refusal reason from serialized content.
+
+**Reason:** The existing live stop proved fail-closed behavior but could not distinguish a decoded sensitive match from malformed or duplicate JSON. Raw response persistence would expose exactly the content the guard protects, while independent inference could disagree with the actual adapter decision. Typed metadata records the scanner's real result without carrying values or reasoning.
+
+**Consequences:** Diagnostic artifacts can establish which refusal path occurred and whether the executor received it, using only a fixed reason enum, sensitive-kind enum, and allowlisted path; raw response bodies and decoded values remain ephemeral, and the semantic privacy contract is unchanged.
+
+## [2026-10-29] Exempt only validated provider usage counters from semantic privacy matches
+
+**Decision:** The response guard may treat a sensitive-shaped value as technical metadata only at an exact counter path documented for the selected provider protocol and only when its JSON node is a nonnegative integer; every other decoded key and value remains subject to the full privacy scan.
+
+**Alternatives considered:** Block all matched usage numbers; exempt entire `usage` objects or metadata; relax the account detector; or use the serialized-body matcher as the privacy gate.
+
+**Reason:** Snapshot13 showed an actual ACCOUNT match below `response_body.usage`, but the safe path did not reveal the key names or JSON type, so that response cannot justify an exemption. The owner-authorized boundary instead relies on the existing provider usage schema and strict node-type/value validation; unknown usage fields, strings, keys, model content, reasoning, and tool arguments remain scanned. This also separates meaningful decoded data from serialization-only escape digits without weakening the detector.
+
+**Consequences:** The scanner and adapters share one protocol-specific counter contract; malformed counter values become safe protocol errors, while duplicate or invalid JSON remains fail-closed. Qualification masking uses semantic decoded matches, with serialized-body matches retained only as diagnostics. Existing frozen failures remain unchanged and are never regraded.
+
+## [2026-10-29] Reveal only validated usage-key identifiers in safe diagnostics
+
+**Decision:** Under recognized provider usage roots only, response diagnostics may retain an unknown key name when it is a vault-clean ASCII identifier matching `[a-z_]{1,64}`; all other unknown keys remain `other_field`, and exact cross-protocol counter-path matches are reported only as a boolean.
+
+**Alternatives considered:** Keep every unknown usage path collapsed and accept that the provider schema cannot be diagnosed; persist raw response keys or whole bodies; or broaden the counter allowlist based on an unknown numeric match.
+
+**Reason:** The approved diagnostic exposed an ACCOUNT-shaped NUMBER at `response_body.usage.other_field.other_field`, but the two names were intentionally hidden, preventing comparison with the existing Chat Completions, Responses, and Gemini usage contracts. A tightly bounded, vault-checked identifier path supplies only the schema clue needed to distinguish known usage shapes, while preserving the rule that unrecognized values remain blocked.
+
+**Consequences:** Safe path metadata may contain only validated technical identifiers beneath the provider usage container, plus node type and a `known_other_protocol` boolean; no response values, raw keys outside that scope, reasoning, or bodies are persisted. This is diagnostic only and does not authorize any new counter exemption or change business scoring.
+## [2026-10-29] Exempt only schema-validated protocol metadata from semantic privacy matches
+
+**Decision:** The inbound response guard may treat a sensitive-shaped value as technical metadata only when it is one of the fields the selected protocol documents at its response root and the value satisfies that schema: an opaque provider-assigned id (bounded nonempty printable ASCII, no assumed prefix), the configured model echoed at the model field, the protocol's fixed object discriminator, and a nonnegative integer creation timestamp. On the exact configured OpenCode Go Zen route it may also treat `usage.opencode.allowance` and `usage.opencode.list_cost` as technical amounts when each is a finite nonnegative JSON number. The exemption is derived from the adapter's validated configuration, reported as a value-free kind/path/node-type record, and never extends to usage containers, unknown fields, arbitrary nested `id`/`model`/`usage` lookalikes, model content, reasoning, tool arguments or sensitive keys.
+
+**Alternatives considered:** Keep blocking every metadata match and accept that a conforming provider response stops the run; exempt whole metadata/usage objects or every `id`/`model` field anywhere in the object; relax the account detector; coerce string or negative values into numbers; or infer route identity from the response body.
+
+**Reason:** The snapshot19 one-case diagnostic proved a decoded semantic ACCOUNT match at `response_body.id` plus the two Go accounting fields of a real Chat Completions response, while earlier controlled cases had shown that duplicate keys or Unicode escapes can also make a raw serialized scan disagree with the decoded walk. Primary contracts define these fields as provider-assigned strings, fixed literals, Unix timestamps and USD JSON numbers, so validating them exactly is a narrow, reviewable boundary instead of a context-free financial exception. Historical freeze04/08/10 bodies remain unrecoverably redacted and are not regraded.
+
+**Consequences:** Malformed metadata (wrong type, empty or non-ASCII id, wrong discriminator, fractional/negative timestamp, string/negative/overflowing amount) becomes a safe `INVALID_PROTOCOL_METADATA` protocol error instead of a privacy refusal; duplicate keys, invalid/trailing JSON and unsupported roots still fail closed. The semantic masking scorer advances to v3 with unchanged business gates, case identities and denominators, and the device/host evidence records only validated-metadata kinds, allowlisted paths and node types. Serialized-body matches remain diagnostic.
+
+## [2026-10-29] Repair one pre-dispatch UNKNOWN_TOKEN response with fixed feedback instead of changing the token contract
+
+**Decision:** Keep the masked-value token shape, every inbound/outbound semantic scan and the unknown/foreign rejection exactly as they are, and add exactly one host-issued repair opportunity per run: when the complete response body scan refuses with `UNKNOWN_TOKEN` before any call in that response was dispatched, discard the whole refused response (including any tool calls it carried), charge the attempt to the turn budget, append one fixed versioned shape-only notice (`s8-agent-masking-repair/v1`, context `s8-agent-context/v5`) as a dynamic prompt tail, and re-issue the same turn once. The replacement response is fully rescanned. A second `UNKNOWN_TOKEN`, or any `FOREIGN_TOKEN`, raw-literal/decoded-sensitive, malformed-JSON or metadata refusal, stays terminal, with no spelling, raw-value, endpoint, protocol or model fallback.
+
+**Alternatives considered:** (a) Short typed aliases such as `[AMOUNT_1]`; (b) making non-mintable bracket text prose so it can never abort a turn; (c) removing the last required token copy in `select_source.quote`; (d) display-only labels with references-only authority; (e) a blind resample with no feedback. Measured evidence: the refusal is content-dependent (same freeze/model: 8/24 refusals in batch 18 versus 1/3 in the a19 reproduction), the offending strings were bare kind markers (`⟦AMT⟧`, `⟦DATE⟧`), and zero near-miss/altered copies existed.
+
+**Reason:** Aliases and prose narrowing do not remove the class — an invented alias-shaped string must still be refused (same friction) or accepted (weakening) — and short aliases lose positive foreign detection, add an ingestion-escape obligation, and need a stored-history epoch because persisted display text would no longer be inert. Making `⟦…⟧` prose is an acceptance change that also does not fix the user-literal collision. Fixed feedback is the only lever aimed at the measured trigger: it tells the model the syntax rule it violated without echoing anything the guard refused (the refused string can itself be a raw known surface or another session's token, so echo would leak), and it contains no bracket-shaped example the model could copy back. One bounded re-issue is a correction-loop improvement, not an acceptance relaxation: token shape, display, all semantic scans and every terminal category are unchanged.
+
+**Consequences:** The privacy rule is now a versioned exception instead of a blanket "never retried" sentence, and the stable instruction block advances to v5 (changing the cache identity, not the token contract). The repair notice must stay bracket-free and versioned; the refused attempt consumes a turn, so a run at its turn bound repairs nothing. Three protocol adapters must lower the notice natively (`appendUserNotice`), which is why the adapter interface gained that method with a fail-closed default. Chronology is recorded content-free (`masking_repairs`: attempt, reason, reissued/terminal) in durable history and qualification. Any future attempt to shorten the token, admit bare placeholders, or retry other masking categories re-opens the leak/weakness risks this decision avoided.
+
+## [2026-10-29] Make provider reasoning non-guard input and always inject the issued-token inventory
+
+**Decision:** The decoded-response privacy guard classifies every decoded value into an explicit channel. Provider reasoning/thinking (`choices[].message.reasoning_content`/`reasoning`, Gemini `thought` parts and `thoughtSignature`, Responses `type: "reasoning"` items) is never guard input; the model's user-visible answer and its tool-call arguments stay scanned in the decoded body, in the gateway before publication/dispatch, and (arguments) again in the typed tool runtime. Every model turn ends with `s8-agent-token-inventory/v1`, the run vault's complete issued-token list (token and kind only, mint order), and the stable prompt block advances to `s8-agent-context/v6`, which is now part of the cache identity.
+
+**Alternatives considered:** Rewriting the strict streaming scan as a DOM walk (would re-implement metadata/usage validation and risk accepted behavior); exempting whole model-output containers at the body level (loses the accepted refusal location/repair path for answers and arguments); an optional `list_tokens` tool (owner requires automatic inventory, not model cooperation); truncating the inventory to fit the budget (silently hides issued tokens); removing the bounded UNKNOWN_TOKEN repair (still reachable for protocol-channel findings, so not truly dead).
+
+**Reason:** The a19-a22 refusal class came from invented token notation inside the model's own reasoning, which the decoded-body scan treated as content. Reasoning is never displayed, rehydrated or used as authority, so guarding it only produced spurious terminal stops; answer and argument enforcement are the points that actually prevent leaks and unauthorized dispatch. A positional pre-scan resolves the sibling `thought`/`type` discriminators a single streaming pass cannot see, leaving the accepted JSON, metadata and usage behavior unchanged. The inventory exists because the model can only copy a token it has been shown; re-issuing it every turn removes reliance on memory without exposing mappings.
+
+**Consequences:** A new protocol reasoning channel must be added to the classifier or it will be guarded (false refusals return). The inventory grows with the vault (bounded at 256 entries) and is charged to the context budget: a prompt plus inventory that cannot fit stops with `CONTEXT_BUDGET` instead of dropping entries. Reasoning may still be retained/replayed natively for protocol continuation but is never promoted into answer text; the run cache identity changes whenever the prompt contract changes.
+
+## [2026-10-30] Retain opaque provider continuation state, strip only plaintext reasoning
+
+**Decision:** Keep Gemini `thoughtSignature` and the Responses `encrypted_content` blob byte-identical in retained continuations while dropping only plaintext reasoning prose (`thought` text, Responses `summary`/`content`/`text`); Chat Completions continues to retain no reasoning. The Responses fixture uses an opaque value in `encrypted_content` and raw only in the plaintext summary.
+**Alternatives considered:** Stripping `encrypted_content` with the prose (destroys provider-required continuation state the stateless resend contract depends on); keeping whole reasoning items verbatim (replays mapped raw literals, the r1 finding); reintroducing inbound reasoning rejection (violates the owner-approved inbound-freedom rule).
+**Reason:** The S8.5 live captures show Responses stateless chaining resends function_call+output items with no reasoning item in this probe, while Gemini always echoes `thoughtSignature` per turn; the Chat live second request proves reasoning prose needs no retention. An opaque blob is provider state, never displayable plaintext, so scrubbing must target only the plaintext fields the adapters actually parse.
+**Consequences:** A future reasoning item whose only sensitive content is inside `encrypted_content` cannot leak as plaintext through our resend; a provider that encrypts plaintext into that blob is outside our visibility. Tests assert the opaque blob survives and plaintext does not.
+
+## [2026-10-31] Bind diagnostic harness launches to one explicit ordered invocation
+
+**Decision:** Represent each diagnostic launch with one `ReproductionInvocation` containing the
+attempt ID, snapshot ID, run name and ordered case IDs, and require those values together at the
+runner boundary.
+
+**Alternatives considered:** Keep independent hardcoded allowlists in the Android test; infer the
+selection from a prior attempt or snapshot; or pass separate per-component identity values that
+the preflight, instrumentation and collector reconcile later.
+
+**Reason:** The a26 launch blocker showed that the host runner and instrumentation could disagree
+about attempt, snapshot and selected cases before reaching the executor. A single explicit input
+lets preflight validate the actual mapped selection before credentials, and makes the same order
+and identity available to every producer and collector without changing the fixture or scorer.
+
+**Consequences:** A diagnostic subset must be frozen and launched with the same exact invocation;
+changing identity or order requires a fresh candidate freeze and Main approval. No old-case or
+old-snapshot alias is part of this contract.
+
+## [2026-10-30] Teach the merchant counterparty distinction with model-facing fewshots only
+
+**Decision:** Fix the item-promoted-to-merchant failure with focused `select_source`/`record_event` descriptions and `event-reading/4` examples (absent null, explicit stored, uncertain null), bumping the skill version and cache identity, while leaving toolset shape, runtime validation, fixtures and scorer untouched.
+**Alternatives considered:** Adding a new merchant value-alias tool or API; loosening the scorer safety stop for present-but-wrong merchants; rewriting frozen fixtures with new merchant cases.
+**Reason:** The host already accepts the correct handle (exact merchant-substring source alias); the gap is purely model-facing guidance, and the scorer correctly treats a wrong present merchant as a financial-safety stop. New APIs, gate loosening or fixture rewrites would widen the contract instead of closing the guidance gap.
+**Consequences:** The skill catalog version moves 3 to 4 and the tool-schema digest moves with the description text; all consumers must migrate together. No new training examples enter the frozen suites and no old batch is rescored.

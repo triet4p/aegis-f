@@ -98,6 +98,7 @@ sealed interface AgentRunFailure {
             is HostedProviderFailure.Redirected ->
                 Terminal("redirected:${failure.status}", failure.detail)
             is HostedProviderFailure.ModelMismatch -> Terminal("model_mismatch")
+            is HostedProviderFailure.PrivacyBlocked -> Terminal("masking_blocked")
             is HostedProviderFailure.InvalidResponse -> SchemaRepair(failure.detail)
         }
 

@@ -10,27 +10,40 @@ import io.github.triet4p.aegisf.provider.HostedToolDeclaration
 import io.github.triet4p.aegisf.provider.HostedToolResult
 import io.github.triet4p.aegisf.provider.HostedTurn
 import io.github.triet4p.aegisf.provider.HostedTurnFinish
+import io.github.triet4p.aegisf.provider.HostedResponsePrivacyGuard
+import io.github.triet4p.aegisf.provider.HostedResponsePrivacyResult
 
 /**
  * The only supported production path from a masked agent session to a provider adapter.
  *
  * [MaskedHostedGateway] wraps one [HostedGenerationAdapter] and the [MaskedPromptBoundary] of
- * the same session. It masks the system instruction, user instruction and tool-result JSON on
- * the way out, keeps the protocol's own required continuation items byte-identical, and blocks
- * inbound model text that carries raw literals or foreign tokens before anything may act on it.
+ * the same session. It masks the system instruction, user instruction, tool-result JSON and the
+ * host's per-turn token inventory on the way out, keeps the protocol's own required continuation
+ * items byte-identical, and scans the decoded provider JSON before an adapter parses it.
+ *
+ * Guard scope follows the owner-approved channel boundary: provider reasoning/thinking is never
+ * guard input, while the parsed assistant answer is checked before publication and the parsed
+ * tool-call argument text before any dispatch.
  *
  * Mask or block is the rule: [begin] and [continueWithToolResults] throw
- * [MaskingBlockedException] instead of emitting an unmaskable request, and an inbound turn
- * that fails [MaskedPromptBoundary.scanInbound] returns as an `Incomplete("masking_blocked")`
- * turn with no dispatchable calls and no continuation. There is intentionally no raw
- * passthrough: the wrapped adapter is private and never exposed, so production code cannot
- * bypass the boundary by accident.
+ * [MaskingBlockedException] instead of emitting an unmaskable request. A response that fails the
+ * decoded-body scan becomes a privacy-blocked provider result, which the executor maps to an
+ * `Incomplete("masking_blocked")` outcome with no dispatch or continuation. There is
+ * intentionally no raw passthrough: the wrapped adapter is private and never exposed, so
+ * production code cannot bypass the boundary by accident.
  */
 class MaskedHostedGateway(
     private val adapter: HostedGenerationAdapter,
     val boundary: MaskedPromptBoundary,
-) {
+) : HostedResponsePrivacyGuard {
     val protocol = adapter.protocol
+    override fun scan(rawResponse: String, httpStatus: Int?): HostedResponsePrivacyResult =
+        boundary.scanInboundResponseJson(
+            body = rawResponse,
+            protocol = protocol,
+            httpStatus = httpStatus,
+            metadataPolicy = adapter.responseMetadataPolicy(),
+        )
 
     /**
      * The wrapped adapter's value-free provider identity (protocol/host/model/budget),
@@ -88,7 +101,7 @@ class MaskedHostedGateway(
         tools: List<HostedToolDeclaration>,
     ): HostedGenerationResult {
         conversation.requireBoundary(boundary)
-        val result = adapter.generate(conversation.inner, tools)
+        val result = adapter.generateGuarded(conversation.inner, tools, this)
         val turn = (result as? HostedGenerationResult.Turn)?.turn ?: return result
         return HostedGenerationResult.Turn(maskTurnOrBlock(turn))
     }
@@ -96,12 +109,17 @@ class MaskedHostedGateway(
     fun continueWithToolResults(
         conversation: MaskedConversation,
         results: List<HostedToolResult>,
+        hostNotice: String? = null,
     ): MaskedConversation {
         conversation.requireBoundary(boundary)
         val masked = results.map { result ->
             HostedToolResult(result.callId, boundary.maskToolResultJson(result.outputJson))
         }
-        return MaskedConversation(adapter.continueWithToolResults(conversation.inner, masked), boundary)
+        val maskedNotice = hostNotice?.let { maskOrThrow(it) }
+        return MaskedConversation(
+            adapter.continueWithToolResults(conversation.inner, masked, maskedNotice),
+            boundary,
+        )
     }
 
     /**
@@ -110,9 +128,28 @@ class MaskedHostedGateway(
      */
     fun maskContext(text: String, path: MaskedPath = MaskedPath.CONTEXT): String = maskOrThrow(text)
 
+    /**
+     * Appends the fixed, host-authored masking-repair notice as the next native user turn.
+     *
+     * The notice is masked outbound like any other prompt text (it carries no value, so the
+     * call normally passes unchanged) and the returned conversation is bound to this gateway.
+     * No pending call may exist: the refused response was discarded whole, so nothing needs an
+     * answer and no unmatched tool-call continuation can be produced.
+     */
+    fun withRepairNotice(conversation: MaskedConversation, notice: String): MaskedConversation {
+        conversation.requireBoundary(boundary)
+        val masked = maskOrThrow(notice)
+        return MaskedConversation(adapter.appendUserNotice(conversation.inner, masked), boundary)
+    }
+
     private fun maskOrThrow(text: String): String = boundary.maskOutbound(text, MaskedPath.CONTEXT)
 
     private fun maskTurnOrBlock(turn: HostedTurn): HostedTurn {
+        // The two enforced model-output points. Provider reasoning never reaches this function:
+        // adapters skip thought-marked calls and scrub plaintext reasoning prose while keeping
+        // opaque pairing state (Gemini thoughtSignature, Responses encrypted_content), and
+        // reasoning is never returned as answer text nor as a call argument, so it cannot block
+        // a turn, be published, or dispatch an effect.
         turn.assistantText?.let { text ->
             if (boundary.scanInbound(text) is InboundScan.Refused) return blockedTurn(turn)
         }

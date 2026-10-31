@@ -566,6 +566,7 @@ def action_run(args: argparse.Namespace) -> int:
         "-e", "S813_PASS", "1",
         "-e", "S813_ATTEMPT_ID", ATTEMPT_ID,
         "-e", "S813_BATCH_ID", BATCH_ID,
+        "-e", "S813_SNAPSHOT_ID", SNAPSHOT_ID,
         "-e", "S813_CASE_IDS", ",".join(CASE_IDS),
         "-e", key_name, key,
         f"{TEST_PACKAGE}/{apk_ids['test_runner']}",

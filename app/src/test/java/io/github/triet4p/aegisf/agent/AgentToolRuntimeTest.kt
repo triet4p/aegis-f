@@ -357,6 +357,115 @@ class AgentToolRuntimeTest {
     }
 
     @Test
+    fun `a stated merchant is recorded through an exact substring source handle`() = runBlocking {
+        val merchantId = storeCapture("s8.13-pre-runtime-merchant", MERCHANT_TEXT)
+        val runtime = runtimeFor(
+            WorkflowCallerScope.AgentSession(scope.scopeId, setOf(captureId, merchantId), emptySet()),
+        )
+        val capture = observeCapture(runtime, merchantId)
+        val maskedSource = capture.getString("source_text")
+        val occurrence = selectSource(runtime, capture.getString("ref"), maskedSource.substringBefore(';').trim())
+        val merchant = selectSource(runtime, capture.getString("ref"), "Highlands")
+        assertNotEquals("the merchant needs its own handle", occurrence.getString("source_ref"), merchant.getString("source_ref"))
+        assertEquals("Highlands", merchant.getString("quote"))
+
+        val recorded = record(
+            runtime, occurrence.getString("source_ref"), valueRef(occurrence, "amount"),
+            makeAnchor(runtime, valueRef(occurrence, "date"), valueRef(occurrence, "time")),
+            "Lunch at Highlands", "none", merchant.getString("source_ref"),
+        )
+        assertEquals(recorded.toString(), "ok", recorded.getString("outcome"))
+        assertEquals("applied", recorded.getString("effect"))
+        assertTrue(recorded.getBoolean("verified"))
+        val stored = database.noteEventDao().findForCapture(merchantId).single()
+        assertEquals("Highlands", stored.merchant)
+        assertEquals(28_000L, stored.amountVnd)
+        assertEquals("2026-10-21", stored.anchorDate)
+        assertEquals("12:30", stored.anchorTime)
+        assertNull(stored.unresolvedReason)
+        assertTrue("a merchant selection is not a business write", database.transactionDao().findAll().isEmpty())
+        assertEquals(1L, database.workflowOperationDao().countOf("UPDATE_EVENT"))
+    }
+
+    @Test
+    fun `two occurrences keep their own merchant mapping without a third event`() = runBlocking {
+        val multiId = storeCapture("s8.13-pre-runtime-merchant-multi", MERCHANT_TEXT)
+        val runtime = runtimeFor(
+            WorkflowCallerScope.AgentSession(scope.scopeId, setOf(captureId, multiId), emptySet()),
+        )
+        val capture = observeCapture(runtime, multiId)
+        val maskedSource = capture.getString("source_text")
+        val conversation = maskedSource.substringBefore(';').trim()
+        val taxi = maskedSource.substringAfter(';').trim()
+        val lunch = selectSource(runtime, capture.getString("ref"), conversation)
+        val merchant = selectSource(runtime, capture.getString("ref"), "Highlands")
+        val taxiSource = selectSource(runtime, capture.getString("ref"), taxi)
+
+        val first = record(
+            runtime, lunch.getString("source_ref"), valueRef(lunch, "amount"),
+            makeAnchor(runtime, valueRef(lunch, "date"), valueRef(lunch, "time")),
+            "Lunch at Highlands", "none", merchant.getString("source_ref"),
+        )
+        val second = record(
+            runtime, taxiSource.getString("source_ref"), valueRef(taxiSource, "amount"),
+            makeAnchor(runtime, valueRef(taxiSource, "date"), valueRef(taxiSource, "time")),
+            "Taxi", "none",
+        )
+        assertEquals(first.toString(), "ok", first.getString("outcome"))
+        assertEquals(second.toString(), "ok", second.getString("outcome"))
+        val rows = database.noteEventDao().findForCapture(multiId).sortedBy { it.spanStart }
+        assertEquals(2, rows.size)
+        assertEquals("Highlands", rows[0].merchant)
+        assertNull(rows[1].merchant)
+        assertEquals(setOf(28_000L, 65_000L), rows.mapNotNull { it.amountVnd }.toSet())
+        assertEquals(2L, database.workflowOperationDao().countOf("UPDATE_EVENT"))
+        assertTrue(database.transactionDao().findAll().isEmpty())
+    }
+
+    @Test
+    fun `a merchant handle outside the recorded occurrence or capture is refused`() = runBlocking {
+        val merchantId = storeCapture("s8.13-pre-runtime-merchant-guard", MERCHANT_TEXT)
+        val runtime = runtimeFor(
+            WorkflowCallerScope.AgentSession(scope.scopeId, setOf(captureId, merchantId), emptySet()),
+        )
+        val capture = observeCapture(runtime, merchantId)
+        val maskedSource = capture.getString("source_text")
+        val lunch = selectSource(runtime, capture.getString("ref"), maskedSource.substringBefore(';').trim())
+        val taxi = selectSource(runtime, capture.getString("ref"), maskedSource.substringAfter(';').trim())
+        val merchant = selectSource(runtime, capture.getString("ref"), "Highlands")
+
+        // The merchant span is inside the first occurrence, not the second one.
+        val outOfSpan = record(
+            runtime, taxi.getString("source_ref"), valueRef(taxi, "amount"),
+            makeAnchor(runtime, valueRef(taxi, "date"), valueRef(taxi, "time")),
+            "Taxi", "none", merchant.getString("source_ref"),
+        )
+        assertEquals("error", outOfSpan.getString("outcome"))
+        assertEquals("REFERENCE_KIND_MISMATCH", outOfSpan.getJSONObject("error").getString("code"))
+        assertEquals("none", outOfSpan.getString("effect"))
+        assertEquals(
+            "$.merchant_ref",
+            outOfSpan.getJSONObject("error").getJSONArray("issues").getJSONObject(0).getString("path"),
+        )
+        assertTrue(database.noteEventDao().findForCapture(merchantId).isEmpty())
+
+        // A handle issued for another capture never becomes merchant evidence here.
+        val foreignCapture = observeCapture(runtime)
+        val foreignSource = selectSource(runtime, foreignCapture.getString("ref"), foreignCapture.getString("source_text"))
+        val foreignMerchant = record(
+            runtime, foreignSource.getString("source_ref"), valueRef(foreignSource, "amount"),
+            makeAnchor(runtime, valueRef(foreignSource, "date"), null), "Lunch", "none",
+            merchant.getString("source_ref"),
+        )
+        assertEquals("error", foreignMerchant.getString("outcome"))
+        assertEquals("REFERENCE_KIND_MISMATCH", foreignMerchant.getJSONObject("error").getString("code"))
+        assertEquals("none", foreignMerchant.getString("effect"))
+        assertTrue(database.noteEventDao().findForCapture(merchantId).isEmpty())
+        assertTrue(database.noteEventDao().findForCapture(captureId).isEmpty())
+        assertEquals(0L, database.workflowOperationDao().countOf("UPDATE_EVENT"))
+    }
+
+    @Test
     fun `partial reading plus linked clarification resumes and replaces the value`() = runBlocking {
         val taxiCapture = commands.saveCapture(
             WorkflowCallerScope.User,
@@ -1012,6 +1121,12 @@ class AgentToolRuntimeTest {
 
     // ---- Helpers -------------------------------------------------------------------------
 
+    private suspend fun storeCapture(key: String, text: String): Long {
+        val saved = commands.saveCapture(WorkflowCallerScope.User, SaveCaptureRequest(key, text))
+            as WorkflowCommandOutcome.Applied
+        return (saved.change as WorkflowChange.CaptureSaved).captureId
+    }
+
     private fun runtimeFor(sessionScope: WorkflowCallerScope.AgentSession): AgentToolRuntime =
         AgentToolRuntime(
             commands = commands,
@@ -1087,6 +1202,7 @@ class AgentToolRuntimeTest {
         anchorRef: String?,
         summary: String,
         clarification: String,
+        merchantRef: String? = null,
     ): JSONObject = runtime.execute(
         "record_event",
         JSONObject()
@@ -1094,7 +1210,7 @@ class AgentToolRuntimeTest {
             .put("summary", summary)
             .put("amount_ref", amountRef ?: JSONObject.NULL)
             .put("anchor_ref", anchorRef ?: JSONObject.NULL)
-            .put("merchant_ref", JSONObject.NULL)
+            .put("merchant_ref", merchantRef ?: JSONObject.NULL)
             .put("clarification", clarification),
         // Each call is a distinct host-issued operation identity; only an explicit
         // replay_operation repeats a recorded one.
@@ -1252,6 +1368,8 @@ class AgentToolRuntimeTest {
 
     private companion object {
         const val SOURCE_TEXT = "Lunch 28,000 VND on 2026-10-21 at 12:30"
+        const val MERCHANT_TEXT =
+            "Lunch 28,000 VND at Highlands on 2026-10-21 at 12:30; taxi 65,000 VND on 2026-10-21 at 13:05."
         const val TWO_TEXT = "Coffee 15,000 VND on 2026-10-21 | Taxi 40,000 VND on 2026-10-21"
         const val INTERVAL_TEXT = "Meeting 2026-10-21 from 09:00 to 17:00"
         const val EQUAL_INTERVAL_TEXT = "Standup 2026-10-21 09:00 to 09:00"

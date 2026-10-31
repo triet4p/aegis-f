@@ -29,7 +29,12 @@ and no release has been tagged or published. Format follows
   and `make_time_anchor` builds an anchor from those aliases, while capture-page value aliases are
   display-only and are never accepted as occurrence evidence. The skill version and cache identity
   changed with the content; the registry, binding checks and all tool behavior are unchanged.
-
+- Focused the `event-reading/4` `select_source`/`record_event` merchant guidance and
+  examples: only an explicitly named seller-or-place counterparty is a merchant, recorded through
+  a second `select_source` on that exact substring; a product, item or activity description is
+  never promoted into `merchant_ref`, and an absent or uncertain optional merchant stays null
+  with clarification `none` rather than becoming clarification-required or a failed reading.
+  Tool and skill schemas, runtime validation, scoring and fixtures are unchanged.
 - Fixed the redesigned agent interface's temporal, effect and correction guarantees. A same-day
   interval now accepts an increasing end and rejects an end at or before its start (the previous
   comparison was inverted); a failed, pending or unreadable write reports `effect: unknown` instead

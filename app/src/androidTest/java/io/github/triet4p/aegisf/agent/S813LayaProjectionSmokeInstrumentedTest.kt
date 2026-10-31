@@ -65,6 +65,23 @@ class S813LayaProjectionSmokeInstrumentedTest {
     fun actualLayaLogitsAndOversizeRefusalUseTheProductionServices() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val instrumentationContext = InstrumentationRegistry.getInstrumentation().context
+        val args = InstrumentationRegistry.getArguments()
+        val attemptId = s813ValidatedPathComponent(args.getString("S813_ATTEMPT_ID") ?: "S8.13-replan-a7")
+        val snapshotId = s813ValidatedPathComponent(args.getString("S813_SNAPSHOT_ID"))
+        val runName = args.getString("S813_RUN_NAME")?.let(::s813ValidatedPathComponent)
+        val caseIds = if (runName == null) {
+            require(args.getString("S813_CASE_IDS") == null) { "case IDs require a diagnostic run name" }
+            emptyList()
+        } else {
+            val mapping = JSONObject(
+                String(
+                    instrumentationContext.assets.open("s8_agent_v3_qualification_fixture.json").use { it.readBytes() },
+                    Charsets.UTF_8,
+                ),
+            )
+            val knownCaseIds = s813KnownDiagnosticCaseIds(mapping)
+            s813DiagnosticCaseIds(args.getString("S813_CASE_IDS"), knownCaseIds)
+        }
         val fixtureBytes = instrumentationContext.assets.open("s8_agent_fixture.json").use { it.readBytes() }
         val projectionBytes = instrumentationContext.assets.open("s8_agent_runtime_fixture_v3.json").use { it.readBytes() }
         val fixture = JSONObject(String(fixtureBytes, Charsets.UTF_8))
@@ -108,7 +125,10 @@ class S813LayaProjectionSmokeInstrumentedTest {
             val linkEvidence = assertLinkFixturePreflight(context, fixture, projection, lifecycle)
             val record = JSONObject()
                 .put("task_id", "S8.13")
-                .put("attempt_id", "S8.13-replan-a7")
+                .put("attempt_id", attemptId)
+                .put("snapshot_id", snapshotId)
+                .put("run_name", runName ?: JSONObject.NULL)
+                .put("case_ids", JSONArray(caseIds))
                 .put("projection_id", projection.getString("projection_id"))
                 .put("synthetic_only", true)
                 .put("hosted_provider_calls", 0)
@@ -121,7 +141,8 @@ class S813LayaProjectionSmokeInstrumentedTest {
                 .put("runtime_prepare", "pinned local model opened with its production probe")
                 .put("cases", evidence)
                 .put("link_preflight", linkEvidence)
-            val output = File(context.filesDir, "S8.13-replan-a7/laya-smoke.json")
+            val output = File(context.filesDir, "$attemptId/$snapshotId/laya-smoke.json")
+            check(!output.exists()) { "refusing to overwrite retained local Laya smoke evidence" }
             output.parentFile?.mkdirs()
             output.writeText(record.toString(2))
         } finally {

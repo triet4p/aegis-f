@@ -1,7 +1,18 @@
 package io.github.triet4p.aegisf.privacy
 
+import io.github.triet4p.aegisf.agent.AgentContextManager
 import io.github.triet4p.aegisf.provider.HostedAdapters
+import io.github.triet4p.aegisf.provider.HostedProviderFailure
 import io.github.triet4p.aegisf.provider.HostedGenerationResult
+import io.github.triet4p.aegisf.provider.HostedProtocol
+import io.github.triet4p.aegisf.provider.HostedResponseMetadataKind
+import io.github.triet4p.aegisf.provider.HostedResponseMetadataPolicy
+import io.github.triet4p.aegisf.provider.HostedResponsePrivacyRefusal
+import io.github.triet4p.aegisf.provider.HostedResponsePrivacyRefusalReason
+import io.github.triet4p.aegisf.provider.HostedResponsePrivacyResult
+import io.github.triet4p.aegisf.provider.HostedResponseProtocolErrorReason
+import io.github.triet4p.aegisf.provider.HostedResponseRecognizedCounter
+import io.github.triet4p.aegisf.provider.HostedResponseValidatedMetadata
 import io.github.triet4p.aegisf.provider.HostedHttpRequest
 import io.github.triet4p.aegisf.provider.HostedHttpResponse
 import io.github.triet4p.aegisf.provider.HostedToolResult
@@ -47,11 +58,14 @@ class MaskedBoundaryTest {
     private class RecordingTransport(vararg replies: HostedHttpResponse) : HttpTransport {
         private val queued = ArrayDeque(replies.toList())
         val requests = mutableListOf<HostedHttpRequest>()
+        val responses = mutableListOf<HostedHttpResponse>()
         val bodies get() = requests.map { it.body }
         override suspend fun post(request: HostedHttpRequest): HostedHttpResponse {
             requests += request
-            return queued.removeFirstOrNull()
+            val response = queued.removeFirstOrNull()
                 ?: throw IllegalStateException("no queued answer for request ${requests.size}")
+            responses += response
+            return response
         }
     }
 
@@ -72,6 +86,56 @@ class MaskedBoundaryTest {
             HostedAdapters.create(config, transport),
             MaskedPromptBoundary(SensitiveVault(scopeId)),
         )
+    }
+
+    private fun responseRefusal(
+        boundary: MaskedPromptBoundary,
+        body: String,
+        protocol: HostedProtocol = HostedProtocol.OPENAI_CHAT_COMPLETIONS,
+        httpStatus: Int? = 200,
+        metadataPolicy: HostedResponseMetadataPolicy? = null,
+    ): HostedResponsePrivacyRefusal {
+        val result = boundary.scanInboundResponseJson(body, protocol, httpStatus, metadataPolicy)
+        assertTrue(result is HostedResponsePrivacyResult.Refused)
+        return (result as HostedResponsePrivacyResult.Refused).refusal
+    }
+
+    private fun assertResponseAccepted(
+        boundary: MaskedPromptBoundary,
+        body: String,
+        protocol: HostedProtocol = HostedProtocol.OPENAI_CHAT_COMPLETIONS,
+        httpStatus: Int? = 200,
+        metadataPolicy: HostedResponseMetadataPolicy? = null,
+    ): HostedResponsePrivacyResult {
+        val result = boundary.scanInboundResponseJson(body, protocol, httpStatus, metadataPolicy)
+        assertTrue(
+            result is HostedResponsePrivacyResult.Accepted ||
+                result is HostedResponsePrivacyResult.AcceptedWithValidatedCounters ||
+                result is HostedResponsePrivacyResult.AcceptedWithValidatedMetadata,
+        )
+        return result
+    }
+
+    private fun assertResponseRefused(
+        boundary: MaskedPromptBoundary,
+        body: String,
+        reason: HostedResponsePrivacyRefusalReason,
+        protocol: HostedProtocol = HostedProtocol.OPENAI_CHAT_COMPLETIONS,
+        httpStatus: Int? = 200,
+        metadataPolicy: HostedResponseMetadataPolicy? = null,
+    ) {
+        assertEquals(reason, responseRefusal(boundary, body, protocol, httpStatus, metadataPolicy).reason)
+    }
+
+    private fun responseProtocolError(
+        boundary: MaskedPromptBoundary,
+        body: String,
+        protocol: HostedProtocol = HostedProtocol.OPENAI_CHAT_COMPLETIONS,
+        httpStatus: Int? = 200,
+    ): HostedResponsePrivacyResult.ProtocolError {
+        val result = boundary.scanInboundResponseJson(body, protocol, httpStatus)
+        assertTrue(result is HostedResponsePrivacyResult.ProtocolError)
+        return result as HostedResponsePrivacyResult.ProtocolError
     }
 
     private fun maskedAmounts(gateway: MaskedHostedGateway, values: List<String>): List<String> =
@@ -196,6 +260,70 @@ class MaskedBoundaryTest {
     }
 
     @Test
+    fun `provider reasoning is not guard input while the answer stays enforced`() {
+        val vault = SensitiveVault("s8.13-reasoning-token")
+        val boundary = MaskedPromptBoundary(vault)
+        val amountToken = vault.maskText("28,000 VND").substringBefore(' ')
+        val foreignToken = MaskedPromptBoundary(SensitiveVault("s8.13-other-scope"))
+            .maskOutbound("28,000 VND", MaskedPath.CONTEXT)
+            .substringBefore(' ')
+        fun chatBody(reasoning: String, answer: String = "ack"): String = JSONObject()
+            .put("id", "req_1")
+            .put("object", "chat.completion")
+            .put("created", 1)
+            .put("model", "m")
+            .put("choices", JSONArray().put(JSONObject()
+                .put("index", 0)
+                .put("message", JSONObject()
+                    .put("role", "assistant")
+                    .put("content", answer)
+                    .put("reasoning_content", reasoning))))
+            .toString()
+
+        // The provider's own thinking never blocks a response: arbitrary invented notation and
+        // sensitive-looking raw text inside it are not guard input.
+        val mutatedDigit = if (amountToken[amountToken.length - 2] == '9') '8' else '9'
+        val mutated = amountToken.dropLast(2) + mutatedDigit + "⟧"
+        for (reasoning in listOf(
+            "I will reuse $mutated for the amount.",
+            "Placeholder ⟦AMT-demo-1⟧ stands for the amount.",
+            "The syntax is ⟦token⟧ and ⟦UNMAPPED⟧ in this interface.",
+            "A cross-session value like $foreignToken must never appear.",
+            "The raw amount is 28,000 VND and the account is 4821.",
+            "The observed amount is $amountToken in the source.",
+        )) {
+            assertResponseAccepted(boundary, chatBody(reasoning))
+        }
+        // The same invalid content in the user-visible answer remains blocked.
+        assertResponseRefused(
+            boundary,
+            chatBody("thinking", answer = "I will reuse $mutated for the amount."),
+            HostedResponsePrivacyRefusalReason.UNKNOWN_TOKEN,
+        )
+        assertResponseRefused(
+            boundary,
+            chatBody("thinking", answer = "Placeholder ⟦AMT-demo-1⟧ stands for the amount."),
+            HostedResponsePrivacyRefusalReason.UNKNOWN_TOKEN,
+        )
+        assertResponseRefused(
+            boundary,
+            chatBody("thinking", answer = "A cross-session value like $foreignToken must never appear."),
+            HostedResponsePrivacyRefusalReason.FOREIGN_TOKEN,
+        )
+        assertResponseRefused(
+            boundary,
+            chatBody("thinking", answer = "The raw amount is 28,000 VND."),
+            HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH,
+        )
+        // Naming the concept without bracket syntax stays acceptable.
+        assertResponseAccepted(
+            boundary,
+            chatBody("thinking", answer = "The masked amount token is shown in the source text."),
+        )
+        assertEquals("no refusal may mint or rehydrate a value", 1, vault.entryCount())
+    }
+
+    @Test
     fun `overflow and ambiguous rehydration fail closed`() {
         val vault = SensitiveVault("s8.6-overflow", maxEntries = 2)
         val boundary = MaskedPromptBoundary(vault)
@@ -255,6 +383,1356 @@ class MaskedBoundaryTest {
             assertTrue(expected.message.orEmpty().isNotBlank())
         }
         assertTrue(transport.requests.isEmpty())
+    }
+
+    @Test
+    fun `unparsed raw response fields are refused before tool continuation`() = runBlocking {
+        val rawSource = "Salary 15,000,000 VND on 2026-10-25 to account ending 4821."
+        for (protocol in io.github.triet4p.aegisf.provider.HostedProtocol.values()) {
+            val transport = RecordingTransport(
+                ProviderFixtures.reply(privacyResponseWithHiddenRawValue(protocol, rawSource)),
+            )
+            val gateway = gatewayOf("s8.13-raw-response-$protocol", transport, protocol)
+            val conversation = gateway.begin("Read synthetic data.", rawSource)
+
+            val result = gateway.generate(conversation, listOf(ProviderFixtures.echoTool))
+
+            assertTrue(result is HostedGenerationResult.ProviderFailure)
+            val failure = (result as HostedGenerationResult.ProviderFailure).failure
+            assertTrue(failure is HostedProviderFailure.PrivacyBlocked)
+            val refusal = (failure as HostedProviderFailure.PrivacyBlocked).refusal
+            assertEquals(HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH, refusal.reason)
+            assertTrue(refusal.sensitiveKind == "AMOUNT" || refusal.sensitiveKind == "DATE" ||
+                refusal.sensitiveKind == "TIME" || refusal.sensitiveKind == "ACCOUNT" ||
+                refusal.sensitiveKind == "BANK")
+            assertTrue(refusal.safeLocation.startsWith("response_body"))
+            assertFalse(rawSource in refusal.safeLocation)
+            assertEquals(1, transport.requests.size)
+        }
+    }
+
+    @Test
+    fun `gateway accepts invented reasoning notation and blocks the same answer content`() = runBlocking {
+        val vault = SensitiveVault("s8.13-gateway-reasoning")
+        val issued = vault.maskText("28,000 VND").substringBefore(' ')
+        val boundary = MaskedPromptBoundary(vault)
+        fun body(reasoning: String, content: String = "ack"): String = JSONObject()
+            .put("id", "chatcmpl-1")
+            .put("object", "chat.completion")
+            .put("created", 1)
+            .put("model", ProviderFixtures.chatConfig().model)
+            .put("choices", JSONArray().put(JSONObject()
+                .put("index", 0)
+                .put("finish_reason", "stop")
+                .put("message", JSONObject()
+                    .put("role", "assistant")
+                    .put("content", content)
+                    .put("reasoning_content", reasoning))))
+            .toString()
+        fun gateway(transport: RecordingTransport) = MaskedHostedGateway(
+            HostedAdapters.create(ProviderFixtures.chatConfig(), transport),
+            boundary,
+        )
+
+        // Invented, foreign and raw-looking notation in the provider's own thinking parses.
+        val acceptedTransport = RecordingTransport(
+            ProviderFixtures.reply(body("I will reuse ⟦AMT-ab-1234⟧ and pay 28,000 VND.")),
+        )
+        val acceptedGateway = gateway(acceptedTransport)
+        val turn = ProviderFixtures.turn(
+            acceptedGateway.generate(
+                acceptedGateway.begin("Read synthetic data.", "Lunch 28,000 VND"),
+                emptyList(),
+            ),
+        )
+        assertEquals(io.github.triet4p.aegisf.provider.HostedTurnFinish.Complete, turn.finish)
+        assertEquals("ack", turn.assistantText)
+        // Reasoning is neither promoted into the answer nor replayed as answer text.
+        assertFalse(turn.assistantText!!.contains("⟦"))
+        assertFalse(turn.assistantText!!.contains("28,000"))
+        assertEquals(1, acceptedTransport.requests.size)
+
+        // The same forged token in the final answer is refused before publication.
+        val refusedTransport = RecordingTransport(
+            ProviderFixtures.reply(body("thinking", "I will reuse ⟦AMT-ab-1234⟧ for the amount.")),
+        )
+        val refusedGateway = gateway(refusedTransport)
+        val refused = refusedGateway.generate(
+            refusedGateway.begin("Read synthetic data.", "Lunch 28,000 VND"),
+            emptyList(),
+        )
+        val failure = ProviderFixtures.failure(refused)
+        assertTrue(failure is HostedProviderFailure.PrivacyBlocked)
+        assertEquals(
+            HostedResponsePrivacyRefusalReason.UNKNOWN_TOKEN,
+            (failure as HostedProviderFailure.PrivacyBlocked).refusal.reason,
+        )
+        assertEquals("response_body.choices[].message.content",
+            failure.refusal.safeLocation)
+        assertEquals(1, refusedTransport.requests.size)
+
+        // A sensitive raw value in the answer is refused too, while the issued token is fine.
+        val leakedTransport = RecordingTransport(
+            ProviderFixtures.reply(body("thinking", "It cost 28,000 VND.")),
+        )
+        val leakedGateway = gateway(leakedTransport)
+        val leaked = leakedGateway.generate(
+            leakedGateway.begin("Read synthetic data.", "Lunch 28,000 VND"),
+            emptyList(),
+        )
+        assertEquals(
+            HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH,
+            (ProviderFixtures.failure(leaked) as HostedProviderFailure.PrivacyBlocked).refusal.reason,
+        )
+        val issuedTransport = RecordingTransport(
+            ProviderFixtures.reply(body("thinking", "The observed amount is $issued.")),
+        )
+        val issuedGateway = gateway(issuedTransport)
+        val issuedTurn = ProviderFixtures.turn(
+            issuedGateway.generate(
+                issuedGateway.begin("Read synthetic data.", "Lunch 28,000 VND"),
+                emptyList(),
+            ),
+        )
+        assertEquals(io.github.triet4p.aegisf.provider.HostedTurnFinish.Complete, issuedTurn.finish)
+    }
+
+    @Test
+    fun `duplicate and malformed provider JSON are refused before parsing`() = runBlocking {
+        val rawSource = "Salary 15,000,000 VND on 2026-10-25 to account ending 4821."
+        val bodies = listOf(
+            """{"untrusted":"safe","untrusted":"safe"}""",
+            """{"untrusted":""",
+        )
+        for (protocol in io.github.triet4p.aegisf.provider.HostedProtocol.values()) {
+            for ((index, body) in bodies.withIndex()) {
+                val transport = RecordingTransport(ProviderFixtures.reply(body))
+                val gateway = gatewayOf("s8.13-invalid-json-$protocol-$index", transport, protocol)
+                val conversation = gateway.begin("Read synthetic data.", rawSource)
+
+                val result = gateway.generate(conversation, listOf(ProviderFixtures.echoTool))
+
+                assertTrue(result is HostedGenerationResult.ProviderFailure)
+                val failure = (result as HostedGenerationResult.ProviderFailure).failure
+                assertTrue(failure is HostedProviderFailure.PrivacyBlocked)
+                val expectedReason = if (index == 0) {
+                    HostedResponsePrivacyRefusalReason.DUPLICATE_KEY
+                } else {
+                    HostedResponsePrivacyRefusalReason.INVALID_JSON
+                }
+                assertEquals(
+                    expectedReason,
+                    (failure as HostedProviderFailure.PrivacyBlocked).refusal.reason,
+                )
+                assertEquals(1, transport.requests.size)
+            }
+        }
+    }
+
+    @Test
+    fun `provider adapter scans original serialized response before parsing`() = runBlocking {
+        val rawSource = "account ending 4821"
+        val response = ProviderFixtures.reply(
+            """{"service_tier":"\u4821","model":"deepseek-v4.1-flash","choices":[{"message":{"role":"assistant","content":"safe"},"finish_reason":"stop"}]}""",
+        )
+        val transport = RecordingTransport(response)
+        val gateway = gatewayOf(
+            "s8.13-raw-escape-adapter",
+            transport,
+            io.github.triet4p.aegisf.provider.HostedProtocol.OPENAI_CHAT_COMPLETIONS,
+        )
+        val conversation = gateway.begin("Read synthetic data.", rawSource)
+
+        assertTrue(gateway.boundary.vault.scanLeak(response.body))
+        assertResponseAccepted(gateway.boundary, response.body)
+        val result = gateway.generate(conversation, emptyList())
+
+        assertTrue(result is HostedGenerationResult.Turn)
+        assertTrue(transport.responses.single() === response)
+        assertEquals(1, transport.requests.size)
+    }
+
+    @Test
+    fun `documented root metadata is schema validated before any exemption`() {
+        val vault = SensitiveVault("s8.13-root-metadata")
+        vault.maskText("account ending 7319")
+        val boundary = MaskedPromptBoundary(vault)
+        val goPolicy = HostedResponseMetadataPolicy(
+            protocol = HostedProtocol.OPENAI_CHAT_COMPLETIONS,
+            configuredModel = ProviderFixtures.chatConfig().model,
+            goUsageExtensions = true,
+        )
+        val nonGoPolicy = goPolicy.copy(goUsageExtensions = false)
+
+        val root = assertResponseAccepted(
+            boundary,
+            """{"id":"chatcmpl-7319","object":"chat.completion","created":1750000000,"model":"deepseek-v4.1-flash"}""",
+            metadataPolicy = goPolicy,
+        )
+        assertTrue(root is HostedResponsePrivacyResult.AcceptedWithValidatedMetadata)
+        assertEquals(
+            listOf(
+                HostedResponseValidatedMetadata(
+                    HostedResponseMetadataKind.PROVIDER_ID,
+                    "response_body.id",
+                    "STRING",
+                ),
+                HostedResponseValidatedMetadata(
+                    HostedResponseMetadataKind.OBJECT_DISCRIMINATOR,
+                    "response_body.object",
+                    "STRING",
+                ),
+                HostedResponseValidatedMetadata(
+                    HostedResponseMetadataKind.TIMESTAMP,
+                    "response_body.created",
+                    "NUMBER",
+                ),
+                HostedResponseValidatedMetadata(
+                    HostedResponseMetadataKind.MODEL_ECHO,
+                    "response_body.model",
+                    "STRING",
+                ),
+            ),
+            (root as HostedResponsePrivacyResult.AcceptedWithValidatedMetadata).metadata,
+        )
+
+        val accountingBody = """{"usage":{"opencode":{"allowance":7319.5,"list_cost":7319}}}"""
+        val accounting = assertResponseAccepted(boundary, accountingBody, metadataPolicy = goPolicy)
+        assertTrue(accounting is HostedResponsePrivacyResult.AcceptedWithValidatedMetadata)
+        assertEquals(
+            listOf(
+                "response_body.usage.opencode.allowance",
+                "response_body.usage.opencode.list_cost",
+            ),
+            (accounting as HostedResponsePrivacyResult.AcceptedWithValidatedMetadata)
+                .metadata
+                .map { it.safeLocation },
+        )
+        assertTrue(accounting.metadata.all { it.kind == HostedResponseMetadataKind.GO_USAGE_AMOUNT })
+        assertTrue(accounting.metadata.all { it.nodeType == "NUMBER" })
+
+        val nonGoRefusal = boundary.scanInboundResponseJson(
+            accountingBody,
+            HostedProtocol.OPENAI_CHAT_COMPLETIONS,
+            200,
+            nonGoPolicy,
+        )
+        assertTrue(nonGoRefusal is HostedResponsePrivacyResult.Refused)
+        val nonGo = (nonGoRefusal as HostedResponsePrivacyResult.Refused).refusal
+        assertEquals(HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH, nonGo.reason)
+        assertEquals("response_body.usage.opencode.allowance", nonGo.safeLocation)
+        assertEquals("NUMBER", nonGo.nodeType)
+        assertEquals("ACCOUNT", nonGo.sensitiveKind)
+
+        val malformedBodies = listOf(
+            """{"id":7319}""",
+            """{"id":""}""",
+            """{"id":"caf\u00e9"}""",
+            """{"created":"1750000000"}""",
+            """{"created":-1}""",
+            """{"created":1.5}""",
+            """{"object":"chat.completion.chunk"}""",
+            """{"model":7319}""",
+            """{"usage":{"opencode":{"allowance":"7319"}}}""",
+            """{"usage":{"opencode":{"allowance":-7319}}}""",
+            """{"usage":{"opencode":{"list_cost":1e999}}}""",
+            """{"usage":{"opencode":{"list_cost":true}}}""",
+        )
+        for (body in malformedBodies) {
+            val result = boundary.scanInboundResponseJson(
+                body,
+                HostedProtocol.OPENAI_CHAT_COMPLETIONS,
+                200,
+                goPolicy,
+            )
+            assertTrue("expected a protocol error for $body", result is HostedResponsePrivacyResult.ProtocolError)
+            assertEquals(
+                HostedResponseProtocolErrorReason.INVALID_PROTOCOL_METADATA,
+                (result as HostedResponsePrivacyResult.ProtocolError).reason,
+            )
+        }
+
+        assertResponseRefused(
+            boundary,
+            """{"choices":[{"message":{"id":"7319"}}]}""",
+            HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH,
+            metadataPolicy = goPolicy,
+        )
+        assertResponseRefused(
+            boundary,
+            """{"model":"other-model-7319"}""",
+            HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH,
+            metadataPolicy = goPolicy,
+        )
+        assertResponseRefused(
+            boundary,
+            """{"id":"chatcmpl-7319","id":"chatcmpl-7319"}""",
+            HostedResponsePrivacyRefusalReason.DUPLICATE_KEY,
+            metadataPolicy = goPolicy,
+        )
+    }
+
+    @Test
+    fun `metadata collision passes only at validated root fields through the real adapters`() = runBlocking {
+        val source = "account ending 7319"
+        val acceptedBody =
+            """{"id":"chatcmpl-7319","object":"chat.completion","created":1750000000,"model":"deepseek-v4.1-flash","choices":[{"message":{"role":"assistant","content":"safe"},"finish_reason":"stop"}],"usage":{"opencode":{"allowance":7319.5,"list_cost":7319}}}"""
+        val acceptedTransport = RecordingTransport(ProviderFixtures.reply(acceptedBody))
+        val acceptedGateway = gatewayOf(
+            "s8.13-root-metadata-adapter",
+            acceptedTransport,
+            HostedProtocol.OPENAI_CHAT_COMPLETIONS,
+        )
+        val turn = ProviderFixtures.turn(
+            acceptedGateway.generate(
+                acceptedGateway.begin("Read synthetic data.", source),
+                emptyList(),
+            ),
+        )
+        assertEquals("safe", turn.assistantText)
+        assertEquals(1, acceptedTransport.requests.size)
+
+        val contentBody =
+            """{"id":"chatcmpl-7319","model":"deepseek-v4.1-flash","choices":[{"message":{"role":"assistant","content":"7319"},"finish_reason":"stop"}]}"""
+        val contentTransport = RecordingTransport(ProviderFixtures.reply(contentBody))
+        val contentGateway = gatewayOf(
+            "s8.13-root-metadata-content-block",
+            contentTransport,
+            HostedProtocol.OPENAI_CHAT_COMPLETIONS,
+        )
+        val contentResult = contentGateway.generate(
+            contentGateway.begin("Read synthetic data.", source),
+            emptyList(),
+        )
+        assertTrue(contentResult is HostedGenerationResult.ProviderFailure)
+        val contentFailure = (contentResult as HostedGenerationResult.ProviderFailure).failure
+        assertTrue(contentFailure is HostedProviderFailure.PrivacyBlocked)
+        assertEquals(
+            "response_body.choices[].message.content",
+            (contentFailure as HostedProviderFailure.PrivacyBlocked).refusal.safeLocation,
+        )
+        assertEquals(1, contentTransport.requests.size)
+
+        val toolBody =
+            """{"id":"chatcmpl-7319","model":"deepseek-v4.1-flash","choices":[{"message":{"role":"assistant","tool_calls":[{"id":"call-1","type":"function","function":{"name":"probe_echo","arguments":"{\"value\":\"7319\"}"}}]},"finish_reason":"tool_calls"}]}"""
+        val toolTransport = RecordingTransport(ProviderFixtures.reply(toolBody))
+        val toolGateway = gatewayOf(
+            "s8.13-root-metadata-tool-block",
+            toolTransport,
+            HostedProtocol.OPENAI_CHAT_COMPLETIONS,
+        )
+        val toolResult = toolGateway.generate(
+            toolGateway.begin("Read synthetic data.", source),
+            listOf(ProviderFixtures.echoTool),
+        )
+        assertTrue(toolResult is HostedGenerationResult.ProviderFailure)
+        val toolFailure = (toolResult as HostedGenerationResult.ProviderFailure).failure
+        assertTrue(toolFailure is HostedProviderFailure.PrivacyBlocked)
+        assertEquals(
+            "response_body.choices[].message.tool_calls[].other_field.arguments",
+            (toolFailure as HostedProviderFailure.PrivacyBlocked).refusal.safeLocation,
+        )
+
+        val malformedTransport = RecordingTransport(
+            ProviderFixtures.reply("""{"id":7319,"model":"deepseek-v4.1-flash","choices":[]}"""),
+        )
+        val malformedGateway = gatewayOf(
+            "s8.13-root-metadata-protocol-error",
+            malformedTransport,
+            HostedProtocol.OPENAI_CHAT_COMPLETIONS,
+        )
+        val malformedResult = malformedGateway.generate(
+            malformedGateway.begin("Read synthetic data.", source),
+            emptyList(),
+        )
+        assertTrue(malformedResult is HostedGenerationResult.ProviderFailure)
+        assertEquals(
+            HostedProviderFailure.InvalidResponse("invalid provider protocol metadata"),
+            (malformedResult as HostedGenerationResult.ProviderFailure).failure,
+        )
+
+        val nonGoTransport = RecordingTransport(ProviderFixtures.reply(acceptedBody))
+        val nonGoGateway = MaskedHostedGateway(
+            HostedAdapters.create(
+                ProviderFixtures.chatConfig().copy(endpoint = "https://api.openai.com/v1/chat/completions"),
+                nonGoTransport,
+            ),
+            MaskedPromptBoundary(SensitiveVault("s8.13-root-metadata-non-go")),
+        )
+        val nonGoResult = nonGoGateway.generate(
+            nonGoGateway.begin("Read synthetic data.", source),
+            emptyList(),
+        )
+        assertTrue(nonGoResult is HostedGenerationResult.ProviderFailure)
+        val nonGoFailure = (nonGoResult as HostedGenerationResult.ProviderFailure).failure
+        assertTrue(nonGoFailure is HostedProviderFailure.PrivacyBlocked)
+        assertEquals(
+            "response_body.usage.opencode.allowance",
+            (nonGoFailure as HostedProviderFailure.PrivacyBlocked).refusal.safeLocation,
+        )
+    }
+
+    @Test
+    fun `validated usage counters pass the adapter while other response values remain guarded`() = runBlocking {
+        val source = "account ending 7319"
+        val cleanResponse = ProviderFixtures.reply(
+            """{"model":"deepseek-v4.1-flash","choices":[{"message":{"role":"assistant","content":"safe"},"finish_reason":"stop"}],"usage":{"total_tokens":7319}}""",
+        )
+        val cleanTransport = RecordingTransport(cleanResponse)
+        val cleanGateway = gatewayOf(
+            "s8.13-usage-counter-adapter",
+            cleanTransport,
+            HostedProtocol.OPENAI_CHAT_COMPLETIONS,
+        )
+        val cleanResult = cleanGateway.generate(
+            cleanGateway.begin("Read synthetic data.", source),
+            emptyList(),
+        )
+        assertTrue(cleanResult is HostedGenerationResult.Turn)
+        assertTrue(cleanTransport.responses.single() === cleanResponse)
+        assertEquals(1, cleanTransport.requests.size)
+
+        val leakingResponse = ProviderFixtures.reply(
+            """{"model":"deepseek-v4.1-flash","choices":[{"message":{"role":"assistant","content":"7319"},"finish_reason":"stop"}],"usage":{"total_tokens":7319}}""",
+        )
+        val leakingTransport = RecordingTransport(leakingResponse)
+        val leakingGateway = gatewayOf(
+            "s8.13-usage-counter-content-block",
+            leakingTransport,
+            HostedProtocol.OPENAI_CHAT_COMPLETIONS,
+        )
+        val leakingResult = leakingGateway.generate(
+            leakingGateway.begin("Read synthetic data.", source),
+            emptyList(),
+        )
+        assertTrue(leakingResult is HostedGenerationResult.ProviderFailure)
+        val privacyFailure = (leakingResult as HostedGenerationResult.ProviderFailure).failure
+        assertTrue(privacyFailure is HostedProviderFailure.PrivacyBlocked)
+        val refusal = (privacyFailure as HostedProviderFailure.PrivacyBlocked).refusal
+        assertEquals(HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH, refusal.reason)
+        assertEquals("response_body.choices[].message.content", refusal.safeLocation)
+        assertFalse(refusal.recognizedCounter)
+        assertTrue(leakingTransport.responses.single() === leakingResponse)
+        assertEquals(1, leakingTransport.requests.size)
+
+        val invalidResponse = ProviderFixtures.reply(
+            """{"model":"deepseek-v4.1-flash","choices":[{"message":{"role":"assistant","content":"safe"},"finish_reason":"stop"}],"usage":{"total_tokens":"12"}}""",
+        )
+        val invalidTransport = RecordingTransport(invalidResponse)
+        val invalidGateway = gatewayOf(
+            "s8.13-usage-counter-protocol-error",
+            invalidTransport,
+            HostedProtocol.OPENAI_CHAT_COMPLETIONS,
+        )
+        val invalidResult = invalidGateway.generate(
+            invalidGateway.begin("Read synthetic data.", source),
+            emptyList(),
+        )
+        assertTrue(invalidResult is HostedGenerationResult.ProviderFailure)
+        assertEquals(
+            HostedProviderFailure.InvalidResponse("invalid provider usage counter"),
+            (invalidResult as HostedGenerationResult.ProviderFailure).failure,
+        )
+        assertTrue(invalidTransport.responses.single() === invalidResponse)
+        assertEquals(1, invalidTransport.requests.size)
+    }
+
+    @Test
+    fun `response JSON scans decoded values and refuses ambiguous objects`() {
+        val vault = SensitiveVault("s8.13-response-json")
+        val token = vault.maskText("account ending 7319")
+        val boundary = MaskedPromptBoundary(vault)
+
+        assertTrue(vault.scanLeak("\\u7319"))
+        assertResponseAccepted(boundary, """{"id":"\u7319"}""")
+        assertResponseAccepted(boundary, """{"content":"$token"}""")
+        assertResponseRefused(
+            boundary,
+            """{"content":"\u0037\u0033\u0031\u0039"}""",
+            HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH,
+        )
+        assertResponseAccepted(boundary, """{"flag":true,"nothing":null}""")
+        assertResponseRefused(
+            boundary,
+            """{"token":"⟦ACCT-OTHER1234-9999⟧"}""",
+            HostedResponsePrivacyRefusalReason.FOREIGN_TOKEN,
+        )
+        assertResponseRefused(
+            boundary,
+            """{"token":"⟦UNKNOWN-TOKEN⟧"}""",
+            HostedResponsePrivacyRefusalReason.UNKNOWN_TOKEN,
+        )
+
+        val contentRefusal = responseRefusal(
+            boundary,
+            """{"choices":[{"message":{"content":"account ending 7319"}}]}""",
+        )
+        assertEquals(HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH, contentRefusal.reason)
+        assertEquals("ACCOUNT", contentRefusal.sensitiveKind)
+        assertEquals("response_body.choices[].message.content", contentRefusal.safeLocation)
+        assertResponseRefused(
+            boundary,
+            """{"provider_meta":{"created":"account ending 7319"}}""",
+            HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH,
+        )
+        // Provider reasoning is not guard input: a sensitive-looking value there is accepted.
+        assertResponseAccepted(boundary, """{"choices":[{"message":{"reasoning_content":"7319"}}]}""")
+        val knownCounter = assertResponseAccepted(boundary, """{"usage":{"total_tokens":7319}}""")
+        assertTrue(knownCounter is HostedResponsePrivacyResult.AcceptedWithValidatedCounters)
+        val knownMatch =
+            (knownCounter as HostedResponsePrivacyResult.AcceptedWithValidatedCounters).matches.single()
+        assertEquals(
+            HostedResponseRecognizedCounter("ACCOUNT", "response_body.usage.total_tokens"),
+            knownMatch,
+        )
+        val unknownUsageRefusal = responseRefusal(boundary, """{"usage":{"unlisted":7319}}""")
+        assertEquals(HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH, unknownUsageRefusal.reason)
+        assertEquals("NUMBER", unknownUsageRefusal.nodeType)
+        assertFalse(unknownUsageRefusal.recognizedCounter)
+        assertEquals("response_body.usage.unlisted", unknownUsageRefusal.safeLocation)
+        val stringCounterRefusal =
+            responseRefusal(boundary, """{"usage":{"total_tokens":"7319"}}""")
+        assertEquals(HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH, stringCounterRefusal.reason)
+        assertEquals("STRING", stringCounterRefusal.nodeType)
+        assertFalse(stringCounterRefusal.recognizedCounter)
+        val safeStringCounterError =
+            responseProtocolError(boundary, """{"usage":{"total_tokens":"12"}}""")
+        assertEquals(HostedResponseProtocolErrorReason.INVALID_USAGE_COUNTER, safeStringCounterError.reason)
+        assertEquals("STRING", safeStringCounterError.nodeType)
+        assertFalse(safeStringCounterError.recognizedCounter)
+        val negativeCounterError =
+            responseProtocolError(boundary, """{"usage":{"total_tokens":-1}}""")
+        assertEquals(HostedResponseProtocolErrorReason.INVALID_USAGE_COUNTER, negativeCounterError.reason)
+        assertResponseRefused(
+            boundary,
+            """{"usage":{"total_tokens":-7319}}""",
+            HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH,
+        )
+        assertResponseRefused(
+            boundary,
+            """{"usage":{"total_tokens":7319}}""",
+            HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH,
+            HostedProtocol.OPENAI_CHAT_COMPLETIONS,
+            httpStatus = 500,
+        )
+        assertResponseRefused(
+            boundary,
+            """{"created":7319}""",
+            HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH,
+        )
+        assertResponseRefused(
+            boundary,
+            """{"unlisted":{"payload":"7319"}}""",
+            HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH,
+        )
+        val keyRefusal = responseRefusal(boundary, """{"7319":"safe"}""")
+        assertEquals(HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH, keyRefusal.reason)
+        assertEquals("ACCOUNT", keyRefusal.sensitiveKind)
+        assertEquals("response_body.field_name", keyRefusal.safeLocation)
+        assertResponseRefused(
+            boundary,
+            """{"id":"safe","id":"safe"}""",
+            HostedResponsePrivacyRefusalReason.DUPLICATE_KEY,
+        )
+        assertResponseRefused(
+            boundary,
+            """{"id":"safe","\u0069d":"safe"}""",
+            HostedResponsePrivacyRefusalReason.DUPLICATE_KEY,
+        )
+        assertResponseRefused(
+            boundary,
+            """{"id":}""",
+            HostedResponsePrivacyRefusalReason.INVALID_JSON,
+        )
+        assertResponseRefused(
+            boundary,
+            """{"id":"safe"} trailing""",
+            HostedResponsePrivacyRefusalReason.INVALID_JSON,
+        )
+        assertResponseRefused(
+            boundary,
+            """["7319"]""",
+            HostedResponsePrivacyRefusalReason.UNSUPPORTED_ROOT,
+        )
+        val deepJson = """{"nested":${"[".repeat(65)}"safe"${"]".repeat(65)}}"""
+        assertResponseRefused(
+            boundary,
+            deepJson,
+            HostedResponsePrivacyRefusalReason.DEPTH_LIMIT,
+        )
+    }
+
+    @Test
+    fun `only protocol-valid numeric usage counters bypass sensitive scanning`() {
+        val vault = SensitiveVault("s8.13-validated-usage-counter")
+        vault.maskText("account ending 7319")
+        val boundary = MaskedPromptBoundary(vault)
+        val recognizedCases = listOf(
+            Triple(
+                HostedProtocol.OPENAI_CHAT_COMPLETIONS,
+                """{"usage":{"prompt_tokens":7319,"completion_tokens":7319,"total_tokens":7319,"completion_tokens_details":{"reasoning_tokens":7319},"prompt_tokens_details":{"cached_tokens":7319}}}""",
+                setOf(
+                    "response_body.usage.prompt_tokens",
+                    "response_body.usage.completion_tokens",
+                    "response_body.usage.total_tokens",
+                    "response_body.usage.completion_tokens_details.reasoning_tokens",
+                    "response_body.usage.prompt_tokens_details.cached_tokens",
+                ),
+            ),
+            Triple(
+                HostedProtocol.OPENAI_RESPONSES,
+                """{"usage":{"input_tokens":7319,"output_tokens":7319,"total_tokens":7319,"output_tokens_details":{"reasoning_tokens":7319},"input_tokens_details":{"cached_tokens":7319}}}""",
+                setOf(
+                    "response_body.usage.input_tokens",
+                    "response_body.usage.output_tokens",
+                    "response_body.usage.total_tokens",
+                    "response_body.usage.output_tokens_details.reasoning_tokens",
+                    "response_body.usage.input_tokens_details.cached_tokens",
+                ),
+            ),
+            Triple(
+                HostedProtocol.GEMINI_GENERATE_CONTENT,
+                """{"usageMetadata":{"promptTokenCount":7319,"candidatesTokenCount":7319,"thoughtsTokenCount":7319,"cachedContentTokenCount":7319}}""",
+                setOf(
+                    "response_body.usageMetadata.promptTokenCount",
+                    "response_body.usageMetadata.candidatesTokenCount",
+                    "response_body.usageMetadata.thoughtsTokenCount",
+                    "response_body.usageMetadata.cachedContentTokenCount",
+                ),
+            ),
+        )
+        for ((protocol, body, expectedPaths) in recognizedCases) {
+            val result = assertResponseAccepted(boundary, body, protocol)
+            assertTrue(result is HostedResponsePrivacyResult.AcceptedWithValidatedCounters)
+            val matches = (result as HostedResponsePrivacyResult.AcceptedWithValidatedCounters).matches
+            assertEquals(expectedPaths, matches.map { it.safeLocation }.toSet())
+            assertTrue(matches.all {
+                it.sensitiveKind == "ACCOUNT" && it.nodeType == "NUMBER" && it.recognizedCounter &&
+                    !it.knownOtherProtocol
+            })
+        }
+
+        val blockedBodies = listOf(
+            """{"usage":{"total_tokens":7319},"choices":[{"message":{"content":"7319"}}]}""",
+            """{"usage":{"total_tokens":7319},"choices":[{"message":{"tool_calls":[{"function":{"arguments":"{\"amount\":7319}"}}]}}]}""",
+            """{"usage":{"total_tokens":7319},"7319":"safe"}""",
+            """{"usage":{"total_tokens":"7319"}}""",
+        )
+        for (body in blockedBodies) {
+            val refusal = responseRefusal(boundary, body)
+            assertEquals(HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH, refusal.reason)
+            assertFalse(refusal.recognizedCounter)
+        }
+        // The same match inside provider reasoning is not guard input; the counter stays valid.
+        assertResponseAccepted(
+            boundary,
+            """{"usage":{"total_tokens":7319},"choices":[{"message":{"reasoning_content":"7319"}}]}""",
+        )
+
+        val invalidCounterBodies = listOf(
+            """{"usage":{"total_tokens":"12"}}""",
+            """{"usage":{"total_tokens":-1}}""",
+            """{"usage":{"total_tokens":1.5}}""",
+            """{"usage":{"total_tokens":true}}""",
+            """{"usage":{"total_tokens":null}}""",
+            """{"usage":"safe"}""",
+            """{"usage":{"completion_tokens_details":"safe"}}""",
+        )
+        for (body in invalidCounterBodies) {
+            val error = responseProtocolError(boundary, body)
+            assertEquals(HostedResponseProtocolErrorReason.INVALID_USAGE_COUNTER, error.reason)
+            assertFalse(error.recognizedCounter)
+            assertFalse(error.knownOtherProtocol)
+        }
+    }
+
+    @Test
+    fun `usage diagnostics retain only safe identifiers and identify foreign protocol paths`() {
+        val vault = SensitiveVault("s8.13-safe-usage-key-diagnostics")
+        vault.maskText("account ending 7319")
+        val boundary = MaskedPromptBoundary(vault)
+
+        val safeIdentifier = responseRefusal(
+            boundary,
+            """{"usage":{"vendor_metrics":{"model_usage":7319}}}""",
+        )
+        assertEquals(
+            "response_body.usage.vendor_metrics.model_usage",
+            safeIdentifier.safeLocation,
+        )
+        assertEquals("NUMBER", safeIdentifier.nodeType)
+        assertFalse(safeIdentifier.recognizedCounter)
+        assertFalse(safeIdentifier.knownOtherProtocol)
+
+        val unsafeIdentifier = responseRefusal(
+            boundary,
+            """{"usage":{"vendor_metrics2":{"model_usage":7319}}}""",
+        )
+        assertEquals(
+            "response_body.usage.other_field.model_usage",
+            unsafeIdentifier.safeLocation,
+        )
+        assertFalse(unsafeIdentifier.knownOtherProtocol)
+
+        val modelIdentifier = responseRefusal(
+            boundary,
+            """{"choices":[{"message":{"model_usage":7319}}]}""",
+        )
+        assertEquals(
+            "response_body.choices[].message.other_field",
+            modelIdentifier.safeLocation,
+        )
+        assertFalse(modelIdentifier.knownOtherProtocol)
+
+        val responsesCounter = responseRefusal(
+            boundary,
+            """{"usage":{"input_tokens":7319}}""",
+        )
+        assertEquals("response_body.usage.input_tokens", responsesCounter.safeLocation)
+        assertTrue(responsesCounter.knownOtherProtocol)
+        assertFalse(responsesCounter.recognizedCounter)
+
+        val geminiCounter = responseRefusal(
+            boundary,
+            """{"usageMetadata":{"promptTokenCount":7319}}""",
+        )
+        assertEquals("response_body.usageMetadata.promptTokenCount", geminiCounter.safeLocation)
+        assertTrue(geminiCounter.knownOtherProtocol)
+        assertFalse(geminiCounter.recognizedCounter)
+
+        val unknownTokenForeignCounter = responseRefusal(
+            boundary,
+            """{"usage":{"input_tokens":"⟦UNKNOWN-TOKEN⟧"}}""",
+        )
+        assertEquals(
+            HostedResponsePrivacyRefusalReason.UNKNOWN_TOKEN,
+            unknownTokenForeignCounter.reason,
+        )
+        assertEquals("response_body.usage.input_tokens", unknownTokenForeignCounter.safeLocation)
+        assertTrue(unknownTokenForeignCounter.knownOtherProtocol)
+
+        val sensitiveKey = responseRefusal(
+            boundary,
+            """{"usage":{"account ending 7319":7319}}""",
+        )
+        assertEquals("response_body.usage.field_name", sensitiveKey.safeLocation)
+        assertFalse(sensitiveKey.knownOtherProtocol)
+    }
+
+    private enum class Channel { REASONING, ANSWER, ARGUMENTS }
+
+    /**
+     * One protocol-correct body carrying [text] in exactly one model-output channel. The same
+     * bytes therefore cross the boundary differently only because of their channel.
+     */
+    private fun channelBody(
+        protocol: io.github.triet4p.aegisf.provider.HostedProtocol,
+        text: String,
+        channel: Channel,
+    ): String = when (protocol) {
+        io.github.triet4p.aegisf.provider.HostedProtocol.GEMINI_GENERATE_CONTENT ->
+            JSONObject()
+                .put("modelVersion", "gemini-3.5-flash-lite")
+                .put(
+                    "candidates",
+                    JSONArray().put(
+                        JSONObject()
+                            .put(
+                                "content",
+                                JSONObject()
+                                    .put("role", "model")
+                                    .put(
+                                        "parts",
+                                        when (channel) {
+                                            Channel.REASONING -> JSONArray()
+                                                .put(JSONObject().put("text", text).put("thought", true))
+                                                .put(JSONObject().put("text", "ack"))
+
+                                            Channel.ANSWER -> JSONArray().put(JSONObject().put("text", text))
+
+                                            Channel.ARGUMENTS -> JSONArray().put(
+                                                JSONObject().put(
+                                                    "functionCall",
+                                                    JSONObject()
+                                                        .put("name", "probe_echo")
+                                                        .put("args", JSONObject().put("value", text))
+                                                        .put("id", "call_1"),
+                                                ),
+                                            )
+                                        },
+                                    ),
+                            )
+                            .put("finishReason", "STOP"),
+                    ),
+                )
+                .toString()
+
+        io.github.triet4p.aegisf.provider.HostedProtocol.OPENAI_CHAT_COMPLETIONS ->
+            JSONObject()
+                .put("id", "chatcmpl-1")
+                .put("object", "chat.completion")
+                .put("created", 1)
+                .put("model", ProviderFixtures.chatConfig().model)
+                .put(
+                    "choices",
+                    JSONArray().put(
+                        JSONObject()
+                            .put("index", 0)
+                            .put("finish_reason", if (channel == Channel.ARGUMENTS) "tool_calls" else "stop")
+                            .put(
+                                "message",
+                                JSONObject()
+                                    .put("role", "assistant")
+                                    .put("content", if (channel == Channel.ANSWER) text else "ack")
+                                    .put(
+                                        "reasoning_content",
+                                        if (channel == Channel.REASONING) text else "thinking",
+                                    )
+                                    .put(
+                                        "tool_calls",
+                                        if (channel == Channel.ARGUMENTS) {
+                                            JSONArray().put(
+                                                JSONObject()
+                                                    .put("id", "call_1")
+                                                    .put("type", "function")
+                                                    .put(
+                                                        "function",
+                                                        JSONObject()
+                                                            .put("name", "probe_echo")
+                                                            .put(
+                                                                "arguments",
+                                                                JSONObject().put("value", text).toString(),
+                                                            ),
+                                                    ),
+                                            )
+                                        } else {
+                                            JSONObject.NULL
+                                        },
+                                    ),
+                            ),
+                    ),
+                )
+                .toString()
+
+        io.github.triet4p.aegisf.provider.HostedProtocol.OPENAI_RESPONSES ->
+            JSONObject()
+                .put("model", "gpt-6-luna")
+                .put("status", "completed")
+                .put(
+                    "output",
+                    when (channel) {
+                        Channel.REASONING -> JSONArray()
+                            .put(
+                                JSONObject()
+                                    .put("id", "rs_1")
+                                    .put("type", "reasoning")
+                                    .put("status", "completed")
+                                    .put(
+                                        "summary",
+                                        JSONArray().put(
+                                            JSONObject().put("type", "summary_text").put("text", text),
+                                        ),
+                                    )
+                                    .put("encrypted_content", text),
+                            )
+                            .put(
+                                JSONObject()
+                                    .put("id", "msg_1")
+                                    .put("type", "message")
+                                    .put("status", "completed")
+                                    .put("role", "assistant")
+                                    .put(
+                                        "content",
+                                        JSONArray().put(
+                                            JSONObject().put("type", "output_text").put("text", "ack"),
+                                        ),
+                                    ),
+                            )
+
+                        Channel.ANSWER -> JSONArray().put(
+                            JSONObject()
+                                .put("id", "msg_1")
+                                .put("type", "message")
+                                .put("status", "completed")
+                                .put("role", "assistant")
+                                .put(
+                                    "content",
+                                    JSONArray().put(
+                                        JSONObject().put("type", "output_text").put("text", text),
+                                    ),
+                                ),
+                        )
+
+                        Channel.ARGUMENTS -> JSONArray().put(
+                            JSONObject()
+                                .put("id", "fc_1")
+                                .put("type", "function_call")
+                                .put("status", "completed")
+                                .put("name", "probe_echo")
+                                .put("call_id", "call_1")
+                                .put("arguments", JSONObject().put("value", text).toString()),
+                        )
+                    },
+                )
+                .toString()
+    }
+
+    @Test
+    fun `reasoning is exempt while the answer and tool arguments stay guarded on all protocols`() {
+        val raw = "Salary 15,000,000 VND on 2026-10-25 to account ending 4821."
+        val vault = SensitiveVault("s8.13-channel-boundary")
+        vault.maskText(raw)
+        val boundary = MaskedPromptBoundary(vault)
+        val forged = "⟦AMT-ab-1234⟧"
+        val issued = vault.maskText("15,000,000 VND").substringBefore(' ')
+
+        for (protocol in io.github.triet4p.aegisf.provider.HostedProtocol.values()) {
+            // Provider thinking: invented notation, a forged token and raw-looking values accept.
+            assertResponseAccepted(boundary, channelBody(protocol, forged, Channel.REASONING), protocol = protocol)
+            assertResponseAccepted(boundary, channelBody(protocol, raw, Channel.REASONING), protocol = protocol)
+            assertResponseAccepted(boundary, channelBody(protocol, issued, Channel.REASONING), protocol = protocol)
+            // The user-visible answer is guarded before publication.
+            assertResponseRefused(
+                boundary,
+                channelBody(protocol, forged, Channel.ANSWER),
+                HostedResponsePrivacyRefusalReason.UNKNOWN_TOKEN,
+                protocol = protocol,
+            )
+            assertResponseRefused(
+                boundary,
+                channelBody(protocol, raw, Channel.ANSWER),
+                HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH,
+                protocol = protocol,
+            )
+            assertResponseAccepted(boundary, channelBody(protocol, issued, Channel.ANSWER), protocol = protocol)
+            // Tool-call arguments are guarded before any dispatch.
+            assertResponseRefused(
+                boundary,
+                channelBody(protocol, forged, Channel.ARGUMENTS),
+                HostedResponsePrivacyRefusalReason.UNKNOWN_TOKEN,
+                protocol = protocol,
+            )
+            assertResponseRefused(
+                boundary,
+                channelBody(protocol, raw, Channel.ARGUMENTS),
+                HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH,
+                protocol = protocol,
+            )
+            assertResponseAccepted(boundary, channelBody(protocol, issued, Channel.ARGUMENTS), protocol = protocol)
+        }
+        // An inbound scan never mints or rehydrates a value.
+        assertEquals(3, vault.entryCount())
+    }
+
+    @Test
+    fun `real adapters accept invented reasoning and block the same answer or arguments`() = runBlocking {
+        val forged = "⟦AMT-ab-1234⟧"
+        for (protocol in io.github.triet4p.aegisf.provider.HostedProtocol.values()) {
+            val acceptedTransport = RecordingTransport(
+                ProviderFixtures.reply(channelBody(protocol, forged, Channel.REASONING)),
+            )
+            val acceptedGateway = gatewayOf(
+                "s8.13-adapter-reasoning-$protocol",
+                acceptedTransport,
+                protocol,
+            )
+            val turn = ProviderFixtures.turn(
+                acceptedGateway.generate(
+                    acceptedGateway.begin("Read the synthetic reading.", "Read it."),
+                    emptyList(),
+                ),
+            )
+            assertEquals(
+                "provider reasoning must not block ${protocol.name}: $turn",
+                io.github.triet4p.aegisf.provider.HostedTurnFinish.Complete,
+                turn.finish,
+            )
+            assertEquals("ack", turn.assistantText)
+            assertEquals(1, acceptedTransport.requests.size)
+
+            for (channel in listOf(Channel.ANSWER, Channel.ARGUMENTS)) {
+                val transport = RecordingTransport(
+                    ProviderFixtures.reply(channelBody(protocol, forged, channel)),
+                )
+                val gateway = gatewayOf(
+                    "s8.13-adapter-enforced-$protocol-${channel.name}",
+                    transport,
+                    protocol,
+                )
+                val failure = ProviderFixtures.failure(
+                    gateway.generate(
+                        gateway.begin("Read the synthetic reading.", "Read it."),
+                        emptyList(),
+                    ),
+                )
+                assertTrue("expected a privacy refusal for ${protocol.name}/${channel.name}", failure is HostedProviderFailure.PrivacyBlocked)
+                assertEquals(
+                    HostedResponsePrivacyRefusalReason.UNKNOWN_TOKEN,
+                    (failure as HostedProviderFailure.PrivacyBlocked).refusal.reason,
+                )
+                assertEquals("a refused response dispatches nothing", 1, transport.requests.size)
+            }
+        }
+    }
+
+    @Test
+    fun `a thought-marked gemini call never dispatches while ordinary arguments stay guarded`() = runBlocking {
+        val protocol = io.github.triet4p.aegisf.provider.HostedProtocol.GEMINI_GENERATE_CONTENT
+        val thoughtBody = JSONObject()
+            .put("modelVersion", "gemini-3.5-flash-lite")
+            .put(
+                "candidates",
+                JSONArray().put(
+                    JSONObject()
+                        .put(
+                            "content",
+                            JSONObject()
+                                .put("role", "model")
+                                .put(
+                                    "parts",
+                                    JSONArray()
+                                        .put(
+                                            JSONObject()
+                                                .put(
+                                                    "functionCall",
+                                                    JSONObject()
+                                                        .put("name", "probe_echo")
+                                                        .put("args", JSONObject().put("value", "ALPHA-17"))
+                                                        .put("id", "call_1"),
+                                                )
+                                                .put("thought", true)
+                                                .put("thoughtSignature", "sig"),
+                                        )
+                                        .put(JSONObject().put("text", "planning")),
+                                ),
+                        )
+                        .put("finishReason", "STOP"),
+                ),
+            )
+            .toString()
+        val transport = RecordingTransport(ProviderFixtures.reply(thoughtBody))
+        val gateway = gatewayOf("s8.13-thought-call", transport, protocol)
+        val turn = ProviderFixtures.turn(
+            gateway.generate(gateway.begin("Read the synthetic reading.", "Read it."), listOf(ProviderFixtures.echoTool)),
+        )
+        assertEquals(io.github.triet4p.aegisf.provider.HostedTurnFinish.Complete, turn.finish)
+        assertEquals("planning", turn.assistantText)
+        assertTrue("a thought-marked call must not become a tool call, got ${turn.toolCalls}", turn.toolCalls.isEmpty())
+        assertNull("a thought-only call must not hold a continuation", turn.conversation)
+        assertEquals(1, transport.requests.size)
+
+        val mixedBody = JSONObject()
+            .put("modelVersion", "gemini-3.5-flash-lite")
+            .put(
+                "candidates",
+                JSONArray().put(
+                    JSONObject()
+                        .put(
+                            "content",
+                            JSONObject()
+                                .put("role", "model")
+                                .put(
+                                    "parts",
+                                    JSONArray()
+                                        .put(
+                                            JSONObject()
+                                                .put(
+                                                    "functionCall",
+                                                    JSONObject()
+                                                        .put("name", "probe_echo")
+                                                        .put("args", JSONObject().put("value", "ALPHA-17"))
+                                                        .put("id", "call_9"),
+                                                )
+                                                .put("thought", true),
+                                        )
+                                        .put(
+                                            JSONObject()
+                                                .put(
+                                                    "functionCall",
+                                                    JSONObject()
+                                                        .put("name", "probe_echo")
+                                                        .put("args", JSONObject().put("value", "ALPHA-17"))
+                                                        .put("id", "call_1"),
+                                                ),
+                                        ),
+                                ),
+                        )
+                        .put("finishReason", "STOP"),
+                ),
+            )
+            .toString()
+        val mixedTransport = RecordingTransport(ProviderFixtures.reply(mixedBody))
+        val mixedGateway = gatewayOf("s8.13-thought-mixed", mixedTransport, protocol)
+        val mixedTurn = ProviderFixtures.turn(
+            mixedGateway.generate(
+                mixedGateway.begin("Read the synthetic reading.", "Read it."),
+                listOf(ProviderFixtures.echoTool),
+            ),
+        )
+        assertEquals(io.github.triet4p.aegisf.provider.HostedTurnFinish.ToolCalls, mixedTurn.finish)
+        assertEquals(listOf("call_1"), mixedTurn.toolCalls.map { it.callId })
+        assertTrue(mixedTurn.toolCalls.single().dispatchable)
+
+        val guardedBody = channelBody(protocol, "reasoning-like args ⟦AMT-ab-1234⟧", Channel.ARGUMENTS)
+        val guardedTransport = RecordingTransport(ProviderFixtures.reply(guardedBody))
+        val guardedGateway = gatewayOf("s8.13-thought-args-guarded", guardedTransport, protocol)
+        val failure = ProviderFixtures.failure(
+            guardedGateway.generate(
+                guardedGateway.begin("Read the synthetic reading.", "Read it."),
+                listOf(ProviderFixtures.echoTool),
+            ),
+        )
+        assertTrue(failure is HostedProviderFailure.PrivacyBlocked)
+    }
+
+
+    @Test
+    fun `mixed reasoning and tool calls never leak raw literals on the next request`() = runBlocking {
+        val raw = "Salary 15,000,000 VND on 2026-10-25 to account ending 4821."
+        for (protocol in io.github.triet4p.aegisf.provider.HostedProtocol.values()) {
+            val scopeId = "s8.13-mixed-egress-$protocol"
+            val firstGatewayProbe = gatewayOf(scopeId, RecordingTransport(), protocol)
+            val maskedProbe = firstGatewayProbe.maskContext(raw)
+            fun literalIn(continuation: String): Boolean {
+                val stripped = SensitiveVault.TOKEN_PATTERN.replace(continuation, " ")
+                return rawLiterals.any { it in stripped }
+            }
+            val mixedReply = when (protocol) {
+                io.github.triet4p.aegisf.provider.HostedProtocol.GEMINI_GENERATE_CONTENT -> JSONObject()
+                    .put("modelVersion", "gemini-3.5-flash-lite")
+                    .put(
+                        "candidates",
+                        JSONArray().put(
+                            JSONObject()
+                                .put(
+                                    "content",
+                                    JSONObject()
+                                        .put("role", "model")
+                                        .put(
+                                            "parts",
+                                            JSONArray()
+                                                .put(
+                                                    JSONObject()
+                                                        .put("text", raw)
+                                                        .put("thought", true)
+                                                        .put("thoughtSignature", "sig"),
+                                                )
+                                                .put(
+                                                    JSONObject().put(
+                                                        "functionCall",
+                                                        JSONObject()
+                                                            .put("name", "probe_echo")
+                                                            .put("args", JSONObject().put("value", "ALPHA-17"))
+                                                            .put("id", "call_1"),
+                                                    ),
+                                                ),
+                                        ),
+                                )
+                                .put("finishReason", "STOP"),
+                        ),
+                    )
+                    .toString()
+                io.github.triet4p.aegisf.provider.HostedProtocol.OPENAI_CHAT_COMPLETIONS -> JSONObject()
+                    .put("id", "chatcmpl-1")
+                    .put("object", "chat.completion")
+                    .put("created", 1)
+                    .put("model", ProviderFixtures.chatConfig().model)
+                    .put(
+                        "choices",
+                        JSONArray().put(
+                            JSONObject()
+                                .put("index", 0)
+                                .put("finish_reason", "tool_calls")
+                                .put(
+                                    "message",
+                                    JSONObject()
+                                        .put("role", "assistant")
+                                        .put("content", "ack")
+                                        .put("reasoning_content", raw)
+                                        .put(
+                                            "tool_calls",
+                                            JSONArray().put(
+                                                JSONObject()
+                                                    .put("id", "call_1")
+                                                    .put("type", "function")
+                                                    .put(
+                                                        "function",
+                                                        JSONObject()
+                                                            .put("name", "probe_echo")
+                                                            .put("arguments", JSONObject().put("value", "ALPHA-17").toString()),
+                                                    ),
+                                            ),
+                                        ),
+                                ),
+                        ),
+                    )
+                    .toString()
+                io.github.triet4p.aegisf.provider.HostedProtocol.OPENAI_RESPONSES -> JSONObject()
+                    .put("model", "gpt-6-luna")
+                    .put("status", "completed")
+                    .put(
+                        "output",
+                        JSONArray()
+                            .put(
+                                JSONObject()
+                                    .put("id", "rs_1")
+                                    .put("type", "reasoning")
+                                    .put("status", "completed")
+                                    .put("summary", JSONArray().put(JSONObject().put("type", "summary_text").put("text", raw)))
+                                    .put("encrypted_content", "opaque-continuation-state"),
+                            )
+                            .put(
+                                JSONObject()
+                                    .put("id", "fc_1")
+                                    .put("type", "function_call")
+                                    .put("status", "completed")
+                                    .put("name", "probe_echo")
+                                    .put("call_id", "call_1")
+                                    .put("arguments", JSONObject().put("value", "ALPHA-17").toString()),
+                            ),
+                    )
+                    .toString()
+            }
+            val closingReply = when (protocol) {
+                io.github.triet4p.aegisf.provider.HostedProtocol.GEMINI_GENERATE_CONTENT ->
+                    """{"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"role":"model","parts":[{"text":"done"}]},"finishReason":"STOP"}]}"""
+                io.github.triet4p.aegisf.provider.HostedProtocol.OPENAI_CHAT_COMPLETIONS ->
+                    """{"model":"${ProviderFixtures.chatConfig().model}","choices":[{"message":{"role":"assistant","content":"done"},"finish_reason":"stop"}]}"""
+                io.github.triet4p.aegisf.provider.HostedProtocol.OPENAI_RESPONSES ->
+                    """{"model":"gpt-6-luna","status":"completed","output":[{"id":"msg_1","type":"message","status":"completed","role":"assistant","content":[{"type":"output_text","text":"done"}]}]}"""
+            }
+            val transport = RecordingTransport(ProviderFixtures.reply(mixedReply), ProviderFixtures.reply(closingReply))
+            val gateway = gatewayOf(scopeId, transport, protocol)
+            val conversation = gateway.begin("Read the synthetic reading.", maskedProbe)
+            val turn = ProviderFixtures.turn(
+                gateway.generate(conversation, listOf(ProviderFixtures.echoTool)),
+            )
+            assertEquals(
+                "mixed reasoning plus a call must stay a tool-call turn for $protocol",
+                io.github.triet4p.aegisf.provider.HostedTurnFinish.ToolCalls,
+                turn.finish,
+            )
+            assertEquals(listOf("call_1"), turn.toolCalls.map { it.callId })
+            val pending = turn.conversation ?: error("expected a continuable turn for $protocol")
+            val next = gateway.continueWithToolResults(
+                MaskedConversation(pending, gateway.boundary),
+                listOf(HostedToolResult("call_1", gateway.boundary.maskToolResultJson("""{"stored":"kept"}"""))),
+                AgentContextManager.tokenInventoryBlock(gateway.boundary.vault.issuedTokens()),
+            )
+            gateway.generate(next, listOf(ProviderFixtures.echoTool))
+            assertEquals(2, transport.requests.size)
+            val continuation = transport.requests[1].body
+            assertFalse("the next request must not carry the mapped raw literal for $protocol", literalIn(continuation))
+            assertFalse("no raw mapping may leave the device for $protocol", raw in continuation)
+            assertTrue("the issued inventory must ride the continuation for $protocol", continuation.contains("issued_mask_token_inventory"))
+            for (token in gateway.boundary.vault.issuedTokens()) {
+                assertTrue("missing issued token ${token.token} for $protocol", continuation.contains(token.token))
+            }
+            assertTrue("call/result pairing must survive for $protocol", continuation.contains("call_1"))
+            if (protocol == io.github.triet4p.aegisf.provider.HostedProtocol.OPENAI_RESPONSES) {
+                assertTrue("opaque Responses continuation state must survive scrubbing", continuation.contains("opaque-continuation-state"))
+                assertFalse("plaintext Responses reasoning must not ride the continuation", "summary_text" in continuation)
+            }
+        }
+    }
+
+
+    private fun privacyResponseWithHiddenRawValue(
+        protocol: io.github.triet4p.aegisf.provider.HostedProtocol,
+        rawSource: String,
+    ): String = when (protocol) {
+        io.github.triet4p.aegisf.provider.HostedProtocol.GEMINI_GENERATE_CONTENT ->
+            JSONObject()
+                .put("modelVersion", "gemini-3.5-flash-lite")
+                .put("x_provider_diagnostic", rawSource)
+                .put(
+                    "candidates",
+                    JSONArray().put(
+                        JSONObject()
+                            .put(
+                                "content",
+                                JSONObject()
+                                    .put("role", "model")
+                                    .put(
+                                        "parts",
+                                        JSONArray()
+                                            .put(
+                                                JSONObject()
+                                                    .put(
+                                                        "functionCall",
+                                                        JSONObject()
+                                                            .put("name", "probe_echo")
+                                                            .put("args", JSONObject().put("value", "ALPHA-17"))
+                                                            .put("id", "call_1"),
+                                                    )
+                                                    .put("thoughtSignature", "sig"),
+                                            ),
+                                    ),
+                            )
+                            .put("finishReason", "STOP"),
+                    ),
+                )
+                .toString()
+
+        io.github.triet4p.aegisf.provider.HostedProtocol.OPENAI_CHAT_COMPLETIONS ->
+            JSONObject()
+                .put("model", "deepseek-v4.1-flash")
+                .put("x_provider_diagnostic", rawSource)
+                .put(
+                    "choices",
+                    JSONArray().put(
+                        JSONObject()
+                            .put(
+                                "message",
+                                JSONObject()
+                                    .put("role", "assistant")
+                                    .put("content", JSONObject.NULL)
+                                    .put("reasoning_content", "thinking about the observation")
+                                    .put(
+                                        "tool_calls",
+                                        JSONArray().put(
+                                            JSONObject()
+                                                .put("id", "call_1")
+                                                .put("type", "function")
+                                                .put(
+                                                    "function",
+                                                    JSONObject()
+                                                        .put("name", "probe_echo")
+                                                        .put("arguments", """{"value":"ALPHA-17"}"""),
+                                                ),
+                                        ),
+                                    ),
+                            )
+                            .put("finish_reason", "tool_calls"),
+                    ),
+                )
+                .toString()
+
+        io.github.triet4p.aegisf.provider.HostedProtocol.OPENAI_RESPONSES ->
+            JSONObject()
+                .put("model", "gpt-6-luna")
+                .put("status", "completed")
+                .put("x_provider_diagnostic", rawSource)
+                .put(
+                    "output",
+                    JSONArray()
+                        .put(
+                            JSONObject()
+                                .put("id", "rs_1")
+                                .put("type", "reasoning")
+                                .put("status", "completed")
+                                .put("encrypted_content", "opaque-reasoning"),
+                        )
+                        .put(
+                            JSONObject()
+                                .put("type", "function_call")
+                                .put("status", "completed")
+                                .put("name", "probe_echo")
+                                .put("call_id", "call_1")
+                                .put("arguments", """{"value":"ALPHA-17"}"""),
+                        ),
+                )
+                .toString()
     }
 
     @Test

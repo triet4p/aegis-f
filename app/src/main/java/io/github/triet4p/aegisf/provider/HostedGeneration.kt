@@ -412,11 +412,118 @@ data class HostedTurn(
     val conversation: HostedConversation?,
 )
 
-/** The outcome of one generation request: either a parsed turn or a classified provider failure. */
-sealed interface HostedGenerationResult {
-    data class Turn(val turn: HostedTurn) : HostedGenerationResult
+/**
+ * An ephemeral provider body carried only so a masking boundary can inspect unparsed fields.
+ * `toString` is redacted; callers must not persist or display [body].
+ */
+class HostedRawResponse internal constructor(internal val body: String) {
+    override fun toString(): String = "HostedRawResponse(redacted)"
+}
 
-    data class ProviderFailure(val failure: HostedProviderFailure) : HostedGenerationResult
+enum class HostedResponsePrivacyRefusalReason {
+    DECODED_SENSITIVE_MATCH,
+    DUPLICATE_KEY,
+    INVALID_JSON,
+    UNSUPPORTED_ROOT,
+    DEPTH_LIMIT,
+    /** A bracket-delimited value that is not a token this session issued. */
+    UNKNOWN_TOKEN,
+    /** A well-formed token minted for another session; never rehydrated or shown. */
+    FOREIGN_TOKEN,
+    ;
+
+    companion object {
+        /**
+         * Version of the safe refusal categories written into diagnostics.
+         *
+         * v2 splits the former coarse token category into the precise [UNKNOWN_TOKEN] and
+         * [FOREIGN_TOKEN] reasons. No live producer emits the retired coarse name; retained
+         * pre-v2 artifacts are read by their own historical evidence contract, never rewritten.
+         */
+        const val CONTRACT_VERSION = "aegis-response-refusal/v2"
+    }
+}
+
+/** Value-free response refusal metadata; locations are produced only from the boundary allowlist. */
+data class HostedResponsePrivacyRefusal(
+    val reason: HostedResponsePrivacyRefusalReason,
+    val sensitiveKind: String?,
+    val safeLocation: String,
+    val nodeType: String,
+    val recognizedCounter: Boolean = false,
+    val knownOtherProtocol: Boolean = false,
+)
+
+data class HostedResponseRecognizedCounter(
+    val sensitiveKind: String,
+    val safeLocation: String,
+    val nodeType: String = "NUMBER",
+    val recognizedCounter: Boolean = true,
+    val knownOtherProtocol: Boolean = false,
+)
+
+enum class HostedResponseProtocolErrorReason {
+    INVALID_USAGE_COUNTER,
+    INVALID_PROTOCOL_METADATA,
+}
+
+/** The sanitized adapter detail for one protocol error; carries no provider value. */
+internal fun HostedResponseProtocolErrorReason.safeDetail(): String = when (this) {
+    HostedResponseProtocolErrorReason.INVALID_USAGE_COUNTER -> "invalid provider usage counter"
+    HostedResponseProtocolErrorReason.INVALID_PROTOCOL_METADATA -> "invalid provider protocol metadata"
+}
+
+sealed interface HostedResponsePrivacyResult {
+    data object Accepted : HostedResponsePrivacyResult
+    data class AcceptedWithValidatedCounters(
+        val matches: List<HostedResponseRecognizedCounter>,
+    ) : HostedResponsePrivacyResult
+
+    /**
+     * The response carried only schema-validated technical metadata at the protocol's documented
+     * root fields; [counters] repeats any recognized usage counters. [metadata] names the exact
+     * locations and rules so evidence can prove what was exempted without carrying values.
+     */
+    data class AcceptedWithValidatedMetadata(
+        val metadata: List<HostedResponseValidatedMetadata>,
+        val counters: List<HostedResponseRecognizedCounter> = emptyList(),
+    ) : HostedResponsePrivacyResult
+    data class Refused(val refusal: HostedResponsePrivacyRefusal) : HostedResponsePrivacyResult
+    data class ProtocolError(
+        val reason: HostedResponseProtocolErrorReason,
+        val safeLocation: String,
+        val nodeType: String,
+        val recognizedCounter: Boolean = false,
+        val knownOtherProtocol: Boolean = false,
+    ) : HostedResponsePrivacyResult
+}
+
+/** Scans one complete provider JSON response before status classification or protocol parsing. */
+interface HostedResponsePrivacyGuard {
+    fun scan(rawResponse: String, httpStatus: Int?): HostedResponsePrivacyResult
+}
+
+/** One provider turn or failure with an optional ephemeral body for full-response privacy scanning. */
+sealed interface HostedGenerationResult {
+    val rawResponseForPrivacyScan: HostedRawResponse?
+
+    data class Turn(
+        val turn: HostedTurn,
+        override val rawResponseForPrivacyScan: HostedRawResponse? = null,
+    ) : HostedGenerationResult
+
+    data class ProviderFailure(
+        val failure: HostedProviderFailure,
+        override val rawResponseForPrivacyScan: HostedRawResponse? = null,
+    ) : HostedGenerationResult
+}
+
+internal fun HostedGenerationResult.withRawResponseForPrivacyScan(body: String): HostedGenerationResult {
+    val rawResponse = HostedRawResponse(body)
+    return when (this) {
+        is HostedGenerationResult.Turn -> copy(rawResponseForPrivacyScan = rawResponse)
+        is HostedGenerationResult.ProviderFailure -> copy(rawResponseForPrivacyScan = rawResponse)
+    }
 }
 
 /**
@@ -456,6 +563,9 @@ sealed interface HostedProviderFailure {
     data class ModelMismatch(val configuredModel: String, val reportedModel: String) :
         HostedProviderFailure
 
+    /** A complete response was refused by the local inbound privacy boundary. */
+    data class PrivacyBlocked(val refusal: HostedResponsePrivacyRefusal) : HostedProviderFailure
+
     /** A 2xx payload that does not satisfy the protocol's response schema. */
     data class InvalidResponse(val detail: String?) : HostedProviderFailure
 }
@@ -482,6 +592,13 @@ interface HostedGenerationAdapter {
      */
     fun providerIdentity(): HostedProviderIdentity? = null
 
+    /**
+     * The exact technical metadata this adapter's validated configuration may receive. A
+     * response guard exempts nothing when this is null, so an unattributable adapter stays
+     * fully scanned instead of guessing a protocol or route.
+     */
+    fun responseMetadataPolicy(): HostedResponseMetadataPolicy? = null
+
     fun begin(systemInstruction: String, userInstruction: String): HostedConversation
 
     suspend fun generate(
@@ -489,10 +606,67 @@ interface HostedGenerationAdapter {
         tools: List<HostedToolDeclaration> = emptyList(),
     ): HostedGenerationResult
 
+    /**
+     * Generates one turn while scanning its complete raw response. Production adapters override
+     * this to run [responseGuard] before parsing; the fallback supports decorators and controlled
+     * adapters that expose a [HostedRawResponse] on their result.
+     */
+    suspend fun generateGuarded(
+        conversation: HostedConversation,
+        tools: List<HostedToolDeclaration>,
+        responseGuard: HostedResponsePrivacyGuard,
+    ): HostedGenerationResult {
+        val result = generate(conversation, tools)
+
+        val rawResponse = result.rawResponseForPrivacyScan ?: return result
+        when (val scan = responseGuard.scan(rawResponse.body, null)) {
+            HostedResponsePrivacyResult.Accepted,
+            is HostedResponsePrivacyResult.AcceptedWithValidatedCounters,
+            is HostedResponsePrivacyResult.AcceptedWithValidatedMetadata -> Unit
+            is HostedResponsePrivacyResult.Refused ->
+                return HostedGenerationResult.ProviderFailure(
+                    HostedProviderFailure.PrivacyBlocked(scan.refusal),
+                )
+            is HostedResponsePrivacyResult.ProtocolError ->
+                return HostedGenerationResult.ProviderFailure(
+                    HostedProviderFailure.InvalidResponse(scan.reason.safeDetail()),
+                )
+        }
+        return when (result) {
+            is HostedGenerationResult.Turn -> result.copy(rawResponseForPrivacyScan = null)
+            is HostedGenerationResult.ProviderFailure -> result.copy(rawResponseForPrivacyScan = null)
+        }
+    }
+
+    /**
+     * Answers every pending call with its observation and returns the next conversation.
+     *
+     * [hostNotice] is the host-authored tail of that same continuation: the run's authoritative
+     * issued-token inventory, already masked. An adapter lowers it natively immediately after
+     * the tool outputs (never dropping it and never creating an unmatched call), because the
+     * model must see the current inventory on every turn, including after new observations. The
+     * gateway masks it like any other prompt text; null means no tail is added.
+     */
     fun continueWithToolResults(
         conversation: HostedConversation,
         results: List<HostedToolResult>,
+        hostNotice: String? = null,
     ): HostedConversation
+
+    /**
+     * Appends one host-authored notice as the next native user turn.
+     *
+     * Used only by the bounded masking repair: the refused response left no pending call, so
+     * the conversation is continued without answering anything, and the protocol's own
+     * required items stay byte-identical. An adapter must refuse when a call is still pending,
+     * because appending content there would produce an unmatched tool-call continuation.
+     *
+     * The default fails closed: an adapter that does not implement native lowering cannot be
+     * used for a repair, and the executor then ends the run terminally instead of silently
+     * dropping the notice or the protocol's continuation items.
+     */
+    fun appendUserNotice(conversation: HostedConversation, notice: String): HostedConversation =
+        throw HostedConfigurationException("adapter ${protocol.name} cannot append a host notice")
 }
 
 /** Creates the adapter for the configured protocol; there is no fallback between protocols. */
