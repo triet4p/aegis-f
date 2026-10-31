@@ -64,6 +64,7 @@ __pycache__/
 # TEST-ONLY synthetic full-body debug payloads for the S8.13 diagnosis. Owner-authorized test
 # observability only: never tracked, never part of a checkpoint, excluded from scored evidence.
 /artifacts/sprint-8/evidence/S8.13-replan-a16/debug/
+/artifacts/sprint-8/evidence/*/debug/
 
 # S8.13 synthetic TEST_ONLY response bodies stay local, outside frozen sources and exports.
 /artifacts/sprint-8/test-only/

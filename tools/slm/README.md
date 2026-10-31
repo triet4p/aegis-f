@@ -527,12 +527,25 @@ uv run python tools/slm/s8_agent_v3_qualification.py score @invocationArgs
 ```
 
 Each full run retains all 24 case attempts and provider sidecars, including failures and
-truncations. The scorer reports actual postconditions, tool/effect traces, masking, repair,
-turns, latency, usage/cache support, provider-returned cost fields, and unknown quota without
-imputation. Each case still requires independent semantic review; a valid JSON record is
-not a quality claim or qualification result.
+truncations, and additionally pulls one TEST-ONLY synthetic debug tree per pass under the
+immutable freeze's pass-scoped roots (`files/<attempt>/debug/<snapshot>/pass-<N>` on device,
+`artifacts/sprint-8/evidence/<attempt>/debug/<snapshot>/pass-<N>` locally). The scorer consumes
+only the existing case records and gates; raw capture never alters scoring. Each case still
+requires independent semantic review; a valid JSON record is not a quality claim or qualification
+result.
 
-### TEST-ONLY synthetic debug capture (`reproduce-blocked`)
+### TEST-ONLY synthetic debug capture (full-suite passes)
+
+Full-suite `run` commands send the existing runner instrumentation path the pass-scoped
+synthetic debug roots (`S813_DEBUG_ROOT`, `S813_DEBUG_FIXTURE_SHA256`); no fake diagnostic
+invocation is used. The freeze binds the capture contract, the frozen 24-case order, and the
+three per-pass local/device roots, and `run` refuses to dispatch unless they match. Collection
+pulls each pass tree with the same no-overwrite rule as run evidence, validates every raw file
+(per-expected case/session/exchanges/turns/effects, including errors), marks unrun cases
+explicitly, and preserves the primary error alongside any surfaced collection error. Raw trees
+stay gitignored TEST-ONLY payloads outside tracked reports; production redaction is unchanged.
+
+### TEST-ONLY synthetic debug capture (`reproduce-blocked`, diagnostic subset)
 
 The qualification evidence contract deliberately stores provider bodies redacted, which makes a
 privacy-guard refusal of the model's own reasoning text undiagnosable after the fact. The owner
@@ -575,7 +588,6 @@ contents and from the compact domain summary. The three provider-reasoning-only 
 acceptance under the existing reasoning exemption; the usage-counter variant still requires
 recognized numeric `usage.total_tokens`. Content/tool/key refusals, malformed-protocol errors and
 unknown or foreign-token controls remain unchanged. No runtime or policy change is made.
-
 
 ### a21 bounded masking repair and no-effect settlement
 

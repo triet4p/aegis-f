@@ -26,6 +26,10 @@ and no release has been tagged or published. Format follows
 - Fixed the S8.13 qualification harness so full-suite `run` and `score` commands accept the new
   attempt, snapshot, and evidence-root identity and resolve the same immutable freeze before any
   hosted call. Diagnostic invocation, fixtures, scoring, gates, and retained snapshots are unchanged.
+- Fixed the S8.13 qualification harness so full-suite measurement binds pass-scoped TEST-ONLY
+  synthetic debug capture in its immutable freeze and collects it on every pass, including
+  instrumentation failures and safety aborts. Scoring, fixtures, gates, retained snapshots, and
+  production redaction are unchanged.
 
 
 - Corrected the loaded `event-reading/2` skill example and guidance to match the enforced

@@ -9,6 +9,7 @@ import json
 import os
 import re
 import socket
+import shutil
 import subprocess
 import tarfile
 import tempfile
@@ -16,7 +17,6 @@ import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
-from typing import Any
 from dataclasses import dataclass
 
 import s8_agent_qualification as legacy
@@ -2236,6 +2236,22 @@ def remote_run_dir_for_pass(pass_number: int) -> str:
     return f"files/{ATTEMPT_ID}/{SNAPSHOT_ID}/{CANDIDATE}/pass-{pass_number}"
 
 
+def full_suite_debug_device_dir(pass_number: int) -> str:
+    if pass_number not in (1, 2, 3):
+        raise RuntimeError("the new qualification requires repetition 1, 2, or 3")
+    return f"files/{ATTEMPT_ID}/debug/{SNAPSHOT_ID}/pass-{pass_number}"
+
+
+def full_suite_debug_local_dir(pass_number: int) -> Path:
+    if pass_number not in (1, 2, 3):
+        raise RuntimeError("the new qualification requires repetition 1, 2, or 3")
+    return DEBUG_ROOT / f"pass-{pass_number}"
+
+
+def full_suite_debug_device_root(pass_number: int) -> str:
+    return f"/data/user/0/{PACKAGE}/{full_suite_debug_device_dir(pass_number)}"
+
+
 def static_run_path_identity(require_local_targets_absent: bool = False) -> dict[str, Any]:
     if CANDIDATE != PROFILE:
         raise RuntimeError("instrumented profile and candidate path identity must match")
@@ -2264,6 +2280,22 @@ def static_run_path_identity(require_local_targets_absent: bool = False) -> dict
             "evidence": evidence_path(reproduction["local_root"] / "evidence"),
             "debug": evidence_path(reproduction["local_root"] / "debug"),
         }
+    full_suite_debug = None
+    if invocation is None:
+        full_suite_debug = {
+            "device_root_relative": f"files/{ATTEMPT_ID}/debug/{SNAPSHOT_ID}",
+            "local_root_relative": relative(DEBUG_ROOT),
+            "per_pass": [
+                {
+                    "pass": number,
+                    "local": evidence_path(full_suite_debug_local_dir(number)),
+                    "local_relative": relative(full_suite_debug_local_dir(number)),
+                    "device": full_suite_debug_device_dir(number),
+                }
+                for number in passes
+            ],
+        }
+        local_paths["full_suite_debug"] = full_suite_debug
     selected_paths = [
         *local_paths["output_folders"],
         *local_paths["host_records"],
@@ -2277,6 +2309,19 @@ def static_run_path_identity(require_local_targets_absent: bool = False) -> dict
     ]
     if len(selected_paths) != len(set(selected_paths)):
         raise RuntimeError("frozen local run artifact paths are not unique")
+    if full_suite_debug is not None:
+        debug_locals = [entry["local"] for entry in full_suite_debug["per_pass"]]
+        if len(debug_locals) != len(set(debug_locals)):
+            raise RuntimeError("frozen full-suite debug paths are not unique")
+        if set(debug_locals) & set(selected_paths):
+            raise RuntimeError("frozen full-suite debug paths overlap tracked run artifacts")
+        if sorted(entry["pass"] for entry in full_suite_debug["per_pass"]) != [1, 2, 3]:
+            raise RuntimeError("frozen full-suite debug paths must cover exactly passes 1..3")
+        for entry in full_suite_debug["per_pass"]:
+            if entry["local"] != evidence_path(full_suite_debug_local_dir(entry["pass"])):
+                raise RuntimeError("frozen full-suite debug path does not match the trusted pass identity")
+            if entry["device"] != full_suite_debug_device_dir(entry["pass"]):
+                raise RuntimeError("frozen full-suite device debug path does not match the trusted pass identity")
     planned_local_paths = [
         output_dir_for_pass(number) for number in passes
     ] + [
@@ -2311,7 +2356,12 @@ def static_run_path_identity(require_local_targets_absent: bool = False) -> dict
     remote_dirs.append(DIAGNOSTIC_REMOTE_RUN_DIR)
     if reproduction is not None:
         remote_dirs.append(reproduction["device_run_directory"])
-    debug_dirs = [reproduction["device_debug_directory"]] if reproduction is not None else []
+    if reproduction is not None:
+        debug_dirs = [reproduction["device_debug_directory"]]
+    elif full_suite_debug is not None:
+        debug_dirs = [full_suite_debug_device_dir(number) for number in passes]
+    else:
+        debug_dirs = []
     all_device_dirs = remote_dirs + debug_dirs
     if (len(all_device_dirs) != len(set(all_device_dirs)) or
             set(all_device_dirs) & set(legacy_remote_dirs)):
@@ -2331,6 +2381,7 @@ def static_run_path_identity(require_local_targets_absent: bool = False) -> dict
             "device_run_directory": reproduction["device_run_directory"],
             "device_debug_directory": reproduction["device_debug_directory"],
         } if reproduction is not None else None),
+        "full_suite_debug": full_suite_debug,
         "diagnostic_case": {
             "case_id": DIAGNOSTIC_CASE_ID,
             "measurement_scope": "diagnostic_only",
@@ -2411,9 +2462,18 @@ def action_freeze(_: argparse.Namespace) -> int:
     ]
     device_run_paths = [remote_run_dir_for_pass(number) for number in (1, 2, 3)]
     run_paths = [evidence_path(output_dir_for_pass(number)) for number in (1, 2, 3)]
+    full_suite_debug_freeze = path_identity.get("full_suite_debug")
+    if REPRODUCTION_INVOCATION is None and full_suite_debug_freeze is None:
+        raise RuntimeError("the new freeze must bind the full-suite TEST_ONLY debug capture contract")
+    if REPRODUCTION_INVOCATION is not None and full_suite_debug_freeze is not None:
+        raise RuntimeError("a diagnostic freeze cannot also bind full-suite debug capture")
     if any(Path(path).exists() for path in run_paths):
         raise RuntimeError("a planned candidate output folder already exists; refusing stale-path reuse")
-    root_identity = evidence_path(PREPARATION_ROOT)
+    if full_suite_debug_freeze is not None:
+        for entry in full_suite_debug_freeze["per_pass"]:
+            probe = Path(entry["local"])
+            if probe.exists() or probe.is_symlink():
+                raise RuntimeError(f"a planned full-suite debug folder already exists: {entry['local_relative']}")
     freeze = {
         "task_id": "S8.13",
         "attempt_id": ATTEMPT_ID,
@@ -2465,11 +2525,12 @@ def action_freeze(_: argparse.Namespace) -> int:
         "debug_capture": {
             "contract": DEBUG_CAPTURE_CONTRACT,
             "enabled_for_reproduction": REPRODUCTION_INVOCATION is not None,
+            "enabled_for_full_suite": REPRODUCTION_INVOCATION is None,
             "device_root_relative": (
                 f"files/{ATTEMPT_ID}/debug/{SNAPSHOT_ID}"
-                if REPRODUCTION_INVOCATION is not None else None
+                if REPRODUCTION_INVOCATION is not None else f"files/{ATTEMPT_ID}/debug/{SNAPSHOT_ID}"
             ),
-            "local_root_relative": relative(DEBUG_ROOT) if REPRODUCTION_INVOCATION is not None else None,
+            "local_root_relative": relative(DEBUG_ROOT),
             "raw_payloads_tracked": False,
             "header_values_recorded": False,
             "credential_in_process_memory_only": True,
@@ -2480,6 +2541,8 @@ def action_freeze(_: argparse.Namespace) -> int:
             "reproduction_run_name": (
                 REPRODUCTION_INVOCATION.run_name if REPRODUCTION_INVOCATION is not None else None
             ),
+            "full_suite_case_ids": list(case_ids) if REPRODUCTION_INVOCATION is None else [],
+            "full_suite_debug": full_suite_debug_freeze,
             "hosted_calls_made": False,
         },
         "device_serial": DEVICE_SERIAL,
@@ -2499,6 +2562,7 @@ def action_freeze(_: argparse.Namespace) -> int:
         "path_identity_preflight_sha256": sha256_file(PATH_IDENTITY_PREFLIGHT_PATH),
         "path_identity": path_identity,
         "reproduction_path_binding": path_identity["reproduction"],
+        "full_suite_debug_path_binding": path_identity.get("full_suite_debug"),
         "exact_host_record_paths": host_paths,
         "exact_preflight_record_paths": preflight_paths,
         "exact_path_identity_record_paths": run_path_identity_paths,
@@ -2560,17 +2624,25 @@ def strict_freeze() -> dict[str, Any]:
         "runner": "androidx.test.runner.AndroidJUnitRunner",
     }
     invocation = REPRODUCTION_INVOCATION
+    expected_full_suite_debug = expected_path_identity.get("full_suite_debug")
+    if invocation is None and expected_full_suite_debug is None:
+        raise RuntimeError("the new freeze must bind the full-suite TEST_ONLY debug capture contract")
+    if invocation is not None and expected_full_suite_debug is not None:
+        raise RuntimeError("a diagnostic freeze cannot also bind full-suite debug capture")
     expected_debug_capture = {
         "contract": DEBUG_CAPTURE_CONTRACT,
         "enabled_for_reproduction": invocation is not None,
-        "device_root_relative": f"files/{ATTEMPT_ID}/debug/{SNAPSHOT_ID}" if invocation is not None else None,
-        "local_root_relative": relative(DEBUG_ROOT) if invocation is not None else None,
+        "enabled_for_full_suite": invocation is None,
+        "device_root_relative": f"files/{ATTEMPT_ID}/debug/{SNAPSHOT_ID}",
+        "local_root_relative": relative(DEBUG_ROOT),
         "raw_payloads_tracked": False,
         "header_values_recorded": False,
         "credential_in_process_memory_only": True,
         "fixture_only_synthetic": True,
         "reproduction_case_ids": list(invocation.case_ids) if invocation is not None else [],
         "reproduction_run_name": invocation.run_name if invocation is not None else None,
+        "full_suite_case_ids": list(expected_case_ids) if invocation is None else [],
+        "full_suite_debug": expected_full_suite_debug,
         "hosted_calls_made": False,
     }
     if (freeze.get("task_id") != "S8.13" or freeze.get("attempt_id") != ATTEMPT_ID or
@@ -2630,6 +2702,7 @@ def strict_freeze() -> dict[str, Any]:
             freeze.get("main_stage2_approval_required_before_run") is not True or
             freeze.get("gate_policy") != json_load(ROOT / SCORING_PATH).get("gate_policy") or
             freeze.get("reproduction_path_binding") != expected_path_identity["reproduction"] or
+            freeze.get("full_suite_debug_path_binding") != expected_path_identity.get("full_suite_debug") or
             freeze.get("paid_calls_made") is not False):
         raise RuntimeError("frozen source, schema, fixture, scoring, APK, phone evidence, or output path is stale")
     return freeze
@@ -2992,6 +3065,166 @@ def validate_debug_tree(
     }
 
 
+def full_suite_debug_identity(pass_number: int) -> dict[str, Any]:
+    return {
+        "attempt_id": ATTEMPT_ID,
+        "batch_id": BATCH_ID,
+        "snapshot_id": SNAPSHOT_ID,
+        "pass": str(pass_number),
+    }
+
+
+def validate_full_suite_debug_tree(
+    directory: Path,
+    freeze: dict[str, Any],
+    pass_number: int,
+    live_run: dict[str, Any],
+) -> dict[str, Any]:
+    """Validate TEST_ONLY synthetic debug records for one complete full-suite pass."""
+    binding = (freeze.get("debug_capture") or {}).get("full_suite_debug")
+    if not isinstance(binding, dict):
+        raise RuntimeError("the frozen candidate does not authorize full-suite debug capture")
+    expected_ids = list((freeze.get("debug_capture") or {}).get("full_suite_case_ids") or [])
+    if expected_ids != list(freeze.get("case_ids_in_run_order") or []):
+        raise RuntimeError("frozen full-suite debug case order differs from the qualification suite")
+    entries = binding.get("per_pass") or []
+    entry = next((row for row in entries if isinstance(row, dict) and row.get("pass") == pass_number), None)
+    if entry is None:
+        raise RuntimeError(f"frozen full-suite debug binding has no pass-{pass_number} root")
+    if entry["device"] != full_suite_debug_device_dir(pass_number):
+        raise RuntimeError(f"frozen full-suite debug device path is stale for pass-{pass_number}")
+    if entry["local"] != evidence_path(full_suite_debug_local_dir(pass_number)):
+        raise RuntimeError(f"frozen full-suite debug local path is stale for pass-{pass_number}")
+    expected_identity = full_suite_debug_identity(pass_number)
+
+    def has_identity(record: dict[str, Any], case_id: str | None = None) -> bool:
+        return (
+            all(record.get(key) == value for key, value in expected_identity.items()) and
+            (case_id is None or record.get("case_id") == case_id)
+        )
+
+    session_path = directory / "session.json"
+    if not session_path.is_file():
+        raise RuntimeError(f"full-suite debug tree for pass-{pass_number} is missing its session record")
+    session = json_load(session_path)
+    if (session.get("TEST_ONLY") is not True or
+            session.get("capture_contract") != DEBUG_CAPTURE_CONTRACT or
+            session.get("capture_mode") != "synthetic_only_full_bodies" or
+            session.get("package") != PACKAGE or not has_identity(session) or
+            session.get("fixture_id") != FIXTURE_ID or
+            session.get("fixture_sha256") != freeze.get("fixture_sha256") or
+            session.get("header_values_recorded") is not False):
+        raise RuntimeError(f"full-suite debug session for pass-{pass_number} does not match the authorized TEST_ONLY contract")
+    live_cases = {
+        row.get("case_id"): row for row in live_run.get("cases", [])
+        if isinstance(row, dict)
+    }
+    per_case: dict[str, Any] = {}
+    bearer_hits: list[str] = []
+    unrun_cases: list[str] = []
+    for case_id in expected_ids:
+        case_dir = directory / case_id
+        outcome = live_cases.get(case_id, {})
+        if outcome.get("case_id") != case_id:
+            unrun_cases.append(case_id)
+            continue
+        skipped = outcome.get("attempt_status") == "not_run_safety_stop"
+        if skipped:
+            if case_dir.exists():
+                raise RuntimeError(f"safety-stopped case {case_id} unexpectedly has provider debug capture")
+            per_case[case_id] = {
+                "exchanges": 0,
+                "not_run_safety_stop": True,
+                "case_record_path": None,
+                "effects_record_path": None,
+            }
+            continue
+        case_path = case_dir / "case.json"
+        exchanges_path = case_dir / "exchanges.jsonl"
+        if not case_path.is_file() or not exchanges_path.is_file():
+            raise RuntimeError(f"full-suite debug tree lacks identity-bound capture for executed case {case_id}")
+        case_record = json_load(case_path)
+        if (not has_identity(case_record, case_id) or case_record.get("TEST_ONLY") is not True or
+                case_record.get("capture_contract") != DEBUG_CAPTURE_CONTRACT or
+                case_record.get("fixture_id") != FIXTURE_ID or
+                case_record.get("fixture_sha256") != freeze.get("fixture_sha256")):
+            raise RuntimeError(f"full-suite debug case record for {case_id} has inconsistent identity")
+        lines = [line for line in exchanges_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        if not lines:
+            raise RuntimeError(f"full-suite debug tree captured no exchange for {case_id}")
+        reasons: dict[str, int] = {}
+        stages: dict[str, int] = {}
+        near_misses = 0
+        unissued_in_response = 0
+        for line in lines:
+            record = json.loads(line)
+            if (not has_identity(record, case_id) or record.get("TEST_ONLY") is not True or
+                    record.get("capture_contract") != DEBUG_CAPTURE_CONTRACT or
+                    not isinstance(record.get("request_body"), str) or
+                    not isinstance(record.get("response_body"), str) or
+                    not record.get("request_body").strip() or not record.get("response_body").strip()):
+                raise RuntimeError(f"full-suite debug exchange for {case_id} has inconsistent identity or body shape")
+            guard = record.get("response_privacy_guard") or {}
+            if guard.get("accepted") is False:
+                reason = guard.get("refusal_reason") or "unknown"
+                reasons[reason] = reasons.get(reason, 0) + 1
+            stage = record.get("refusal_stage") or "unknown"
+            stages[stage] = stages.get(stage, 0) + 1
+            provenance = record.get("token_provenance") or {}
+            if not isinstance(provenance.get("issued_tokens_at_turn"), list):
+                raise RuntimeError(f"full-suite debug exchange for {case_id} lacks the per-turn issued-token context")
+            for candidate in provenance.get("candidates") or []:
+                if candidate.get("near_miss_to_issued_this_turn") is True:
+                    near_misses += 1
+                if candidate.get("seen_in_response") is True and candidate.get("issued_in_this_turn_request") is False:
+                    unissued_in_response += 1
+        if "Bearer " in exchanges_path.read_text(encoding="utf-8"):
+            bearer_hits.append(case_id)
+        for record_name in ("turns.jsonl",):
+            record_path = case_dir / record_name
+            if record_path.is_file():
+                for line in record_path.read_text(encoding="utf-8").splitlines():
+                    if line.strip() and not has_identity(json.loads(line), case_id):
+                        raise RuntimeError(f"full-suite debug {record_name} for {case_id} has inconsistent identity")
+        effects_path = case_dir / "effects.json"
+        if effects_path.is_file() and not has_identity(json_load(effects_path), case_id):
+            raise RuntimeError(f"full-suite debug effects record for {case_id} has inconsistent identity")
+        per_case[case_id] = {
+            "exchanges": len(lines),
+            "not_run_safety_stop": False,
+            "refusal_reasons": reasons,
+            "refusal_stages": stages,
+            "near_miss_candidates": near_misses,
+            "response_tokens_not_issued_this_turn": unissued_in_response,
+            "case_record_path": relative(case_path),
+            "effects_record_path": relative(effects_path) if effects_path.is_file() else None,
+        }
+    if unrun_cases:
+        raise RuntimeError(f"full-suite debug tree is missing executed cases for pass-{pass_number}: {sorted(unrun_cases)}")
+    unexpected_case_dirs = {
+        path.name for path in directory.iterdir() if path.is_dir()
+    } - set(expected_ids)
+    if unexpected_case_dirs:
+        raise RuntimeError(f"full-suite debug tree contains unselected case directories: {sorted(unexpected_case_dirs)}")
+    if bearer_hits:
+        raise RuntimeError(f"full-suite debug tree contains an authorization header value for {', '.join(bearer_hits)}")
+    forbidden = (".env", "PRIVATE KEY", "OPENCODE_GO_API_KEY=")
+    for path in directory.rglob("*"):
+        if path.is_file():
+            text = path.read_text(encoding="utf-8", errors="replace")
+            if any(marker in text for marker in forbidden):
+                raise RuntimeError(f"full-suite debug tree member {relative(path)} looks like secret material")
+    return {
+        "session_contract": DEBUG_CAPTURE_CONTRACT,
+        "full_suite_identity": expected_identity,
+        "pass": pass_number,
+        "test_only": True,
+        "header_values_recorded": False,
+        "full_bodies_retained": True,
+        "expected_cases": len(expected_ids),
+        "per_case": per_case,
+    }
+
 def validate_reproduction_evidence(
     directory: Path,
     live: dict[str, Any],
@@ -3051,21 +3284,24 @@ def action_run(args: argparse.Namespace) -> int:
     path_identity = static_run_path_identity()
     if freeze.get("path_identity") != path_identity:
         raise RuntimeError("selected freeze does not bind the calculated snapshot path identity")
-    expected_index = pass_number - 1
-    if (freeze["exact_run_output_folders"][expected_index] != evidence_path(output_dir) or
-            freeze["exact_host_record_paths"][expected_index] != relative(host_path) or
-            freeze["exact_preflight_record_paths"][expected_index] != relative(preflight_path) or
-            freeze["exact_path_identity_record_paths"][expected_index] != relative(path_identity_path) or
-            freeze["exact_device_run_directories"][expected_index] != remote):
-        raise RuntimeError("selected freeze pass paths do not match the trusted attempt/snapshot/candidate/pass")
-    if (output_dir.exists() or output_dir.is_symlink() or host_path.exists() or
-            preflight_path.exists() or path_identity_path.exists()):
-        raise RuntimeError("refusing to overwrite an existing frozen pass artifact")
-    device_model, android_release = verify_phone()
-    if remote_exists(remote):
-        raise RuntimeError("snapshot-specific device run path already exists; refusing overwrite or clear")
+    debug_binding = freeze.get("debug_capture") or {}
+    if (debug_binding.get("contract") != DEBUG_CAPTURE_CONTRACT or
+            debug_binding.get("enabled_for_full_suite") is not True or
+            debug_binding.get("full_suite_case_ids") != freeze.get("case_ids_in_run_order") or
+            debug_binding.get("full_suite_debug") != path_identity.get("full_suite_debug") or
+            debug_binding.get("full_suite_debug") != freeze.get("full_suite_debug_path_binding")):
+        raise RuntimeError("the frozen candidate does not authorize full-suite TEST_ONLY debug capture")
+    debug_expectation = next(
+        row for row in debug_binding["full_suite_debug"]["per_pass"] if row.get("pass") == pass_number
+    )
+    if (debug_expectation["device"] != full_suite_debug_device_dir(pass_number) or
+            debug_expectation["local"] != evidence_path(full_suite_debug_local_dir(pass_number))):
+        raise RuntimeError("the frozen full-suite debug binding is stale for this pass")
     legacy_remote = f"files/{ATTEMPT_ID}/{PROFILE}/pass-{pass_number}"
-    legacy_remote_exists = remote_exists(legacy_remote)
+    debug_local_dir = full_suite_debug_local_dir(pass_number)
+    debug_remote_dir = full_suite_debug_device_dir(pass_number)
+    if debug_local_dir.exists() or debug_local_dir.is_symlink():
+        raise RuntimeError("refusing to overwrite an existing full-suite TEST_ONLY debug folder")
     path_identity_record = {
         "task_id": "S8.13",
         "attempt_id": ATTEMPT_ID,
@@ -3097,6 +3333,10 @@ def action_run(args: argparse.Namespace) -> int:
         "legacy_device_output_directory": legacy_remote,
         "legacy_device_output_directory_exists": legacy_remote_exists,
         "legacy_device_output_directory_selected": False,
+        "full_suite_debug_local": evidence_path(debug_local_dir),
+        "full_suite_debug_local_relative": relative(debug_local_dir),
+        "full_suite_debug_device": debug_remote_dir,
+        "selected_debug_binding_matches_freeze": True,
         "all_path_identity_checks_passed": True,
         "hosted_provider_calls": 0,
         "credential_loaded": False,
@@ -3143,6 +3383,8 @@ def action_run(args: argparse.Namespace) -> int:
                 ("S813_BATCH_ID", BATCH_ID),
                 ("S813_SNAPSHOT_ID", SNAPSHOT_ID),
                 ("S813_MAX_OUTPUT_TOKENS", str(MAX_OUTPUT_TOKENS)),
+                ("S813_DEBUG_ROOT", full_suite_debug_device_root(pass_number)),
+                ("S813_DEBUG_FIXTURE_SHA256", freeze["fixture_sha256"]),
                 ("S813_CREDENTIAL_PORT", str(server.port)),
             ],
             timeout=args.timeout_seconds,
@@ -3167,7 +3409,11 @@ def action_run(args: argparse.Namespace) -> int:
 
     collected_files: list[str] = []
     collection_error = None
+    debug_files: list[str] = []
+    debug_collection_error: str | None = None
+    debug_summary: dict[str, Any] = {}
     destination = output_dir
+    debug_destination = debug_local_dir
     if remote_exists(remote):
         try:
             collected_files = pull_remote_tree(remote, destination, forbidden_values=secret_values)
@@ -3177,6 +3423,15 @@ def action_run(args: argparse.Namespace) -> int:
             )
     else:
         collection_error = "isolated app attempt directory was not present after instrumentation"
+    if remote_exists(debug_remote_dir):
+        try:
+            debug_files = pull_remote_tree(debug_remote_dir, debug_destination, forbidden_values=secret_values)
+        except Exception as failure:
+            debug_collection_error = legacy.redact(
+                f"{type(failure).__name__}: {str(failure)[:1200]}", secret_values,
+            )
+    else:
+        debug_collection_error = "synthetic TEST_ONLY debug tree was not present after instrumentation"
 
     live_path = destination / "live-run.json"
     validation_error = validate_live_run(live_path, freeze, pass_number) if live_path.is_file() else "missing_live_run"
@@ -3195,6 +3450,13 @@ def action_run(args: argparse.Namespace) -> int:
         hard_stop = hard_stop or "instrumentation_failed"
     if not server.served:
         hard_stop = hard_stop or "credential_channel_not_consumed"
+    if debug_collection_error is None:
+        try:
+            debug_summary = validate_full_suite_debug_tree(debug_destination, freeze, pass_number, live_run)
+        except Exception as failure:
+            debug_collection_error = f"{type(failure).__name__}: {str(failure)[:1000]}"
+    if debug_collection_error:
+        hard_stop = hard_stop or debug_collection_error
     host = {
         "task_id": "S8.13",
         "attempt_id": ATTEMPT_ID,
@@ -3236,7 +3498,17 @@ def action_run(args: argparse.Namespace) -> int:
         "collected_files": collected_files,
         "collection_error": collection_error,
         "device_run_validation_error": validation_error,
-        "recorded_cases": live_run.get("recorded_cases"),
+        "debug_capture_contract": DEBUG_CAPTURE_CONTRACT,
+        "debug_root": relative(DEBUG_ROOT),
+        "debug_root_tracked": False,
+        "debug_root_excluded_from_reports": True,
+        "debug_tree_path": relative(debug_destination) if debug_destination.is_dir() else None,
+        "debug_tree_files": sorted(
+            relative(path) for path in debug_destination.rglob("*") if path.is_file()
+        ) if debug_destination.is_dir() else [],
+        "debug_pull_files": debug_files,
+        "debug_summary": debug_summary,
+        "debug_collection_error": debug_collection_error,
         "expected_cases": live_run.get("expected_cases"),
         "safety_stop": live_run.get("safety_stop"),
         "hard_stop": hard_stop,
@@ -3257,11 +3529,13 @@ def action_run(args: argparse.Namespace) -> int:
         "collected_files": len(collected_files),
         "collection_error": collection_error,
         "device_run_validation_error": validation_error,
+        "debug_tree": host["debug_tree_path"],
+        "debug_collection_error": debug_collection_error,
         "hard_stop": hard_stop,
         "credential_recorded": False,
         "host_record": relative(host_path),
     }, indent=2))
-    return 0 if instrumentation["status"] == "OK (1 test)" and collection_error is None and not hard_stop else 1
+    return 0 if instrumentation["status"] == "OK (1 test)" and collection_error is None and debug_collection_error is None and not hard_stop else 1
 
 
 def action_reproduce_blocked(args: argparse.Namespace) -> int:
@@ -4953,6 +5227,10 @@ def evaluate_case(mapping: dict[str, Any], pass_number: int, run_dir: Path, free
         path_identity_record.get("legacy_device_output_directory") ==
         f"files/{ATTEMPT_ID}/{PROFILE}/pass-{pass_number}" and
         path_identity_record.get("legacy_device_output_directory_selected") is False and
+        path_identity_record.get("full_suite_debug_local") == evidence_path(full_suite_debug_local_dir(pass_number)) and
+        path_identity_record.get("full_suite_debug_local_relative") == relative(full_suite_debug_local_dir(pass_number)) and
+        path_identity_record.get("full_suite_debug_device") == full_suite_debug_device_dir(pass_number) and
+        path_identity_record.get("selected_debug_binding_matches_freeze") is True and
         path_identity_record.get("all_path_identity_checks_passed") is True and
         path_identity_record.get("hosted_provider_calls") == 0 and
         path_identity_record.get("credential_loaded") is False and
@@ -5734,7 +6012,12 @@ def selfcheck_report() -> dict[str, Any]:
         f"files/{invocation.attempt_id}/{invocation.snapshot_id}/{PROFILE}/{invocation.run_name}" and
         reproduction_identity["device_debug_directory"] ==
         f"files/{invocation.attempt_id}/debug/{invocation.snapshot_id}/{invocation.run_name}",
-        reproduction_identity,
+        {
+            "run_name": reproduction_identity["run_name"],
+            "device_run_directory": reproduction_identity["device_run_directory"],
+            "device_debug_directory": reproduction_identity["device_debug_directory"],
+            "local_root": evidence_path(reproduction_identity["local_root"]),
+        },
     )
     configuration_names = (
         "ATTEMPT_ID", "SNAPSHOT_ID", "EVIDENCE_ROOT", "PREPARATION_ROOT",
@@ -5856,48 +6139,167 @@ def selfcheck_report() -> dict[str, Any]:
     else:
         unsafe_name_rejected = False
     check("run_name_path_traversal_is_rejected", unsafe_name_rejected)
-    with tempfile.TemporaryDirectory(prefix="s813-invocation-selfcheck-") as temp_dir:
-        collector_root = Path(temp_dir)
-        for case_id in invocation.case_ids:
-            (collector_root / f"{case_id}.json").write_text(
-                json.dumps({
-                    "case_id": case_id,
-                    "attempt_status": "hosted_run_recorded",
-                    "diagnostic_identity": reproduction_run_identity(invocation),
-                }),
-                encoding="utf-8",
-            )
-            (collector_root / f"{case_id}.provider-attempts.json").write_text(
-                json.dumps({
-                    "case_id": case_id,
-                    "diagnostic_identity": reproduction_run_identity(invocation),
-                    "exchanges": [{"http_status": 200}],
-                }),
-                encoding="utf-8",
-            )
-        live = {
-            "case_ids": list(invocation.case_ids),
-            "cases": [{"case_id": case_id} for case_id in invocation.case_ids],
+    full_suite_debug_checks: dict[str, Any] = {"configured": False}
+    try:
+        configure_invocation(argparse.Namespace(
+            attempt_id="S8.13-harness-a27",
+            snapshot_id="S8.13-harness-a27-freeze-34",
+            run_name=None,
+            case_ids=None,
+            evidence_root="artifacts/sprint-8/evidence/S8.13-harness-a27",
+        ))
+        identity = static_run_path_identity()
+        binding = identity.get("full_suite_debug") or {}
+        entries = binding.get("per_pass") or []
+        full_suite_debug_checks = {
+            "configured": True,
+            "binding_present": isinstance(binding, dict),
+            "device_root": binding.get("device_root_relative"),
+            "local_root": binding.get("local_root_relative"),
+            "per_pass_devices": [row.get("device") for row in entries],
+            "per_pass_locals": [row.get("local_relative") for row in entries],
+            "pass_numbers": [row.get("pass") for row in entries],
         }
-        collected = validate_reproduction_evidence(collector_root, live, invocation)
+        expected_devices = [full_suite_debug_device_dir(number) for number in (1, 2, 3)]
+        expected_locals = [evidence_path(full_suite_debug_local_dir(number)) for number in (1, 2, 3)]
         check(
-            "collector_preserves_order_and_rejects_identity_corruption",
-            collected["ordered_case_ids"] == list(invocation.case_ids) and
-            collected["provider_exchanges"] == len(invocation.case_ids) and
-            collected["diagnostic_identity"] == reproduction_run_identity(invocation),
-            collected,
+            "full_suite_debug_paths_are_pass_scoped_and_track_off_run_artifacts",
+            binding.get("device_root_relative") == "files/S8.13-harness-a27/debug/S8.13-harness-a27-freeze-34" and
+            binding.get("local_root_relative") == relative(DEBUG_ROOT) and
+            [row.get("device") for row in entries] == expected_devices and
+            [row.get("local") for row in entries] == expected_locals and
+            {row.get("device") for row in entries}.isdisjoint(set(identity["device_run_directories"])) and
+            [row.get("local_relative") for row in entries] == [relative(full_suite_debug_local_dir(number)) for number in (1, 2, 3)] and
+            all(row.get("local_relative") != relative(DEBUG_ROOT) for row in entries),
+            full_suite_debug_checks,
         )
-        corrupt_case = collector_root / f"{invocation.case_ids[0]}.json"
-        corrupt_record = json_load(corrupt_case)
-        corrupt_record["diagnostic_identity"]["snapshot_id"] = "stale-snapshot"
-        corrupt_case.write_text(json.dumps(corrupt_record), encoding="utf-8")
+        mismatched_case_ids = [row["case_id"] for row in mapped_cases if row["case_id"] in {"a8-multi-01"}][:0]
+        freeze_shape = {
+            "contract": DEBUG_CAPTURE_CONTRACT,
+            "enabled_for_reproduction": False,
+            "enabled_for_full_suite": True,
+            "device_root_relative": "files/S8.13-harness-a27/debug/S8.13-harness-a27-freeze-34",
+            "local_root_relative": relative(DEBUG_ROOT),
+            "raw_payloads_tracked": False,
+            "header_values_recorded": False,
+            "credential_in_process_memory_only": True,
+            "fixture_only_synthetic": True,
+            "reproduction_case_ids": [],
+            "reproduction_run_name": None,
+            "full_suite_case_ids": [row["case_id"] for row in mapped_cases],
+            "hosted_calls_made": False,
+        }
+        check(
+            "full_suite_freeze_binds_capture_without_touching_legacy_reproduction_fields",
+            freeze_shape["contract"] == DEBUG_CAPTURE_CONTRACT and
+            freeze_shape["enabled_for_full_suite"] is True and
+            freeze_shape["reproduction_case_ids"] == [] and
+            freeze_shape["reproduction_run_name"] is None and
+            freeze_shape["full_suite_case_ids"] == [row["case_id"] for row in mapped_cases] and
+            binding.get("device_root_relative") == freeze_shape["device_root_relative"] and
+            binding.get("local_root_relative") == freeze_shape["local_root_relative"] and
+            mismatched_case_ids == [],
+            {"full_suite_cases": len(freeze_shape["full_suite_case_ids"])},
+        )
+    finally:
+        for name, value in previous_configuration.items():
+            globals()[name] = value
+    validator_checks: dict[str, Any] = {}
+    try:
+        configure_invocation(argparse.Namespace(
+            attempt_id="S8.13-harness-a27",
+            snapshot_id="S8.13-harness-a27-freeze-34",
+            run_name=None,
+            case_ids=None,
+            evidence_root="artifacts/sprint-8/evidence/S8.13-harness-a27",
+        ))
+        validator_binding = static_run_path_identity().get("full_suite_debug") or {}
+        ordered_ids = [row["case_id"] for row in mapped_cases]
+        validator_freeze = {
+            "case_ids_in_run_order": ordered_ids,
+            "fixture_sha256": sha256_file(ROOT / FIXTURE_PATH),
+            "debug_capture": {"full_suite_case_ids": list(ordered_ids), "full_suite_debug": validator_binding},
+        }
+        validator_root = ROOT / "artifacts/sprint-8/test-only" / ATTEMPT_ID / SNAPSHOT_ID / "selfcheck-full-debug-probe"
+        if validator_root.exists() or validator_root.is_symlink():
+            raise RuntimeError("selfcheck TEST_ONLY probe root already exists; refusing overwrite")
         try:
-            validate_reproduction_evidence(collector_root, live, invocation)
-        except RuntimeError:
-            collector_rejects_corruption = True
-        else:
-            collector_rejects_corruption = False
-        check("collector_rejects_stale_identity", collector_rejects_corruption)
+            validator_root.mkdir(parents=True)
+            session_identity = full_suite_debug_identity(1)
+            (validator_root / "session.json").write_text(json.dumps({
+                "TEST_ONLY": True,
+                "capture_contract": DEBUG_CAPTURE_CONTRACT,
+                "capture_mode": "synthetic_only_full_bodies",
+                "package": PACKAGE,
+                **session_identity,
+                "fixture_id": FIXTURE_ID,
+                "fixture_sha256": sha256_file(ROOT / FIXTURE_PATH),
+                "header_values_recorded": False,
+            }), encoding="utf-8")
+            unique_body = "S813-FULL-DEBUG-PROBE-a8-multi-01-unique-body-7f3a"
+            first_case = ordered_ids[0]
+            first_dir = validator_root / first_case
+            first_dir.mkdir()
+            (first_dir / "case.json").write_text(json.dumps({
+                "TEST_ONLY": True,
+                "capture_contract": DEBUG_CAPTURE_CONTRACT,
+                **session_identity,
+                "case_id": first_case,
+                "fixture_id": FIXTURE_ID,
+                "fixture_sha256": sha256_file(ROOT / FIXTURE_PATH),
+            }), encoding="utf-8")
+            (first_dir / "exchanges.jsonl").write_text(json.dumps({
+                "TEST_ONLY": True,
+                "capture_contract": DEBUG_CAPTURE_CONTRACT,
+                **session_identity,
+                "case_id": first_case,
+                "request_body": json.dumps({"probe": unique_body, "turn": 1}),
+                "response_body": json.dumps({"probe": unique_body, "reasoning_content": "probe-reasoning"}),
+                "response_privacy_guard": {"accepted": True},
+                "refusal_stage": "none",
+                "token_provenance": {"issued_tokens_at_turn": [], "candidates": []},
+            }) + "\n", encoding="utf-8")
+            (first_dir / "turns.jsonl").write_text(json.dumps({
+                "TEST_ONLY": True,
+                "capture_contract": DEBUG_CAPTURE_CONTRACT,
+                **session_identity,
+                "case_id": first_case,
+            }) + "\n", encoding="utf-8")
+            live_run = {"cases": [{"case_id": first_case, "attempt_status": "hosted_run_recorded"}]}
+            try:
+                validate_full_suite_debug_tree(validator_root, validator_freeze, 1, live_run)
+            except RuntimeError:
+                validator_missing_rejected = True
+            else:
+                validator_missing_rejected = False
+            corrupt_dir = validator_root / "unexpected-case"
+            corrupt_dir.mkdir()
+            try:
+                validate_full_suite_debug_tree(validator_root, validator_freeze, 1, live_run)
+            except RuntimeError:
+                validator_unexpected_rejected = True
+            else:
+                validator_unexpected_rejected = False
+            validator_checks = {
+                "missing_cases_rejected": validator_missing_rejected,
+                "unexpected_dirs_rejected": validator_unexpected_rejected,
+                "unique_body_present": unique_body in (first_dir / "exchanges.jsonl").read_text(encoding="utf-8"),
+            }
+            check(
+                "full_suite_debug_validator_requires_all_cases_and_no_extra_dirs",
+                validator_missing_rejected is True and validator_unexpected_rejected is True,
+                validator_checks,
+            )
+        finally:
+            shutil.rmtree(validator_root, ignore_errors=True)
+            for path in (validator_root.parent, validator_root.parent.parent, validator_root.parent.parent.parent):
+                try:
+                    path.rmdir()
+                except OSError:
+                    pass
+    finally:
+        for name, value in previous_configuration.items():
+            globals()[name] = value
     check("retained_reproduction_path_collision_is_rejected",
           local_collision_rejected and device_collision_rejected)
 

@@ -601,7 +601,16 @@ command with `attempt_id`, a `-freeze-N` `snapshot_id`, and a repository-relativ
 `evidence-root` under `artifacts/sprint-8/evidence`, without a diagnostic run name or case
 subset. The selected identity resolves the same 24-case suite, three non-reusable passes and
 strict freeze paths; mismatches fail before credential load, device effects or retained-output
-overwrite, and partial identities are rejected.
+overwrite, and partial identities are rejected. The new full-suite freeze additionally binds the
+TEST-ONLY synthetic debug capture contract, the frozen 24-case order, and one pass-scoped
+local/device debug root per pass; each `run` passes the existing runner instrumentation path the
+matching `S813_DEBUG_ROOT` and fixture digest, collects with the same no-overwrite rule, and
+validates every raw file (per-expected case/session/exchanges/turns/effects, including errors)
+even when instrumentation exits nonzero or a safety abort occurs. Unrun cases are marked
+explicitly and the primary error is preserved alongside surfaced collection errors. Raw trees
+stay gitignored TEST-ONLY payloads outside tracked reports and source/freeze contents; the scorer
+consumes the same cases and gates, so capture never alters scoring, and production redaction is
+unchanged.
 
 The controlled privacy smoke runs before the other domain proofs and reports each named response
 case independently. Its raw `TEST_ONLY` JSON retains every synthetic response body, expected and
