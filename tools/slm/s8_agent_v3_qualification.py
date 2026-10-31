@@ -263,6 +263,9 @@ def validated_metadata_location(protocol_label: str, row: Any) -> bool:
 REPETITIONS = 3
 FIXTURE_ID = "S8.13-v3-interface-qualification-fixture-01"
 FIXTURE_PATH = "tools/slm/s8_agent_v3_qualification_fixture.json"
+# Explicit opt-in for the exhaustive continuation mode; it is part of the invocation identity so a
+# run/score cannot silently switch the batch policy the freeze bound.
+EXHAUSTIVE_FROM_ATTEMPT: str | None = None
 SCORING_PATH = "tools/slm/s8_agent_v3_qualification_scoring.json"
 DEFAULT_EVIDENCE_ROOT = ROOT / "artifacts/sprint-8/evidence/S8.13-replan-a22"
 EVIDENCE_ROOT = DEFAULT_EVIDENCE_ROOT
@@ -520,6 +523,250 @@ def frozen_identity_from_build(
         test_apk_sha256=build["test_apk_sha256"],
         max_output_tokens=MAX_OUTPUT_TOKENS,
     )
+
+
+# Explicit TEST-ONLY exhaustive continuation for the S8.13 qualification batch. Only the batch
+# reaction to a case-level failure changes: the frozen fixture intents, expected rows, rubric
+# verdicts, per-case retry/turn/tool budgets and numeric gates stay exactly as frozen.
+EXHAUSTIVE_CONTRACT = "aegis-s813-exhaustive-continuation/v1"
+EXHAUSTIVE_RETAINED_SLOT_COUNT = 6
+EXHAUSTIVE_TOTAL_SLOTS = 72
+EXHAUSTIVE_MEASURED_SLOTS = 66
+EXHAUSTIVE_RETAINED_ATTEMPT = "S8.13-qualification-a55"
+EXHAUSTIVE_RETAINED_SNAPSHOT = "S8.13-qualification-a55-freeze-59"
+EXHAUSTIVE_RETAINED_EVIDENCE = "artifacts/sprint-8/evidence/S8.13-qualification-a55"
+EXHAUSTIVE_RETAINED_RUN = f"{EXHAUSTIVE_RETAINED_EVIDENCE}/snapshot-59/candidate-b/pass-1"
+EXHAUSTIVE_CONTINUATION_POLICY = {
+    "mode": "batch_continuation_only",
+    "continues_after": [
+        "rubric_financial_or_authority_verdict",
+        "semantic_outcome_mismatch",
+        "policy_refusal_or_expected_negative_boundary",
+        "provider_protocol_or_tool_error",
+        "provider_or_network_error",
+        "masking_refusal",
+        "case_harness_error_with_retained_record",
+    ],
+    "stops_on": [
+        "credential_secrecy_breach",
+        "isolation_failure",
+        "unreachable_infrastructure",
+        "capture_integrity_failure",
+    ],
+    "per_case_budgets_unchanged": True,
+    "fixture_and_scoring_unchanged": True,
+    "case_isolation": "fresh in-memory database, vault scope and fixture seeding per case",
+}
+
+
+def exhaustive_case_ids_sha256(case_ids: list[str]) -> str:
+    return sha256_bytes(json.dumps(list(case_ids), separators=(",", ":")).encode("utf-8"))
+
+
+def exhaustive_pass_case_ids(case_ids: list[str], pass_number: int) -> list[str]:
+    """Pass 1 resumes after the retained prefix; passes 2 and 3 repeat the whole frozen order."""
+    case_ids = list(case_ids)
+    if pass_number == 1:
+        return case_ids[EXHAUSTIVE_RETAINED_SLOT_COUNT:]
+    if pass_number in (2, 3):
+        return case_ids
+    raise RuntimeError("the exhaustive continuation is only defined for repetitions 1, 2, and 3")
+
+
+def exhaustive_identity_digest(record: dict[str, Any]) -> str:
+    """Exactly the canonical lines the Android recorder re-derives before reading a credential."""
+    lines = [
+        f"contract={EXHAUSTIVE_CONTRACT}",
+        "policy=batch_continuation_only",
+        f"attempt_id={record['attempt_id']}",
+        f"batch_id={record['batch_id']}",
+        f"snapshot_id={record['snapshot_id']}",
+        f"pass={record['pass']}",
+        f"case_ids_sha256={exhaustive_case_ids_sha256(record['case_ids'])}",
+        f"case_count={len(record['case_ids'])}",
+        f"retained_case_ids_sha256={exhaustive_case_ids_sha256(record['retained_case_ids'])}",
+        f"retained_slot_count={len(record['retained_case_ids'])}",
+        f"prior_provenance_sha256={record['prior_provenance_sha256']}",
+    ]
+    return sha256_bytes("\n".join(lines).encode("utf-8"))
+
+
+def build_exhaustive_continuation(case_ids: list[str]) -> dict[str, Any]:
+    """Bind the exact 66 remaining slots and the immutable first-six provenance of attempt a55."""
+    case_ids = list(case_ids)
+    if len(case_ids) != 24 or len(set(case_ids)) != 24:
+        raise RuntimeError("the exhaustive continuation requires the frozen 24-case order")
+    retained_ids = case_ids[:EXHAUSTIVE_RETAINED_SLOT_COUNT]
+    snapshot_root = ROOT / EXHAUSTIVE_RETAINED_EVIDENCE / "snapshot-59"
+    run_dir = ROOT / EXHAUSTIVE_RETAINED_RUN
+    freeze_path = snapshot_root / "freeze.json"
+    live_path = run_dir / "live-run.json"
+    host_path = snapshot_root / "candidate-b/pass-1.host.json"
+    identity_path = snapshot_root / "candidate-b/pass-1.path-identity.json"
+    for path in (freeze_path, live_path, host_path, identity_path):
+        if not path.is_file():
+            raise RuntimeError(f"retained prior-attempt provenance is missing {relative(path)}")
+    retained_freeze = json_load(freeze_path)
+    retained_live = json_load(live_path)
+    retained_host = json_load(host_path)
+    retained_identity = json_load(identity_path)
+    if (retained_freeze.get("attempt_id") != EXHAUSTIVE_RETAINED_ATTEMPT or
+            retained_freeze.get("snapshot_id") != EXHAUSTIVE_RETAINED_SNAPSHOT or
+            retained_freeze.get("batch_id") != BATCH_ID):
+        raise RuntimeError("the retained prior attempt does not have the expected identity")
+    if (retained_freeze.get("fixture_sha256") != sha256_file(ROOT / FIXTURE_PATH) or
+            retained_freeze.get("scoring_sha256") != sha256_file(ROOT / SCORING_PATH)):
+        raise RuntimeError("the retained prior attempt measured a different frozen fixture or scorer")
+    if retained_freeze.get("case_ids_in_run_order") != case_ids:
+        raise RuntimeError("the retained prior attempt covers a different frozen case order")
+    if (retained_live.get("attempt_id") != EXHAUSTIVE_RETAINED_ATTEMPT or
+            retained_live.get("snapshot_id") != EXHAUSTIVE_RETAINED_SNAPSHOT or
+            retained_live.get("pass") != "1" or
+            retained_live.get("case_ids") != case_ids or
+            retained_live.get("measurement_scope") != "full_fixture"):
+        raise RuntimeError("the retained prior live-run record does not match the retained attempt")
+    if (retained_host.get("attempt_id") != EXHAUSTIVE_RETAINED_ATTEMPT or
+            retained_host.get("snapshot_id") != EXHAUSTIVE_RETAINED_SNAPSHOT or
+            retained_host.get("pass") != 1):
+        raise RuntimeError("the retained prior host record does not match the retained attempt")
+    if (retained_identity.get("attempt_id") != EXHAUSTIVE_RETAINED_ATTEMPT or
+            retained_identity.get("snapshot_id") != EXHAUSTIVE_RETAINED_SNAPSHOT or
+            retained_identity.get("pass") != 1 or
+            retained_identity.get("all_path_identity_checks_passed") is not True):
+        raise RuntimeError("the retained prior path-identity record is incomplete")
+    live_cases = {
+        row.get("case_id"): row for row in retained_live.get("cases", []) if isinstance(row, dict)
+    }
+    slots: list[dict[str, Any]] = []
+    for case_id in retained_ids:
+        case_path = run_dir / f"{case_id}.json"
+        sidecar_path = run_dir / f"{case_id}.provider-attempts.json"
+        debug_dir = (
+            ROOT / EXHAUSTIVE_RETAINED_EVIDENCE / "debug" / EXHAUSTIVE_RETAINED_SNAPSHOT
+            / "pass-1" / case_id
+        )
+        if not case_path.is_file() or not sidecar_path.is_file():
+            raise RuntimeError(f"retained prior evidence for {case_id} is incomplete")
+        case_record = json_load(case_path)
+        if case_record.get("case_id") != case_id:
+            raise RuntimeError(f"retained prior case record for {case_id} has the wrong identity")
+        live_row = live_cases.get(case_id) or {}
+        if live_row.get("attempt_status") != case_record.get("attempt_status"):
+            raise RuntimeError(f"retained prior live row for {case_id} disagrees with its case record")
+        slots.append({
+            "pass": 1,
+            "case_id": case_id,
+            "slot_provenance": "retained_prior_attempt",
+            "case_record_path": relative(case_path),
+            "case_record_sha256": sha256_file(case_path),
+            "provider_attempts_path": relative(sidecar_path),
+            "provider_attempts_sha256": sha256_file(sidecar_path),
+            "attempt_status": case_record.get("attempt_status"),
+            "outcome": case_record.get("outcome"),
+            "adjudication_version": case_record.get("adjudication_version"),
+            "financial_safety_match": case_record.get("financial_safety_match"),
+            "quality_findings": case_record.get("quality_findings"),
+            "raw_debug_capture_path": relative(debug_dir) if debug_dir.is_dir() else None,
+            "raw_debug_capture_pass_field_present": (
+                False if debug_dir.is_dir() else None
+            ),
+        })
+    provenance = {
+        "attempt_id": EXHAUSTIVE_RETAINED_ATTEMPT,
+        "batch_id": BATCH_ID,
+        "snapshot_id": EXHAUSTIVE_RETAINED_SNAPSHOT,
+        "pass": 1,
+        "evidence_root": EXHAUSTIVE_RETAINED_EVIDENCE,
+        "run_folder": EXHAUSTIVE_RETAINED_RUN,
+        "freeze_path": relative(freeze_path),
+        "freeze_sha256": sha256_file(freeze_path),
+        "live_run_path": relative(live_path),
+        "live_run_sha256": sha256_file(live_path),
+        "host_record_path": relative(host_path),
+        "host_record_sha256": sha256_file(host_path),
+        "path_identity_path": relative(identity_path),
+        "path_identity_sha256": sha256_file(identity_path),
+        "retained_case_ids": retained_ids,
+        "retained_slot_count": len(retained_ids),
+        "slots": slots,
+        "observed_capture_pass_field_defect": (
+            "the retained per-case debug records predate the recorder pass field; they are kept "
+            "verbatim and are neither re-validated nor used for scoring"
+        ),
+    }
+    provenance["provenance_sha256"] = sha256_bytes(
+        json.dumps(provenance, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    )
+    passes: list[dict[str, Any]] = []
+    measured_slots = 0
+    for pass_number in (1, 2, 3):
+        selected = exhaustive_pass_case_ids(case_ids, pass_number)
+        retained = retained_ids if pass_number == 1 else []
+        measured_slots += len(selected)
+        passes.append({
+            "pass": pass_number,
+            "case_ids": selected,
+            "slot_order": retained + selected,
+            "retained_case_ids": retained,
+            "measured_slots": len(selected),
+            "retained_slots": len(retained),
+        })
+    if measured_slots != EXHAUSTIVE_MEASURED_SLOTS:
+        raise RuntimeError("the exhaustive slot plan does not cover the 66 remaining slots")
+    return {
+        "contract": EXHAUSTIVE_CONTRACT,
+        "mode": "exhaustive_batch_continuation",
+        "policy": EXHAUSTIVE_CONTINUATION_POLICY,
+        "retained_prefix_case_ids": retained_ids,
+        "retained_provenance": provenance,
+        "passes": passes,
+        "total_slots": EXHAUSTIVE_TOTAL_SLOTS,
+        "measured_slots": EXHAUSTIVE_MEASURED_SLOTS,
+        "retained_slots": len(retained_ids),
+    }
+
+
+def exhaustive_pass_plan(freeze: dict[str, Any], pass_number: int) -> dict[str, Any] | None:
+    plan = freeze.get("exhaustive_continuation")
+    if not isinstance(plan, dict):
+        return None
+    for row in plan.get("passes") or []:
+        if isinstance(row, dict) and row.get("pass") == pass_number:
+            return row
+    raise RuntimeError(f"the frozen exhaustive plan has no pass-{pass_number} slot row")
+
+
+def expected_pass_case_ids(freeze: dict[str, Any], pass_number: int) -> list[str]:
+    row = exhaustive_pass_plan(freeze, pass_number)
+    if row is not None:
+        return list(row["case_ids"])
+    return list(freeze.get("case_ids_in_run_order") or [])
+
+
+def exhaustive_binding_arguments(freeze: dict[str, Any], pass_number: int) -> list[tuple[str, str]]:
+    plan = freeze.get("exhaustive_continuation")
+    row = exhaustive_pass_plan(freeze, pass_number)
+    if not isinstance(plan, dict) or row is None:
+        raise RuntimeError("the frozen candidate does not bind the exhaustive continuation")
+    prior = plan["retained_provenance"]["provenance_sha256"]
+    record = {
+        "attempt_id": ATTEMPT_ID,
+        "batch_id": BATCH_ID,
+        "snapshot_id": SNAPSHOT_ID,
+        "pass": str(pass_number),
+        "case_ids": list(row["case_ids"]),
+        "retained_case_ids": (
+            list(plan["retained_prefix_case_ids"]) if pass_number == 1 else []
+        ),
+        "prior_provenance_sha256": prior,
+    }
+    return [
+        ("S813_EXHAUSTIVE_CONTRACT", EXHAUSTIVE_CONTRACT),
+        ("S813_EXHAUSTIVE_CASE_IDS", ",".join(row["case_ids"])),
+        ("S813_EXHAUSTIVE_CASE_IDS_SHA256", exhaustive_case_ids_sha256(row["case_ids"])),
+        ("S813_EXHAUSTIVE_PRIOR_PROVENANCE_SHA256", prior),
+        ("S813_EXHAUSTIVE_IDENTITY_SHA256", exhaustive_identity_digest(record)),
+    ]
 
 
 def safe_response_json_location(value: Any) -> bool:
@@ -913,6 +1160,7 @@ def action_preflight(_: argparse.Namespace) -> int:
         "snapshot_id": SNAPSHOT_ID,
         "reproduction_invocation": reproduction_invocation_record(REPRODUCTION_INVOCATION),
         "diagnostic_identity": current_diagnostic_identity(),
+        "exhaustive_from_attempt": EXHAUSTIVE_FROM_ATTEMPT,
         "fixture_id": inputs["mapping"]["fixture_id"],
         "scoring_version": inputs["scoring"]["scoring_version"],
         "contract": inputs["mapping"]["contract"],
@@ -926,6 +1174,7 @@ def action_preflight(_: argparse.Namespace) -> int:
         "batch_id": BATCH_ID,
         "snapshot_id": SNAPSHOT_ID,
         "diagnostic_identity": current_diagnostic_identity(),
+        "exhaustive_from_attempt": EXHAUSTIVE_FROM_ATTEMPT,
         "fixture_id": inputs["mapping"]["fixture_id"],
         "scoring_version": inputs["scoring"]["scoring_version"],
         "fixture_sha256": sha256_file(ROOT / FIXTURE_PATH),
@@ -982,10 +1231,12 @@ def strict_static_preflight() -> tuple[dict[str, Any], dict[str, Any]]:
             preflight.get("run_path_identity") != static_run_path_identity() or
             preflight.get("reproduction_invocation") != reproduction_invocation_record(REPRODUCTION_INVOCATION) or
             preflight.get("diagnostic_identity") != current_diagnostic_identity() or
+            preflight.get("exhaustive_from_attempt") != EXHAUSTIVE_FROM_ATTEMPT or
             mapping.get("task_id") != "S8.13" or mapping.get("attempt_id") != ATTEMPT_ID or
             mapping.get("batch_id") != BATCH_ID or mapping.get("snapshot_id") != SNAPSHOT_ID or
             mapping.get("reproduction_invocation") != reproduction_invocation_record(REPRODUCTION_INVOCATION) or
             mapping.get("diagnostic_identity") != current_diagnostic_identity() or
+            mapping.get("exhaustive_from_attempt") != EXHAUSTIVE_FROM_ATTEMPT or
             mapping.get("fixture_id") != FIXTURE_ID or
             preflight.get("case_mapping_sha256") != sha256_file(CASE_MAPPING_PATH) or
             preflight.get("fixture_sha256") != sha256_file(ROOT / FIXTURE_PATH) or
@@ -1093,6 +1344,17 @@ def configure_invocation(args: argparse.Namespace, *, required: bool = False) ->
     global FREEZE_PATH, PATH_IDENTITY_PREFLIGHT_PATH
     global DIAGNOSTIC_OUTPUT_DIR, DIAGNOSTIC_HOST_PATH, DIAGNOSTIC_PREFLIGHT_PATH
     global DIAGNOSTIC_PATH_IDENTITY_PATH, DIAGNOSTIC_REMOTE_RUN_DIR
+    global EXHAUSTIVE_FROM_ATTEMPT
+    raw_exhaustive = getattr(args, "exhaustive_from", None)
+    if raw_exhaustive is not None:
+        if raw_exhaustive != EXHAUSTIVE_RETAINED_ATTEMPT:
+            raise RuntimeError(
+                "the exhaustive continuation may only retain "
+                f"{EXHAUSTIVE_RETAINED_ATTEMPT} as prior provenance"
+            )
+        EXHAUSTIVE_FROM_ATTEMPT = EXHAUSTIVE_RETAINED_ATTEMPT
+    else:
+        EXHAUSTIVE_FROM_ATTEMPT = None
     supplied = {
         "attempt_id": getattr(args, "attempt_id", None),
         "snapshot_id": getattr(args, "snapshot_id", None),
@@ -1821,6 +2083,11 @@ def assert_debug_proof(record: dict[str, Any]) -> None:
         "mutated_token_retained", "near_miss_classified", "per_turn_issued_set_recorded",
         "unpinned_digest_refused", "foreign_package_refused", "non_synthetic_scope_refused",
         "no_root_created_on_refusal",
+        "exhaustive_continuation_proof", "failing_case_verdict_retained",
+        "failing_case_continued", "next_case_measured_after_failure",
+        "fatal_condition_stops_batch", "case_isolation_verified",
+        "retained_prefix_rerun_rejected", "forged_exhaustive_identity_rejected",
+        "wrong_prior_provenance_rejected",
     )
     invocation = REPRODUCTION_INVOCATION
     expected_run_name = invocation.run_name if invocation is not None else None
@@ -1831,9 +2098,122 @@ def assert_debug_proof(record: dict[str, Any]) -> None:
         raise RuntimeError("debug capture proof is not bound to the current invocation")
     if record.get("header_values_recorded") is not False:
         raise RuntimeError("debug capture proof did not exclude header values")
+    if (record.get("capture_proof_case_ids") != ["a8-link-02", "a8-laya-01"] or
+            record.get("capture_proof_fixture_sha256") != sha256_file(ROOT / FIXTURE_PATH)):
+        raise RuntimeError("the exhaustive capture proof is not bound to the frozen fixture and cases")
     missing = [name for name in required_true if record.get(name) is not True]
     if missing:
         raise RuntimeError(f"debug capture proof is incomplete: {', '.join(missing)}")
+
+
+def assert_exhaustive_capture_proof(directory: Path, proof_record: dict[str, Any]) -> dict[str, Any]:
+    """Validate the on-device exhaustive capture tree produced by the real recorder.
+
+    This is the recorder/validator proof that the per-case records carry the pass identity and
+    that a failing case keeps its verdict and raw records while the next isolated case was still
+    measured. It is a TEST-ONLY structural proof, not a model-behaviour measurement.
+    """
+    if not directory.is_dir():
+        raise RuntimeError("the exhaustive capture proof tree was not collected")
+    identity = {
+        "attempt_id": ATTEMPT_ID,
+        "batch_id": BATCH_ID,
+        "snapshot_id": SNAPSHOT_ID,
+        "pass": "proof",
+    }
+    fixture_sha = sha256_file(ROOT / FIXTURE_PATH)
+
+    def has_identity(record: dict[str, Any], case_id: str | None = None) -> bool:
+        return (
+            all(record.get(key) == value for key, value in identity.items()) and
+            (case_id is None or record.get("case_id") == case_id)
+        )
+
+    session_path = directory / "session.json"
+    if not session_path.is_file():
+        raise RuntimeError("the exhaustive capture proof lacks its session record")
+    session = json_load(session_path)
+    if (session.get("TEST_ONLY") is not True or
+            session.get("capture_contract") != DEBUG_CAPTURE_CONTRACT or
+            session.get("capture_mode") != "synthetic_only_full_bodies" or
+            session.get("package") != PACKAGE or not has_identity(session) or
+            session.get("fixture_id") != FIXTURE_ID or
+            session.get("fixture_sha256") != fixture_sha or
+            session.get("expected_fixture_sha256") != fixture_sha or
+            session.get("header_values_recorded") is not False):
+        raise RuntimeError("the exhaustive capture proof session does not match the TEST_ONLY contract")
+    case_ids = list(proof_record["capture_proof_case_ids"])
+    unexpected = {path.name for path in directory.iterdir() if path.is_dir()} - set(case_ids)
+    if unexpected:
+        raise RuntimeError(f"the exhaustive capture proof has unselected case dirs: {sorted(unexpected)}")
+    per_case: dict[str, Any] = {}
+    for case_id in case_ids:
+        case_dir = directory / case_id
+        case_path = case_dir / "case.json"
+        exchanges_path = case_dir / "exchanges.jsonl"
+        turns_path = case_dir / "turns.jsonl"
+        effects_path = case_dir / "effects.json"
+        for path in (case_path, exchanges_path, turns_path, effects_path):
+            if not path.is_file():
+                raise RuntimeError(f"the exhaustive capture proof for {case_id} is missing {path.name}")
+        case_record = json_load(case_path)
+        if (not has_identity(case_record, case_id) or case_record.get("TEST_ONLY") is not True or
+                case_record.get("capture_contract") != DEBUG_CAPTURE_CONTRACT or
+                case_record.get("fixture_id") != FIXTURE_ID or
+                case_record.get("fixture_sha256") != fixture_sha):
+            raise RuntimeError(f"the exhaustive capture proof case record for {case_id} has the wrong identity")
+        lines = [line for line in exchanges_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        if not lines:
+            raise RuntimeError(f"the exhaustive capture proof recorded no exchange for {case_id}")
+        for line in lines:
+            record = json.loads(line)
+            if (not has_identity(record, case_id) or record.get("TEST_ONLY") is not True or
+                    record.get("capture_contract") != DEBUG_CAPTURE_CONTRACT or
+                    not isinstance(record.get("request_body"), str) or
+                    not isinstance(record.get("response_body"), str) or
+                    not record["request_body"].strip() or not record["response_body"].strip()):
+                raise RuntimeError(f"the exhaustive capture proof exchange for {case_id} is invalid")
+            provenance = record.get("token_provenance") or {}
+            if not isinstance(provenance.get("issued_tokens_at_turn"), list):
+                raise RuntimeError(f"the exhaustive capture proof exchange for {case_id} lacks token provenance")
+        for line in turns_path.read_text(encoding="utf-8").splitlines():
+            if line.strip() and not has_identity(json.loads(line), case_id):
+                raise RuntimeError(f"the exhaustive capture proof turn for {case_id} has the wrong identity")
+        effects = json_load(effects_path)
+        if not has_identity(effects, case_id):
+            raise RuntimeError(f"the exhaustive capture proof effects for {case_id} have the wrong identity")
+        links = effects.get("postconditions", {}).get("links") or []
+        per_case[case_id] = {
+            "exchanges": len(lines),
+            "links": links,
+            "case_record_path": relative(case_path),
+            "identity_pass_present": effects.get("pass") == "proof" and
+            json.loads(lines[0]).get("pass") == "proof",
+        }
+    failing_links = per_case["a8-link-02"]["links"]
+    if failing_links != [{"event_id": 313, "draft_id": 421, "state": "PROPOSED"}]:
+        raise RuntimeError("the exhaustive capture proof did not retain the intended failing link")
+    if per_case["a8-laya-01"]["links"] not in ([], None):
+        raise RuntimeError("the exhaustive capture proof next case was not isolated")
+    forbidden = ("Bearer ", ".env", "PRIVATE KEY", "OPENCODE_GO_API_KEY=")
+    for path in directory.rglob("*"):
+        if path.is_file():
+            text = path.read_text(encoding="utf-8", errors="replace")
+            if any(marker in text for marker in forbidden):
+                raise RuntimeError(f"the exhaustive capture proof member {relative(path)} looks sensitive")
+    return {
+        "capture_contract": DEBUG_CAPTURE_CONTRACT,
+        "identity": identity,
+        "case_ids": case_ids,
+        "per_case": per_case,
+        "failing_verdict_retained": True,
+        "continued_after_failure": True,
+        "identity_pass_present_on_every_record": all(
+            row["identity_pass_present"] for row in per_case.values()
+        ),
+        "test_only": True,
+        "hosted_provider_calls": 0,
+    }
 
 
 REQUIRED_IDENTITY_SMOKE_NEGATIVES = frozenset({
@@ -2299,8 +2679,11 @@ def action_device_preflight(_: argparse.Namespace) -> int:
             validation_error = validation_error or "pinned local Laya source changed during device preflight"
     debug_proof_record: dict[str, Any] = {}
     debug_proof_error = None
+    capture_proof_record: dict[str, Any] | None = None
+    capture_proof_error = None
+    capture_proof_destination: Path | None = None
     proof_destination = destination / "debug-proof"
-    if debug_proof["status"] != "OK (2 tests)":
+    if debug_proof["status"] != "OK (3 tests)":
         debug_proof_error = "debug capture proof instrumentation did not pass"
     elif invocation is not None:
         proof_destination = proof_destination / invocation.run_name
@@ -2322,18 +2705,33 @@ def action_device_preflight(_: argparse.Namespace) -> int:
             assert_debug_proof(debug_proof_record)
         except Exception as failure:
             debug_proof_error = f"{type(failure).__name__}: {str(failure)[:1000]}"
+    if debug_proof_error is None:
+        relative_proof = debug_proof_record.get("capture_proof_relative")
+        if not isinstance(relative_proof, str) or not relative_proof:
+            capture_proof_error = "the exhaustive capture proof did not name its device root"
+        elif not remote_exists(f"files/{relative_proof}"):
+            capture_proof_error = "the exhaustive capture proof root was not created on the isolated phone"
+        else:
+            try:
+                capture_proof_destination = destination / "capture-proof"
+                collected += pull_remote_tree(f"files/{relative_proof}", capture_proof_destination)
+                capture_proof_record = assert_exhaustive_capture_proof(
+                    capture_proof_destination, debug_proof_record,
+                )
+            except Exception as failure:
+                capture_proof_error = f"{type(failure).__name__}: {str(failure)[:1000]}"
     base_after = package_fingerprint(BASE_PACKAGE)
     base_unchanged = base_before == base_after
     if not base_unchanged:
         validation_error = validation_error or "base application package identity changed during isolated preflight"
     selection_status = selection.get("status") if selection is not None else None
-    expected_tests = "OK (5 classes; 6 tests)" if invocation is not None else "OK (4 classes; 5 tests)"
+    expected_tests = "OK (5 classes; 7 tests)" if invocation is not None else "OK (4 classes; 6 tests)"
     successful = (
         (selection is None or selection_status == "OK (1 test)") and
         smoke["status"] == "OK (1 test)" and controlled["status"] == "OK (1 test)" and
-        debug_proof["status"] == "OK (2 tests)" and
+        debug_proof["status"] == "OK (3 tests)" and
         identity_smoke["status"] == "OK (1 test)" and identity_smoke_served and
-        debug_proof_error is None and
+        debug_proof_error is None and capture_proof_error is None and
         collection_error is None and validation_error is None and
         privacy_smoke_collection_error is None and privacy_smoke_validation_error is None and
         identity_smoke_collection_error is None and identity_smoke_validation_error is None
@@ -2385,6 +2783,15 @@ def action_device_preflight(_: argparse.Namespace) -> int:
             sha256_file(proof_destination / "summary.json") if debug_proof_record else None
         ),
         "debug_proof_error": debug_proof_error,
+        "exhaustive_capture_proof_path": (
+            relative(capture_proof_destination) if capture_proof_record is not None else None
+        ),
+        "exhaustive_capture_proof_sha256": (
+            sha256_file(capture_proof_destination / "session.json")
+            if capture_proof_record is not None and capture_proof_destination is not None else None
+        ),
+        "exhaustive_capture_proof": capture_proof_record,
+        "exhaustive_capture_proof_error": capture_proof_error,
         "domain_preflight": relative(domain_path) if domain_path.is_file() else None,
         "domain_preflight_sha256": sha256_file(domain_path) if domain_path.is_file() else None,
         "laya_smoke": relative(smoke_path) if smoke_path.is_file() else None,
@@ -2440,6 +2847,8 @@ def action_device_preflight(_: argparse.Namespace) -> int:
         "test_only_privacy_smoke_collection_error": privacy_smoke_collection_error,
         "test_only_privacy_smoke_validation_error": privacy_smoke_validation_error,
         "debug_proof_error": debug_proof_error,
+        "exhaustive_capture_proof": host["exhaustive_capture_proof_path"],
+        "exhaustive_capture_proof_error": capture_proof_error,
         "base_application_unchanged": base_unchanged,
         "hosted_provider_calls": 0,
     }, indent=2))
@@ -2488,7 +2897,9 @@ def strict_device_preflight(build: dict[str, Any]) -> tuple[dict[str, Any], dict
     )
     expected_selection_path = relative(selection_path) if selection_path is not None else None
     expected_selection_sha256 = sha256_file(selection_path) if selection_path and selection_path.is_file() else None
-    expected_status = "OK (5 classes; 6 tests)" if invocation is not None else "OK (4 classes; 5 tests)"
+    expected_status = "OK (5 classes; 7 tests)" if invocation is not None else "OK (4 classes; 6 tests)"
+    capture_proof_root = destination / "capture-proof"
+    capture_proof_session = capture_proof_root / "session.json"
     identity_smoke_summary = destination / "identity-smoke" / "summary.json"
     package_identity = {
         "app": PACKAGE,
@@ -2534,6 +2945,14 @@ def strict_device_preflight(build: dict[str, Any]) -> tuple[dict[str, Any], dict
             host.get("frozen_identity_smoke_collection_error") is not None or
             host.get("frozen_identity_smoke_validation_error") is not None or
             host.get("debug_proof_error") is not None or
+            host.get("exhaustive_capture_proof_error") is not None or
+            host.get("exhaustive_capture_proof_path") != relative(capture_proof_root) or
+            host.get("exhaustive_capture_proof_sha256") != sha256_file(capture_proof_session) or
+            (host.get("exhaustive_capture_proof") or {}).get(
+                "identity_pass_present_on_every_record") is not True or
+            (host.get("exhaustive_capture_proof") or {}).get("continued_after_failure") is not True or
+            (host.get("exhaustive_capture_proof") or {}).get("failing_verdict_retained") is not True or
+            (host.get("exhaustive_capture_proof") or {}).get("hosted_provider_calls") != 0 or
             host.get("debug_proof_path") != relative(proof_directory) or
             host.get("debug_proof_summary_sha256") != sha256_file(proof_summary) or
             host.get("domain_preflight") != relative(domain_path) or
@@ -2798,6 +3217,9 @@ def action_freeze(_: argparse.Namespace) -> int:
     if mapping.get("fixture_id") != FIXTURE_ID:
         raise RuntimeError("case mapping identity changed before final freeze")
     case_ids = [row["case_id"] for row in mapping["cases"]]
+    exhaustive_continuation = (
+        build_exhaustive_continuation(case_ids) if EXHAUSTIVE_FROM_ATTEMPT is not None else None
+    )
     path_identity = static_run_path_identity(require_local_targets_absent=True)
     diagnostic_case = diagnostic_only_case_identity()
     host_paths = [relative(host_record_path_for_pass(number)) for number in (1, 2, 3)]
@@ -2837,6 +3259,8 @@ def action_freeze(_: argparse.Namespace) -> int:
         "cases_per_repetition": {"dev": 16, "heldout": 8, "total": 24},
         "case_ids_in_run_order": case_ids,
         "repair_replay_case_ids": ["a8-recover-01", "a8-retry-01", "a8h-retry-01"],
+        "exhaustive_from_attempt": EXHAUSTIVE_FROM_ATTEMPT,
+        "exhaustive_continuation": exhaustive_continuation,
         "fixture_id": FIXTURE_ID,
         "scoring_version": mapping["scoring_version"],
         "refusal_evidence_contract_version": REFUSAL_EVIDENCE_CONTRACT,
@@ -2968,6 +3392,10 @@ def strict_freeze() -> dict[str, Any]:
         "app": PACKAGE, "test": TEST_PACKAGE, "test_target": PACKAGE,
         "runner": "androidx.test.runner.AndroidJUnitRunner",
     }
+    expected_exhaustive = (
+        build_exhaustive_continuation(expected_case_ids)
+        if EXHAUSTIVE_FROM_ATTEMPT is not None else None
+    )
     invocation = REPRODUCTION_INVOCATION
     expected_full_suite_debug = expected_path_identity.get("full_suite_debug")
     if invocation is None and expected_full_suite_debug is None:
@@ -3000,6 +3428,8 @@ def strict_freeze() -> dict[str, Any]:
             freeze.get("turn_budgets") != RUN_LIMITS or freeze.get("repetitions") != REPETITIONS or
             freeze.get("cases_per_repetition") != {"dev": 16, "heldout": 8, "total": 24} or
             freeze.get("case_ids_in_run_order") != expected_case_ids or
+            freeze.get("exhaustive_from_attempt") != EXHAUSTIVE_FROM_ATTEMPT or
+            freeze.get("exhaustive_continuation") != expected_exhaustive or
             freeze.get("repair_replay_case_ids") != ["a8-recover-01", "a8-retry-01", "a8h-retry-01"] or
             freeze.get("fixture_id") != FIXTURE_ID or freeze.get("fixture_path") != FIXTURE_PATH or
             freeze.get("scoring_path") != SCORING_PATH or
@@ -3113,7 +3543,10 @@ def existing_hard_stop(pass_number: int) -> str | None:
     return None
 
 
-def run_folder_has_hard_failure(folder: Path) -> str | None:
+def run_folder_has_hard_failure(
+    folder: Path,
+    freeze: dict[str, Any] | None = None,
+) -> str | None:
     live = folder / "live-run.json"
     if not live.is_file():
         return "missing_live_run"
@@ -3122,7 +3555,16 @@ def run_folder_has_hard_failure(folder: Path) -> str | None:
     except (json.JSONDecodeError, OSError):
         return "live_run_unparseable"
     if run.get("safety_stop") not in (None, "null"):
+        # In the exhaustive mode only a fatal infrastructure/isolation/credential condition sets
+        # the run-level stop; a case-level rubric verdict never reaches this field.
         return f"runtime_safety_stop:{run.get('safety_stop')}"
+    if isinstance(freeze, dict) and isinstance(freeze.get("exhaustive_continuation"), dict):
+        skipped = [
+            row.get("case_id") for row in run.get("cases", [])
+            if isinstance(row, dict) and row.get("attempt_status") == "not_run_batch_stop"
+        ]
+        if skipped and run.get("safety_stop") in (None, "null"):
+            return "exhaustive_batch_stop_without_fatal_reason"
     hard_statuses = {401, 402, 403}
     for path in folder.glob("*.provider-attempts.json"):
         if not path.is_file():
@@ -3167,6 +3609,8 @@ def validate_live_run(path: Path, freeze: dict[str, Any], pass_number: int) -> s
     cases = live.get("cases", [])
     recorded_ids = [row.get("case_id") for row in cases if isinstance(row, dict)]
     expected_identity = frozen_identity_from_freeze(freeze, pass_number)
+    expected_case_ids = expected_pass_case_ids(freeze, pass_number)
+    exhaustive = freeze.get("exhaustive_continuation")
     checks = (
         live.get("task") == "S8.13",
         live.get("attempt_id") == ATTEMPT_ID,
@@ -3185,13 +3629,66 @@ def validate_live_run(path: Path, freeze: dict[str, Any], pass_number: int) -> s
         live.get("run_limits") == RUN_LIMITS,
         live.get("input_sha256") == expected_asset_hashes(),
         live.get("measurement_scope") == "full_fixture",
-        live.get("expected_cases") == 24,
-        live.get("recorded_cases") == 24,
-        live.get("case_ids") == freeze.get("case_ids_in_run_order"),
-        recorded_ids == freeze.get("case_ids_in_run_order"),
+        live.get("expected_cases") == len(expected_case_ids),
+        live.get("recorded_cases") == len(expected_case_ids),
+        live.get("case_ids") == expected_case_ids,
+        recorded_ids == expected_case_ids,
         live.get("adjudication_version") == ADJUDICATION_VERSION,
         live.get("credential_recorded") is False,
     )
+    if not isinstance(exhaustive, dict):
+        checks = checks + (live.get("exhaustive_continuation") is None,)
+    else:
+        row = exhaustive_pass_plan(freeze, pass_number)
+        block = live.get("exhaustive_continuation")
+        decisions = block.get("case_decisions") if isinstance(block, dict) else None
+        expected_digest = exhaustive_identity_digest({
+            "attempt_id": ATTEMPT_ID,
+            "batch_id": BATCH_ID,
+            "snapshot_id": SNAPSHOT_ID,
+            "pass": str(pass_number),
+            "case_ids": list(row["case_ids"]) if row else [],
+            "retained_case_ids": (
+                list(exhaustive["retained_prefix_case_ids"]) if pass_number == 1 else []
+            ),
+            "prior_provenance_sha256": exhaustive["retained_provenance"]["provenance_sha256"],
+        }) if row else None
+        checks = checks + (
+            isinstance(block, dict),
+            isinstance(block, dict) and block.get("contract") == EXHAUSTIVE_CONTRACT,
+            isinstance(block, dict) and block.get("policy") == "batch_continuation_only",
+            isinstance(block, dict) and block.get("pass") == str(pass_number),
+            isinstance(block, dict) and row is not None and block.get("selected_case_ids") == row["case_ids"],
+            isinstance(block, dict) and block.get("retained_case_ids") == (
+                list(exhaustive["retained_prefix_case_ids"]) if pass_number == 1 else []
+            ),
+            isinstance(block, dict) and block.get("retained_slot_count") == (
+                len(exhaustive["retained_prefix_case_ids"]) if pass_number == 1 else 0
+            ),
+            isinstance(block, dict) and row is not None and block.get("measured_slot_count") == len(row["case_ids"]),
+            isinstance(block, dict) and block.get("total_slots") == EXHAUSTIVE_TOTAL_SLOTS,
+            isinstance(block, dict) and block.get("measured_slots_in_batch") == EXHAUSTIVE_MEASURED_SLOTS,
+            isinstance(block, dict) and expected_digest is not None and
+            block.get("identity_sha256") == expected_digest,
+            isinstance(decisions, list) and len(decisions) == len(expected_case_ids),
+            isinstance(decisions, list) and all(
+                isinstance(decision, dict) and
+                decision.get("decision") in {"CONTINUE", "STOP"} and
+                decision.get("verdict_retained") is True and
+                decision.get("case_id") in expected_case_ids and
+                decision.get("contract") == EXHAUSTIVE_CONTRACT
+                for decision in decisions
+            ),
+            isinstance(block, dict) and block.get("stop_reason") == live.get("safety_stop"),
+            all(
+                isinstance(row, dict) and
+                isinstance(row.get("batch_continuation"), dict) and
+                row["batch_continuation"].get("decision") in {"CONTINUE", "STOP"} and
+                row["batch_continuation"].get("verdict_retained") is True and
+                row.get("slot_provenance") in {"measured_this_attempt", "not_measured_batch_stop"}
+                for row in cases
+            ),
+        )
     return None if all(checks) else "live_run_identity_inputs_or_denominator_mismatch"
 def validate_diagnostic_live_run(path: Path, freeze: dict[str, Any]) -> str | None:
     if not path.is_file():
@@ -3433,8 +3930,9 @@ def validate_full_suite_debug_tree(
     binding = (freeze.get("debug_capture") or {}).get("full_suite_debug")
     if not isinstance(binding, dict):
         raise RuntimeError("the frozen candidate does not authorize full-suite debug capture")
-    expected_ids = list((freeze.get("debug_capture") or {}).get("full_suite_case_ids") or [])
-    if expected_ids != list(freeze.get("case_ids_in_run_order") or []):
+    expected_ids = expected_pass_case_ids(freeze, pass_number)
+    if list((freeze.get("debug_capture") or {}).get("full_suite_case_ids") or []) != list(
+            freeze.get("case_ids_in_run_order") or []):
         raise RuntimeError("frozen full-suite debug case order differs from the qualification suite")
     entries = binding.get("per_pass") or []
     entry = next((row for row in entries if isinstance(row, dict) and row.get("pass") == pass_number), None)
@@ -3477,19 +3975,46 @@ def validate_full_suite_debug_tree(
         if outcome.get("case_id") != case_id:
             unrun_cases.append(case_id)
             continue
-        skipped = outcome.get("attempt_status") == "not_run_safety_stop"
-        if skipped:
+        status = outcome.get("attempt_status")
+        if isinstance(status, str) and status.startswith("not_run"):
             if case_dir.exists():
-                raise RuntimeError(f"safety-stopped case {case_id} unexpectedly has provider debug capture")
+                raise RuntimeError(f"batch-stopped case {case_id} unexpectedly has provider debug capture")
             per_case[case_id] = {
                 "exchanges": 0,
-                "not_run_safety_stop": True,
+                "not_run": True,
+                "attempt_status": status,
                 "case_record_path": None,
                 "effects_record_path": None,
             }
             continue
+        fatal_class = None
+        continuation = outcome.get("batch_continuation")
+        if isinstance(continuation, dict):
+            fatal_class = continuation.get("fatal_class")
+        if not case_dir.exists():
+            if fatal_class:
+                per_case[case_id] = {
+                    "exchanges": 0,
+                    "capture_absent_fatal": True,
+                    "fatal_class": fatal_class,
+                    "case_record_path": None,
+                    "effects_record_path": None,
+                }
+                continue
+            raise RuntimeError(
+                f"full-suite debug tree lacks identity-bound capture for executed case {case_id}"
+            )
         case_path = case_dir / "case.json"
         exchanges_path = case_dir / "exchanges.jsonl"
+        if fatal_class and (not case_path.is_file() or not exchanges_path.is_file()):
+            per_case[case_id] = {
+                "exchanges": 0,
+                "capture_absent_fatal": True,
+                "fatal_class": fatal_class,
+                "case_record_path": None,
+                "effects_record_path": None,
+            }
+            continue
         if not case_path.is_file() or not exchanges_path.is_file():
             raise RuntimeError(f"full-suite debug tree lacks identity-bound capture for executed case {case_id}")
         case_record = json_load(case_path)
@@ -3631,6 +4156,10 @@ def action_run(args: argparse.Namespace) -> int:
     path_identity_path = run_path_identity_path_for_pass(pass_number)
     remote = remote_run_dir_for_pass(pass_number)
     frozen_identity = frozen_identity_from_freeze(freeze, pass_number)
+    exhaustive_args = (
+        exhaustive_binding_arguments(freeze, pass_number)
+        if isinstance(freeze.get("exhaustive_continuation"), dict) else []
+    )
     path_identity = static_run_path_identity()
     if freeze.get("path_identity") != path_identity:
         raise RuntimeError("selected freeze does not bind the calculated snapshot path identity")
@@ -3743,6 +4272,7 @@ def action_run(args: argparse.Namespace) -> int:
                 ("S813_DEBUG_ROOT", full_suite_debug_device_root(pass_number)),
                 ("S813_FIXTURE_SHA256", freeze["fixture_sha256"]),
                 ("S813_CREDENTIAL_PORT", str(server.port)),
+                *exhaustive_args,
                 *frozen_identity_arguments(frozen_identity),
             ],
             timeout=args.timeout_seconds,
@@ -3793,7 +4323,10 @@ def action_run(args: argparse.Namespace) -> int:
 
     live_path = destination / "live-run.json"
     validation_error = validate_live_run(live_path, freeze, pass_number) if live_path.is_file() else "missing_live_run"
-    hard_stop = run_folder_has_hard_failure(destination) if destination.is_dir() else "attempt_output_not_collected"
+    hard_stop = (
+        run_folder_has_hard_failure(destination, freeze)
+        if destination.is_dir() else "attempt_output_not_collected"
+    )
     if validation_error:
         hard_stop = hard_stop or validation_error
     try:
@@ -3870,6 +4403,25 @@ def action_run(args: argparse.Namespace) -> int:
         "debug_collection_error": debug_collection_error,
         "expected_cases": live_run.get("expected_cases"),
         "safety_stop": live_run.get("safety_stop"),
+        "exhaustive_continuation": (
+            live_run.get("exhaustive_continuation")
+            if isinstance(live_run.get("exhaustive_continuation"), dict) else None
+        ),
+        "case_safety_stops": [
+            {
+                "case_id": row.get("case_id"),
+                "decision": (row.get("batch_continuation") or {}).get("decision"),
+                "case_safety_stop": (row.get("batch_continuation") or {}).get("case_safety_stop"),
+                "fatal_class": (row.get("batch_continuation") or {}).get("fatal_class"),
+            }
+            for row in live_run.get("cases", []) if isinstance(row, dict)
+            and isinstance(row.get("batch_continuation"), dict)
+            and (row.get("batch_continuation") or {}).get("case_safety_stop") is not None
+        ],
+        "measured_case_count": sum(
+            1 for row in live_run.get("cases", []) if isinstance(row, dict)
+            and row.get("attempt_status") != "not_run_batch_stop"
+        ),
         "hard_stop": hard_stop,
         "isolated_base_package_mutated": False,
         "device_data_cleared": False,
@@ -5493,10 +6045,19 @@ def sidecar_metrics(run_dir: Path, case_id: str, case_record: dict[str, Any] | N
 
 
 def evaluate_case(mapping: dict[str, Any], pass_number: int, run_dir: Path, freeze: dict[str, Any],
-                  semantic_reviews: dict[str, Any] | None) -> dict[str, Any]:
+                  semantic_reviews: dict[str, Any] | None,
+                  origin: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Score one retained slot. `origin` binds a slot to its immutable prior-attempt provenance."""
     case_id = mapping["case_id"]
     case_path = run_dir / f"{case_id}.json"
-    host_path = host_record_path_for_pass(pass_number)
+    if origin is None:
+        host_path = host_record_path_for_pass(pass_number)
+        path_identity_path = run_path_identity_path_for_pass(pass_number)
+        slot_provenance = "measured_this_attempt"
+    else:
+        host_path = ROOT / origin["host_record_path"]
+        path_identity_path = ROOT / origin["path_identity_path"]
+        slot_provenance = "retained_prior_attempt"
     host = json_load(host_path) if host_path.is_file() else {}
     case_record = json_load(case_path) if case_path.is_file() else None
     metrics = sidecar_metrics(run_dir, case_id, case_record)
@@ -5504,6 +6065,18 @@ def evaluate_case(mapping: dict[str, Any], pass_number: int, run_dir: Path, free
     semantic = (semantic_reviews or {}).get(f"{pass_number}:{case_id}", {})
     if not isinstance(semantic, dict):
         semantic = {}
+    slot_origin = None if origin is None else {
+        "attempt_id": origin["attempt_id"],
+        "snapshot_id": origin["snapshot_id"],
+        "pass": origin["pass"],
+        "case_record_path": origin["case_record_path"],
+        "case_record_sha256": origin["case_record_sha256"],
+        "provider_attempts_path": origin["provider_attempts_path"],
+        "provider_attempts_sha256": origin["provider_attempts_sha256"],
+        "host_record_path": origin["host_record_path"],
+        "host_record_sha256": origin["host_record_sha256"],
+        "freeze_sha256": origin["freeze_sha256"],
+    }
     if case_record is None:
         technical = False
         return {
@@ -5519,6 +6092,8 @@ def evaluate_case(mapping: dict[str, Any], pass_number: int, run_dir: Path, free
             "technical_success": technical,
             "semantic_review": semantic.get("decision", "PENDING"),
             "task_success": False,
+            "slot_provenance": slot_provenance,
+            "slot_origin": slot_origin,
         }
     post = case_record.get("postconditions", {})
     calls, results = get_tool_trace(case_record)
@@ -5548,72 +6123,107 @@ def evaluate_case(mapping: dict[str, Any], pass_number: int, run_dir: Path, free
         for turn in answered_turns
     )
     accepted_outcome = case_outcome_matches(mapping, case_record)
-    path_identity_path = run_path_identity_path_for_pass(pass_number)
     try:
         path_identity_record = json_load(path_identity_path)
     except (json.JSONDecodeError, OSError):
         path_identity_record = {}
-    pass_index = pass_number - 1
-    frozen_pass_paths = {
-        "output_folder": freeze["exact_run_output_folders"][pass_index],
-        "host_record": freeze["exact_host_record_paths"][pass_index],
-        "preflight_record": freeze["exact_preflight_record_paths"][pass_index],
-        "path_identity_record": freeze["exact_path_identity_record_paths"][pass_index],
-        "device_run_directory": freeze["exact_device_run_directories"][pass_index],
-    }
-    path_identity_ok = (
-        path_identity_record.get("task_id") == "S8.13" and
-        path_identity_record.get("attempt_id") == ATTEMPT_ID and
-        path_identity_record.get("batch_id") == BATCH_ID and
-        path_identity_record.get("snapshot_id") == SNAPSHOT_ID and
-        path_identity_record.get("candidate") == CANDIDATE and
-        path_identity_record.get("pass") == pass_number and
-        path_identity_record.get("freeze_path") == relative(FREEZE_PATH) and
-        path_identity_record.get("freeze_sha256") == sha256_file(FREEZE_PATH) and
-        path_identity_record.get("frozen_pass_paths") == frozen_pass_paths and
-        path_identity_record.get("path_identity_preflight_path") == freeze["path_identity_preflight_path"] and
-        path_identity_record.get("path_identity_preflight_sha256") == freeze["path_identity_preflight_sha256"] and
-        path_identity_record.get("local_output_folder") == evidence_path(run_dir) and
-        path_identity_record.get("local_host_record") == relative(host_record_path_for_pass(pass_number)) and
-        path_identity_record.get("local_preflight_record") == relative(preflight_record_path_for_pass(pass_number)) and
-        path_identity_record.get("local_path_identity_record") == relative(path_identity_path) and
-        path_identity_record.get("device_output_directory") == remote_run_dir_for_pass(pass_number) and
-        path_identity_record.get("selected_freeze_path_binding") is True and
-        path_identity_record.get("selected_device_path_exists_before_run") is False and
-        path_identity_record.get("retained_legacy_root_host_record") ==
-        freeze["path_identity"]["legacy_root_collision"]["host_record_path"] and
-        path_identity_record.get("retained_legacy_root_host_record_was_refused") is True and
-        path_identity_record.get("legacy_device_output_directory") ==
-        f"files/{ATTEMPT_ID}/{PROFILE}/pass-{pass_number}" and
-        path_identity_record.get("legacy_device_output_directory_selected") is False and
-        path_identity_record.get("full_suite_debug_local") == evidence_path(full_suite_debug_local_dir(pass_number)) and
-        path_identity_record.get("full_suite_debug_local_relative") == relative(full_suite_debug_local_dir(pass_number)) and
-        path_identity_record.get("full_suite_debug_device") == full_suite_debug_device_dir(pass_number) and
-        path_identity_record.get("selected_debug_binding_matches_freeze") is True and
-        path_identity_record.get("all_path_identity_checks_passed") is True and
-        path_identity_record.get("hosted_provider_calls") == 0 and
-        path_identity_record.get("credential_loaded") is False and
-        path_identity_record.get("endpoint_attempted") is False
-    )
-    host_ok = (
-        host.get("task_id") == "S8.13" and host.get("attempt_id") == ATTEMPT_ID and
-        host.get("batch_id") == BATCH_ID and host.get("snapshot_id") == SNAPSHOT_ID and
-        host.get("candidate") == CANDIDATE and host.get("pass") == pass_number and
-        host.get("local_output_folder") == evidence_path(run_dir) and
-        host.get("local_host_record_path") == relative(host_record_path_for_pass(pass_number)) and
-        host.get("local_preflight_record_path") == relative(preflight_record_path_for_pass(pass_number)) and
-        host.get("path_identity_record_path") == relative(path_identity_path) and
-        host.get("path_identity_record_sha256") == sha256_file(path_identity_path) and
-        host.get("path_identity_preflight_path") == freeze["path_identity_preflight_path"] and
-        host.get("path_identity_preflight_sha256") == freeze["path_identity_preflight_sha256"] and
-        host.get("device_run_directory") == remote_run_dir_for_pass(pass_number) and
-        host.get("fixture_sha256") == freeze["fixture_sha256"] and
-        host.get("scoring_sha256") == freeze["scoring_sha256"] and
-        host.get("app_apk_sha256") == freeze["app_apk_sha256"] and
-        host.get("test_apk_sha256") == freeze["test_apk_sha256"] and
-        host.get("freeze_sha256") == sha256_file(FREEZE_PATH) and
-        path_identity_ok
-    )
+    if origin is None:
+        pass_index = pass_number - 1
+        frozen_pass_paths = {
+            "output_folder": freeze["exact_run_output_folders"][pass_index],
+            "host_record": freeze["exact_host_record_paths"][pass_index],
+            "preflight_record": freeze["exact_preflight_record_paths"][pass_index],
+            "path_identity_record": freeze["exact_path_identity_record_paths"][pass_index],
+            "device_run_directory": freeze["exact_device_run_directories"][pass_index],
+        }
+        path_identity_ok = (
+            path_identity_record.get("task_id") == "S8.13" and
+            path_identity_record.get("attempt_id") == ATTEMPT_ID and
+            path_identity_record.get("batch_id") == BATCH_ID and
+            path_identity_record.get("snapshot_id") == SNAPSHOT_ID and
+            path_identity_record.get("candidate") == CANDIDATE and
+            path_identity_record.get("pass") == pass_number and
+            path_identity_record.get("freeze_path") == relative(FREEZE_PATH) and
+            path_identity_record.get("freeze_sha256") == sha256_file(FREEZE_PATH) and
+            path_identity_record.get("frozen_pass_paths") == frozen_pass_paths and
+            path_identity_record.get("path_identity_preflight_path") == freeze["path_identity_preflight_path"] and
+            path_identity_record.get("path_identity_preflight_sha256") == freeze["path_identity_preflight_sha256"] and
+            path_identity_record.get("local_output_folder") == evidence_path(run_dir) and
+            path_identity_record.get("local_host_record") == relative(host_record_path_for_pass(pass_number)) and
+            path_identity_record.get("local_preflight_record") == relative(preflight_record_path_for_pass(pass_number)) and
+            path_identity_record.get("local_path_identity_record") == relative(path_identity_path) and
+            path_identity_record.get("device_output_directory") == remote_run_dir_for_pass(pass_number) and
+            path_identity_record.get("selected_freeze_path_binding") is True and
+            path_identity_record.get("selected_device_path_exists_before_run") is False and
+            path_identity_record.get("retained_legacy_root_host_record") ==
+            freeze["path_identity"]["legacy_root_collision"]["host_record_path"] and
+            path_identity_record.get("retained_legacy_root_host_record_was_refused") is True and
+            path_identity_record.get("legacy_device_output_directory") ==
+            f"files/{ATTEMPT_ID}/{PROFILE}/pass-{pass_number}" and
+            path_identity_record.get("legacy_device_output_directory_selected") is False and
+            path_identity_record.get("full_suite_debug_local") == evidence_path(full_suite_debug_local_dir(pass_number)) and
+            path_identity_record.get("full_suite_debug_local_relative") == relative(full_suite_debug_local_dir(pass_number)) and
+            path_identity_record.get("full_suite_debug_device") == full_suite_debug_device_dir(pass_number) and
+            path_identity_record.get("selected_debug_binding_matches_freeze") is True and
+            path_identity_record.get("all_path_identity_checks_passed") is True and
+            path_identity_record.get("hosted_provider_calls") == 0 and
+            path_identity_record.get("credential_loaded") is False and
+            path_identity_record.get("endpoint_attempted") is False
+        )
+        host_ok = (
+            host.get("task_id") == "S8.13" and host.get("attempt_id") == ATTEMPT_ID and
+            host.get("batch_id") == BATCH_ID and host.get("snapshot_id") == SNAPSHOT_ID and
+            host.get("candidate") == CANDIDATE and host.get("pass") == pass_number and
+            host.get("local_output_folder") == evidence_path(run_dir) and
+            host.get("local_host_record_path") == relative(host_record_path_for_pass(pass_number)) and
+            host.get("local_preflight_record_path") == relative(preflight_record_path_for_pass(pass_number)) and
+            host.get("path_identity_record_path") == relative(path_identity_path) and
+            host.get("path_identity_record_sha256") == sha256_file(path_identity_path) and
+            host.get("path_identity_preflight_path") == freeze["path_identity_preflight_path"] and
+            host.get("path_identity_preflight_sha256") == freeze["path_identity_preflight_sha256"] and
+            host.get("device_run_directory") == remote_run_dir_for_pass(pass_number) and
+            host.get("fixture_sha256") == freeze["fixture_sha256"] and
+            host.get("scoring_sha256") == freeze["scoring_sha256"] and
+            host.get("app_apk_sha256") == freeze["app_apk_sha256"] and
+            host.get("test_apk_sha256") == freeze["test_apk_sha256"] and
+            host.get("freeze_sha256") == sha256_file(FREEZE_PATH) and
+            path_identity_ok
+        )
+    else:
+        case_bytes_ok = (
+            sha256_file(case_path) == origin["case_record_sha256"] and
+            sha256_file(run_dir / f"{case_id}.provider-attempts.json") ==
+            origin["provider_attempts_sha256"] and
+            case_record.get("case_id") == case_id
+        )
+        path_identity_ok = (
+            sha256_file(path_identity_path) == origin["path_identity_sha256"] and
+            path_identity_record.get("attempt_id") == origin["attempt_id"] and
+            path_identity_record.get("snapshot_id") == origin["snapshot_id"] and
+            path_identity_record.get("pass") == origin["pass"] and
+            path_identity_record.get("all_path_identity_checks_passed") is True and
+            path_identity_record.get("hosted_provider_calls") == 0 and
+            path_identity_record.get("credential_loaded") is False and
+            path_identity_record.get("endpoint_attempted") is False
+        )
+        host_ok = (
+            case_bytes_ok and
+            sha256_file(host_path) == origin["host_record_sha256"] and
+            host.get("batch_id") == BATCH_ID and
+            host.get("attempt_id") == origin["attempt_id"] and
+            host.get("snapshot_id") == origin["snapshot_id"] and
+            host.get("pass") == origin["pass"] and
+            host.get("local_output_folder") == evidence_path(run_dir) and
+            host.get("local_host_record_path") == origin["host_record_path"] and
+            host.get("path_identity_record_path") == origin["path_identity_path"] and
+            host.get("path_identity_record_sha256") == origin["path_identity_sha256"] and
+            host.get("fixture_sha256") == freeze["fixture_sha256"] and
+            host.get("scoring_sha256") == freeze["scoring_sha256"] and
+            host.get("app_apk_sha256") == freeze["app_apk_sha256"] and
+            host.get("test_apk_sha256") == freeze["test_apk_sha256"] and
+            host.get("freeze_sha256") == origin["freeze_sha256"] and
+            path_identity_ok
+        )
     actual_status = case_record.get("attempt_status")
     complete_record = actual_status == "hosted_run_recorded"
     laya_ok = laya_ok and (case_record.get("laya_evidence", {}).get("requested") is True
@@ -5667,6 +6277,9 @@ def evaluate_case(mapping: dict[str, Any], pass_number: int, run_dir: Path, free
         "local_laya_pass": laya_ok,
         "local_laya_evidence": laya_details,
         "host_binding_pass": host_ok,
+        "host_binding_kind": slot_provenance,
+        "slot_provenance": slot_provenance,
+        "slot_origin": slot_origin,
         "technical_success": technical,
         "semantic_review": semantic_decision,
         "semantic_review_reason": semantic.get("reason"),
@@ -5730,6 +6343,24 @@ def aggregate_reported_costs(rows: list[dict[str, Any]]) -> list[dict[str, Any]]
 def action_score(args: argparse.Namespace) -> int:
     freeze = strict_freeze()
     _, mapping_doc = strict_static_preflight()
+    mapping_by_id = {row["case_id"]: row for row in mapping_doc["cases"]}
+    exhaustive = freeze.get("exhaustive_continuation")
+    retained_by_case: dict[str, dict[str, Any]] = {}
+    retained_run_dir: Path | None = None
+    if isinstance(exhaustive, dict):
+        retained_provenance = exhaustive["retained_provenance"]
+        retained_run_dir = ROOT / retained_provenance["run_folder"]
+        for slot in retained_provenance["slots"]:
+            retained_by_case[slot["case_id"]] = {
+                **slot,
+                "attempt_id": retained_provenance["attempt_id"],
+                "snapshot_id": retained_provenance["snapshot_id"],
+                "host_record_path": retained_provenance["host_record_path"],
+                "host_record_sha256": retained_provenance["host_record_sha256"],
+                "path_identity_path": retained_provenance["path_identity_path"],
+                "path_identity_sha256": retained_provenance["path_identity_sha256"],
+                "freeze_sha256": retained_provenance["freeze_sha256"],
+            }
     run_results: list[dict[str, Any]] = []
     semantic = semantic_review_map(args.semantic_reviews, freeze, mapping_doc)
     for pass_number in (1, 2, 3):
@@ -5737,13 +6368,32 @@ def action_score(args: argparse.Namespace) -> int:
         host_path = host_record_path_for_pass(pass_number)
         if not host_path.is_file():
             raise RuntimeError(f"repetition {pass_number} has no retained host record; missing attempts stay failures")
-        rows = [evaluate_case(case, pass_number, run_dir, freeze, semantic) for case in mapping_doc["cases"]]
+        pass_row = exhaustive_pass_plan(freeze, pass_number)
+        slot_order = list(pass_row["slot_order"]) if pass_row else list(freeze["case_ids_in_run_order"])
+        rows: list[dict[str, Any]] = []
+        for case_id in slot_order:
+            mapping = mapping_by_id[case_id]
+            origin = retained_by_case.get(case_id) if pass_number == 1 else None
+            if origin is not None:
+                if retained_run_dir is None:
+                    raise RuntimeError("retained slots require the frozen prior-attempt run folder")
+                rows.append(evaluate_case(
+                    mapping, pass_number, retained_run_dir, freeze, semantic, origin=origin,
+                ))
+            else:
+                rows.append(evaluate_case(mapping, pass_number, run_dir, freeze, semantic))
         run_results.append({
             "pass": pass_number,
             "case_count": len(rows),
-            "case_ids": [row["case_id"] for row in rows],
+            "case_ids": slot_order,
             "host_record": relative(host_path),
             "host_record_sha256": sha256_file(host_path),
+            "retained_slots": sum(
+                row["slot_provenance"] == "retained_prior_attempt" for row in rows
+            ),
+            "measured_slots": sum(
+                row["slot_provenance"] == "measured_this_attempt" for row in rows
+            ),
             "provider_exchange_count": sum(row.get("provider_metrics", {}).get("provider_exchange_count", 0) for row in rows),
             "provider_failure_count": sum(row.get("provider_metrics", {}).get("provider_failure_count", 0) for row in rows),
             "truncation_count": sum(len(row.get("provider_metrics", {}).get("truncations", [])) for row in rows),
@@ -5768,8 +6418,17 @@ def action_score(args: argparse.Namespace) -> int:
     semantic_pending = sum(row["semantic_review"] == "PENDING" for row in all_rows)
     unsafe_count = sum(row["zero_ledger_out_of_scope_and_unauthorized_effects"] is not True for row in all_rows)
     masking_failures = sum(row["masking_integrity_pass"] is not True for row in all_rows)
-    complete = (len(run_results) == 3 and all(run["case_count"] == 24 for run in run_results) and
-                all(run["case_ids"] == freeze["case_ids_in_run_order"] for run in run_results))
+    expected_slots = (
+        [(row["pass"], case_id) for row in exhaustive["passes"] for case_id in row["slot_order"]]
+        if isinstance(exhaustive, dict) else
+        [(pass_number, case_id) for pass_number in (1, 2, 3)
+         for case_id in freeze["case_ids_in_run_order"]]
+    )
+    observed_slots = [(row["pass"], row["case_id"]) for run in run_results for row in run["cases"]]
+    complete = (
+        len(run_results) == 3 and observed_slots == expected_slots and
+        len(observed_slots) == (EXHAUSTIVE_TOTAL_SLOTS if isinstance(exhaustive, dict) else 72)
+    )
     gates = {
         "complete_three_repetition_batch": complete,
         "dev_full_workflow": {"successes": dev_successes, "denominator": 48, "minimum_successes": 39,
@@ -5797,6 +6456,39 @@ def action_score(args: argparse.Namespace) -> int:
         "provider_model_id": MODEL_ID, "provider_protocol": PROTOCOL,
         "budget": {"max_output_tokens_per_turn": MAX_OUTPUT_TOKENS, **RUN_LIMITS},
         "repetitions": run_results,
+        "slot_provenance": [
+            {
+                "pass": row["pass"],
+                "case_id": row["case_id"],
+                "slot_provenance": row["slot_provenance"],
+                "origin": (
+                    row["slot_origin"]["attempt_id"] if isinstance(row.get("slot_origin"), dict)
+                    else ATTEMPT_ID
+                ),
+                "case_record_sha256": (
+                    row["slot_origin"]["case_record_sha256"]
+                    if isinstance(row.get("slot_origin"), dict) else None
+                ),
+            }
+            for run in run_results for row in run["cases"]
+        ],
+        "slot_accounting": (
+            {
+                "contract": exhaustive["contract"],
+                "mode": exhaustive["mode"],
+                "policy": exhaustive["policy"],
+                "total_slots": EXHAUSTIVE_TOTAL_SLOTS,
+                "retained_slots": len(exhaustive["retained_prefix_case_ids"]),
+                "measured_slots": EXHAUSTIVE_MEASURED_SLOTS,
+                "retained_prior_attempt": exhaustive["retained_provenance"]["attempt_id"],
+                "retained_prior_snapshot": exhaustive["retained_provenance"]["snapshot_id"],
+                "retained_prior_freeze_sha256": exhaustive["retained_provenance"]["freeze_sha256"],
+                "retained_prior_live_run_sha256": exhaustive["retained_provenance"]["live_run_sha256"],
+                "retained_prior_provenance_sha256": exhaustive["retained_provenance"]["provenance_sha256"],
+                "retained_prefix_case_ids": exhaustive["retained_prefix_case_ids"],
+            }
+            if isinstance(exhaustive, dict) else None
+        ),
         "pooled_summary": {
             "dev": {"successes": dev_successes, "denominator": len(dev)},
             "heldout": {"successes": heldout_successes, "denominator": len(heldout)},
@@ -5823,7 +6515,10 @@ def action_score(args: argparse.Namespace) -> int:
         "historical_attempts_modified": False,
         "generated_at": utc_now(),
     }
-    filename = "score-reviewed.json" if semantic is not None else "score.json"
+    if isinstance(exhaustive, dict):
+        filename = "combined-72-reviewed.json" if semantic is not None else "combined-72.json"
+    else:
+        filename = "score-reviewed.json" if semantic is not None else "score.json"
     output = PREPARATION_ROOT / filename
     write_new_json(output, score)
     worksheet = PREPARATION_ROOT / "semantic-review-worksheet.json"
@@ -5848,6 +6543,13 @@ def action_score(args: argparse.Namespace) -> int:
         "masking": gates["masking_integrity"],
         "unsafe_effects": gates["unauthorized_or_financially_incorrect_effects"],
         "semantic_pending": semantic_pending,
+        "total_slots": len(all_rows),
+        "retained_slots": sum(
+            row["slot_provenance"] == "retained_prior_attempt" for row in all_rows
+        ),
+        "measured_slots": sum(
+            row["slot_provenance"] == "measured_this_attempt" for row in all_rows
+        ),
     }, indent=2))
     return 0 if qualifies else 1
 
@@ -6649,6 +7351,78 @@ def selfcheck_report() -> dict[str, Any]:
                 validator_missing_rejected is True and validator_unexpected_rejected is True,
                 validator_checks,
             )
+            batch_stop_root = (
+                ROOT / "artifacts/sprint-8/test-only" / ATTEMPT_ID / SNAPSHOT_ID
+                / "selfcheck-batch-stop-probe"
+            )
+            try:
+                batch_stop_root.mkdir(parents=True)
+                (batch_stop_root / "session.json").write_text(json.dumps({
+                    "TEST_ONLY": True,
+                    "capture_contract": DEBUG_CAPTURE_CONTRACT,
+                    "capture_mode": "synthetic_only_full_bodies",
+                    "package": PACKAGE,
+                    **session_identity,
+                    "fixture_id": FIXTURE_ID,
+                    "fixture_sha256": sha256_file(ROOT / FIXTURE_PATH),
+                    "header_values_recorded": False,
+                }), encoding="utf-8")
+                all_stopped = {"cases": [
+                    {"case_id": case_id, "attempt_status": "not_run_batch_stop"}
+                    for case_id in ordered_ids
+                ]}
+                stopped_accepted = True
+                try:
+                    validate_full_suite_debug_tree(
+                        batch_stop_root, validator_freeze, 1, all_stopped,
+                    )
+                except RuntimeError:
+                    stopped_accepted = False
+                fatal_first = {"cases": [
+                    {
+                        "case_id": ordered_ids[0],
+                        "attempt_status": "harness_or_provider_error",
+                        "batch_continuation": {
+                            "fatal_class": "isolation_failure", "decision": "STOP",
+                        },
+                    },
+                    *[
+                        {"case_id": case_id, "attempt_status": "not_run_batch_stop"}
+                        for case_id in ordered_ids[1:]
+                    ],
+                ]}
+                fatal_accepted = True
+                try:
+                    validate_full_suite_debug_tree(
+                        batch_stop_root, validator_freeze, 1, fatal_first,
+                    )
+                except RuntimeError:
+                    fatal_accepted = False
+                executed_without_capture = {"cases": [
+                    {"case_id": ordered_ids[0], "attempt_status": "hosted_run_recorded"},
+                    *[
+                        {"case_id": case_id, "attempt_status": "not_run_batch_stop"}
+                        for case_id in ordered_ids[1:]
+                    ],
+                ]}
+                missing_capture_rejected = False
+                try:
+                    validate_full_suite_debug_tree(
+                        batch_stop_root, validator_freeze, 1, executed_without_capture,
+                    )
+                except RuntimeError:
+                    missing_capture_rejected = True
+                check(
+                    "exhaustive_debug_validator_accepts_batch_stop_and_rejects_missing_capture",
+                    stopped_accepted and fatal_accepted and missing_capture_rejected,
+                    {
+                        "batch_stop_accepted": stopped_accepted,
+                        "fatal_case_without_capture_accepted": fatal_accepted,
+                        "executed_case_without_capture_rejected": missing_capture_rejected,
+                    },
+                )
+            finally:
+                shutil.rmtree(batch_stop_root, ignore_errors=True)
         finally:
             shutil.rmtree(validator_root, ignore_errors=True)
             for path in (validator_root.parent, validator_root.parent.parent, validator_root.parent.parent.parent):
@@ -6661,6 +7435,92 @@ def selfcheck_report() -> dict[str, Any]:
             globals()[name] = value
     check("retained_reproduction_path_collision_is_rejected",
           local_collision_rejected and device_collision_rejected)
+
+    exhaustive_ids = [row["case_id"] for row in mapped_cases]
+    retained_ids = exhaustive_ids[:EXHAUSTIVE_RETAINED_SLOT_COUNT]
+    pass_plan = {
+        number: exhaustive_pass_case_ids(exhaustive_ids, number) for number in (1, 2, 3)
+    }
+    check(
+        "exhaustive_slot_plan_retains_six_and_measures_66",
+        pass_plan[1] == exhaustive_ids[EXHAUSTIVE_RETAINED_SLOT_COUNT:] and
+        pass_plan[2] == exhaustive_ids and pass_plan[3] == exhaustive_ids and
+        sum(len(ids) for ids in pass_plan.values()) == EXHAUSTIVE_MEASURED_SLOTS and
+        len(retained_ids) == EXHAUSTIVE_RETAINED_SLOT_COUNT and
+        EXHAUSTIVE_TOTAL_SLOTS == EXHAUSTIVE_MEASURED_SLOTS + EXHAUSTIVE_RETAINED_SLOT_COUNT and
+        not set(pass_plan[1]) & set(retained_ids),
+        {"pass_sizes": {str(number): len(ids) for number, ids in pass_plan.items()}},
+    )
+    check(
+        "exhaustive_continuation_policy_only_stops_on_fatal_conditions",
+        set(EXHAUSTIVE_CONTINUATION_POLICY["stops_on"]) == {
+            "credential_secrecy_breach", "isolation_failure",
+            "unreachable_infrastructure", "capture_integrity_failure",
+        } and
+        {
+            "rubric_financial_or_authority_verdict",
+            "semantic_outcome_mismatch",
+            "policy_refusal_or_expected_negative_boundary",
+            "provider_protocol_or_tool_error",
+            "provider_or_network_error",
+        } <= set(EXHAUSTIVE_CONTINUATION_POLICY["continues_after"]) and
+        EXHAUSTIVE_CONTINUATION_POLICY["per_case_budgets_unchanged"] is True and
+        EXHAUSTIVE_CONTINUATION_POLICY["fixture_and_scoring_unchanged"] is True,
+    )
+    probe_identity = {
+        "attempt_id": "S8.13-harness-a27",
+        "batch_id": BATCH_ID,
+        "snapshot_id": "S8.13-harness-a27-freeze-34",
+        "pass": "1",
+        "case_ids": pass_plan[1],
+        "retained_case_ids": retained_ids,
+        "prior_provenance_sha256": "e" * 64,
+    }
+    check(
+        "exhaustive_identity_digest_binds_pass_selection_and_prior_provenance",
+        exhaustive_identity_digest(probe_identity) != exhaustive_identity_digest(
+            {**probe_identity, "pass": "2", "case_ids": pass_plan[2]}
+        ) and
+        exhaustive_identity_digest(probe_identity) != exhaustive_identity_digest(
+            {**probe_identity, "prior_provenance_sha256": "f" * 64}
+        ) and
+        exhaustive_identity_digest(probe_identity) != exhaustive_identity_digest(
+            {**probe_identity, "case_ids": retained_ids}
+        ) and
+        len(exhaustive_identity_digest(probe_identity)) == 64 and
+        exhaustive_case_ids_sha256(pass_plan[1]) != exhaustive_case_ids_sha256(retained_ids),
+    )
+    try:
+        provenance = build_exhaustive_continuation(exhaustive_ids)
+        retained_provenance = provenance["retained_provenance"]
+        provenance_ok = (
+            retained_provenance["attempt_id"] == EXHAUSTIVE_RETAINED_ATTEMPT and
+            retained_provenance["snapshot_id"] == EXHAUSTIVE_RETAINED_SNAPSHOT and
+            provenance["measured_slots"] == EXHAUSTIVE_MEASURED_SLOTS and
+            provenance["retained_slots"] == EXHAUSTIVE_RETAINED_SLOT_COUNT and
+            provenance["total_slots"] == EXHAUSTIVE_TOTAL_SLOTS and
+            len(retained_provenance["slots"]) == EXHAUSTIVE_RETAINED_SLOT_COUNT and
+            [slot["case_id"] for slot in retained_provenance["slots"]] == retained_ids and
+            all(
+                slot["slot_provenance"] == "retained_prior_attempt" and
+                len(slot["case_record_sha256"]) == 64 and
+                len(slot["provider_attempts_sha256"]) == 64
+                for slot in retained_provenance["slots"]
+            ) and
+            all(
+                row["slot_order"][:EXHAUSTIVE_RETAINED_SLOT_COUNT] == retained_ids
+                for row in provenance["passes"]
+            )
+        )
+        provenance_detail: Any = {
+            "attempt": retained_provenance["attempt_id"],
+            "slots": len(retained_provenance["slots"]),
+            "provenance_sha256": retained_provenance["provenance_sha256"],
+        }
+    except Exception as failure:
+        provenance_ok = False
+        provenance_detail = f"{type(failure).__name__}: {str(failure)[:300]}"
+    check("exhaustive_retained_provenance_is_digest_bound", provenance_ok, provenance_detail)
 
     scoring = json_load(ROOT / SCORING_PATH)
     scoring_version = (scoring.get("adjudication") or {}).get("version")
@@ -6751,6 +7611,13 @@ def add_invocation_arguments(
     command.add_argument("--run-name", required=required)
     command.add_argument("--case-ids", nargs="+", required=required)
     command.add_argument("--evidence-root", required=required)
+    command.add_argument(
+        "--exhaustive-from",
+        help=(
+            "explicit TEST-ONLY exhaustive batch-continuation mode retaining the immutable "
+            "prior attempt as the first-six provenance"
+        ),
+    )
 
 
 def main() -> int:

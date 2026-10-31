@@ -640,4 +640,64 @@ fixtures, mappings, gates, scoring or retained snapshots. A live diagnostic rema
 Main approves the exact fresh freeze; that approval is not implied by the requested case subset.
 
 
+### Owner-authorized exhaustive remaining-case mode (attempt a56)
+
+Attempt `S8.13-qualification-a55` measured only the first six pass-1 slots before its frozen
+safety stop, so 66 of the 72 protocol slots had no attempt. The owner ordered full coverage
+without regrading or fabricating the missing slots. Attempt `S8.13-exhaustive-a56` therefore adds
+one explicitly frozen, TEST-ONLY batch-continuation mode:
+
+- **Slot plan.** Pass 1 resumes after the first six slots (18 remaining); passes 2 and 3 repeat the
+  whole 24-case order. That is 66 newly measured slots, and 72 in the combined report once the six
+  immutable a55 slots are included with `slot_provenance = retained_prior_attempt`.
+- **Only the batch reaction changes.** Rubric verdicts (wrong/extra event, wrong link or
+  attachment, extra mutation, operation-count excess), semantic outcome mismatches, policy
+  refusals and expected negative boundaries, provider protocol/tool errors, provider/network
+  errors and masking refusals stay **case** failures with their original category and actual
+  effects, and the next independent case still runs. Per-case turn, tool, wall-clock and output
+  budgets, the fixture, expected rows, rubric version, scorer and numeric gates are unchanged.
+- **Fatal-only stop.** The batch stops only for a condition that makes valid safe continuation
+  impossible: credential material reaching evidence, broken case isolation, unreachable
+  infrastructure or a capture that cannot be written. Failures are never fatal merely because
+  they score badly.
+- **Case isolation.** Every case builds its own in-memory Room database, its own sensitive-vault
+  scope and its own seeded fixture rows before its tools run, so a failed case cannot contaminate
+  the next. The per-case record carries this isolation evidence.
+- **Frozen mode identity.** `aegis-s813-exhaustive-continuation/v1` binds the attempt, snapshot,
+  pass, the exact per-pass selection, the retained prefix and a digest of the immutable a55
+  provenance (freeze, live-run, host record, path identity, and each retained case/sidecar digest).
+  The device re-derives the pass selection from the frozen 24-case order and rejects a retained
+  case in pass 1, a forged digest or a different prior provenance before it reads the credential
+  socket. Passes 2 and 3 carry no retained slots.
+
+The separate capture-contract defect that rejected a55's raw tree is fixed at the recorder, not
+the validator: `S813DebugCapture.identity()` now writes `pass` on every per-case record, exchange,
+turn and effects record (previously only `session.json` had it). No validators were loosened,
+no retained raw file was repaired and no historical result was regraded.
+
+Before any hosted call the real Android recorder wrote a complete two-case tree through
+`S813DebugCapture`, which the host validator accepted: the failing case retained its wrong
+`(313, 421, PROPOSED)` link and the next case stayed isolated and empty. That proof is structure
+and identity only — it is not model-behaviour evidence.
+
+Remaining measurement requires Main's explicit Stage2 approval of the frozen snapshot. Commands
+(identical invocation on every step):
+
+```powershell
+$invocation = @(
+  "--attempt-id", "S8.13-exhaustive-a56",
+  "--snapshot-id", "S8.13-exhaustive-a56-freeze-61",
+  "--evidence-root", "artifacts/sprint-8/evidence/S8.13-exhaustive-a56",
+  "--exhaustive-from", "S8.13-qualification-a55"
+)
+uv run python tools/slm/s8_agent_v3_qualification.py run --pass-number 1 --main-approval <reference> @invocation
+uv run python tools/slm/s8_agent_v3_qualification.py run --pass-number 2 --main-approval <reference> @invocation
+uv run python tools/slm/s8_agent_v3_qualification.py run --pass-number 3 --main-approval <reference> @invocation
+uv run python tools/slm/s8_agent_v3_qualification.py score @invocation
+```
+
+`score` writes `combined-72.json` (or `combined-72-reviewed.json` after independent semantic
+review) with the 72 per-slot provenance rows, the retained a55 digests and the unchanged gates.
+
 References: [S8.5 provider adapters](sprint-8-provider-adapters.md), [S8.9 executor](sprint-8-agent-executor.md), [S8.10 run history](sprint-8-agent-history.md), [S8.7 application tools](sprint-8-application-tools.md), and [S8.4 agent contract](sprint-8-agent-contract.md).
+

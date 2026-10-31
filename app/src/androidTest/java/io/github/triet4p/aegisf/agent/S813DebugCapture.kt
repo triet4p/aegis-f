@@ -43,10 +43,22 @@ internal class S813DebugCapture private constructor(
     )
 
     private val caseDirectories = linkedMapOf<String, File>()
+
+    /**
+     * Set when a capture write is refused or fails. The batch loop reads it after each case so a
+     * capture-integrity/credential condition stops the run even when an intervening provider
+     * adapter turned the exception into a provider failure record.
+     */
+    @Volatile
+    private var fatalReason: String? = null
+
+    internal fun fatalReason(): String? = fatalReason
+
     private fun identity(record: JSONObject, caseId: String? = null): JSONObject {
         record.put("attempt_id", provenance.attemptId)
             .put("batch_id", provenance.batchId)
             .put("snapshot_id", provenance.snapshotId)
+            .put("pass", provenance.pass)
             .put("run_name", provenance.runName ?: JSONObject.NULL)
             .put("case_ids", JSONArray(provenance.caseIds))
         if (caseId != null) record.put("case_id", caseId)
@@ -61,8 +73,12 @@ internal class S813DebugCapture private constructor(
             require(caseId in provenance.caseIds) { "debug capture case is not in the selected diagnostic invocation" }
         }
         val directory = File(root, caseId)
-        check(!directory.exists()) { "refusing to overwrite retained debug capture for $caseId" }
-        check(directory.mkdirs()) { "could not create the isolated debug capture directory" }
+        try {
+            check(!directory.exists()) { "refusing to overwrite retained debug capture for $caseId" }
+            check(directory.mkdirs()) { "could not create the isolated debug capture directory" }
+        } catch (failure: Throwable) {
+            refuseWrite(failure)
+        }
         caseDirectories[caseId] = directory
         write(directory, "case.json", identity(JSONObject()
             .put("TEST_ONLY", true)
@@ -284,16 +300,32 @@ internal class S813DebugCapture private constructor(
 
     private fun guardAgainstSecrets(text: String) {
         forbiddenSecrets.filter { it.isNotBlank() && it.length >= 8 }.forEach { secret ->
-            check(!text.contains(secret)) { "refusing to persist a debug record that contains credential material" }
+            if (text.contains(secret)) {
+                fatalReason = "credential_secrecy_breach"
+                throw S813FatalContinuationException("credential_secrecy_breach")
+            }
         }
     }
 
     private fun write(directory: File, name: String, content: JSONObject) {
-        File(directory, name).writeText(content.toString(2))
+        try {
+            File(directory, name).writeText(content.toString(2))
+        } catch (failure: Throwable) {
+            refuseWrite(failure)
+        }
     }
 
     private fun append(directory: File, name: String, line: String) {
-        File(directory, name).appendText(line + "\n")
+        try {
+            File(directory, name).appendText(line + "\n")
+        } catch (failure: Throwable) {
+            refuseWrite(failure)
+        }
+    }
+
+    private fun refuseWrite(failure: Throwable): Nothing {
+        fatalReason = fatalReason ?: "capture_integrity_failure"
+        throw S813FatalContinuationException(fatalReason ?: "capture_integrity_failure", failure)
     }
 
     private fun String.sha256(): String =

@@ -6,6 +6,17 @@ and no release has been tagged or published. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+### Added
+
+- Added an explicit, frozen TEST-ONLY exhaustive continuation mode to the S8.13 qualification
+  harness. It measures the 66 slots left unmeasured by the earlier six-slot attempt (pass-1
+  suffix plus two full repetitions) while reusing the six retained results read-only, and reports
+  a combined 72-slot result with per-slot provenance. Case-level rubric, semantic, refusal and
+  provider failures stay case failures and no longer end the batch; only credential-material,
+  isolation, infrastructure and capture-integrity conditions stop it. Fixtures, expected rows,
+  rubric verdicts, budgets and numeric gates are unchanged, and no earlier result is rerun,
+  copied or regraded.
+
 ### Changed
 
 - Replaced the agent-facing five-tool surface with a closed eleven-tool interface using flat

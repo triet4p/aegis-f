@@ -689,3 +689,58 @@ The qualification scoring contract advances to `aegis-f-s8-agent-v3-qualificatio
 (adjudication stays `s8.13-quality-vs-safety-adjudication/v5`) so the masking-integrity scope names
 the guard channels and states that provider reasoning is excluded. All approved gates, denominators,
 case mappings and retained measurements are unchanged, and no earlier attempt is rescored.
+
+### Exhaustive remaining-slot continuation (TEST-ONLY)
+
+`--exhaustive-from S8.13-qualification-a55` selects an explicit, frozen batch-continuation mode for
+the qualification batch. It exists because the a55 attempt stopped after six pass-1 slots, leaving
+66 of 72 protocol slots unmeasured:
+
+- pass 1 runs the 18-case suffix after the six retained slots; passes 2 and 3 run all 24 cases;
+- the six a55 slots stay immutable and are re-read (never rerun, copied or regraded) and appear in
+  the combined report with `slot_provenance: "retained_prior_attempt"`;
+- the freeze binds `aegis-s813-exhaustive-continuation/v1`: the per-pass selection, the retained
+  prefix, and the digest of the a55 freeze/live-run/host/path-identity records plus each retained
+  case and provider-sidecar digest. The device re-derives the pass selection from the frozen
+  24-case order and rejects a retained case in pass 1, a forged digest or a different prior
+  provenance before it reads the credential socket;
+- only the **batch** reaction changes. Rubric verdicts, semantic mismatches, policy refusals,
+  expected negative boundaries, provider protocol/tool errors, provider/network errors and masking
+  refusals remain case failures with their original category and effects, and the next isolated
+  case still runs. The batch stops only on credential-material-in-evidence, broken isolation,
+  unreachable infrastructure or an unwritable capture. Per-case turn/tool/wall-clock/output
+  budgets, the fixture, expected rows, scorer and numeric gates are unchanged;
+- every case still builds its own in-memory Room database, vault scope and seeded fixture rows
+  before its tools run, so a failing case cannot contaminate the next.
+
+The separate capture-contract defect that rejected a55's raw tree is fixed at the recorder:
+`S813DebugCapture.identity()` now writes `pass` on every per-case record, exchange, turn and
+effects record (previously only `session.json` had it). Validators were not loosened and no
+retained raw file was repaired. The actual-device preflight proves this with a real recorder tree
+validated by the host: a failing case keeps its wrong link and the next case stays isolated, with
+zero hosted calls.
+
+Run Stage1 and Stage2 with the same invocation:
+
+```powershell
+$invocation = @(
+  "--attempt-id", "S8.13-exhaustive-a56",
+  "--snapshot-id", "S8.13-exhaustive-a56-freeze-61",
+  "--evidence-root", "artifacts/sprint-8/evidence/S8.13-exhaustive-a56",
+  "--exhaustive-from", "S8.13-qualification-a55"
+)
+uv run python tools/slm/s8_agent_v3_qualification.py preflight @invocation
+uv run python tools/slm/s8_agent_v3_qualification.py build @invocation
+uv run python tools/slm/s8_agent_v3_qualification.py device-preflight @invocation
+uv run python tools/slm/s8_agent_v3_qualification.py freeze @invocation
+uv run python tools/slm/s8_agent_v3_qualification.py run --pass-number 1 --main-approval <reference> @invocation
+uv run python tools/slm/s8_agent_v3_qualification.py run --pass-number 2 --main-approval <reference> @invocation
+uv run python tools/slm/s8_agent_v3_qualification.py run --pass-number 3 --main-approval <reference> @invocation
+uv run python tools/slm/s8_agent_v3_qualification.py score @invocation
+```
+
+`score` writes `combined-72.json` (or `combined-72-reviewed.json` after independent semantic
+review): 72 per-slot rows with provenance, origin digests, the retained a55 records and the
+unchanged gates. The exhaustive mode is test-only evaluation metadata and batch-continuation
+policy; production app sources, prompts, tools, skills and the frozen scorer are unchanged.
+

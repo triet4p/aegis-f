@@ -594,10 +594,15 @@ class S813QualificationInstrumentedTest {
         require(!fullSuite || caseRows.keys.toList() == frozenCaseIds) {
             "the business fixtures and the frozen qualification case order disagree"
         }
-        val runCaseIds = requestedCaseIds ?: frozenCaseIds
+        val exhaustiveContinuation = if (fullSuite) {
+            s813ExhaustiveContinuation(instrumentationArguments, launch, pass, frozenCaseIds)
+        } else {
+            null
+        }
+        val runCaseIds = exhaustiveContinuation?.caseIds ?: requestedCaseIds ?: frozenCaseIds
         require(
             if (fullSuite) {
-                runCaseIds == frozenCaseIds
+                runCaseIds == (exhaustiveContinuation?.caseIds ?: frozenCaseIds)
             } else if (v3Diagnostic) {
                 runCaseIds == V3_DIAGNOSTIC_CASE_IDS
             } else {
@@ -623,7 +628,7 @@ class S813QualificationInstrumentedTest {
                 scoringSha256 = requireNotNull(
                     inputHashes.optString("qualification_scoring").takeIf { it.isNotEmpty() },
                 ),
-                caseIds = runCaseIds,
+                caseIds = frozenCaseIds,
                 appApkSha256 = s813InstalledPackageApkSha256(context, context.packageName),
                 testApkSha256 = s813InstalledPackageApkSha256(
                     instrumentationContext,
@@ -741,6 +746,8 @@ class S813QualificationInstrumentedTest {
         val started = Instant.now().toString()
         val outcomes = JSONArray()
         var safetyStop: String? = null
+        var stopFatalClass: String? = null
+        val caseDecisions = mutableListOf<JSONObject>()
 
         fun bindDiagnosticIdentity(record: JSONObject): JSONObject {
             if (diagnosticIdentity != null) {
@@ -752,10 +759,27 @@ class S813QualificationInstrumentedTest {
         for (index in 0 until rows.length()) {
             if (safetyStop != null) {
                 val skipped = bindDiagnosticIdentity(JSONObject()
-                    .put("case_id", runCaseIds[index])
-                    .put("attempt_status", "not_run_safety_stop")
+                    .put(
+                        "case_id",
+                        runCaseIds[index],
+                    )
+                    .put(
+                        "attempt_status",
+                        if (exhaustiveContinuation != null) "not_run_batch_stop" else "not_run_safety_stop",
+                    )
                     .put("adjudication_version", S813_ADJUDICATION_VERSION)
-                    .put("stop_reason", safetyStop))
+                    .put("stop_reason", safetyStop)
+                    .put("slot_provenance", "not_measured_batch_stop"))
+                if (exhaustiveContinuation != null) {
+                    skipped.put("batch_continuation", JSONObject()
+                        .put("contract", S813_EXHAUSTIVE_CONTRACT)
+                        .put("policy", "batch_continuation_only")
+                        .put("case_id", runCaseIds[index])
+                        .put("decision", S813_EXHAUSTIVE_DECISION_STOP)
+                        .put("reason", safetyStop)
+                        .put("fatal_class", stopFatalClass ?: JSONObject.NULL)
+                        .put("verdict_retained", true))
+                }
                 outcomes.put(skipped)
                 File(runDir, "${runCaseIds[index]}.json").writeText(skipped.toString(2))
                 continue
@@ -771,19 +795,28 @@ class S813QualificationInstrumentedTest {
                 qualificationFixture,
                 case.getString("id"),
             )
+            var fatalClass: String? = null
             val result = bindDiagnosticIdentity(try {
                 runCase(
                     context, case, runtimeFixture, projection, provider, profile, pass, runDir,
                     caseMapping, debugCapture, syntheticInputText, listOf(credential), diagnosticIdentity,
                 )
             } catch (failure: Throwable) {
+                fatalClass = (failure as? S813FatalContinuationException)?.fatalClass
                 JSONObject()
                     .put("case_id", case.getString("id"))
                     .put("attempt_status", "harness_or_provider_error")
                     .put("failure_type", failure::class.simpleName ?: "unknown")
                     .put("failure_detail", provider.authentication.redact(failure.message ?: "no detail").take(300))
+                    .put(
+                        "failure_stack",
+                        provider.authentication.redact(failure.stackTraceToString()).take(8_000),
+                    )
                     .put("provider_error", true)
             })
+            if (fatalClass == null) {
+                fatalClass = debugCapture?.fatalReason()
+            }
             outcomes.put(result)
             val adjudication = caseMapping?.let { qualificationAdjudication(result, it) }
             if (adjudication != null) {
@@ -791,10 +824,27 @@ class S813QualificationInstrumentedTest {
                 result.put("financial_safety_match", adjudication.optBoolean("financial_safety_match"))
                 result.put("quality_findings", adjudication.getJSONArray("quality_findings"))
             }
+            val continuation = if (exhaustiveContinuation != null) {
+                s813ContinuationDecision(case.getString("id"), result, adjudication, fatalClass)
+            } else {
+                null
+            }
+            if (continuation != null) {
+                result.put("batch_continuation", continuation)
+                result.put("slot_provenance", "measured_this_attempt")
+                caseDecisions += continuation
+            }
             File(runDir, "${case.getString("id")}.json").writeText(result.toString(2))
-            safetyStop = adjudication?.let {
-                if (it.isNull("safety_stop")) null else it.getString("safety_stop")
-            } ?: if (requestedCaseIds != null) diagnosticStopReason(result) else null
+            safetyStop = if (exhaustiveContinuation != null) {
+                continuation?.let {
+                    if (it.getString("decision") == S813_EXHAUSTIVE_DECISION_STOP) it.optString("reason") else null
+                }
+            } else {
+                adjudication?.let {
+                    if (it.isNull("safety_stop")) null else it.getString("safety_stop")
+                } ?: if (requestedCaseIds != null) diagnosticStopReason(result) else null
+            }
+            if (safetyStop != null) stopFatalClass = fatalClass
             if (index + 1 < rows.length()) {
                 delay(if (provider.protocol == HostedProtocol.GEMINI_GENERATE_CONTENT) 8_000L else 2_000L)
             }
@@ -848,6 +898,17 @@ class S813QualificationInstrumentedTest {
             .put("credential_recorded", false)
             .put("fixture_only", true)
             .put("cases", outcomes)
+        if (exhaustiveContinuation != null) {
+            report.put(
+                "exhaustive_continuation",
+                s813ExhaustiveReportBlock(
+                    exhaustiveContinuation,
+                    pass,
+                    caseDecisions.toList(),
+                    safetyStop,
+                ),
+            )
+        }
         if (diagnosticIdentity != null) report.put("diagnostic_identity", JSONObject(diagnosticIdentity.toString()))
         File(runDir, "live-run.json").writeText(report.toString(2))
         WorkflowClaimGuard.reset()
@@ -891,7 +952,11 @@ class S813QualificationInstrumentedTest {
         val scopeId = "s813-$profile-$pass-$caseId-${UUID.randomUUID()}"
         val scope = WorkflowCallerScope.AgentSession(scopeId, captureIds, draftIds)
         val boundary = MaskedPromptBoundary(SensitiveVault(scopeId))
-        val db = Room.inMemoryDatabaseBuilder(context, LedgerDatabase::class.java).build()
+        val db = try {
+            Room.inMemoryDatabaseBuilder(context, LedgerDatabase::class.java).build()
+        } catch (failure: Throwable) {
+            throw S813FatalContinuationException("isolation_failure", failure)
+        }
         val laya = LayaInferenceLifecycle(File(context.filesDir, "laya/model"))
         val wire = RecordingTransport(
             UrlConnectionHttpTransport(),
@@ -907,7 +972,11 @@ class S813QualificationInstrumentedTest {
         try {
             val categorySeeds = projection.getJSONObject("category_seeds_by_case").optJSONArray(caseId)
                 ?: JSONArray()
-            seedFixture(db, fixture, captureIds, draftIds, eventIds(caseContext), categorySeeds)
+            try {
+                seedFixture(db, fixture, captureIds, draftIds, eventIds(caseContext), categorySeeds)
+            } catch (failure: Throwable) {
+                throw S813FatalContinuationException("isolation_failure", failure)
+            }
             if (family in setOf("laya_request", "laya_over_budget")) ensurePinnedLayaModel(context)
             val commands = WorkflowCommandService(
                 database = db,
@@ -918,7 +987,20 @@ class S813QualificationInstrumentedTest {
             val queries = WorkflowQueryService(db)
             val declarations = AgentToolDeclarations.load(context.assets::open)
             val skills = WorkflowSkillCatalog.load(context.assets::open)
-            debugCapture?.startCase(caseId, declarations.map(HostedToolDeclaration::name), syntheticInputText, boundary.vault)
+            debugCapture?.let { capture ->
+                try {
+                    capture.startCase(
+                        caseId,
+                        declarations.map(HostedToolDeclaration::name),
+                        syntheticInputText,
+                        boundary.vault,
+                    )
+                } catch (failure: S813FatalContinuationException) {
+                    throw failure
+                } catch (failure: Throwable) {
+                    throw S813FatalContinuationException("capture_integrity_failure", failure)
+                }
+            }
             val observed = mutableListOf<JSONObject>()
             var recoveryRaceInjected = false
             val adapter = RecordingAdapter(
@@ -1019,18 +1101,31 @@ class S813QualificationInstrumentedTest {
                         JSONObject.NULL
                     },
                 )
+                .put("case_isolation", JSONObject()
+                    .put("database", "room_in_memory_per_case")
+                    .put("workflow_scope_id", scopeId)
+                    .put("capture_ids", JSONArray(captureIds.toList()))
+                    .put("draft_ids", JSONArray(draftIds.toList()))
+                    .put("fresh_vault", true)
+                    .put("fixture_reseeded_before_tools", true))
                 .put("credential_recorded", false)
             debugCapture?.let { capture ->
-                observed.forEachIndexed { index, turn ->
-                    capture.recordTurn(caseId, JSONObject().put("index", index).put("data", turn))
+                try {
+                    observed.forEachIndexed { index, turn ->
+                        capture.recordTurn(caseId, JSONObject().put("index", index).put("data", turn))
+                    }
+                    capture.recordEffects(
+                        caseId,
+                        actualPostconditions,
+                        outcomeName(outcome),
+                        outcomeTrace(outcome),
+                        JSONArray(outcomeVerifiedEffects(outcome).toString()),
+                    )
+                } catch (failure: S813FatalContinuationException) {
+                    throw failure
+                } catch (failure: Throwable) {
+                    throw S813FatalContinuationException("capture_integrity_failure", failure)
                 }
-                capture.recordEffects(
-                    caseId,
-                    actualPostconditions,
-                    outcomeName(outcome),
-                    outcomeTrace(outcome),
-                    JSONArray(outcomeVerifiedEffects(outcome).toString()),
-                )
             }
             return record
         } finally {
