@@ -3297,9 +3297,16 @@ def action_run(args: argparse.Namespace) -> int:
     if (debug_expectation["device"] != full_suite_debug_device_dir(pass_number) or
             debug_expectation["local"] != evidence_path(full_suite_debug_local_dir(pass_number))):
         raise RuntimeError("the frozen full-suite debug binding is stale for this pass")
-    legacy_remote = f"files/{ATTEMPT_ID}/{PROFILE}/pass-{pass_number}"
+    expected_index = pass_number - 1
+    legacy_probe = f"files/{ATTEMPT_ID}/{PROFILE}/pass-{pass_number}"
+    legacy_remote_exists = remote_exists(legacy_probe)
+    device_model, android_release = verify_phone()
     debug_local_dir = full_suite_debug_local_dir(pass_number)
     debug_remote_dir = full_suite_debug_device_dir(pass_number)
+    if freeze["exact_run_output_folders"][expected_index] != evidence_path(output_dir):
+        raise RuntimeError("the frozen exact run output folder is stale for this pass")
+    if freeze["exact_device_run_directories"][expected_index] != remote:
+        raise RuntimeError("the frozen exact device run directory is stale for this pass")
     if debug_local_dir.exists() or debug_local_dir.is_symlink():
         raise RuntimeError("refusing to overwrite an existing full-suite TEST_ONLY debug folder")
     path_identity_record = {
@@ -3330,7 +3337,7 @@ def action_run(args: argparse.Namespace) -> int:
         "selected_device_path_exists_before_run": False,
         "retained_legacy_root_host_record": path_identity["legacy_root_collision"]["host_record_path"],
         "retained_legacy_root_host_record_was_refused": True,
-        "legacy_device_output_directory": legacy_remote,
+        "legacy_device_output_directory": legacy_probe,
         "legacy_device_output_directory_exists": legacy_remote_exists,
         "legacy_device_output_directory_selected": False,
         "full_suite_debug_local": evidence_path(debug_local_dir),

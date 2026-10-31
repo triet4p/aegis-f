@@ -510,7 +510,9 @@ Laya source hashes, phone and test evidence, provider route/budget, exact case s
 non-reusable output folders.
 The freeze also binds `evidence_output_root` to the selected `snapshot-N` directory; strict
 validation compares that root and the full-suite capture/pass bindings with the current invocation
-before Stage2.
+before Stage2. The pre-credential path-identity record indexes the five parallel frozen
+pass-path lists by `pass_number - 1` (pass 1 → index 0 through pass 3 → index 2) and
+re-verifies the selected output folder and device run directory before any credential load.
 
 Stage2 is deliberately separate and requires Main's explicit approval reference before
 any hosted request. Each full-suite command selects the same new immutable identity with

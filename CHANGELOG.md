@@ -33,6 +33,9 @@ and no release has been tagged or published. Format follows
 - Fixed the S8.13 full-suite freeze writer to bind the selected snapshot evidence root, so strict
   validation can read back the newly written freeze without weakening its case, pass, or capture
   bindings.
+- Fixed the S8.13 full-suite `run` launch contract so the pre-credential path-identity record
+  resolves the frozen pass paths by repetition index and binds the launch-time device identity
+  before any credential load or endpoint attempt.
 
 
 - Corrected the loaded `event-reading/2` skill example and guidance to match the enforced
