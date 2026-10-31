@@ -30,6 +30,9 @@ and no release has been tagged or published. Format follows
   synthetic debug capture in its immutable freeze and collects it on every pass, including
   instrumentation failures and safety aborts. Scoring, fixtures, gates, retained snapshots, and
   production redaction are unchanged.
+- Fixed the S8.13 full-suite freeze writer to bind the selected snapshot evidence root, so strict
+  validation can read back the newly written freeze without weakening its case, pass, or capture
+  bindings.
 
 
 - Corrected the loaded `event-reading/2` skill example and guidance to match the enforced

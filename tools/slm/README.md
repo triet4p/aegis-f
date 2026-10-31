@@ -508,6 +508,9 @@ and real unique/ambiguous/mismatched link-policy outcomes. The freeze binds the
 source/schema/skills/fixture/scoring hashes, isolated app and test APK hashes, pinned local
 Laya source hashes, phone and test evidence, provider route/budget, exact case set and three
 non-reusable output folders.
+The freeze also binds `evidence_output_root` to the selected `snapshot-N` directory; strict
+validation compares that root and the full-suite capture/pass bindings with the current invocation
+before Stage2.
 
 Stage2 is deliberately separate and requires Main's explicit approval reference before
 any hosted request. Each full-suite command selects the same new immutable identity with

@@ -2554,7 +2554,7 @@ def action_freeze(_: argparse.Namespace) -> int:
             "test_target": PACKAGE,
             "runner": "androidx.test.runner.AndroidJUnitRunner",
         },
-        "evidence_output_root": root_identity,
+        "evidence_output_root": evidence_path(PREPARATION_ROOT),
         "evidence_output_root_is_symlink": False,
         "exact_run_output_folders": run_paths,
         "diagnostic_only_case": diagnostic_case,
