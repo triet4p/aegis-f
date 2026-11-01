@@ -27,6 +27,14 @@ and no release has been tagged or published. Format follows
   isolation, infrastructure and capture-integrity conditions stop it. Fixtures, expected rows,
   rubric verdicts, budgets and numeric gates are unchanged, and no earlier result is rerun,
   copied or regraded.
+- Added an explicit TEST-ONLY retained-first-pass provenance bridge to the S8.13 qualification
+  harness. A new measurement identity can retain one declared attempt's complete 24-slot first
+  pass — raw case records, provider sidecars, capture, assisted wrappers, feedback and the
+  existing semantic adjudication, all frozen by SHA-256 — and measure only repetitions 2 and 3:
+  0 new pass-1 slots, 48 new slots, 72 total. A changed app/test APK, fixture, scorer, raw byte or
+  a missing assisted trace fails before any credential or device effect. Retained rows are never
+  rerun, copied or regraded, retained semantic decisions come from the frozen origin adjudication,
+  and recovery keeps its initial-failure denominator (for example 1 of 4 failures = 25%).
 
 ### Changed
 

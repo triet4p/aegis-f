@@ -767,6 +767,42 @@ quality, masking, adjudication and cumulative-safety check still applies. The ou
 `proof-72.json` with `qualification_result: TEST_ONLY_PROOF_NOT_QUALIFICATION`, never a
 qualification metric.
 
+### Retained whole-first-pass provenance bridge (TEST-ONLY)
+
+`--retained-origin-attempt <id> --retained-origin-snapshot <id> --retained-origin-evidence-root
+<path> --retained-origin-semantic-review <path>` (together with `--no-fail-fast`) selects a
+retained-first-pass plan: one explicitly declared attempt's whole immutable first repetition is
+retained and only repetitions 2 and 3 are measured under the new identity. The plan is
+**0 new pass-1 slots / 24 pass-2 / 24 pass-3**, total 72, retained 24, measured 48.
+
+- The freeze derives `aegis-s813-retained-p1-origin/v1` from the actual retained bytes: origin
+  freeze, build, case mapping, static preflight, device preflight and path identity; the pass-1
+  host record and live run; 24 case records and provider sidecars; 24 assisted wrappers plus every
+  decision, ready, request and response pair; the raw capture; and the existing semantic
+  adjudication. The manifest records every path, size and SHA-256 and is frozen by its canonical
+  digest. A changed or missing byte, an incomplete first pass, a mismatched app/test APK, fixture
+  or scorer, or a missing assisted trace fails before any credential or device effect.
+- Pass 1 is never launched under the new identity (`run --pass-number 1` is rejected by name);
+  the retained origin host record is the predecessor for pass 2, and `score` requires new host
+  records only for passes 2-3. `--exhaustive-from` (a55 six-slot) and the fresh batch mode are
+  unchanged and mutually exclusive with this mode.
+- `score` writes the normal combined report: retained rows carry
+  `slot_provenance: "retained_prior_attempt"` with the origin attempt/snapshot/manifest/semantic
+  links and per-slot hashes. Retained semantic decisions are read from the frozen origin
+  adjudication and are never re-authored or regraded; `--semantic-reviews` supplies passes 2-3
+  only. `assisted_evaluation` keeps the frozen denominators: assisted PASS@2 is over 72 slots,
+  while recovery is `recovered / initial failures` (for example, 1 recovered out of 4 initial
+  failures is 25%, distinct from the 1/72 assisted gain).
+- `retained-plan` is the read-only strict-freeze/slot-selection check. It re-derives the manifest,
+  prints the exact pass selection and exits without touching the device or provider.
+- Only the host qualification/provenance script itself may differ from the origin's frozen source
+  manifest; the current and origin source key sets must match and every changed path must be in
+  the explicit allowlist. Device app/test sources, fixtures, scoring and the Android harness keep
+  their exact origin hashes. Docs and the changelog are outside the frozen source manifest.
+- The unchanged device contract derives its own `measured_slots_in_batch` from the per-pass
+  launch (72 for a pass-2/3 launch with no per-pass retained prefix). The host plan remains
+  authoritative: 48 measured slots with 24 retained; the score reports both views explicitly.
+
 
 ## Assisted PASS@2 (in-session pause)
 

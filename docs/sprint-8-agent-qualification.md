@@ -699,6 +699,40 @@ uv run python tools/slm/s8_agent_v3_qualification.py score @invocation
 `score` writes `combined-72.json` (or `combined-72-reviewed.json` after independent semantic
 review) with the 72 per-slot provenance rows, the retained a55 digests and the unchanged gates.
 
+### Retained whole-first-pass provenance bridge (attempt a82)
+
+A measurement can be resumed without rerunning a completed first pass. This is an explicit
+provenance plan, not a selection framework: the operator declares the origin attempt, snapshot,
+evidence root and existing semantic adjudication, and the runner derives the rest from bytes.
+
+- **Plan.** The declared origin's whole first repetition is retained; only repetitions 2 and 3
+  are measured. The plan is 0 new pass-1 slots, 24 pass-2 and 24 pass-3 — 48 newly measured,
+  72 total, 24 retained.
+- **Frozen origin manifest.** `aegis-s813-retained-p1-origin/v1` records the path, size and
+  SHA-256 of the origin freeze, build, case mapping, static preflight, device preflight, path
+  identity, pass-1 host record and live run, the 24 case records and provider sidecars, the 24
+  assisted wrappers and every decision/ready/request/response pair, the raw capture, and the
+  semantic review. The manifest digest is bound in the new freeze and re-derived by strict
+  preflight, freeze, run and score.
+- **Fail-closed checks.** An incomplete first pass, a case not recorded as
+  `hosted_run_recorded`, an assisted wrapper/decision/feedback mismatch, a changed or missing raw
+  byte, a mismatched app/test APK, fixture or scorer, an unexpected source path, or a semantic
+  review bound to another attempt rejects before any credential load or device effect. Only the
+  host qualification/provenance script may differ from the origin source manifest; docs and the
+  changelog are outside that manifest.
+- **No regrade, no fabricated rows.** Retained slots are read from the origin in place with
+  `slot_provenance = retained_prior_attempt`. Retained semantic decisions are the frozen origin
+  decisions; `--semantic-reviews` covers passes 2-3 only and a pass-1 entry is rejected.
+- **Denominators.** assisted PASS@2 keeps the 72-slot denominator; recovery keeps the
+  initial-failure denominator (for example, a recovered slot out of four initial failures is
+  25%, distinct from the 1/72 assisted gain).
+- **Slot selection proof.** `retained-plan` performs the strict freeze validation and prints the
+  exact 0/24/24/72 selection without touching the device or provider.
+
+The unchanged device contract derives its own `measured_slots_in_batch` from the per-pass launch
+(72 for a pass-2/3 launch with no per-pass retained prefix); the host plan remains authoritative:
+48 measured slots with 24 retained, and the score reports both views explicitly.
+
 ### Assisted continuation resource lifetime (attempt a65)
 
 A delivered feedback message previously aborted the whole pass: `runCase` closed its Room database

@@ -33,7 +33,22 @@ class ReproductionInvocation:
     case_ids: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class RetainedOrigin:
+    """The explicitly declared immutable origin of a retained complete first pass.
+
+    Every value is declared on the command line; the frozen manifest is derived from the actual
+    origin bytes, never from a self-asserted pass record supplied by an attempt.
+    """
+    attempt_id: str
+    snapshot_id: str
+    evidence_root: Path
+    semantic_review_path: Path
+
+
 REPRODUCTION_INVOCATION: ReproductionInvocation | None = None
+RETAINED_ORIGIN: RetainedOrigin | None = None
+RETAINED_ORIGIN_MANIFEST_PATH: Path | None = None
 ATTEMPT_ID = "S8.13-replan-a22"
 BATCH_ID = "S8.13-v3-interface-qualification-batch-21"
 SNAPSHOT_ID = "S8.13-v3-interface-a22-freeze-29"
@@ -574,6 +589,25 @@ def exhaustive_case_ids_sha256(case_ids: list[str]) -> str:
     return sha256_bytes(json.dumps(list(case_ids), separators=(",", ":")).encode("utf-8"))
 
 
+# Explicit TEST-ONLY retained-first-pass provenance bridge. The whole immutable first repetition
+# of one explicitly declared origin attempt is retained and only repetitions 2 and 3 are measured
+# under the new identity. Nothing in the origin evidence is rerun, regraded, rewritten or copied
+# into the new attempt; the frozen origin manifest is derived from the actual retained bytes.
+RETAINED_FIRST_PASS_MODE = "retained_first_pass_continuation"
+RETAINED_FIRST_PASS_CONTRACT = "aegis-s813-retained-p1-origin/v1"
+RETAINED_ORIGIN_DEBUG_FILES = ("case.json", "effects.json", "turns.jsonl", "exchanges.jsonl")
+RETAINED_ORIGIN_REQUIRED_DEBUG_FILES = ("case.json", "effects.json", "turns.jsonl")
+# The only source file allowed to differ between the origin freeze and this invocation is the host
+# qualification/provenance script itself. Every device app/test fixture, scoring and harness input
+# keeps its origin byte hash, so the retained slots were produced by the same device source.
+RETAINED_ORIGIN_HOST_ONLY_SOURCE = ("tools/slm/s8_agent_v3_qualification.py",)
+RETAINED_ORIGIN_SEMANTIC_PHASES = {
+    "initial": "initial",
+    "assisted": "assisted",
+    "assisted_continuation": "assisted",
+}
+
+
 def exhaustive_pass_case_ids(case_ids: list[str], pass_number: int,
                              retained_count: int = EXHAUSTIVE_RETAINED_SLOT_COUNT) -> list[str]:
     """Pass 1 measures the frozen order after the declared retained prefix; 2 and 3 repeat it."""
@@ -807,11 +841,705 @@ def build_fresh_continuation(case_ids: list[str]) -> dict[str, Any]:
 
 def build_bound_exhaustive_continuation(case_ids: list[str]) -> dict[str, Any] | None:
     """The frozen plan for the explicit invocation mode, or None for the unchanged batch."""
+    if RETAINED_ORIGIN is not None:
+        return build_retained_first_pass_continuation(case_ids)
     if EXHAUSTIVE_FROM_ATTEMPT is not None:
         return build_exhaustive_continuation(case_ids)
     if EXHAUSTIVE_FRESH_BATCH:
         return build_fresh_continuation(case_ids)
     return None
+
+
+def retained_origin_preparation_root(origin: RetainedOrigin) -> Path:
+    match = re.search(r"-freeze-(\d+)$", origin.snapshot_id)
+    if match is None:
+        raise RuntimeError("the retained origin snapshot ID must end with its explicit -freeze-N number")
+    return origin.evidence_root / f"snapshot-{match.group(1)}"
+
+
+def retained_origin_paths(origin: RetainedOrigin) -> tuple[Path, Path, Path]:
+    preparation = retained_origin_preparation_root(origin)
+    run_folder = preparation / CANDIDATE / "pass-1"
+    debug_folder = origin.evidence_root / "debug" / origin.snapshot_id / "pass-1"
+    return preparation, run_folder, debug_folder
+
+
+def retained_file_record(path: Path, kind: str) -> dict[str, Any]:
+    if path.is_symlink() or not path.is_file():
+        raise RuntimeError(f"retained origin evidence is missing or unsafe: {relative(path)}")
+    return {
+        "kind": kind,
+        "path": relative(path),
+        "size_bytes": path.stat().st_size,
+        "sha256": sha256_file(path),
+    }
+
+
+def retained_debug_record(debug_folder: Path, case_id: str) -> dict[str, Any]:
+    directory = debug_folder / case_id
+    if directory.is_symlink() or not directory.is_dir():
+        raise RuntimeError(f"retained origin capture for {case_id} is missing")
+    files: dict[str, dict[str, Any]] = {}
+    for name in RETAINED_ORIGIN_DEBUG_FILES:
+        path = directory / name
+        if path.is_file() and not path.is_symlink():
+            files[name] = {"size_bytes": path.stat().st_size, "sha256": sha256_file(path)}
+    missing = [name for name in RETAINED_ORIGIN_REQUIRED_DEBUG_FILES if name not in files]
+    if missing:
+        raise RuntimeError(f"retained origin capture for {case_id} lacks {missing}")
+    return {"directory": relative(directory), "files": files}
+
+
+def retained_semantic_decisions(
+    raw: Any,
+    case_ids: list[str],
+    review_path: Path,
+) -> dict[str, dict[str, Any]]:
+    """Read the origin's already-adjudicated pass-1 decisions without re-grading them.
+
+    Both accepted origin review artifacts are supported as bytes: a per-slot decision list
+    (`initial` / `assisted` / `assisted_continuation` phases) and the independent partial review
+    report. Entries for repetitions 2-3 belong to the origin's own other passes and are ignored;
+    only repetition 1 is retained here.
+    """
+    if not isinstance(raw, dict):
+        raise RuntimeError("the retained semantic review is not a JSON object")
+    reviews = raw.get("reviews")
+    if not isinstance(reviews, list):
+        raise RuntimeError("the retained semantic review has no reviews list")
+    default_reviewer = raw.get("agent_id") or raw.get("reviewer_attempt_id")
+    allowed_cases = set(case_ids)
+    review_sha256 = sha256_file(review_path)
+    indexed: dict[str, dict[str, Any]] = {}
+    for row in reviews:
+        if not isinstance(row, dict):
+            raise RuntimeError("the retained semantic review carries a malformed entry")
+        pass_number = row.get("pass")
+        if pass_number not in (1, 2, 3) or isinstance(pass_number, bool):
+            raise RuntimeError("the retained semantic review carries an invalid repetition")
+        if pass_number != 1:
+            continue
+        case_id = row.get("case_id")
+        if case_id not in allowed_cases:
+            raise RuntimeError(f"the retained semantic review covers a non-retained case: {case_id!r}")
+        phase = RETAINED_ORIGIN_SEMANTIC_PHASES.get(row.get("phase"))
+        if phase is None:
+            raise RuntimeError(f"the retained semantic review has an invalid phase: {row.get('phase')!r}")
+        decision = row.get("decision")
+        if decision not in {"PASS", "FAIL"}:
+            raise RuntimeError(f"the retained semantic review has an invalid decision: {decision!r}")
+        reviewer = row.get("reviewer") or default_reviewer
+        if not isinstance(reviewer, str) or not reviewer.strip():
+            raise RuntimeError(f"the retained semantic review lacks reviewer identity: {case_id}")
+        key = f"1:{case_id}" + (":assisted" if phase == "assisted" else "")
+        if key in indexed:
+            raise RuntimeError(f"the retained semantic review duplicates {key}")
+        indexed[key] = {
+            "pass": 1,
+            "case_id": case_id,
+            "phase": phase,
+            "decision": decision,
+            "reviewer": reviewer,
+            "reason": row.get("reason") if isinstance(row.get("reason"), str) else "",
+            "origin_review_path": relative(review_path),
+            "origin_review_sha256": review_sha256,
+        }
+    return indexed
+
+
+def build_retained_origin_manifest(
+    case_ids: list[str],
+    *,
+    require_current_apks: bool = False,
+) -> dict[str, Any]:
+    """Derive the explicit origin manifest from the actual retained pass-1 bytes.
+
+    No input is trusted because an attempt says so: the origin freeze, build, mapping, device
+    preflight, path identity, host record, live run, raw capture, assisted wrappers, decisions,
+    feedback request/response pairs and semantic review are all re-hashed here. A changed or
+    missing byte, a mismatched frozen input, an incomplete first pass or an incomplete assisted
+    trace fails before any credential or device effect.
+    """
+    origin = RETAINED_ORIGIN
+    if origin is None:
+        raise RuntimeError("no retained origin was declared")
+    case_ids = list(case_ids)
+    if len(case_ids) != 24 or len(set(case_ids)) != 24:
+        raise RuntimeError("the retained first pass requires the frozen 24-case order")
+    if origin.evidence_root.is_symlink() or not origin.evidence_root.is_dir():
+        raise RuntimeError("the retained origin evidence root is missing or unsafe")
+    preparation, run_folder, debug_folder = retained_origin_paths(origin)
+    for path in (preparation, run_folder, debug_folder):
+        if path.is_symlink() or not path.is_dir():
+            raise RuntimeError(f"retained origin evidence is missing: {relative(path)}")
+    freeze_path = preparation / "freeze.json"
+    build_path = preparation / "build.json"
+    mapping_path = preparation / "case-mapping.json"
+    static_preflight_path = preparation / "preflight-static.json"
+    device_preflight_path = preparation / "device-preflight-host.json"
+    path_identity_preflight_path = preparation / "path-identity-preflight.json"
+    host_path = preparation / CANDIDATE / "pass-1.host.json"
+    path_identity_path = preparation / CANDIDATE / "pass-1.path-identity.json"
+    live_path = run_folder / "live-run.json"
+    debug_session_path = debug_folder / "session.json"
+    records = {
+        "freeze": retained_file_record(freeze_path, "freeze"),
+        "build": retained_file_record(build_path, "build"),
+        "case_mapping": retained_file_record(mapping_path, "case_mapping"),
+        "static_preflight": retained_file_record(static_preflight_path, "static_preflight"),
+        "device_preflight_host": retained_file_record(device_preflight_path, "device_preflight_host"),
+        "path_identity_preflight": retained_file_record(
+            path_identity_preflight_path, "path_identity_preflight",
+        ),
+        "pass1_host_record": retained_file_record(host_path, "pass1_host_record"),
+        "pass1_path_identity": retained_file_record(
+            path_identity_path, "pass1_path_identity",
+        ),
+        "pass1_live_run": retained_file_record(live_path, "pass1_live_run"),
+        "pass1_debug_session": retained_file_record(debug_session_path, "pass1_debug_session"),
+    }
+    freeze = json_load(freeze_path)
+    build = json_load(build_path)
+    mapping = json_load(mapping_path)
+    static_preflight = json_load(static_preflight_path)
+    device_preflight = json_load(device_preflight_path)
+    host = json_load(host_path)
+    identity = json_load(path_identity_path)
+    live = json_load(live_path)
+    session = json_load(debug_session_path)
+
+    if (freeze.get("task_id") != "S8.13" or freeze.get("attempt_id") != origin.attempt_id or
+            freeze.get("snapshot_id") != origin.snapshot_id or
+            freeze.get("batch_id") != BATCH_ID or freeze.get("candidate") != CANDIDATE):
+        raise RuntimeError("the retained origin freeze does not have the declared identity")
+    if freeze.get("case_ids_in_run_order") != case_ids:
+        raise RuntimeError("the retained origin measured a different frozen case order")
+    fixture_sha256 = sha256_file(ROOT / FIXTURE_PATH)
+    scoring_sha256 = sha256_file(ROOT / SCORING_PATH)
+    if (freeze.get("fixture_id") != FIXTURE_ID or
+            freeze.get("fixture_sha256") != fixture_sha256 or
+            freeze.get("scoring_sha256") != scoring_sha256):
+        raise RuntimeError("the retained origin measured a different frozen fixture or scorer")
+    if (freeze.get("app_apk_sha256") != build.get("app_apk_sha256") or
+            freeze.get("test_apk_sha256") != build.get("test_apk_sha256") or
+            build.get("result") != "BUILD SUCCESSFUL" or
+            build.get("attempt_id") != origin.attempt_id or
+            build.get("snapshot_id") != origin.snapshot_id):
+        raise RuntimeError("the retained origin freeze and build record disagree on the APKs")
+    if require_current_apks and (
+            sha256_file(APP_APK) != freeze["app_apk_sha256"] or
+            sha256_file(TEST_APK) != freeze["test_apk_sha256"]):
+        raise RuntimeError("the rebuilt app/test APKs do not match the retained origin APKs")
+    mapped_ids = [row.get("case_id") for row in mapping.get("cases", []) if isinstance(row, dict)]
+    if mapped_ids != case_ids:
+        raise RuntimeError("the retained origin case mapping covers a different frozen order")
+    if (mapping.get("attempt_id") != origin.attempt_id or
+            mapping.get("snapshot_id") != origin.snapshot_id):
+        raise RuntimeError("the retained origin case mapping does not have the declared identity")
+    if (static_preflight.get("fixture_sha256") != fixture_sha256 or
+            static_preflight.get("scoring_sha256") != scoring_sha256 or
+            static_preflight.get("source_sha256") != freeze.get("source_sha256")):
+        raise RuntimeError("the retained origin static preflight disagrees with its freeze")
+    if (device_preflight.get("attempt_id") != origin.attempt_id or
+            device_preflight.get("snapshot_id") != origin.snapshot_id):
+        raise RuntimeError("the retained origin device preflight does not have the declared identity")
+
+    origin_source = freeze.get("source_sha256")
+    if not isinstance(origin_source, dict):
+        raise RuntimeError("the retained origin freeze has no source manifest")
+    current_source = source_manifest()
+    if set(origin_source) != set(current_source):
+        raise RuntimeError("the retained origin source set differs from the current source set")
+    changed_paths = sorted(path for path in current_source if current_source[path] != origin_source[path])
+    unexpected = [path for path in changed_paths if path not in RETAINED_ORIGIN_HOST_ONLY_SOURCE]
+    if unexpected:
+        raise RuntimeError(
+            "device-relevant source changed since the retained origin: " + ", ".join(unexpected)
+        )
+    if freeze.get("source_manifest_sha256") != sha256_bytes(
+            json.dumps(origin_source, sort_keys=True).encode("utf-8")):
+        raise RuntimeError("the retained origin source manifest digest is inconsistent")
+    source_binding = {
+        "origin_source_manifest_sha256": freeze.get("source_manifest_sha256"),
+        "current_source_manifest_sha256": sha256_bytes(
+            json.dumps(current_source, sort_keys=True).encode("utf-8")
+        ),
+        "changed_paths": changed_paths,
+        "host_only_paths_allowed": list(RETAINED_ORIGIN_HOST_ONLY_SOURCE),
+        "device_source_unchanged": True,
+        "compatible": True,
+        "note": (
+            "Only the host qualification invocation/provenance script may differ. Every device "
+            "app/test fixture, scoring and harness input keeps its origin byte hash."
+        ),
+    }
+
+    plan = freeze.get("exhaustive_continuation")
+    origin_pass1 = None
+    if isinstance(plan, dict):
+        origin_pass1 = next(
+            (row for row in plan.get("passes") or [] if isinstance(row, dict) and row.get("pass") == 1),
+            None,
+        )
+    if (origin_pass1 is None or origin_pass1.get("measured_slots") != len(case_ids) or
+            origin_pass1.get("retained_slots") != 0):
+        raise RuntimeError("the retained origin first pass is not a complete measured repetition")
+
+    if (identity.get("attempt_id") != origin.attempt_id or
+            identity.get("snapshot_id") != origin.snapshot_id or identity.get("pass") != 1 or
+            identity.get("all_path_identity_checks_passed") is not True or
+            identity.get("hosted_provider_calls") != 0 or
+            identity.get("credential_loaded") is not False or
+            identity.get("endpoint_attempted") is not False):
+        raise RuntimeError("the retained origin path identity is incomplete")
+    if (host.get("task_id") != "S8.13" or host.get("attempt_id") != origin.attempt_id or
+            host.get("snapshot_id") != origin.snapshot_id or host.get("batch_id") != BATCH_ID or
+            host.get("candidate") != CANDIDATE or host.get("pass") != 1 or
+            host.get("device_serial") != DEVICE_SERIAL):
+        raise RuntimeError("the retained origin pass-1 host record does not have the declared identity")
+    if (host.get("hard_stop") not in (None, "null") or
+            host.get("safety_stop") not in (None, "null") or
+            host.get("instrumentation_status") != "OK (1 test)" or
+            host.get("measured_case_count") != len(case_ids) or
+            any(host.get(key) not in (None, "null") for key in (
+                "collection_error", "device_run_validation_error", "debug_collection_error",
+            )) or
+            host.get("credential_recorded") is not False or
+            host.get("isolated_base_package_mutated") is not False):
+        raise RuntimeError("the retained origin pass-1 host record is not a complete clean repetition")
+    if (host.get("freeze_sha256") != records["freeze"]["sha256"] or
+            host.get("fixture_sha256") != fixture_sha256 or
+            host.get("scoring_sha256") != scoring_sha256 or
+            host.get("app_apk_sha256") != freeze.get("app_apk_sha256") or
+            host.get("test_apk_sha256") != freeze.get("test_apk_sha256")):
+        raise RuntimeError("the retained origin pass-1 host record is bound to other frozen inputs")
+    if (live.get("attempt_id") != origin.attempt_id or
+            live.get("snapshot_id") != origin.snapshot_id or live.get("pass") != "1" or
+            live.get("case_ids") != case_ids or
+            live.get("expected_cases") != len(case_ids) or
+            live.get("recorded_cases") != len(case_ids) or
+            live.get("measurement_scope") != "full_fixture" or
+            live.get("safety_stop") not in (None, "null") or
+            live.get("credential_recorded") is not False):
+        raise RuntimeError("the retained origin pass-1 live run is not a complete measured repetition")
+    live_cases = [row for row in live.get("cases", []) if isinstance(row, dict)]
+    if [row.get("case_id") for row in live_cases] != case_ids:
+        raise RuntimeError("the retained origin live run does not record every case in frozen order")
+    if any(row.get("attempt_status") != "hosted_run_recorded" for row in live_cases):
+        raise RuntimeError("the retained origin first pass has an incomplete case record")
+    if (session.get("attempt_id") != origin.attempt_id or
+            session.get("snapshot_id") != origin.snapshot_id or
+            session.get("pass") not in ("1", 1)):
+        raise RuntimeError("the retained origin capture session does not have the declared identity")
+
+    feedback_root = preparation / "assisted-feedback" / "pass-1"
+    index_path = feedback_root / "index.json"
+    index = json_load(index_path)
+    if (index.get("contract") != ASSISTED_CONTRACT or
+            index.get("feedback_contract") != ASSISTED_FEEDBACK_CONTRACT or
+            index.get("attempt_id") != origin.attempt_id or
+            index.get("snapshot_id") != origin.snapshot_id or
+            index.get("batch_id") != BATCH_ID or index.get("pass") != 1):
+        raise RuntimeError("the retained origin assisted index does not have the declared identity")
+    index_slots = [slot for slot in index.get("slots", []) if isinstance(slot, dict)]
+    if (len(index_slots) != len(case_ids) or
+            {slot.get("case_id") for slot in index_slots} != set(case_ids)):
+        raise RuntimeError("the retained origin assisted index does not cover the frozen order")
+    index_by_case = {slot["case_id"]: slot for slot in index_slots}
+    scripted_origin = provider_evidence_applicable(host) is False
+    slots: list[dict[str, Any]] = []
+    responses: dict[str, dict[str, Any]] = {}
+    requests: dict[str, dict[str, Any]] = {}
+    for case_id in case_ids:
+        case_path = run_folder / f"{case_id}.json"
+        if case_path.is_symlink() or not case_path.is_file():
+            raise RuntimeError(f"the retained origin case record for {case_id} is missing")
+        case_record = json_load(case_path)
+        first_record_sha256 = sha256_file(case_path)
+        if (case_record.get("case_id") != case_id or
+                case_record.get("attempt_status") != "hosted_run_recorded"):
+            raise RuntimeError(f"the retained origin case record for {case_id} is incomplete")
+        sidecar_path = run_folder / f"{case_id}.provider-attempts.json"
+        sidecar_record: dict[str, Any] | None
+        if sidecar_path.is_file():
+            sidecar_record = retained_file_record(
+                sidecar_path, "pass1_provider_attempts_sidecar",
+            )
+        elif scripted_origin:
+            sidecar_record = None
+        else:
+            raise RuntimeError(f"the retained origin provider-attempts sidecar for {case_id} is missing")
+        wrapper_path = run_folder / "assisted" / f"{case_id}.json"
+        for label, path in (
+            ("case record", case_path),
+            ("assisted wrapper", wrapper_path),
+        ):
+            if path.is_symlink() or not path.is_file():
+                raise RuntimeError(f"the retained origin {label} for {case_id} is missing")
+        wrapper = json_load(wrapper_path)
+        if (wrapper.get("contract") != ASSISTED_CONTRACT or
+                wrapper.get("attempt_id") != origin.attempt_id or
+                wrapper.get("snapshot_id") != origin.snapshot_id or
+                str(wrapper.get("pass")) != "1" or wrapper.get("case_id") != case_id or
+                wrapper.get("first_record_sha256") != first_record_sha256 or
+                wrapper.get("follow_up_offered") is not True or
+                wrapper.get("state_scope") != "cumulative"):
+            raise RuntimeError(f"the retained origin assisted wrapper for {case_id} is not bound")
+        status = wrapper.get("status")
+        decision = wrapper.get("decision")
+        if (status, decision) not in {
+            ("pass_no_feedback", "pass_no_feedback"),
+            ("feedback_applied", "fail_feedback"),
+        }:
+            raise RuntimeError(f"the retained origin assisted wrapper for {case_id} has an invalid state")
+        decision_path = run_folder / "assisted" / "decision" / f"{case_id}.json"
+        ready_path = run_folder / "assisted" / "ready" / f"{case_id}.json"
+        request_path = feedback_root / "requests" / f"{case_id}.json"
+        request_sidecar_path = feedback_root / "requests" / f"{case_id}.provider-attempts.json"
+        for label, path in (
+            ("assisted decision", decision_path),
+            ("assisted ready record", ready_path),
+            ("feedback request", request_path),
+            ("feedback request provider-attempts sidecar", request_sidecar_path),
+        ):
+            if path.is_symlink() or not path.is_file():
+                raise RuntimeError(f"the retained origin {label} for {case_id} is missing")
+        raw_decision = json_load(decision_path)
+        validated_decision = validated_assisted_decision(
+            raw_decision,
+            attempt_id=origin.attempt_id,
+            snapshot_id=origin.snapshot_id,
+            pass_number=1,
+            case_id=case_id,
+            first_record_sha256=first_record_sha256,
+        )
+        if validated_decision.get("decision") != decision:
+            raise RuntimeError(f"the retained origin assisted decision for {case_id} disagrees with its wrapper")
+        ready = json_load(ready_path)
+        if (ready.get("contract") != ASSISTED_CONTRACT or
+                ready.get("attempt_id") != origin.attempt_id or
+                ready.get("snapshot_id") != origin.snapshot_id or
+                str(ready.get("pass")) != "1" or ready.get("case_id") != case_id or
+                ready.get("first_record_sha256") != first_record_sha256 or
+                ready.get("first_attempt") != case_record):
+            raise RuntimeError(f"the retained origin published record for {case_id} is not the actual case record")
+        request = json_load(request_path)
+        if (request.get("contract") != "aegis-s813-assisted-feedback-request/v1" or
+                request.get("attempt_id") != origin.attempt_id or
+                request.get("snapshot_id") != origin.snapshot_id or
+                request.get("batch_id") != BATCH_ID or request.get("pass") != 1 or
+                request.get("case_id") != case_id or
+                request.get("first_record_sha256") != first_record_sha256):
+            raise RuntimeError(f"the retained origin feedback request for {case_id} is not bound")
+        request_record = retained_file_record(request_path, "pass1_feedback_request")
+        request_sidecar_record = retained_file_record(
+            request_sidecar_path, "pass1_feedback_request_provider_attempts_sidecar",
+        )
+        requests[case_id] = {"request": request_record, "provider_attempts": request_sidecar_record}
+        index_slot = index_by_case[case_id]
+        if (index_slot.get("first_record_sha256") != first_record_sha256 or
+                index_slot.get("decision") != validated_decision):
+            raise RuntimeError(f"the retained origin assisted index for {case_id} is not bound")
+        response_record: dict[str, Any] | None = None
+        if status == "feedback_applied":
+            if index_slot.get("status") != "feedback_delivered":
+                raise RuntimeError(f"the retained origin index does not deliver feedback for {case_id}")
+            if validated_decision.get("feedback") != wrapper.get("feedback"):
+                raise RuntimeError(f"the retained origin wrapper and decision feedback differ for {case_id}")
+            assisted_record = wrapper.get("assisted_record")
+            if (not isinstance(assisted_record, dict) or
+                    assisted_record.get("case_id") != case_id or
+                    assisted_record.get("attempt_status") != "hosted_run_recorded" or
+                    assisted_record.get("adjudication_version") != ADJUDICATION_VERSION or
+                    not isinstance(assisted_record.get("financial_safety_match"), bool) or
+                    not isinstance(assisted_record.get("quality_findings"), list)):
+                raise RuntimeError(f"the retained origin assisted record for {case_id} is not adjudicated")
+            response_path = feedback_root / "responses" / f"{case_id}.json"
+            response = json_load(response_path)
+            if response != validated_decision:
+                raise RuntimeError(f"the retained origin feedback response for {case_id} is not the delivered decision")
+            response_record = retained_file_record(response_path, "pass1_feedback_response")
+            responses[case_id] = response_record
+        else:
+            if index_slot.get("status") != "accepted_no_feedback":
+                raise RuntimeError(f"the retained origin index does not accept {case_id} without feedback")
+            if (wrapper.get("feedback") is not None or
+                    wrapper.get("assisted_record") is not None):
+                raise RuntimeError(f"the retained origin accepted slot {case_id} carries continuation evidence")
+            if (feedback_root / "responses" / f"{case_id}.json").exists():
+                raise RuntimeError(f"the retained origin accepted slot {case_id} has a feedback response")
+            if validated_decision.get("decision") != ASSISTED_PASS:
+                raise RuntimeError(f"the retained origin accepted decision for {case_id} is invalid")
+        slots.append({
+            "pass": 1,
+            "case_id": case_id,
+            "slot_provenance": "retained_prior_attempt",
+            "case_record_path": relative(case_path),
+            "case_record_sha256": first_record_sha256,
+            "case_record_size_bytes": case_path.stat().st_size,
+            "provider_attempts_path": sidecar_record["path"] if sidecar_record else None,
+            "provider_attempts_sha256": sidecar_record["sha256"] if sidecar_record else None,
+            "attempt_status": case_record.get("attempt_status"),
+            "outcome": case_record.get("outcome"),
+            "adjudication_version": case_record.get("adjudication_version"),
+            "financial_safety_match": case_record.get("financial_safety_match"),
+            "quality_findings": case_record.get("quality_findings"),
+            "raw_debug_capture": retained_debug_record(debug_folder, case_id),
+            "assisted_wrapper_path": relative(wrapper_path),
+            "assisted_wrapper_sha256": sha256_file(wrapper_path),
+            "assisted_wrapper_status": status,
+            "assisted_wrapper_decision": decision,
+            "assisted_decision_path": relative(decision_path),
+            "assisted_decision_sha256": sha256_file(decision_path),
+            "assisted_ready_path": relative(ready_path),
+            "assisted_ready_sha256": sha256_file(ready_path),
+            "feedback_request_path": request_record["path"],
+            "feedback_request_sha256": request_record["sha256"],
+            "feedback_request_sidecar_path": request_sidecar_record["path"],
+            "feedback_request_sidecar_sha256": request_sidecar_record["sha256"],
+            "feedback_response_path": response_record["path"] if response_record else None,
+            "feedback_response_sha256": response_record["sha256"] if response_record else None,
+        })
+
+    semantic_path = origin.semantic_review_path
+    raw_semantic = json_load(semantic_path)
+    recorded_attempt = raw_semantic.get("attempt_id") if isinstance(raw_semantic, dict) else None
+    if isinstance(recorded_attempt, str) and recorded_attempt != origin.attempt_id:
+        raise RuntimeError("the retained semantic review belongs to a different attempt")
+    recorded_worker = raw_semantic.get("worker_attempt_id") if isinstance(raw_semantic, dict) else None
+    if isinstance(recorded_worker, str):
+        # The independent review names the measurement attempt by its role-qualified label
+        # (e.g. S8.13-assisted-live-a74); require the same declared aNN token.
+        if not recorded_worker.endswith(origin.attempt_id.rsplit("-", 1)[-1]):
+            raise RuntimeError("the retained semantic review belongs to a different worker attempt")
+    recorded_freeze_sha256 = raw_semantic.get("freeze_sha256") if isinstance(raw_semantic, dict) else None
+    if (isinstance(recorded_freeze_sha256, str) and
+            recorded_freeze_sha256 != records["freeze"]["sha256"]):
+        raise RuntimeError("the retained semantic review was written for a different origin freeze")
+    semantic_decisions = retained_semantic_decisions(raw_semantic, case_ids, semantic_path)
+    semantic_link = {
+        "path": relative(semantic_path),
+        "sha256": sha256_file(semantic_path),
+        "size_bytes": semantic_path.stat().st_size,
+        "entries_indexed": len(semantic_decisions),
+        "decisions": semantic_decisions,
+        "origin_verdict": (
+            raw_semantic.get("verdict") if isinstance(raw_semantic, dict) else None
+        ),
+        "origin_advance": (
+            raw_semantic.get("advance") if isinstance(raw_semantic, dict) else None
+        ),
+        "worker_attempt_id": recorded_worker,
+        "reviewer_attempt_id": (
+            raw_semantic.get("reviewer_attempt_id")
+            if isinstance(raw_semantic, dict) else None
+        ),
+        "note": (
+            "Retained pass-1 decisions are read from this frozen origin adjudication. They are "
+            "neither re-authored nor re-graded by this attempt."
+        ),
+    }
+    manifest: dict[str, Any] = {
+        "contract": RETAINED_FIRST_PASS_CONTRACT,
+        "purpose": (
+            "Bind the immutable complete first pass of an explicitly declared origin so a new "
+            "identity measures only repetitions 2 and 3; no retained byte is copied or re-graded."
+        ),
+        "origin": {
+            "attempt_id": origin.attempt_id,
+            "snapshot_id": origin.snapshot_id,
+            "evidence_root": relative(origin.evidence_root),
+            "preparation_root": relative(preparation),
+            "run_folder": relative(run_folder),
+            "debug_folder": relative(debug_folder),
+        },
+        "bindings": {
+            "batch_id": BATCH_ID,
+            "fixture_id": FIXTURE_ID,
+            "fixture_sha256": fixture_sha256,
+            "scoring_sha256": scoring_sha256,
+            "app_apk_sha256": freeze.get("app_apk_sha256"),
+            "test_apk_sha256": freeze.get("test_apk_sha256"),
+            "case_mapping_sha256": records["case_mapping"]["sha256"],
+            "freeze_sha256": records["freeze"]["sha256"],
+            "source_manifest_sha256": freeze.get("source_manifest_sha256"),
+            "device_serial": DEVICE_SERIAL,
+            "device_model": DEVICE_MODEL,
+            "android_release": ANDROID_RELEASE,
+        },
+        "source_binding": source_binding,
+        "records": records,
+        "assisted_feedback": {
+            "index": retained_file_record(index_path, "pass1_feedback_index"),
+            "requests": requests,
+            "responses": responses,
+        },
+        "slots": slots,
+        "semantic_review": semantic_link,
+        "retained_slot_count": len(case_ids),
+        "retained_case_ids": list(case_ids),
+        "complete_first_pass": True,
+        "checks": {
+            "complete_24_slot_first_pass": True,
+            "host_collected_and_validated": True,
+            "assisted_wrappers_bound_to_first_record": True,
+            "feedback_requests_and_responses_bound": True,
+            "raw_capture_hashed": True,
+            "fixture_scoring_apks_match": True,
+            "device_source_unchanged": True,
+            "semantic_review_linked_not_regraded": True,
+        },
+    }
+    manifest["manifest_sha256"] = sha256_bytes(
+        json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    )
+    return manifest
+
+
+def validate_retained_origin_manifest(
+    frozen: dict[str, Any],
+    case_ids: list[str],
+    *,
+    require_current_apks: bool = False,
+) -> dict[str, Any]:
+    """Re-derive the origin manifest and require the frozen bytes to describe it exactly."""
+    derived = build_retained_origin_manifest(case_ids, require_current_apks=require_current_apks)
+    if frozen != derived:
+        raise RuntimeError(
+            "the frozen retained-origin manifest does not match the actual origin evidence bytes"
+        )
+    return derived
+
+
+def retained_plan_summary(manifest: dict[str, Any]) -> dict[str, Any]:
+    origin = manifest["origin"]
+    measurements = {
+        str(row["pass"]): row["measured_slots"]
+        for row in (
+            {"pass": 1, "measured_slots": 0, "retained_slots": manifest["retained_slot_count"]},
+            {"pass": 2, "measured_slots": 24, "retained_slots": 0},
+            {"pass": 3, "measured_slots": 24, "retained_slots": 0},
+        )
+    }
+    return {
+        "mode": RETAINED_FIRST_PASS_MODE,
+        "contract": RETAINED_FIRST_PASS_CONTRACT,
+        "origin_attempt_id": origin["attempt_id"],
+        "origin_snapshot_id": origin["snapshot_id"],
+        "origin_evidence_root": origin["evidence_root"],
+        "origin_manifest_path": (
+            relative(RETAINED_ORIGIN_MANIFEST_PATH)
+            if RETAINED_ORIGIN_MANIFEST_PATH is not None else None
+        ),
+        "origin_manifest_sha256": manifest["manifest_sha256"],
+        "semantic_review_path": manifest["semantic_review"]["path"],
+        "semantic_review_sha256": manifest["semantic_review"]["sha256"],
+        "retained_slots": manifest["retained_slot_count"],
+        "measured_slots": sum(measurements.values()),
+        "total_slots": EXHAUSTIVE_TOTAL_SLOTS,
+        "measured_slots_by_pass": measurements,
+        "complete_first_pass": True,
+    }
+
+
+def build_retained_first_pass_continuation(
+    case_ids: list[str],
+    *,
+    require_current_apks: bool = True,
+) -> dict[str, Any]:
+    """Retain the whole declared first pass and measure only repetitions 2 and 3."""
+    case_ids = list(case_ids)
+    if len(case_ids) != 24 or len(set(case_ids)) != 24:
+        raise RuntimeError("the retained first pass requires the frozen 24-case order")
+    manifest = build_retained_origin_manifest(case_ids, require_current_apks=require_current_apks)
+    origin = RETAINED_ORIGIN
+    if origin is None:
+        raise RuntimeError("no retained origin was declared")
+    retained_ids = list(case_ids)
+    provenance = {
+        "attempt_id": origin.attempt_id,
+        "batch_id": BATCH_ID,
+        "snapshot_id": origin.snapshot_id,
+        "pass": 1,
+        "evidence_root": manifest["origin"]["evidence_root"],
+        "run_folder": manifest["origin"]["run_folder"],
+        "freeze_path": manifest["records"]["freeze"]["path"],
+        "freeze_sha256": manifest["records"]["freeze"]["sha256"],
+        "live_run_path": manifest["records"]["pass1_live_run"]["path"],
+        "live_run_sha256": manifest["records"]["pass1_live_run"]["sha256"],
+        "host_record_path": manifest["records"]["pass1_host_record"]["path"],
+        "host_record_sha256": manifest["records"]["pass1_host_record"]["sha256"],
+        "path_identity_path": manifest["records"]["pass1_path_identity"]["path"],
+        "path_identity_sha256": manifest["records"]["pass1_path_identity"]["sha256"],
+        "retained_case_ids": retained_ids,
+        "retained_slot_count": len(retained_ids),
+        "slots": manifest["slots"],
+        "origin_manifest_sha256": manifest["manifest_sha256"],
+    }
+    provenance["provenance_sha256"] = sha256_bytes("\n".join([
+        f"contract={RETAINED_FIRST_PASS_CONTRACT}",
+        f"attempt_id={origin.attempt_id}",
+        f"batch_id={BATCH_ID}",
+        f"snapshot_id={origin.snapshot_id}",
+        "pass=1",
+        f"origin_manifest_sha256={manifest['manifest_sha256']}",
+        f"fixture_sha256={manifest['bindings']['fixture_sha256']}",
+        f"scoring_sha256={manifest['bindings']['scoring_sha256']}",
+        f"app_apk_sha256={manifest['bindings']['app_apk_sha256']}",
+        f"test_apk_sha256={manifest['bindings']['test_apk_sha256']}",
+        f"case_ids_sha256={exhaustive_case_ids_sha256(retained_ids)}",
+        f"retained_slot_count={len(retained_ids)}",
+    ]).encode("utf-8"))
+    passes: list[dict[str, Any]] = [
+        {
+            "pass": 1,
+            "case_ids": [],
+            "slot_order": retained_ids,
+            "retained_case_ids": retained_ids,
+            "measured_slots": 0,
+            "retained_slots": len(retained_ids),
+        },
+    ]
+    for pass_number in (2, 3):
+        passes.append({
+            "pass": pass_number,
+            "case_ids": list(case_ids),
+            "slot_order": list(case_ids),
+            "retained_case_ids": [],
+            "measured_slots": len(case_ids),
+            "retained_slots": 0,
+        })
+    measured_slots = sum(row["measured_slots"] for row in passes)
+    if measured_slots != EXHAUSTIVE_TOTAL_SLOTS - len(retained_ids):
+        raise RuntimeError("the retained first-pass plan does not cover only the 48 remaining slots")
+    return {
+        "contract": EXHAUSTIVE_CONTRACT,
+        "mode": RETAINED_FIRST_PASS_MODE,
+        "policy": dict(EXHAUSTIVE_CONTINUATION_POLICY),
+        "retained_prefix_case_ids": retained_ids,
+        "retained_provenance": provenance,
+        "retained_origin": manifest,
+        "passes": passes,
+        "total_slots": EXHAUSTIVE_TOTAL_SLOTS,
+        "measured_slots": measured_slots,
+        "retained_slots": len(retained_ids),
+    }
+
+
+def expected_device_measured_slots(freeze: dict[str, Any], pass_number: int) -> int:
+    """The unchanged device contract derives its batch view from the per-pass launch binding.
+
+    Repetitions 2-3 are launched with no per-pass retained prefix, so the device declares
+    ``total - 0`` measured slots for its own view. The host plan remains authoritative about what
+    was actually measured: 48 new slots with the whole first pass retained. The retained prefix
+    is declared on pass 1 only, which this mode never launches.
+    """
+    exhaustive = freeze.get("exhaustive_continuation") or {}
+    case_ids = list(freeze.get("case_ids_in_run_order") or [])
+    retained_for_pass = (
+        list(exhaustive.get("retained_prefix_case_ids") or []) if pass_number == 1 else []
+    )
+    return (len(case_ids) - len(retained_for_pass)) + len(case_ids) * 2
 
 
 def exhaustive_pass_plan(freeze: dict[str, Any], pass_number: int) -> dict[str, Any] | None:
@@ -1797,6 +2525,15 @@ def action_preflight(_: argparse.Namespace) -> int:
         )
     source_hashes = source_manifest()
     path_identity = static_run_path_identity(require_local_targets_absent=True)
+    retained_manifest = (
+        build_retained_origin_manifest([row["case_id"] for row in mapped])
+        if RETAINED_ORIGIN is not None else None
+    )
+    retained_summary = retained_plan_summary(retained_manifest) if retained_manifest else None
+    if retained_manifest is not None:
+        if RETAINED_ORIGIN_MANIFEST_PATH is None:
+            raise RuntimeError("the retained origin manifest path is not configured")
+        write_new_json(RETAINED_ORIGIN_MANIFEST_PATH, retained_manifest)
     mapping_doc = {
         "task_id": "S8.13",
         "attempt_id": ATTEMPT_ID,
@@ -1807,6 +2544,7 @@ def action_preflight(_: argparse.Namespace) -> int:
         "exhaustive_from_attempt": EXHAUSTIVE_FROM_ATTEMPT,
         "no_fail_fast": EXHAUSTIVE_FRESH_BATCH,
         "scripted_proof": SCRIPTED_PROOF,
+        "retained_origin": retained_summary,
         "fixture_id": inputs["mapping"]["fixture_id"],
         "scoring_version": inputs["scoring"]["scoring_version"],
         "contract": inputs["mapping"]["contract"],
@@ -1823,6 +2561,7 @@ def action_preflight(_: argparse.Namespace) -> int:
         "exhaustive_from_attempt": EXHAUSTIVE_FROM_ATTEMPT,
         "no_fail_fast": EXHAUSTIVE_FRESH_BATCH,
         "scripted_proof": SCRIPTED_PROOF,
+        "retained_origin": retained_summary,
         "fixture_id": inputs["mapping"]["fixture_id"],
         "scoring_version": inputs["scoring"]["scoring_version"],
         "fixture_sha256": sha256_file(ROOT / FIXTURE_PATH),
@@ -1848,6 +2587,13 @@ def action_preflight(_: argparse.Namespace) -> int:
             "hosted_provider_calls": 0,
             "historical_fixture_scoring_result_bytes_modified": False,
             "run_path_identity_unique_and_stale_root_refused": True,
+            "retained_first_pass_complete_and_byte_bound": (
+                retained_summary is not None and
+                retained_summary["complete_first_pass"] is True and
+                retained_summary["retained_slots"] == 24 and
+                retained_summary["measured_slots"] == 48 and
+                retained_summary["total_slots"] == 72
+            ) if retained_summary is not None else True,
         },
         "evidence_root": evidence_path(PREPARATION_ROOT),
         "generated_at": utc_now(),
@@ -1862,6 +2608,7 @@ def action_preflight(_: argparse.Namespace) -> int:
         "mapping_sha256": sha256_file(CASE_MAPPING_PATH),
         "preflight_path": relative(PREFLIGHT_PATH),
         "preflight_sha256": sha256_file(PREFLIGHT_PATH),
+        "retained_origin": retained_summary,
         "hosted_provider_calls": 0,
     }, indent=2))
     return 0
@@ -1872,6 +2619,21 @@ def strict_static_preflight() -> tuple[dict[str, Any], dict[str, Any]]:
         raise RuntimeError("run the new static mapping preflight before build or phone work")
     preflight = json_load(PREFLIGHT_PATH)
     mapping = json_load(CASE_MAPPING_PATH)
+    retained_summary: dict[str, Any] | None = None
+    if RETAINED_ORIGIN is not None:
+        case_ids = [row["case_id"] for row in mapping.get("cases", [])]
+        retained_manifest = build_retained_origin_manifest(case_ids)
+        retained_summary = retained_plan_summary(retained_manifest)
+        if RETAINED_ORIGIN_MANIFEST_PATH is None or not RETAINED_ORIGIN_MANIFEST_PATH.is_file():
+            raise RuntimeError("the retained origin manifest is missing from the preparation root")
+        stored_manifest = json_load(RETAINED_ORIGIN_MANIFEST_PATH)
+        if stored_manifest != retained_manifest:
+            raise RuntimeError("the retained origin manifest does not match the actual origin bytes")
+        canonical = dict(stored_manifest)
+        recorded_digest = canonical.pop("manifest_sha256", None)
+        if recorded_digest != sha256_bytes(
+                json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")):
+            raise RuntimeError("the retained origin manifest self-digest is inconsistent")
     if (preflight.get("task_id") != "S8.13" or preflight.get("attempt_id") != ATTEMPT_ID or
             preflight.get("batch_id") != BATCH_ID or preflight.get("snapshot_id") != SNAPSHOT_ID or
             preflight.get("case_mapping_path") != relative(CASE_MAPPING_PATH) or
@@ -1882,6 +2644,7 @@ def strict_static_preflight() -> tuple[dict[str, Any], dict[str, Any]]:
             preflight.get("exhaustive_from_attempt") != EXHAUSTIVE_FROM_ATTEMPT or
             preflight.get("no_fail_fast") != EXHAUSTIVE_FRESH_BATCH or
             preflight.get("scripted_proof") != SCRIPTED_PROOF or
+            preflight.get("retained_origin") != retained_summary or
             mapping.get("task_id") != "S8.13" or mapping.get("attempt_id") != ATTEMPT_ID or
             mapping.get("batch_id") != BATCH_ID or mapping.get("snapshot_id") != SNAPSHOT_ID or
             mapping.get("reproduction_invocation") != reproduction_invocation_record(REPRODUCTION_INVOCATION) or
@@ -1889,6 +2652,7 @@ def strict_static_preflight() -> tuple[dict[str, Any], dict[str, Any]]:
             mapping.get("exhaustive_from_attempt") != EXHAUSTIVE_FROM_ATTEMPT or
             mapping.get("no_fail_fast") != EXHAUSTIVE_FRESH_BATCH or
             mapping.get("scripted_proof") != SCRIPTED_PROOF or
+            mapping.get("retained_origin") != retained_summary or
             mapping.get("fixture_id") != FIXTURE_ID or
             preflight.get("case_mapping_sha256") != sha256_file(CASE_MAPPING_PATH) or
             preflight.get("fixture_sha256") != sha256_file(ROOT / FIXTURE_PATH) or
@@ -1989,6 +2753,61 @@ def validated_path_component(value: Any, label: str) -> str:
     return value
 
 
+def validated_repo_relative_path(value: Any, label: str) -> Path:
+    if not isinstance(value, str):
+        raise RuntimeError(f"{label} must be a repository-relative path")
+    rel = PurePosixPath(value.replace("\\", "/"))
+    if rel.is_absolute() or ".." in rel.parts or not rel.parts:
+        raise RuntimeError(f"{label} must be a repository-relative path")
+    path = ROOT.joinpath(*rel.parts)
+    if not path.resolve(strict=False).is_relative_to(ROOT.resolve(strict=False)):
+        raise RuntimeError(f"{label} must remain inside the repository")
+    if path.is_symlink() or not path.is_file():
+        raise RuntimeError(f"{label} is missing or unsafe: {rel.as_posix()}")
+    return path
+
+
+def validated_retained_origin(args: argparse.Namespace) -> RetainedOrigin | None:
+    supplied = {
+        "attempt_id": getattr(args, "retained_origin_attempt", None),
+        "snapshot_id": getattr(args, "retained_origin_snapshot", None),
+        "evidence_root": getattr(args, "retained_origin_evidence_root", None),
+        "semantic_review": getattr(args, "retained_origin_semantic_review", None),
+    }
+    if all(value is None for value in supplied.values()):
+        return None
+    if any(value is None for value in supplied.values()):
+        raise RuntimeError(
+            "a retained first pass requires --retained-origin-attempt, --retained-origin-snapshot, "
+            "--retained-origin-evidence-root and --retained-origin-semantic-review together"
+        )
+    attempt_id = validated_path_component(supplied["attempt_id"], "retained origin attempt ID")
+    snapshot_id = validated_path_component(supplied["snapshot_id"], "retained origin snapshot ID")
+    if re.search(r"-freeze-(\d+)$", snapshot_id) is None:
+        raise RuntimeError("the retained origin snapshot ID must end with its explicit -freeze-N number")
+    rel = PurePosixPath(str(supplied["evidence_root"]).replace("\\", "/"))
+    if (rel.is_absolute() or ".." in rel.parts or
+            rel.parts[:3] != ("artifacts", "sprint-8", "evidence") or len(rel.parts) != 4):
+        raise RuntimeError(
+            "--retained-origin-evidence-root must be one artifacts/sprint-8/evidence child"
+        )
+    evidence_root = ROOT.joinpath(*rel.parts)
+    evidence_base = ROOT / "artifacts/sprint-8/evidence"
+    if not evidence_root.resolve(strict=False).is_relative_to(evidence_base.resolve(strict=False)):
+        raise RuntimeError(
+            "--retained-origin-evidence-root must remain inside artifacts/sprint-8/evidence"
+        )
+    for candidate in (evidence_base, *evidence_root.parents, evidence_root):
+        if candidate.exists() and candidate.is_symlink():
+            raise RuntimeError("refusing a symlinked retained-origin evidence root")
+    if not evidence_root.is_dir():
+        raise RuntimeError("--retained-origin-evidence-root does not exist")
+    semantic_review_path = validated_repo_relative_path(
+        supplied["semantic_review"], "--retained-origin-semantic-review",
+    )
+    return RetainedOrigin(attempt_id, snapshot_id, evidence_root, semantic_review_path)
+
+
 def configure_invocation(args: argparse.Namespace, *, required: bool = False) -> None:
     global ATTEMPT_ID, SNAPSHOT_ID, EVIDENCE_ROOT, PREPARATION_ROOT, REPRODUCTION_INVOCATION
     global DEBUG_ROOT, TEST_ONLY_PRIVACY_ROOT
@@ -1997,6 +2816,7 @@ def configure_invocation(args: argparse.Namespace, *, required: bool = False) ->
     global DIAGNOSTIC_OUTPUT_DIR, DIAGNOSTIC_HOST_PATH, DIAGNOSTIC_PREFLIGHT_PATH
     global DIAGNOSTIC_PATH_IDENTITY_PATH, DIAGNOSTIC_REMOTE_RUN_DIR
     global EXHAUSTIVE_FROM_ATTEMPT, EXHAUSTIVE_FRESH_BATCH, SCRIPTED_PROOF
+    global RETAINED_ORIGIN, RETAINED_ORIGIN_MANIFEST_PATH
     raw_exhaustive = getattr(args, "exhaustive_from", None)
     if raw_exhaustive is not None:
         if raw_exhaustive != EXHAUSTIVE_RETAINED_ATTEMPT:
@@ -2009,6 +2829,17 @@ def configure_invocation(args: argparse.Namespace, *, required: bool = False) ->
         EXHAUSTIVE_FROM_ATTEMPT = None
     EXHAUSTIVE_FRESH_BATCH = bool(getattr(args, "no_fail_fast", False))
     SCRIPTED_PROOF = bool(getattr(args, "scripted_proof", False))
+    RETAINED_ORIGIN = validated_retained_origin(args)
+    RETAINED_ORIGIN_MANIFEST_PATH = None
+    if EXHAUSTIVE_FROM_ATTEMPT is not None and RETAINED_ORIGIN is not None:
+        raise RuntimeError(
+            "the a55 retained-prefix provenance and the retained-first-pass provenance are "
+            "mutually exclusive"
+        )
+    if RETAINED_ORIGIN is not None and not EXHAUSTIVE_FRESH_BATCH:
+        raise RuntimeError(
+            "the retained first pass requires the batch-continuation policy (--no-fail-fast)"
+        )
     if EXHAUSTIVE_FRESH_BATCH and EXHAUSTIVE_FROM_ATTEMPT is not None:
         raise RuntimeError(
             "a fresh batch continuation and a retained prior prefix are mutually exclusive"
@@ -2026,6 +2857,11 @@ def configure_invocation(args: argparse.Namespace, *, required: bool = False) ->
     evidence_root_arg = getattr(args, "evidence_root", None)
     any_identity = any(value is not None for value in supplied.values())
     if not any_identity:
+        if RETAINED_ORIGIN is not None:
+            raise RuntimeError(
+                "a retained first pass requires the explicit full-suite attempt ID, snapshot ID, "
+                "and evidence root"
+            )
         if required:
             raise RuntimeError("diagnostic launch requires explicit attempt, snapshot, run name, and case IDs")
         if evidence_root_arg is not None:
@@ -2073,6 +2909,10 @@ def configure_invocation(args: argparse.Namespace, *, required: bool = False) ->
         DEVICE_PREFLIGHT_PATH = PREPARATION_ROOT / "device-preflight-host.json"
         FREEZE_PATH = PREPARATION_ROOT / "freeze.json"
         PATH_IDENTITY_PREFLIGHT_PATH = PREPARATION_ROOT / "path-identity-preflight.json"
+        RETAINED_ORIGIN_MANIFEST_PATH = (
+            PREPARATION_ROOT / "retained-origin-manifest.json"
+            if RETAINED_ORIGIN is not None else None
+        )
         DIAGNOSTIC_OUTPUT_DIR = PREPARATION_ROOT / CANDIDATE / DIAGNOSTIC_RUN_NAME
         DIAGNOSTIC_HOST_PATH = PREPARATION_ROOT / CANDIDATE / f"{DIAGNOSTIC_RUN_NAME}.host.json"
         DIAGNOSTIC_PREFLIGHT_PATH = PREPARATION_ROOT / CANDIDATE / f"{DIAGNOSTIC_RUN_NAME}.preflight.json"
@@ -2085,6 +2925,8 @@ def configure_invocation(args: argparse.Namespace, *, required: bool = False) ->
         return
     if not all(value is not None for value in supplied.values()):
         raise RuntimeError("attempt, snapshot, run name, and case IDs must be supplied together")
+    if RETAINED_ORIGIN is not None:
+        raise RuntimeError("a retained first pass is a full-suite plan, not a diagnostic selection")
     attempt_id = validated_path_component(supplied["attempt_id"], "attempt ID")
     snapshot_id = validated_path_component(supplied["snapshot_id"], "snapshot ID")
     freeze_match = re.search(r"-freeze-(\d+)$", snapshot_id)
@@ -4061,6 +4903,11 @@ def action_freeze(_: argparse.Namespace) -> int:
         "laya_smoke_path": device["laya_smoke"],
         "case_count": len(case_ids),
         "repetitions": REPETITIONS,
+        "retained_origin": (
+            retained_plan_summary(exhaustive_continuation["retained_origin"])
+            if isinstance(exhaustive_continuation, dict) and
+            exhaustive_continuation.get("mode") == RETAINED_FIRST_PASS_MODE else None
+        ),
         "max_output_tokens_per_turn": MAX_OUTPUT_TOKENS,
         "turn_budgets": RUN_LIMITS,
         "diagnostic_only_case": diagnostic_case,
@@ -4238,9 +5085,25 @@ class OneShotCredentialServer:
                 self._thread.join(timeout=2)
 
 
-def existing_hard_stop(pass_number: int) -> str | None:
+def existing_hard_stop(pass_number: int, freeze: dict[str, Any] | None = None) -> str | None:
     if pass_number == 1:
         return None
+    exhaustive = (freeze or {}).get("exhaustive_continuation")
+    if isinstance(exhaustive, dict) and exhaustive.get("mode") == RETAINED_FIRST_PASS_MODE:
+        # Pass 1 is retained and must never be re-executed under this identity; its declared
+        # origin host record is the immutable predecessor for pass 2.
+        if output_dir_for_pass(1).exists() or host_record_path_for_pass(1).is_file():
+            raise RuntimeError(
+                "the retained first pass must not be re-executed under the new measurement identity"
+            )
+        if pass_number == 2:
+            provenance = exhaustive["retained_provenance"]
+            prior_host = ROOT / provenance["host_record_path"]
+            if not prior_host.is_file() or sha256_file(prior_host) != provenance["host_record_sha256"]:
+                raise RuntimeError("the retained origin pass-1 host record is missing or changed")
+            if json_load(prior_host).get("hard_stop"):
+                raise RuntimeError("the retained origin first pass reached a hard stop")
+            return None
     previous = host_record_path_for_pass(pass_number - 1)
     if not previous.is_file():
         raise RuntimeError("repetitions must be sequential; previous pass host record is missing")
@@ -4392,7 +5255,8 @@ def validate_live_run(path: Path, freeze: dict[str, Any], pass_number: int,
             ),
             isinstance(block, dict) and row is not None and block.get("measured_slot_count") == len(row["case_ids"]),
             isinstance(block, dict) and block.get("total_slots") == exhaustive["total_slots"],
-            isinstance(block, dict) and block.get("measured_slots_in_batch") == exhaustive["measured_slots"],
+            isinstance(block, dict) and block.get("measured_slots_in_batch") ==
+            expected_device_measured_slots(freeze, pass_number),
             isinstance(block, dict) and expected_digest is not None and
             block.get("identity_sha256") == expected_digest,
             isinstance(decisions, list) and len(decisions) == len(expected_case_ids),
@@ -4898,6 +5762,12 @@ def action_run(args: argparse.Namespace) -> int:
         raise RuntimeError("Main's explicit Stage2 approval reference is required before any hosted request")
     freeze = strict_freeze()
     pass_number = args.pass_number
+    retained_plan = freeze.get("exhaustive_continuation")
+    if (isinstance(retained_plan, dict) and
+            retained_plan.get("mode") == RETAINED_FIRST_PASS_MODE and pass_number == 1):
+        raise RuntimeError(
+            "the retained first pass has no measured slots; this plan starts at repetition 2"
+        )
     assisted_enabled = bool(getattr(args, "assisted", False))
     assisted_slots: dict[str, dict[str, Any]] = {}
     assisted_errors: list[str] = []
@@ -4916,7 +5786,7 @@ def action_run(args: argparse.Namespace) -> int:
                 policy.get("one_feedback_per_failed_slot") is not True or
                 policy.get("same_state_in_session_pause") is not True):
             raise RuntimeError("the frozen assisted contract does not match this runner")
-    existing_hard_stop(pass_number)
+    existing_hard_stop(pass_number, freeze)
     output_dir = output_dir_for_pass(pass_number)
     host_path = host_record_path_for_pass(pass_number)
     preflight_path = preflight_record_path_for_pass(pass_number)
@@ -5046,8 +5916,13 @@ def action_run(args: argparse.Namespace) -> int:
         if freeze.get("scripted_proof") is not True:
             raise RuntimeError("the frozen candidate does not bind the scripted proof")
         continuation = freeze.get("exhaustive_continuation")
-        if not isinstance(continuation, dict) or not continuation.get("mode") == "fresh_batch_continuation":
-            raise RuntimeError("the scripted proof requires the fresh batch-continuation plan")
+        if (not isinstance(continuation, dict) or
+                continuation.get("mode") not in {
+                    "fresh_batch_continuation", RETAINED_FIRST_PASS_MODE,
+                }):
+            raise RuntimeError(
+                "the scripted proof requires the fresh or retained-first-pass batch-continuation plan"
+            )
         raw_plan_path = getattr(args, "proof_plan", None)
         if raw_plan_path is None:
             raise RuntimeError("the scripted proof requires its declared --proof-plan")
@@ -7040,6 +7915,8 @@ def evaluate_case(mapping: dict[str, Any], pass_number: int, run_dir: Path, free
         "provider_attempts_sha256": origin["provider_attempts_sha256"],
         "host_record_path": origin["host_record_path"],
         "host_record_sha256": origin["host_record_sha256"],
+        "path_identity_path": origin["path_identity_path"],
+        "path_identity_sha256": origin["path_identity_sha256"],
         "freeze_sha256": origin["freeze_sha256"],
     }
     if case_record is None:
@@ -7169,10 +8046,17 @@ def evaluate_case(mapping: dict[str, Any], pass_number: int, run_dir: Path, free
     else:
         case_bytes_ok = (
             sha256_file(case_path) == origin["case_record_sha256"] and
-            sha256_file(run_dir / f"{case_id}.provider-attempts.json") ==
-            origin["provider_attempts_sha256"] and
             case_record.get("case_id") == case_id
         )
+        sidecar_path = run_dir / f"{case_id}.provider-attempts.json"
+        if origin.get("provider_attempts_path") is None:
+            # A declared scripted origin has no wire exchange to capture; no sidecar may appear.
+            case_bytes_ok = case_bytes_ok and not sidecar_path.exists()
+        else:
+            case_bytes_ok = (
+                case_bytes_ok and
+                sha256_file(sidecar_path) == origin["provider_attempts_sha256"]
+            )
         path_identity_ok = (
             sha256_file(path_identity_path) == origin["path_identity_sha256"] and
             path_identity_record.get("attempt_id") == origin["attempt_id"] and
@@ -7277,10 +8161,19 @@ def evaluate_case(mapping: dict[str, Any], pass_number: int, run_dir: Path, free
 
 
 def semantic_review_map(path: Path | None, freeze: dict[str, Any], mapping_doc: dict[str, Any]) -> dict[str, Any] | None:
+    exhaustive = freeze.get("exhaustive_continuation")
+    retained_decisions: dict[str, Any] = {}
+    if isinstance(exhaustive, dict) and exhaustive.get("mode") == RETAINED_FIRST_PASS_MODE:
+        # Retained pass-1 decisions come from the frozen origin adjudication; they are never
+        # re-authored or re-graded by the new identity.
+        retained_decisions = {
+            key: dict(row)
+            for key, row in (exhaustive["retained_origin"]["semantic_review"]["decisions"] or {}).items()
+        }
     if path is None:
         candidate_path = PREPARATION_ROOT / "semantic-review-decisions.json"
         if not candidate_path.is_file():
-            return None
+            return retained_decisions or None
         path = candidate_path
     reviews = json_load(path)
     if (reviews.get("task_id") != "S8.13" or reviews.get("attempt_id") != ATTEMPT_ID or
@@ -7300,10 +8193,18 @@ def semantic_review_map(path: Path | None, freeze: dict[str, Any], mapping_doc: 
         if phase not in {"initial", "assisted"}:
             raise RuntimeError(f"invalid semantic review phase: {row.get('case_id')}")
         key = f"{row.get('pass')}:{row.get('case_id')}" + (":assisted" if phase == "assisted" else "")
+        if key in retained_decisions:
+            raise RuntimeError(
+                f"the retained first-pass semantic decision is frozen from the origin review: {key}"
+            )
         if key not in allowed or key in indexed or row.get("decision") not in {"PASS", "FAIL"}:
             raise RuntimeError(f"invalid or duplicate semantic review entry: {key}")
         if not isinstance(row.get("reviewer"), str) or not row["reviewer"].strip():
             raise RuntimeError(f"semantic review lacks reviewer identity: {key}")
+        indexed[key] = row
+    for key, row in retained_decisions.items():
+        if key not in allowed:
+            raise RuntimeError(f"the retained origin semantic decision is not in the frozen plan: {key}")
         indexed[key] = row
     return indexed
 
@@ -7313,6 +8214,8 @@ def assisted_evaluation(
     freeze: dict[str, Any],
     mapping_by_id: dict[str, dict[str, Any]],
     semantic: dict[str, Any] | None,
+    retained_run_dir: Path | None = None,
+    retained_origin: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """PASS@1, assisted PASS@2 and recovery over the same 72 slots.
 
@@ -7325,11 +8228,22 @@ def assisted_evaluation(
     if not isinstance(policy, dict):
         return None
     details: list[dict[str, Any]] = []
+    origin_slots = {
+        slot["case_id"]: slot
+        for slot in (retained_origin or {}).get("slots", [])
+        if isinstance(slot, dict)
+    }
     for run in run_results:
         pass_number = run["pass"]
-        run_dir = output_dir_for_pass(pass_number)
         for row in run["cases"]:
             case_id = row["case_id"]
+            retained = row.get("slot_provenance") == "retained_prior_attempt"
+            run_dir = (
+                retained_run_dir
+                if retained and retained_run_dir is not None
+                else output_dir_for_pass(pass_number)
+            )
+            origin = row.get("slot_origin") if retained else None
             first_pass = row.get("task_success") is True
             assisted_path = run_dir / "assisted" / f"{case_id}.json"
             detail: dict[str, Any] = {
@@ -7353,6 +8267,13 @@ def assisted_evaluation(
                 ),
             }
             if assisted_path.is_file():
+                if retained:
+                    origin_slot = origin_slots.get(case_id)
+                    if (origin_slot is None or
+                            sha256_file(assisted_path) != origin_slot.get("assisted_wrapper_sha256")):
+                        raise RuntimeError(
+                            f"the retained assisted wrapper for {case_id} does not match its frozen origin bytes"
+                        )
                 record = json_load(assisted_path)
                 detail["assisted_status"] = record.get("status")
                 detail["decision"] = record.get("decision")
@@ -7367,6 +8288,7 @@ def assisted_evaluation(
                         isinstance(record.get("assisted_record"), dict)):
                     assisted_row = evaluate_case(
                         mapping_by_id[case_id], pass_number, run_dir, freeze, semantic,
+                        origin=origin,
                         record_override=record["assisted_record"],
                         sidecar_dir=run_dir,
                         semantic_suffix=":assisted",
@@ -7562,17 +8484,28 @@ def action_score(args: argparse.Namespace) -> int:
                 }
     run_results: list[dict[str, Any]] = []
     semantic = semantic_review_map(args.semantic_reviews, freeze, mapping_doc)
+    retained_mode = (
+        isinstance(exhaustive, dict) and exhaustive.get("mode") == RETAINED_FIRST_PASS_MODE
+    )
+    retained_origin = exhaustive.get("retained_origin") if retained_mode else None
     for pass_number in (1, 2, 3):
         run_dir = output_dir_for_pass(pass_number)
         host_path = host_record_path_for_pass(pass_number)
-        if not host_path.is_file():
-            raise RuntimeError(f"repetition {pass_number} has no retained host record; missing attempts stay failures")
         pass_row = exhaustive_pass_plan(freeze, pass_number)
+        retained_pass = bool(
+            retained_mode and pass_row is not None and
+            pass_row.get("measured_slots") == 0 and
+            pass_row.get("retained_slots") == len(pass_row.get("slot_order") or [])
+        )
+        if retained_pass:
+            host_path = ROOT / exhaustive["retained_provenance"]["host_record_path"]
+        elif not host_path.is_file():
+            raise RuntimeError(f"repetition {pass_number} has no retained host record; missing attempts stay failures")
         slot_order = list(pass_row["slot_order"]) if pass_row else list(freeze["case_ids_in_run_order"])
         rows: list[dict[str, Any]] = []
         for case_id in slot_order:
             mapping = mapping_by_id[case_id]
-            origin = retained_by_case.get(case_id) if pass_number == 1 else None
+            origin = retained_by_case.get(case_id) if retained_pass else None
             if origin is not None:
                 if retained_run_dir is None:
                     raise RuntimeError("retained slots require the frozen prior-attempt run folder")
@@ -7643,7 +8576,11 @@ def action_score(args: argparse.Namespace) -> int:
         "semantic_review_complete": {"pending": semantic_pending, "pass": semantic_pending == 0},
     }
     qualifies = all(value.get("pass") is True for value in gates.values() if isinstance(value, dict)) and complete
-    assisted = assisted_evaluation(run_results, freeze, mapping_by_id, semantic)
+    assisted = assisted_evaluation(
+        run_results, freeze, mapping_by_id, semantic,
+        retained_run_dir=retained_run_dir,
+        retained_origin=retained_origin,
+    )
     score = {
         "task_id": "S8.13", "attempt_id": ATTEMPT_ID, "batch_id": BATCH_ID,
         "snapshot_id": SNAPSHOT_ID, "candidate": CANDIDATE,
@@ -7703,6 +8640,32 @@ def action_score(args: argparse.Namespace) -> int:
                 "retained_prior_live_run_sha256": exhaustive["retained_provenance"]["live_run_sha256"],
                 "retained_prior_provenance_sha256": exhaustive["retained_provenance"]["provenance_sha256"],
                 "retained_prefix_case_ids": exhaustive["retained_prefix_case_ids"],
+                "retained_origin": (
+                    {
+                        "manifest_sha256": exhaustive["retained_origin"]["manifest_sha256"],
+                        "origin": exhaustive["retained_origin"]["origin"],
+                        "bindings": exhaustive["retained_origin"]["bindings"],
+                        "source_binding": exhaustive["retained_origin"]["source_binding"],
+                        "complete_first_pass": exhaustive["retained_origin"]["complete_first_pass"],
+                        "semantic_review": {
+                            "path": exhaustive["retained_origin"]["semantic_review"]["path"],
+                            "sha256": exhaustive["retained_origin"]["semantic_review"]["sha256"],
+                            "entries_indexed": exhaustive["retained_origin"]["semantic_review"]["entries_indexed"],
+                            "origin_verdict": exhaustive["retained_origin"]["semantic_review"]["origin_verdict"],
+                        },
+                        "retained_slot_hashes": [
+                            {
+                                "case_id": slot["case_id"],
+                                "case_record_sha256": slot["case_record_sha256"],
+                                "provider_attempts_sha256": slot["provider_attempts_sha256"],
+                                "assisted_wrapper_sha256": slot["assisted_wrapper_sha256"],
+                                "feedback_response_sha256": slot["feedback_response_sha256"],
+                            }
+                            for slot in exhaustive["retained_origin"]["slots"]
+                        ],
+                    }
+                    if exhaustive.get("retained_origin") else None
+                ),
             }
             if isinstance(exhaustive, dict) else None
         ),
@@ -7787,6 +8750,43 @@ def action_score(args: argparse.Namespace) -> int:
         ),
     }, indent=2))
     return 0 if qualifies else 1
+
+
+def action_retained_plan(_: argparse.Namespace) -> int:
+    """Read-only strict validation of a retained first-pass plan. No device or provider effect."""
+    freeze = strict_freeze()
+    exhaustive = freeze.get("exhaustive_continuation")
+    if not isinstance(exhaustive, dict) or exhaustive.get("mode") != RETAINED_FIRST_PASS_MODE:
+        raise RuntimeError("the frozen candidate does not bind a retained first pass")
+    manifest = exhaustive["retained_origin"]
+    passes = [
+        {
+            "pass": row["pass"],
+            "measured_slots": row["measured_slots"],
+            "retained_slots": row["retained_slots"],
+            "case_ids": row["case_ids"],
+            "slot_order": row["slot_order"],
+        }
+        for row in exhaustive["passes"]
+    ]
+    print(json.dumps({
+        "result": "retained first-pass plan PASS",
+        "attempt_id": ATTEMPT_ID,
+        "snapshot_id": SNAPSHOT_ID,
+        "freeze_sha256": sha256_file(FREEZE_PATH),
+        "retained_origin_manifest_sha256": manifest["manifest_sha256"],
+        "retained_origin": retained_plan_summary(manifest),
+        "passes": passes,
+        "zero_new_first_pass_slots": passes[0]["measured_slots"] == 0,
+        "new_measured_slots": sum(row["measured_slots"] for row in passes),
+        "retained_slots": sum(row["retained_slots"] for row in passes),
+        "total_slots": exhaustive["total_slots"],
+        "pass_2_case_ids": passes[1]["case_ids"],
+        "pass_3_case_ids": passes[2]["case_ids"],
+        "hosted_provider_calls": 0,
+        "device_used": False,
+    }, indent=2))
+    return 0
 
 
 def action_assisted_status(_: argparse.Namespace) -> int:
@@ -8810,6 +9810,194 @@ def selfcheck_report() -> dict[str, Any]:
         fresh_ok = False
         fresh_detail = f"{type(failure).__name__}: {str(failure)[:300]}"
     check("fresh_batch_continuation_measures_all_72_slots", fresh_ok, fresh_detail)
+    retained_origin = RetainedOrigin(
+        attempt_id="S8.13-assisted-a74",
+        snapshot_id="S8.13-assisted-a74-freeze-74",
+        evidence_root=ROOT / "artifacts/sprint-8/evidence/S8.13-assisted-a74",
+        semantic_review_path=(
+            ROOT / "artifacts/sprint-8/reviews/S8.13-assisted-partial-semantic-review-01.json"
+        ),
+    )
+    retained_manifest: dict[str, Any] = {}
+    previous_origin = RETAINED_ORIGIN
+    globals()["RETAINED_ORIGIN"] = retained_origin
+    try:
+        retained_manifest = build_retained_origin_manifest(exhaustive_ids)
+        retained_plan = build_retained_first_pass_continuation(
+            exhaustive_ids, require_current_apks=False,
+        )
+        retained_ok = (
+            retained_plan["mode"] == RETAINED_FIRST_PASS_MODE and
+            retained_plan["passes"][0]["measured_slots"] == 0 and
+            retained_plan["passes"][0]["slot_order"] == exhaustive_ids and
+            retained_plan["passes"][1]["case_ids"] == exhaustive_ids and
+            retained_plan["passes"][2]["case_ids"] == exhaustive_ids and
+            retained_plan["retained_slots"] == 24 and
+            retained_plan["measured_slots"] == 48 and
+            retained_plan["total_slots"] == 72 and
+            retained_plan["retained_origin"]["manifest_sha256"] ==
+            retained_manifest["manifest_sha256"] and
+            retained_manifest["complete_first_pass"] is True and
+            retained_manifest["semantic_review"]["entries_indexed"] == 28 and
+            len(retained_plan["retained_provenance"]["slots"]) == 24 and
+            all(
+                slot["slot_provenance"] == "retained_prior_attempt" and
+                len(slot["case_record_sha256"]) == 64 and
+                slot["assisted_wrapper_sha256"] is not None
+                for slot in retained_plan["retained_provenance"]["slots"]
+            )
+        )
+        retained_detail: Any = {
+            "retained": retained_plan["retained_slots"],
+            "measured": retained_plan["measured_slots"],
+            "total": retained_plan["total_slots"],
+            "semantic_entries": retained_manifest["semantic_review"]["entries_indexed"],
+            "manifest_sha256": retained_manifest["manifest_sha256"][:16],
+        }
+    except Exception as failure:
+        retained_ok = False
+        retained_detail = f"{type(failure).__name__}: {str(failure)[:300]}"
+    check(
+        "retained_first_pass_retains_24_and_measures_only_48",
+        retained_ok, retained_detail,
+    )
+
+    def frozen_manifest_rejected(mutator: Any) -> bool:
+        candidate = json.loads(json.dumps(retained_manifest))
+        mutator(candidate)
+        try:
+            validate_retained_origin_manifest(candidate, exhaustive_ids)
+        except RuntimeError:
+            return True
+        return False
+
+    frozen_mutations = {
+        "apk": lambda row: row["bindings"].__setitem__("app_apk_sha256", "0" * 64),
+        "fixture": lambda row: row["bindings"].__setitem__("fixture_sha256", "0" * 64),
+        "scoring": lambda row: row["bindings"].__setitem__("scoring_sha256", "0" * 64),
+        "raw_hash": lambda row: row["slots"][0].__setitem__("case_record_sha256", "0" * 64),
+        "assisted_trace": lambda row: row["slots"][0].__setitem__(
+            "assisted_wrapper_sha256", None,
+        ),
+        "missing_slot": lambda row: row["slots"].pop(),
+    }
+    frozen_results = {
+        name: frozen_manifest_rejected(mutator)
+        for name, mutator in frozen_mutations.items()
+    }
+    check(
+        "retained_origin_frozen_manifest_rejects_apk_fixture_scoring_rawhash_and_assisted_mismatch",
+        all(frozen_results.values()),
+        frozen_results,
+    )
+
+    original_app_apk = APP_APK
+    apk_mismatch_rejected = False
+    fake_apk_dir = (
+        ROOT / "artifacts/sprint-8/test-only" / ATTEMPT_ID / SNAPSHOT_ID / "selfcheck-retained-apk"
+    )
+    try:
+        fake_apk_dir.mkdir(parents=True, exist_ok=True)
+        fake_apk = fake_apk_dir / "app.apk"
+        fake_apk.write_bytes(b"not the retained origin APK")
+        globals()["APP_APK"] = fake_apk
+        try:
+            build_retained_origin_manifest(exhaustive_ids, require_current_apks=True)
+        except RuntimeError:
+            apk_mismatch_rejected = True
+    finally:
+        globals()["APP_APK"] = original_app_apk
+        shutil.rmtree(fake_apk_dir, ignore_errors=True)
+    check("retained_origin_rejects_a_rebuilt_apk_that_differs", apk_mismatch_rejected)
+
+    original_fixture_path = FIXTURE_PATH
+    original_scoring_path = SCORING_PATH
+    fixture_mismatch_rejected = False
+    scoring_mismatch_rejected = False
+    try:
+        globals()["FIXTURE_PATH"] = original_scoring_path
+        try:
+            build_retained_origin_manifest(exhaustive_ids)
+        except RuntimeError:
+            fixture_mismatch_rejected = True
+        globals()["FIXTURE_PATH"] = original_fixture_path
+        globals()["SCORING_PATH"] = original_fixture_path
+        try:
+            build_retained_origin_manifest(exhaustive_ids)
+        except RuntimeError:
+            scoring_mismatch_rejected = True
+    finally:
+        globals()["FIXTURE_PATH"] = original_fixture_path
+        globals()["SCORING_PATH"] = original_scoring_path
+    check(
+        "retained_origin_rejects_a_different_fixture_or_scorer",
+        fixture_mismatch_rejected and scoring_mismatch_rejected,
+        {"fixture": fixture_mismatch_rejected, "scoring": scoring_mismatch_rejected},
+    )
+
+    mirror_root = (
+        ROOT / "artifacts/sprint-8/test-only" / ATTEMPT_ID / SNAPSHOT_ID
+        / "selfcheck-retained-origin"
+    )
+    mirror_ok = False
+    missing_assisted_rejected = False
+    try:
+        if mirror_root.exists():
+            shutil.rmtree(mirror_root)
+
+        def _hardlink_or_copy(src: str, dst: str) -> None:
+            try:
+                os.link(src, dst)
+            except OSError:
+                shutil.copy2(src, dst)
+
+        shutil.copytree(retained_origin.evidence_root, mirror_root, copy_function=_hardlink_or_copy)
+        globals()["RETAINED_ORIGIN"] = RetainedOrigin(
+            retained_origin.attempt_id, retained_origin.snapshot_id, mirror_root,
+            retained_origin.semantic_review_path,
+        )
+        mirror_ok = build_retained_origin_manifest(exhaustive_ids)["complete_first_pass"] is True
+        removed = (
+            mirror_root / "snapshot-74" / CANDIDATE / "pass-1" / "assisted"
+            / f"{exhaustive_ids[0]}.json"
+        )
+        removed.unlink()
+        try:
+            build_retained_origin_manifest(exhaustive_ids)
+        except RuntimeError:
+            missing_assisted_rejected = True
+    finally:
+        globals()["RETAINED_ORIGIN"] = retained_origin
+        shutil.rmtree(mirror_root, ignore_errors=True)
+        for parent in (mirror_root.parent, mirror_root.parent.parent, mirror_root.parent.parent.parent):
+            try:
+                parent.rmdir()
+            except OSError:
+                pass
+    check(
+        "retained_origin_rejects_a_missing_assisted_trace",
+        mirror_ok and missing_assisted_rejected,
+        {"mirror_complete": mirror_ok, "missing_assisted_rejected": missing_assisted_rejected},
+    )
+
+    semantic_rejection_ok = False
+    try:
+        retained_semantic_decisions(
+            {"reviews": [{
+                "pass": 1, "case_id": "not-a-frozen-case",
+                "phase": "initial", "decision": "PASS",
+            }]},
+            exhaustive_ids,
+            retained_origin.semantic_review_path,
+        )
+    except RuntimeError:
+        semantic_rejection_ok = True
+    check(
+        "retained_semantic_review_rejects_an_unbound_case_or_phase",
+        semantic_rejection_ok,
+    )
+    globals()["RETAINED_ORIGIN"] = previous_origin
+
     host_probe = {
         "scripted_proof": True,
         "provider_transport": "scripted_local",
@@ -8993,6 +10181,26 @@ def add_invocation_arguments(
         ),
     )
     command.add_argument(
+        "--retained-origin-attempt",
+        help=(
+            "explicit prior attempt whose whole immutable first repetition is retained; requires "
+            "--retained-origin-snapshot, --retained-origin-evidence-root and "
+            "--retained-origin-semantic-review"
+        ),
+    )
+    command.add_argument(
+        "--retained-origin-snapshot",
+        help="the declared retained origin snapshot ID (its preparation root is snapshot-N)",
+    )
+    command.add_argument(
+        "--retained-origin-evidence-root",
+        help="the declared retained origin evidence root under artifacts/sprint-8/evidence",
+    )
+    command.add_argument(
+        "--retained-origin-semantic-review",
+        help="the retained origin's existing pass-1 semantic adjudication JSON (linked, not re-graded)",
+    )
+    command.add_argument(
         "--no-fail-fast",
         action="store_true",
         help=(
@@ -9053,6 +10261,11 @@ def main() -> int:
         help="show the per-slot assisted feedback index and pending request paths",
     )
     add_invocation_arguments(assisted_status_parser)
+    retained_plan_parser = commands.add_parser(
+        "retained-plan",
+        help="strictly validate the frozen retained-first-pass origin and print its slot selection",
+    )
+    add_invocation_arguments(retained_plan_parser)
     diagnostic_parser = commands.add_parser(
         "diagnostic-onecase",
         help="run only the frozen a8-laya-02 diagnostic in its separate folder",
@@ -9088,6 +10301,7 @@ def main() -> int:
         "score": action_score,
         "selfcheck": action_selfcheck,
         "assisted-status": action_assisted_status,
+        "retained-plan": action_retained_plan,
     }
     return actions[args.action](args)
 
