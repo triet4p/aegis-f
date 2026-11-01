@@ -401,12 +401,18 @@ class S813DebugCaptureInstrumentedTest {
 
         // The frozen slot plan and its negative bindings stay strict.
         val syntheticOrder = (1..S813_QUALIFICATION_CASE_COUNT).map { "case-$it" }
-        val retainedPrefix = syntheticOrder.take(S813_EXHAUSTIVE_RETAINED_SLOT_COUNT)
-        val passOneSelection = s813ExhaustivePassCaseIds(syntheticOrder, "1")
+        val retainedSlotCount = 6
+        val retainedPrefix = syntheticOrder.take(retainedSlotCount)
+        val passOneSelection = s813ExhaustivePassCaseIds(syntheticOrder, "1", retainedPrefix)
         assertFalse("pass 1 must never rerun a retained slot",
             passOneSelection.any { it in retainedPrefix })
-        assertEquals(syntheticOrder, s813ExhaustivePassCaseIds(syntheticOrder, "2"))
-        assertEquals(syntheticOrder, s813ExhaustivePassCaseIds(syntheticOrder, "3"))
+        assertEquals(syntheticOrder, s813ExhaustivePassCaseIds(syntheticOrder, "2", retainedPrefix))
+        assertEquals(syntheticOrder, s813ExhaustivePassCaseIds(syntheticOrder, "3", retainedPrefix))
+        assertEquals(
+            "a fresh batch measures the whole frozen order",
+            syntheticOrder,
+            s813ExhaustivePassCaseIds(syntheticOrder, "1", emptyList()),
+        )
         val synthLaunch = s813FreezeBoundQualificationLaunch(
             attemptId = "S8.13-exhaustive-proof",
             batchId = S813DebugCapture.BATCH_ID,
@@ -419,6 +425,7 @@ class S813DebugCaptureInstrumentedTest {
         val acceptedArgs = mapOf(
             "S813_EXHAUSTIVE_CONTRACT" to S813_EXHAUSTIVE_CONTRACT,
             "S813_EXHAUSTIVE_CASE_IDS" to passOneSelection.joinToString(","),
+            "S813_EXHAUSTIVE_RETAINED_CASE_IDS" to retainedPrefix.joinToString(","),
             "S813_EXHAUSTIVE_CASE_IDS_SHA256" to s813ExhaustiveCaseIdsSha256(passOneSelection),
             "S813_EXHAUSTIVE_PRIOR_PROVENANCE_SHA256" to priorProvenance,
             "S813_EXHAUSTIVE_IDENTITY_SHA256" to s813ExhaustiveIdentityDigest(
@@ -462,6 +469,35 @@ class S813DebugCaptureInstrumentedTest {
         assertTrue("rerunning the retained prefix must be rejected", retainedRerunRejected)
         assertTrue("a forged exhaustive identity digest must be rejected", forgedDigestRejected)
         assertTrue("a different prior provenance must change the identity", wrongPrefixRejected)
+        val freshArgs = acceptedArgs + mapOf(
+            "S813_EXHAUSTIVE_CASE_IDS" to syntheticOrder.joinToString(","),
+            "S813_EXHAUSTIVE_RETAINED_CASE_IDS" to S813_EXHAUSTIVE_NO_RETAINED,
+            "S813_EXHAUSTIVE_CASE_IDS_SHA256" to s813ExhaustiveCaseIdsSha256(syntheticOrder),
+            "S813_EXHAUSTIVE_IDENTITY_SHA256" to s813ExhaustiveIdentityDigest(
+                "S8.13-exhaustive-proof",
+                S813DebugCapture.BATCH_ID,
+                "S8.13-exhaustive-proof-freeze-1",
+                "1",
+                syntheticOrder,
+                emptyList(),
+                priorProvenance,
+            ),
+        )
+        val freshPlan = s813ExhaustiveContinuation(freshArgs, synthLaunch, "1", syntheticOrder)
+        assertNotNull("the fresh no-prefix slot plan must be accepted", freshPlan)
+        assertEquals("a fresh plan measures every frozen slot", syntheticOrder.size, freshPlan!!.caseIds.size)
+        assertEquals("a fresh plan retains nothing", 0, freshPlan.retainedCaseIds.size)
+        assertEquals("a fresh plan covers all three repetitions", 72, freshPlan.totalSlots)
+        assertEquals("a fresh plan measures all 72 slots", 72, freshPlan.measuredSlots)
+        val freshSkippedSlotRejected = runCatching {
+            s813ExhaustiveContinuation(
+                freshArgs + ("S813_EXHAUSTIVE_CASE_IDS" to passOneSelection.joinToString(",")),
+                synthLaunch,
+                "1",
+                syntheticOrder,
+            )
+        }.isFailure
+        assertTrue("a fresh plan must still reject a skipped leading slot", freshSkippedSlotRejected)
 
         recordProof(JSONObject()
             .put("exhaustive_continuation_proof", true)
@@ -474,6 +510,8 @@ class S813DebugCaptureInstrumentedTest {
             .put("fatal_condition_stops_batch", fatalDecision.getString("decision") == S813_EXHAUSTIVE_DECISION_STOP)
             .put("case_isolation_verified", isolationVerified)
             .put("retained_prefix_rerun_rejected", retainedRerunRejected)
+            .put("fresh_batch_plan_accepted", true)
+            .put("fresh_skipped_slot_rejected", freshSkippedSlotRejected)
             .put("forged_exhaustive_identity_rejected", forgedDigestRejected)
             .put("wrong_prior_provenance_rejected", wrongPrefixRejected))
     }

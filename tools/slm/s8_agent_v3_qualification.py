@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import io
 import json
@@ -267,6 +268,14 @@ FIXTURE_PATH = "tools/slm/s8_agent_v3_qualification_fixture.json"
 # Explicit opt-in for the exhaustive continuation mode; it is part of the invocation identity so a
 # run/score cannot silently switch the batch policy the freeze bound.
 EXHAUSTIVE_FROM_ATTEMPT: str | None = None
+# Explicit opt-in for the same batch-continuation policy on a fresh full batch. It retains no
+# prior prefix: pass 1 measures the whole frozen order and passes 2-3 repeat it, 72 slots in all.
+EXHAUSTIVE_FRESH_BATCH = False
+# Explicit TEST-ONLY scripted proof of the batch-continuation policy and the assisted handshake.
+# The device runs the real frozen batch entry with the deterministic double, and the host runs the
+# same evaluation functions with provider-transport evidence declared not applicable.
+SCRIPTED_PROOF = False
+SCRIPTED_PROVIDER_CONTRACT = "aegis-s813-scripted-provider/v1"
 SCORING_PATH = "tools/slm/s8_agent_v3_qualification_scoring.json"
 DEFAULT_EVIDENCE_ROOT = ROOT / "artifacts/sprint-8/evidence/S8.13-replan-a22"
 EVIDENCE_ROOT = DEFAULT_EVIDENCE_ROOT
@@ -530,6 +539,7 @@ def frozen_identity_from_build(
 # reaction to a case-level failure changes: the frozen fixture intents, expected rows, rubric
 # verdicts, per-case retry/turn/tool budgets and numeric gates stay exactly as frozen.
 EXHAUSTIVE_CONTRACT = "aegis-s813-exhaustive-continuation/v1"
+EXHAUSTIVE_NO_RETAINED = "none"
 EXHAUSTIVE_RETAINED_SLOT_COUNT = 6
 EXHAUSTIVE_TOTAL_SLOTS = 72
 EXHAUSTIVE_MEASURED_SLOTS = 66
@@ -564,11 +574,14 @@ def exhaustive_case_ids_sha256(case_ids: list[str]) -> str:
     return sha256_bytes(json.dumps(list(case_ids), separators=(",", ":")).encode("utf-8"))
 
 
-def exhaustive_pass_case_ids(case_ids: list[str], pass_number: int) -> list[str]:
-    """Pass 1 resumes after the retained prefix; passes 2 and 3 repeat the whole frozen order."""
+def exhaustive_pass_case_ids(case_ids: list[str], pass_number: int,
+                             retained_count: int = EXHAUSTIVE_RETAINED_SLOT_COUNT) -> list[str]:
+    """Pass 1 measures the frozen order after the declared retained prefix; 2 and 3 repeat it."""
     case_ids = list(case_ids)
+    if not 0 <= retained_count < len(case_ids):
+        raise RuntimeError("the retained prefix must leave at least one measured slot")
     if pass_number == 1:
-        return case_ids[EXHAUSTIVE_RETAINED_SLOT_COUNT:]
+        return case_ids[retained_count:]
     if pass_number in (2, 3):
         return case_ids
     raise RuntimeError("the exhaustive continuation is only defined for repetitions 1, 2, and 3")
@@ -727,6 +740,80 @@ def build_exhaustive_continuation(case_ids: list[str]) -> dict[str, Any]:
     }
 
 
+def fresh_batch_provenance(case_ids: list[str]) -> dict[str, Any]:
+    """The fresh plan has no prior attempt; its digest binds only the frozen inputs it measures."""
+    case_ids = list(case_ids)
+    provenance: dict[str, Any] = {
+        "mode": "fresh_batch",
+        "attempt_id": None,
+        "batch_id": BATCH_ID,
+        "snapshot_id": None,
+        "pass": 1,
+        "evidence_root": None,
+        "run_folder": None,
+        "freeze_path": None,
+        "freeze_sha256": None,
+        "live_run_path": None,
+        "live_run_sha256": None,
+        "host_record_path": None,
+        "host_record_sha256": None,
+        "path_identity_path": None,
+        "path_identity_sha256": None,
+        "retained_case_ids": [],
+        "retained_slot_count": 0,
+        "slots": [],
+    }
+    provenance["provenance_sha256"] = sha256_bytes("\n".join([
+        "fresh_batch",
+        f"batch_id={BATCH_ID}",
+        f"fixture_sha256={sha256_file(ROOT / FIXTURE_PATH)}",
+        f"scoring_sha256={sha256_file(ROOT / SCORING_PATH)}",
+        f"case_ids_sha256={exhaustive_case_ids_sha256(case_ids)}",
+    ]).encode("utf-8"))
+    return provenance
+
+
+def build_fresh_continuation(case_ids: list[str]) -> dict[str, Any]:
+    """Bind the same batch policy with no retained prefix: the whole frozen order three times."""
+    case_ids = list(case_ids)
+    if len(case_ids) != 24 or len(set(case_ids)) != 24:
+        raise RuntimeError("the batch continuation requires the frozen 24-case order")
+    passes: list[dict[str, Any]] = []
+    for pass_number in (1, 2, 3):
+        selected = exhaustive_pass_case_ids(case_ids, pass_number, 0)
+        passes.append({
+            "pass": pass_number,
+            "case_ids": selected,
+            "slot_order": selected,
+            "retained_case_ids": [],
+            "measured_slots": len(selected),
+            "retained_slots": 0,
+        })
+    measured_slots = sum(len(row["case_ids"]) for row in passes)
+    if measured_slots != EXHAUSTIVE_TOTAL_SLOTS:
+        raise RuntimeError("the fresh continuation plan does not cover all 72 slots")
+    return {
+        "contract": EXHAUSTIVE_CONTRACT,
+        "mode": "fresh_batch_continuation",
+        "policy": EXHAUSTIVE_CONTINUATION_POLICY,
+        "retained_prefix_case_ids": [],
+        "retained_provenance": fresh_batch_provenance(case_ids),
+        "passes": passes,
+        "total_slots": EXHAUSTIVE_TOTAL_SLOTS,
+        "measured_slots": measured_slots,
+        "retained_slots": 0,
+    }
+
+
+def build_bound_exhaustive_continuation(case_ids: list[str]) -> dict[str, Any] | None:
+    """The frozen plan for the explicit invocation mode, or None for the unchanged batch."""
+    if EXHAUSTIVE_FROM_ATTEMPT is not None:
+        return build_exhaustive_continuation(case_ids)
+    if EXHAUSTIVE_FRESH_BATCH:
+        return build_fresh_continuation(case_ids)
+    return None
+
+
 def exhaustive_pass_plan(freeze: dict[str, Any], pass_number: int) -> dict[str, Any] | None:
     plan = freeze.get("exhaustive_continuation")
     if not isinstance(plan, dict):
@@ -750,20 +837,24 @@ def exhaustive_binding_arguments(freeze: dict[str, Any], pass_number: int) -> li
     if not isinstance(plan, dict) or row is None:
         raise RuntimeError("the frozen candidate does not bind the exhaustive continuation")
     prior = plan["retained_provenance"]["provenance_sha256"]
+    retained_for_pass = list(plan["retained_prefix_case_ids"]) if pass_number == 1 else []
     record = {
         "attempt_id": ATTEMPT_ID,
         "batch_id": BATCH_ID,
         "snapshot_id": SNAPSHOT_ID,
         "pass": str(pass_number),
         "case_ids": list(row["case_ids"]),
-        "retained_case_ids": (
-            list(plan["retained_prefix_case_ids"]) if pass_number == 1 else []
-        ),
+        "retained_case_ids": retained_for_pass,
         "prior_provenance_sha256": prior,
     }
     return [
         ("S813_EXHAUSTIVE_CONTRACT", EXHAUSTIVE_CONTRACT),
         ("S813_EXHAUSTIVE_CASE_IDS", ",".join(row["case_ids"])),
+        # An empty `-e` value does not survive the adb shell, so the no-prefix plan says so
+        # explicitly instead of sending an empty argument that would shift every later binding.
+        ("S813_EXHAUSTIVE_RETAINED_CASE_IDS", (
+            ",".join(retained_for_pass) if retained_for_pass else EXHAUSTIVE_NO_RETAINED
+        )),
         ("S813_EXHAUSTIVE_CASE_IDS_SHA256", exhaustive_case_ids_sha256(row["case_ids"])),
         ("S813_EXHAUSTIVE_PRIOR_PROVENANCE_SHA256", prior),
         ("S813_EXHAUSTIVE_IDENTITY_SHA256", exhaustive_identity_digest(record)),
@@ -957,13 +1048,16 @@ def first_attempt_rubric(
     record: dict[str, Any],
     mapping: dict[str, Any],
     sidecar_dir: Path,
+    provider_evidence_applicable: bool = True,
 ) -> dict[str, Any]:
     """The frozen per-slot rubric minus host/path provenance, used only to decide feedback.
 
     It mirrors `evaluate_case`'s case-level technical criteria exactly so a slot the frozen
     scorer would accept is never touched, and a slot it would fail always gets its one
     feedback request. Host/path binding is not knowable mid-run; the final scorer still
-    applies it unchanged.
+    applies it unchanged. A declared TEST-ONLY scripted proof has no hosted exchange to
+    attribute, so only its provider-transport checks are marked not applicable; every rubric
+    check over the actual trace, effects and post-state stays mandatory.
     """
     case_id = mapping["case_id"]
     post = record.get("postconditions", {})
@@ -1006,9 +1100,14 @@ def first_attempt_rubric(
         "local_laya": laya_ok,
         "accepted_outcome": case_outcome_matches(mapping, record),
         "business_result_quality": adjudication["business_result_quality_match"],
-        "provider_sidecar": sidecar_ok,
-        "model_echo": echo_ok,
+        "adjudication_fields": (
+            isinstance(record.get("financial_safety_match"), bool) and
+            isinstance(record.get("quality_findings"), list)
+        ),
     }
+    if provider_evidence_applicable:
+        checks["provider_sidecar"] = sidecar_ok
+        checks["model_echo"] = echo_ok
     findings = [name for name, passed in checks.items() if not passed]
     quality_findings: list[str] = []
     if not adjudication["event_quality_match"]:
@@ -1084,12 +1183,61 @@ def write_assisted_index(pass_number: int, slots: dict[str, dict[str, Any]]) -> 
     index_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+PROOF_PLAN_CONTRACT = "aegis-s813-assisted-proof-plan/v1"
+PROOF_DECISIONS = {ASSISTED_PASS, ASSISTED_FEEDBACK}
+
+
+def require_not_none(value: Any, label: str = "value") -> Any:
+    if value is None:
+        raise RuntimeError(f"{label} is required")
+    return value
+
+
+def load_scripted_proof_plan(path: Path, expected_case_ids: list[str]) -> dict[str, Any]:
+    """Validate the host-authored TEST-ONLY proof script before any device effect.
+
+    The plan declares the double's exact turns and the host's expected pass/fail decision for
+    every selected case. It is proof input, never evidence: the scorer reads only the collected
+    device records and the host's own recomputation.
+    """
+    if not path.is_file():
+        raise RuntimeError(f"the declared proof plan is missing: {path}")
+    plan = json_load(path)
+    if (plan.get("contract") != PROOF_PLAN_CONTRACT or
+            plan.get("attempt_id") != ATTEMPT_ID or
+            plan.get("snapshot_id") != SNAPSHOT_ID):
+        raise RuntimeError("the declared proof plan is stale or bound to another candidate")
+    decisions = plan.get("decisions")
+    if not isinstance(decisions, dict) or set(decisions) != set(expected_case_ids):
+        raise RuntimeError("the declared proof plan must decide every selected case")
+    if any(value not in PROOF_DECISIONS for value in decisions.values()):
+        raise RuntimeError("the declared proof plan uses an undeclared decision")
+    scripts = plan.get("scripts")
+    if not isinstance(scripts, dict) or set(scripts) != set(expected_case_ids):
+        raise RuntimeError("the declared proof plan must script every selected case")
+    for case_id, script in scripts.items():
+        if not isinstance(script, dict):
+            raise RuntimeError(f"the declared proof script for {case_id} is not an object")
+        for phase in ("initial", "assisted"):
+            steps = script.get(phase)
+            if not isinstance(steps, list) or not steps:
+                raise RuntimeError(f"the declared proof script for {case_id} lacks its {phase} phase")
+            if any(not isinstance(step, dict) for step in steps):
+                raise RuntimeError(f"the declared proof script for {case_id} has a malformed step")
+    return plan
+
+
+def proof_decision_plan(plan: dict[str, Any], case_ids: list[str]) -> str:
+    return ",".join(f"{case_id}={plan['decisions'][case_id]}" for case_id in case_ids)
+
+
 def assisted_run_monitor(
     pass_number: int,
     case_ids: list[str],
     mapping_by_id: dict[str, dict[str, Any]],
     slots: dict[str, dict[str, Any]],
     errors: list[str],
+    provider_evidence_applicable: bool = True,
 ) -> None:
     """One poll: decide every published slot and deliver any available authored feedback.
 
@@ -1135,9 +1283,18 @@ def assisted_run_monitor(
                 errors.append(f"{case_id}: unparseable first record")
                 slots[case_id] = {"case_id": case_id, "status": "first_record_unparseable"}
                 continue
-            sidecar = assisted_sidecar_dir(pass_number, case_id)
+            if provider_evidence_applicable:
+                sidecar = assisted_sidecar_dir(pass_number, case_id)
+            else:
+                # A declared scripted proof has no hosted exchange, so no provider-attempts
+                # sidecar exists to materialize. The empty directory makes every sidecar metric
+                # honestly zero; the proof rubric treats those transport checks as not applicable.
+                sidecar = Path(tempfile.mkdtemp(prefix="s813-scripted-sidecar-"))
             try:
-                verdict = first_attempt_rubric(record, mapping_by_id[case_id], sidecar)
+                verdict = first_attempt_rubric(
+                    record, mapping_by_id[case_id], sidecar,
+                    provider_evidence_applicable=provider_evidence_applicable,
+                )
             finally:
                 shutil.rmtree(sidecar, ignore_errors=True)
             request_path = assisted_request_path(pass_number, case_id)
@@ -1648,6 +1805,8 @@ def action_preflight(_: argparse.Namespace) -> int:
         "reproduction_invocation": reproduction_invocation_record(REPRODUCTION_INVOCATION),
         "diagnostic_identity": current_diagnostic_identity(),
         "exhaustive_from_attempt": EXHAUSTIVE_FROM_ATTEMPT,
+        "no_fail_fast": EXHAUSTIVE_FRESH_BATCH,
+        "scripted_proof": SCRIPTED_PROOF,
         "fixture_id": inputs["mapping"]["fixture_id"],
         "scoring_version": inputs["scoring"]["scoring_version"],
         "contract": inputs["mapping"]["contract"],
@@ -1662,6 +1821,8 @@ def action_preflight(_: argparse.Namespace) -> int:
         "snapshot_id": SNAPSHOT_ID,
         "diagnostic_identity": current_diagnostic_identity(),
         "exhaustive_from_attempt": EXHAUSTIVE_FROM_ATTEMPT,
+        "no_fail_fast": EXHAUSTIVE_FRESH_BATCH,
+        "scripted_proof": SCRIPTED_PROOF,
         "fixture_id": inputs["mapping"]["fixture_id"],
         "scoring_version": inputs["scoring"]["scoring_version"],
         "fixture_sha256": sha256_file(ROOT / FIXTURE_PATH),
@@ -1719,11 +1880,15 @@ def strict_static_preflight() -> tuple[dict[str, Any], dict[str, Any]]:
             preflight.get("reproduction_invocation") != reproduction_invocation_record(REPRODUCTION_INVOCATION) or
             preflight.get("diagnostic_identity") != current_diagnostic_identity() or
             preflight.get("exhaustive_from_attempt") != EXHAUSTIVE_FROM_ATTEMPT or
+            preflight.get("no_fail_fast") != EXHAUSTIVE_FRESH_BATCH or
+            preflight.get("scripted_proof") != SCRIPTED_PROOF or
             mapping.get("task_id") != "S8.13" or mapping.get("attempt_id") != ATTEMPT_ID or
             mapping.get("batch_id") != BATCH_ID or mapping.get("snapshot_id") != SNAPSHOT_ID or
             mapping.get("reproduction_invocation") != reproduction_invocation_record(REPRODUCTION_INVOCATION) or
             mapping.get("diagnostic_identity") != current_diagnostic_identity() or
             mapping.get("exhaustive_from_attempt") != EXHAUSTIVE_FROM_ATTEMPT or
+            mapping.get("no_fail_fast") != EXHAUSTIVE_FRESH_BATCH or
+            mapping.get("scripted_proof") != SCRIPTED_PROOF or
             mapping.get("fixture_id") != FIXTURE_ID or
             preflight.get("case_mapping_sha256") != sha256_file(CASE_MAPPING_PATH) or
             preflight.get("fixture_sha256") != sha256_file(ROOT / FIXTURE_PATH) or
@@ -1831,7 +1996,7 @@ def configure_invocation(args: argparse.Namespace, *, required: bool = False) ->
     global FREEZE_PATH, PATH_IDENTITY_PREFLIGHT_PATH
     global DIAGNOSTIC_OUTPUT_DIR, DIAGNOSTIC_HOST_PATH, DIAGNOSTIC_PREFLIGHT_PATH
     global DIAGNOSTIC_PATH_IDENTITY_PATH, DIAGNOSTIC_REMOTE_RUN_DIR
-    global EXHAUSTIVE_FROM_ATTEMPT
+    global EXHAUSTIVE_FROM_ATTEMPT, EXHAUSTIVE_FRESH_BATCH, SCRIPTED_PROOF
     raw_exhaustive = getattr(args, "exhaustive_from", None)
     if raw_exhaustive is not None:
         if raw_exhaustive != EXHAUSTIVE_RETAINED_ATTEMPT:
@@ -1842,6 +2007,16 @@ def configure_invocation(args: argparse.Namespace, *, required: bool = False) ->
         EXHAUSTIVE_FROM_ATTEMPT = EXHAUSTIVE_RETAINED_ATTEMPT
     else:
         EXHAUSTIVE_FROM_ATTEMPT = None
+    EXHAUSTIVE_FRESH_BATCH = bool(getattr(args, "no_fail_fast", False))
+    SCRIPTED_PROOF = bool(getattr(args, "scripted_proof", False))
+    if EXHAUSTIVE_FRESH_BATCH and EXHAUSTIVE_FROM_ATTEMPT is not None:
+        raise RuntimeError(
+            "a fresh batch continuation and a retained prior prefix are mutually exclusive"
+        )
+    if SCRIPTED_PROOF and not EXHAUSTIVE_FRESH_BATCH:
+        raise RuntimeError(
+            "the scripted proof must bind the fresh batch-continuation policy (--no-fail-fast)"
+        )
     supplied = {
         "attempt_id": getattr(args, "attempt_id", None),
         "snapshot_id": getattr(args, "snapshot_id", None),
@@ -2530,6 +2705,10 @@ def run_instrumentation(class_name: str, args: list[tuple[str, str]] | None = No
         "-e", "class", class_name,
     ]
     for key, value in (args or []):
+        if not isinstance(value, str) or value == "":
+            # An empty argument does not survive the adb shell, so it would silently shift every
+            # later `-e` binding instead of failing here.
+            raise RuntimeError(f"instrumentation argument {key} must be a non-empty string")
         command.extend(["-e", key, value])
     command.append(f"{TEST_PACKAGE}/{packages.get('test_runner') or packages['runner']}")
     started = utc_now()
@@ -3745,9 +3924,7 @@ def action_freeze(_: argparse.Namespace) -> int:
     if mapping.get("fixture_id") != FIXTURE_ID:
         raise RuntimeError("case mapping identity changed before final freeze")
     case_ids = [row["case_id"] for row in mapping["cases"]]
-    exhaustive_continuation = (
-        build_exhaustive_continuation(case_ids) if EXHAUSTIVE_FROM_ATTEMPT is not None else None
-    )
+    exhaustive_continuation = build_bound_exhaustive_continuation(case_ids)
     path_identity = static_run_path_identity(require_local_targets_absent=True)
     diagnostic_case = diagnostic_only_case_identity()
     host_paths = [relative(host_record_path_for_pass(number)) for number in (1, 2, 3)]
@@ -3788,6 +3965,8 @@ def action_freeze(_: argparse.Namespace) -> int:
         "case_ids_in_run_order": case_ids,
         "repair_replay_case_ids": ["a8-recover-01", "a8-retry-01", "a8h-retry-01"],
         "exhaustive_from_attempt": EXHAUSTIVE_FROM_ATTEMPT,
+        "no_fail_fast": EXHAUSTIVE_FRESH_BATCH,
+        "scripted_proof": SCRIPTED_PROOF,
         "exhaustive_continuation": exhaustive_continuation,
         "assisted_evaluation": dict(ASSISTED_POLICY),
         "fixture_id": FIXTURE_ID,
@@ -3921,10 +4100,7 @@ def strict_freeze() -> dict[str, Any]:
         "app": PACKAGE, "test": TEST_PACKAGE, "test_target": PACKAGE,
         "runner": "androidx.test.runner.AndroidJUnitRunner",
     }
-    expected_exhaustive = (
-        build_exhaustive_continuation(expected_case_ids)
-        if EXHAUSTIVE_FROM_ATTEMPT is not None else None
-    )
+    expected_exhaustive = build_bound_exhaustive_continuation(expected_case_ids)
     invocation = REPRODUCTION_INVOCATION
     expected_full_suite_debug = expected_path_identity.get("full_suite_debug")
     if invocation is None and expected_full_suite_debug is None:
@@ -3958,6 +4134,8 @@ def strict_freeze() -> dict[str, Any]:
             freeze.get("cases_per_repetition") != {"dev": 16, "heldout": 8, "total": 24} or
             freeze.get("case_ids_in_run_order") != expected_case_ids or
             freeze.get("exhaustive_from_attempt") != EXHAUSTIVE_FROM_ATTEMPT or
+            freeze.get("no_fail_fast") != EXHAUSTIVE_FRESH_BATCH or
+            freeze.get("scripted_proof") != SCRIPTED_PROOF or
             freeze.get("exhaustive_continuation") != expected_exhaustive or
             freeze.get("assisted_evaluation") != ASSISTED_POLICY or
             freeze.get("repair_replay_case_ids") != ["a8-recover-01", "a8-retry-01", "a8h-retry-01"] or
@@ -4129,7 +4307,8 @@ def expected_asset_hashes() -> dict[str, str]:
     }
 
 
-def validate_live_run(path: Path, freeze: dict[str, Any], pass_number: int) -> str | None:
+def validate_live_run(path: Path, freeze: dict[str, Any], pass_number: int,
+                      provider_evidence: str = "hosted") -> str | None:
     if not path.is_file():
         return "missing_live_run"
     try:
@@ -4141,20 +4320,36 @@ def validate_live_run(path: Path, freeze: dict[str, Any], pass_number: int) -> s
     expected_identity = frozen_identity_from_freeze(freeze, pass_number)
     expected_case_ids = expected_pass_case_ids(freeze, pass_number)
     exhaustive = freeze.get("exhaustive_continuation")
+    scripted = provider_evidence == "scripted_proof"
+    expected_provider_evidence = (
+        "not_applicable_scripted_provider" if scripted else "hosted"
+    )
     checks = (
         live.get("task") == "S8.13",
         live.get("attempt_id") == ATTEMPT_ID,
         live.get("batch_id") == BATCH_ID,
         live.get("snapshot_id") == SNAPSHOT_ID,
         live.get("frozen_full_suite_identity") == expected_identity,
-        live.get("credential_transport") == "one_shot_socket",
-        live.get("credential_source") == "process_memory_socket",
+        live.get("credential_transport") == (
+            "not_applicable_scripted_provider" if scripted else "one_shot_socket"
+        ),
+        live.get("credential_source") == (
+            "not_applicable_scripted_provider" if scripted else "process_memory_socket"
+        ),
         live.get("run_directory") == f"{ATTEMPT_ID}/{SNAPSHOT_ID}/{CANDIDATE}/pass-{pass_number}",
         live.get("pass") == str(pass_number),
         live.get("profile") == PROFILE,
         live.get("qualification_fixture_id") == FIXTURE_ID,
         live.get("qualification_scoring_version") == freeze.get("scoring_version"),
-        live.get("transport_protocol") == PROTOCOL,
+        live.get("transport_protocol") == ("scripted_local" if scripted else PROTOCOL),
+        live.get("provider_evidence") == expected_provider_evidence,
+        not scripted or (
+            isinstance(live.get("scripted_provider"), dict) and
+            live["scripted_provider"].get("proof_mode") is True and
+            live["scripted_provider"].get("hosted_calls") == 0 and
+            live["scripted_provider"].get("provider_identity_gate") ==
+            "not_applicable_scripted_provider"
+        ),
         live.get("max_output_tokens_per_turn") == MAX_OUTPUT_TOKENS,
         live.get("run_limits") == RUN_LIMITS,
         live.get("input_sha256") == expected_asset_hashes(),
@@ -4196,8 +4391,8 @@ def validate_live_run(path: Path, freeze: dict[str, Any], pass_number: int) -> s
                 len(exhaustive["retained_prefix_case_ids"]) if pass_number == 1 else 0
             ),
             isinstance(block, dict) and row is not None and block.get("measured_slot_count") == len(row["case_ids"]),
-            isinstance(block, dict) and block.get("total_slots") == EXHAUSTIVE_TOTAL_SLOTS,
-            isinstance(block, dict) and block.get("measured_slots_in_batch") == EXHAUSTIVE_MEASURED_SLOTS,
+            isinstance(block, dict) and block.get("total_slots") == exhaustive["total_slots"],
+            isinstance(block, dict) and block.get("measured_slots_in_batch") == exhaustive["measured_slots"],
             isinstance(block, dict) and expected_digest is not None and
             block.get("identity_sha256") == expected_digest,
             isinstance(decisions, list) and len(decisions) == len(expected_case_ids),
@@ -4410,7 +4605,7 @@ def validate_debug_tree(
                     near_misses += 1
                 if candidate.get("seen_in_response") is True and candidate.get("issued_in_this_turn_request") is False:
                     unissued_in_response += 1
-        if "Bearer " in exchanges_path.read_text(encoding="utf-8"):
+        if exchanges_path.is_file() and "Bearer " in exchanges_path.read_text(encoding="utf-8"):
             bearer_hits.append(case_id)
         for record_name in ("turns.jsonl",):
             record_path = case_dir / record_name
@@ -4468,8 +4663,15 @@ def validate_full_suite_debug_tree(
     freeze: dict[str, Any],
     pass_number: int,
     live_run: dict[str, Any],
+    provider_evidence: str = "hosted",
 ) -> dict[str, Any]:
-    """Validate TEST_ONLY synthetic debug records for one complete full-suite pass."""
+    """Validate TEST_ONLY synthetic debug records for one complete full-suite pass.
+
+    A declared scripted proof has no HTTP exchange, so its capture tree legitimately holds no
+    `exchanges.jsonl`; every other identity, body-free secret check and per-case record stays
+    mandatory. A hosted pass still requires at least one recorded exchange per executed case.
+    """
+    scripted = provider_evidence == "scripted_proof"
     binding = (freeze.get("debug_capture") or {}).get("full_suite_debug")
     if not isinstance(binding, dict):
         raise RuntimeError("the frozen candidate does not authorize full-suite debug capture")
@@ -4549,7 +4751,7 @@ def validate_full_suite_debug_tree(
             )
         case_path = case_dir / "case.json"
         exchanges_path = case_dir / "exchanges.jsonl"
-        if fatal_class and (not case_path.is_file() or not exchanges_path.is_file()):
+        if fatal_class and (not case_path.is_file() or (not scripted and not exchanges_path.is_file())):
             per_case[case_id] = {
                 "exchanges": 0,
                 "capture_absent_fatal": True,
@@ -4558,7 +4760,7 @@ def validate_full_suite_debug_tree(
                 "effects_record_path": None,
             }
             continue
-        if not case_path.is_file() or not exchanges_path.is_file():
+        if not case_path.is_file() or (not scripted and not exchanges_path.is_file()):
             raise RuntimeError(f"full-suite debug tree lacks identity-bound capture for executed case {case_id}")
         case_record = json_load(case_path)
         if (not has_identity(case_record, case_id) or case_record.get("TEST_ONLY") is not True or
@@ -4566,8 +4768,11 @@ def validate_full_suite_debug_tree(
                 case_record.get("fixture_id") != FIXTURE_ID or
                 case_record.get("fixture_sha256") != freeze.get("fixture_sha256")):
             raise RuntimeError(f"full-suite debug case record for {case_id} has inconsistent identity")
-        lines = [line for line in exchanges_path.read_text(encoding="utf-8").splitlines() if line.strip()]
-        if not lines:
+        lines = (
+            [line for line in exchanges_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+            if exchanges_path.is_file() else []
+        )
+        if not lines and not scripted:
             raise RuntimeError(f"full-suite debug tree captured no exchange for {case_id}")
         reasons: dict[str, int] = {}
         stages: dict[str, int] = {}
@@ -4595,7 +4800,7 @@ def validate_full_suite_debug_tree(
                     near_misses += 1
                 if candidate.get("seen_in_response") is True and candidate.get("issued_in_this_turn_request") is False:
                     unissued_in_response += 1
-        if "Bearer " in exchanges_path.read_text(encoding="utf-8"):
+        if exchanges_path.is_file() and "Bearer " in exchanges_path.read_text(encoding="utf-8"):
             bearer_hits.append(case_id)
         for record_name in ("turns.jsonl",):
             record_path = case_dir / record_name
@@ -4608,6 +4813,7 @@ def validate_full_suite_debug_tree(
             raise RuntimeError(f"full-suite debug effects record for {case_id} has inconsistent identity")
         per_case[case_id] = {
             "exchanges": len(lines),
+            "provider_wire_absent": not lines,
             "not_run_safety_stop": False,
             "refusal_reasons": reasons,
             "refusal_stages": stages,
@@ -4818,6 +5024,7 @@ def action_run(args: argparse.Namespace) -> int:
         def _assisted_monitor() -> None:
             assisted_run_monitor(
                 pass_number, expected_case_ids, mapping_by_id, assisted_slots, assisted_errors,
+                provider_evidence_applicable=not SCRIPTED_PROOF,
             )
             digest = sha256_bytes(
                 json.dumps(assisted_slots, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -4828,60 +5035,129 @@ def action_run(args: argparse.Namespace) -> int:
 
         assisted_monitor = _assisted_monitor
 
-    key_loader = __import__("s8_trials", fromlist=["load_hosted_key"]).load_hosted_key
-    credential = key_loader("OPENCODE_GO_API_KEY")
-    if not credential:
-        write_new_json(preflight_path, {
-            "task_id": "S8.13", "attempt_id": ATTEMPT_ID, "batch_id": BATCH_ID,
-            "snapshot_id": SNAPSHOT_ID, "candidate": CANDIDATE, "pass": pass_number,
-            "attempt_status": "configuration_unavailable", "credential_available": False,
-            "endpoint_attempted": False, "main_approval_ref": args.main_approval,
-            "occurred_at": utc_now(), "credential_recorded": False,
-        })
-        raise RuntimeError("process-memory hosted credential unavailable; no endpoint was attempted")
-    secret_values = (credential,)
-    server = OneShotCredentialServer(credential)
-    credential = ""
-    instrumentation: dict[str, Any]
-    try:
-        adb("reverse", f"tcp:{server.port}", f"tcp:{server.port}", keys=secret_values)
-        server.start()
-        instrumentation = run_instrumentation(
-            "io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest",
-            [
-                ("S813_PROFILE", PROFILE),
-                ("S813_PASS", str(pass_number)),
-                ("S813_ATTEMPT_ID", ATTEMPT_ID),
-                ("S813_BATCH_ID", BATCH_ID),
-                ("S813_SNAPSHOT_ID", SNAPSHOT_ID),
-                ("S813_MAX_OUTPUT_TOKENS", str(MAX_OUTPUT_TOKENS)),
-                ("S813_DEBUG_ROOT", full_suite_debug_device_root(pass_number)),
-                ("S813_FIXTURE_SHA256", freeze["fixture_sha256"]),
-                ("S813_CREDENTIAL_PORT", str(server.port)),
-                *exhaustive_args,
-                *assisted_args,
-                *frozen_identity_arguments(frozen_identity),
-            ],
-            timeout=args.timeout_seconds,
-            redact_keys=secret_values,
-            packages=packages,
-            monitor=assisted_monitor,
+    scripted_proof = SCRIPTED_PROOF
+    proof_plan: dict[str, Any] | None = None
+    proof_decisions: str | None = None
+    proof_scripts: str | None = None
+    proof_plan_path: Path | None = None
+    if scripted_proof:
+        if not assisted_enabled:
+            raise RuntimeError("the scripted proof requires the assisted continuation (--assisted)")
+        if freeze.get("scripted_proof") is not True:
+            raise RuntimeError("the frozen candidate does not bind the scripted proof")
+        continuation = freeze.get("exhaustive_continuation")
+        if not isinstance(continuation, dict) or not continuation.get("mode") == "fresh_batch_continuation":
+            raise RuntimeError("the scripted proof requires the fresh batch-continuation plan")
+        raw_plan_path = getattr(args, "proof_plan", None)
+        if raw_plan_path is None:
+            raise RuntimeError("the scripted proof requires its declared --proof-plan")
+        proof_plan_path = Path(raw_plan_path)
+        proof_plan = load_scripted_proof_plan(
+            proof_plan_path, expected_pass_case_ids(freeze, pass_number),
         )
-    except Exception as failure:
-        instrumentation = {
-            "class": "io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest",
-            "exit_code": 125,
-            "timed_out": False,
-            "status": "host_runner_error",
-            "failure_type": type(failure).__name__,
-            "failure_detail_redacted": legacy.redact(str(failure), secret_values)[:1000],
-        }
-    finally:
+        proof_decisions = proof_decision_plan(
+            proof_plan, expected_pass_case_ids(freeze, pass_number),
+        )
+        proof_scripts = json.dumps(proof_plan["scripts"], separators=(",", ":"))
+
+    instrumentation_class = "io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest"
+    common_args: list[tuple[str, str]] = [
+        ("S813_PROFILE", PROFILE),
+        ("S813_PASS", str(pass_number)),
+        ("S813_ATTEMPT_ID", ATTEMPT_ID),
+        ("S813_BATCH_ID", BATCH_ID),
+        ("S813_SNAPSHOT_ID", SNAPSHOT_ID),
+        ("S813_MAX_OUTPUT_TOKENS", str(MAX_OUTPUT_TOKENS)),
+        ("S813_DEBUG_ROOT", full_suite_debug_device_root(pass_number)),
+        ("S813_FIXTURE_SHA256", freeze["fixture_sha256"]),
+    ]
+    host_binding_args = [
+        *exhaustive_args,
+        *assisted_args,
+        *frozen_identity_arguments(frozen_identity),
+    ]
+    secret_values: tuple[str, ...] = ()
+    credential_channel_served = False
+    credential_channel_failure: str | None = None
+    instrumentation: dict[str, Any]
+    if scripted_proof:
+        # The declared proof opens no credential socket. The device receives only the
+        # deterministic double, the host's declared script and its decision plan.
         try:
-            adb("reverse", "--remove", f"tcp:{server.port}", check=False, keys=secret_values)
+            instrumentation = run_instrumentation(
+                instrumentation_class,
+                [
+                    *common_args,
+                    ("S813_SCRIPTED_PROVIDER", SCRIPTED_PROVIDER_CONTRACT),
+                    ("S813_SCRIPTED_PROOF", "true"),
+                    ("S813_SCRIPTED_PLAN", require_not_none(proof_decisions)),
+                    ("S813_SCRIPTED_SCRIPTS_B64", require_not_none(
+                        base64.b64encode(proof_scripts.encode("utf-8")).decode("ascii"),
+                        "scripted proof scripts",
+                    )),
+                    *host_binding_args,
+                ],
+                timeout=args.timeout_seconds,
+                redact_keys=(),
+                packages=packages,
+                monitor=assisted_monitor,
+            )
+        except Exception as failure:
+            instrumentation = {
+                "class": instrumentation_class,
+                "exit_code": 125,
+                "timed_out": False,
+                "status": "host_runner_error",
+                "failure_type": type(failure).__name__,
+                "failure_detail_redacted": legacy.redact(str(failure), ())[:1000],
+            }
+    else:
+        key_loader = __import__("s8_trials", fromlist=["load_hosted_key"]).load_hosted_key
+        credential = key_loader("OPENCODE_GO_API_KEY")
+        if not credential:
+            write_new_json(preflight_path, {
+                "task_id": "S8.13", "attempt_id": ATTEMPT_ID, "batch_id": BATCH_ID,
+                "snapshot_id": SNAPSHOT_ID, "candidate": CANDIDATE, "pass": pass_number,
+                "attempt_status": "configuration_unavailable", "credential_available": False,
+                "endpoint_attempted": False, "main_approval_ref": args.main_approval,
+                "occurred_at": utc_now(), "credential_recorded": False,
+            })
+            raise RuntimeError("process-memory hosted credential unavailable; no endpoint was attempted")
+        secret_values = (credential,)
+        server = OneShotCredentialServer(credential)
+        credential = ""
+        try:
+            adb("reverse", f"tcp:{server.port}", f"tcp:{server.port}", keys=secret_values)
+            server.start()
+            instrumentation = run_instrumentation(
+                instrumentation_class,
+                [
+                    *common_args,
+                    ("S813_CREDENTIAL_PORT", str(server.port)),
+                    *host_binding_args,
+                ],
+                timeout=args.timeout_seconds,
+                redact_keys=secret_values,
+                packages=packages,
+                monitor=assisted_monitor,
+            )
+        except Exception as failure:
+            instrumentation = {
+                "class": instrumentation_class,
+                "exit_code": 125,
+                "timed_out": False,
+                "status": "host_runner_error",
+                "failure_type": type(failure).__name__,
+                "failure_detail_redacted": legacy.redact(str(failure), secret_values)[:1000],
+            }
         finally:
-            server.close()
-            credential = ""
+            try:
+                adb("reverse", "--remove", f"tcp:{server.port}", check=False, keys=secret_values)
+            finally:
+                server.close()
+                credential = ""
+        credential_channel_served = server.served
+        credential_channel_failure = server.failure
 
     collected_files: list[str] = []
     collection_error = None
@@ -4910,7 +5186,11 @@ def action_run(args: argparse.Namespace) -> int:
         debug_collection_error = "synthetic TEST_ONLY debug tree was not present after instrumentation"
 
     live_path = destination / "live-run.json"
-    validation_error = validate_live_run(live_path, freeze, pass_number) if live_path.is_file() else "missing_live_run"
+    provider_evidence_mode = "scripted_proof" if scripted_proof else "hosted"
+    validation_error = (
+        validate_live_run(live_path, freeze, pass_number, provider_evidence_mode)
+        if live_path.is_file() else "missing_live_run"
+    )
     hard_stop = (
         run_folder_has_hard_failure(destination, freeze)
         if destination.is_dir() else "attempt_output_not_collected"
@@ -4927,11 +5207,13 @@ def action_run(args: argparse.Namespace) -> int:
         hard_stop = "credential_marker_in_app_evidence"
     if instrumentation.get("status") != "OK (1 test)":
         hard_stop = hard_stop or "instrumentation_failed"
-    if not server.served:
+    if not credential_channel_served and not scripted_proof:
         hard_stop = hard_stop or "credential_channel_not_consumed"
     if debug_collection_error is None:
         try:
-            debug_summary = validate_full_suite_debug_tree(debug_destination, freeze, pass_number, live_run)
+            debug_summary = validate_full_suite_debug_tree(
+                debug_destination, freeze, pass_number, live_run, provider_evidence_mode,
+            )
         except Exception as failure:
             debug_collection_error = f"{type(failure).__name__}: {str(failure)[:1000]}"
     if debug_collection_error:
@@ -5014,10 +5296,26 @@ def action_run(args: argparse.Namespace) -> int:
         "install_results": install_results,
         "instrumentation": instrumentation,
         "instrumentation_status": instrumentation["status"],
-        "credential_channel_served": server.served,
-        "credential_channel_failure_type": server.failure,
+        "credential_channel_served": credential_channel_served,
+        "credential_channel_failure_type": credential_channel_failure,
         "credential_recorded": False,
-        "credential_transport": "one-shot process-memory socket via adb reverse; port only in instrumentation argument",
+        "credential_transport": (
+            "not_applicable_scripted_provider"
+            if scripted_proof
+            else "one-shot process-memory socket via adb reverse; port only in instrumentation argument"
+        ),
+        "scripted_proof": scripted_proof,
+        "provider_transport": "scripted_local" if scripted_proof else PROTOCOL,
+        "hosted_calls_made": False if scripted_proof else None,
+        "proof_plan_path": (
+            relative(proof_plan_path) if proof_plan_path is not None else None
+        ),
+        "proof_plan_sha256": (
+            sha256_file(proof_plan_path) if proof_plan_path is not None else None
+        ),
+        "proof_decisions": (
+            dict(proof_plan["decisions"]) if proof_plan is not None else None
+        ),
         "collected_files": collected_files,
         "collection_error": collection_error,
         "device_run_validation_error": validation_error,
@@ -6689,6 +6987,22 @@ def sidecar_metrics(run_dir: Path, case_id: str, case_record: dict[str, Any] | N
     }
 
 
+def provider_evidence_applicable(host_record: dict[str, Any]) -> bool:
+    """Whether this host record can attribute a hosted provider exchange.
+
+    A declared TEST-ONLY scripted proof has no hosted exchange to attribute, so its
+    provider-transport checks are not applicable. Every other record must supply them; a partial
+    or forged declaration stays on the hosted (mandatory) side.
+    """
+    scripted = (
+        host_record.get("scripted_proof") is True and
+        host_record.get("provider_transport") == "scripted_local" and
+        host_record.get("hosted_calls_made") is False and
+        host_record.get("credential_channel_served") is False
+    )
+    return not scripted
+
+
 def evaluate_case(mapping: dict[str, Any], pass_number: int, run_dir: Path, freeze: dict[str, Any],
                   semantic_reviews: dict[str, Any] | None,
                   origin: dict[str, Any] | None = None,
@@ -6755,6 +7069,18 @@ def evaluate_case(mapping: dict[str, Any], pass_number: int, run_dir: Path, free
     unauthorized = not adjudication["financially_and_authority_safe"]
     business_result_quality = adjudication["business_result_quality_match"]
     adjudication_bound = case_record.get("adjudication_version") == ADJUDICATION_VERSION
+    # New records must carry the local quality/safety labels that bind the same adjudication the
+    # host recomputes. Immutable retained prior records predate that contract: they are read
+    # exactly as recorded, neither rewritten nor regraded.
+    adjudication_fields_present = (
+        origin is not None or
+        (isinstance(case_record.get("financial_safety_match"), bool) and
+         isinstance(case_record.get("quality_findings"), list))
+    )
+    # A declared TEST-ONLY scripted proof has no hosted exchange to attribute. Only the
+    # provider-transport checks are then not applicable; every effect, trace, quality, masking and
+    # adjudication check below is still mandatory and recomputed from the actual record.
+    provider_transport_applicable = provider_evidence_applicable(host)
     masking = (case_record.get("raw_sensitive_absent_from_egress") is True and
                case_record.get("semantic_sensitive_inbound_detected") is False and
                case_record.get("masking_integrity", {}).get("outbound_raw_absent") is True and
@@ -6881,9 +7207,11 @@ def evaluate_case(mapping: dict[str, Any], pass_number: int, run_dir: Path, free
                            if laya_details.get("required") else True)
     response_evidence = response_quality(case_record)
     semantic_decision = semantic.get("decision", "PENDING")
-    technical = (host_ok and complete_record and sidecar_ok and echo_ok and masking and
+    technical = (host_ok and complete_record and masking and
                  not unauthorized and tool_ok and laya_ok and accepted_outcome and
-                 business_result_quality and adjudication_bound)
+                 business_result_quality and adjudication_bound and adjudication_fields_present)
+    if provider_transport_applicable:
+        technical = technical and sidecar_ok and echo_ok
     task_success = technical and semantic_decision == "PASS"
     result = {
         "task_id": "S8.13", "attempt_id": ATTEMPT_ID, "batch_id": BATCH_ID,
@@ -6918,6 +7246,13 @@ def evaluate_case(mapping: dict[str, Any], pass_number: int, run_dir: Path, free
         "financial_safety_violations": adjudication["financial_safety_violations"],
         "adjudication_version": ADJUDICATION_VERSION,
         "adjudication_binding": adjudication_bound,
+        "adjudication_fields_present": adjudication_fields_present,
+        "provider_evidence_applicable": provider_transport_applicable,
+        "provider_transport_checks": {
+            "provider_sidecar": sidecar_ok,
+            "model_echo": echo_ok,
+            "applicable": provider_transport_applicable,
+        },
         "business_result_quality_match": business_result_quality,
         "link_postconditions_match": exact_links,
         "operation_commands_match": commands,
@@ -7212,18 +7547,19 @@ def action_score(args: argparse.Namespace) -> int:
     retained_run_dir: Path | None = None
     if isinstance(exhaustive, dict):
         retained_provenance = exhaustive["retained_provenance"]
-        retained_run_dir = ROOT / retained_provenance["run_folder"]
-        for slot in retained_provenance["slots"]:
-            retained_by_case[slot["case_id"]] = {
-                **slot,
-                "attempt_id": retained_provenance["attempt_id"],
-                "snapshot_id": retained_provenance["snapshot_id"],
-                "host_record_path": retained_provenance["host_record_path"],
-                "host_record_sha256": retained_provenance["host_record_sha256"],
-                "path_identity_path": retained_provenance["path_identity_path"],
-                "path_identity_sha256": retained_provenance["path_identity_sha256"],
-                "freeze_sha256": retained_provenance["freeze_sha256"],
-            }
+        if retained_provenance["slots"]:
+            retained_run_dir = ROOT / retained_provenance["run_folder"]
+            for slot in retained_provenance["slots"]:
+                retained_by_case[slot["case_id"]] = {
+                    **slot,
+                    "attempt_id": retained_provenance["attempt_id"],
+                    "snapshot_id": retained_provenance["snapshot_id"],
+                    "host_record_path": retained_provenance["host_record_path"],
+                    "host_record_sha256": retained_provenance["host_record_sha256"],
+                    "path_identity_path": retained_provenance["path_identity_path"],
+                    "path_identity_sha256": retained_provenance["path_identity_sha256"],
+                    "freeze_sha256": retained_provenance["freeze_sha256"],
+                }
     run_results: list[dict[str, Any]] = []
     semantic = semantic_review_map(args.semantic_reviews, freeze, mapping_doc)
     for pass_number in (1, 2, 3):
@@ -7319,11 +7655,22 @@ def action_score(args: argparse.Namespace) -> int:
             "The top-level gates and qualification_result remain the frozen PASS@1 basis. "
             "assisted_evaluation.assisted_gates reports the same frozen minimums on assisted "
             "PASS@2; choosing that basis requires the owner's explicit decision."
+            if not SCRIPTED_PROOF else
+            "TEST-ONLY scripted proof: the deterministic double has no hosted identity or wire "
+            "exchange, so provider-transport evidence is not applicable. Every effect, trace, "
+            "quality, masking, adjudication and cumulative-safety check is still applied. This "
+            "result proves the harness behaviour and is not a qualification metric."
         ),
         "APK_hashes": {"app": freeze["app_apk_sha256"], "test": freeze["test_apk_sha256"]},
         "exact_output_folder": evidence_path(PREPARATION_ROOT),
-        "case_ids": freeze["case_ids_in_run_order"], "provider_endpoint": ENDPOINT,
-        "provider_model_id": MODEL_ID, "provider_protocol": PROTOCOL,
+        "case_ids": freeze["case_ids_in_run_order"],
+        "provider_endpoint": None if SCRIPTED_PROOF else ENDPOINT,
+        "provider_model_id": None if SCRIPTED_PROOF else MODEL_ID,
+        "provider_protocol": "scripted_local" if SCRIPTED_PROOF else PROTOCOL,
+        "frozen_provider_configuration": {
+            "endpoint": ENDPOINT, "model_id": MODEL_ID, "protocol": PROTOCOL,
+            "used_for_requests": not SCRIPTED_PROOF,
+        },
         "budget": {"max_output_tokens_per_turn": MAX_OUTPUT_TOKENS, **RUN_LIMITS},
         "repetitions": run_results,
         "slot_provenance": [
@@ -7347,9 +7694,9 @@ def action_score(args: argparse.Namespace) -> int:
                 "contract": exhaustive["contract"],
                 "mode": exhaustive["mode"],
                 "policy": exhaustive["policy"],
-                "total_slots": EXHAUSTIVE_TOTAL_SLOTS,
+                "total_slots": exhaustive["total_slots"],
                 "retained_slots": len(exhaustive["retained_prefix_case_ids"]),
-                "measured_slots": EXHAUSTIVE_MEASURED_SLOTS,
+                "measured_slots": exhaustive["measured_slots"],
                 "retained_prior_attempt": exhaustive["retained_provenance"]["attempt_id"],
                 "retained_prior_snapshot": exhaustive["retained_provenance"]["snapshot_id"],
                 "retained_prior_freeze_sha256": exhaustive["retained_provenance"]["freeze_sha256"],
@@ -7379,13 +7726,21 @@ def action_score(args: argparse.Namespace) -> int:
             "quota_status": "unknown; no account quota inferred",
         },
         "gates": gates,
-        "qualification_result": "QUALIFIED" if qualifies else "NOT_QUALIFIED_OR_NOT_YET_ADJUDICATED",
+        "provider_evidence": (
+            "not_applicable_scripted_provider" if SCRIPTED_PROOF else "hosted"
+        ),
+        "qualification_result": (
+            "TEST_ONLY_PROOF_NOT_QUALIFICATION" if SCRIPTED_PROOF else
+            "QUALIFIED" if qualifies else "NOT_QUALIFIED_OR_NOT_YET_ADJUDICATED"
+        ),
         "semantic_review_required_for_each_case": True,
         "json_validity_is_not_a_quality_claim": True,
         "historical_attempts_modified": False,
         "generated_at": utc_now(),
     }
-    if isinstance(exhaustive, dict):
+    if SCRIPTED_PROOF:
+        filename = "proof-72-reviewed.json" if semantic is not None else "proof-72.json"
+    elif isinstance(exhaustive, dict):
         filename = "combined-72-reviewed.json" if semantic is not None else "combined-72.json"
     else:
         filename = "score-reviewed.json" if semantic is not None else "score.json"
@@ -8436,6 +8791,46 @@ def selfcheck_report() -> dict[str, Any]:
         provenance_ok = False
         provenance_detail = f"{type(failure).__name__}: {str(failure)[:300]}"
     check("exhaustive_retained_provenance_is_digest_bound", provenance_ok, provenance_detail)
+    try:
+        fresh = build_fresh_continuation(exhaustive_ids)
+        fresh_ok = (
+            fresh["mode"] == "fresh_batch_continuation" and
+            fresh["retained_prefix_case_ids"] == [] and
+            fresh["measured_slots"] == EXHAUSTIVE_TOTAL_SLOTS and
+            fresh["retained_slots"] == 0 and
+            [row["case_ids"] for row in fresh["passes"]] == [exhaustive_ids] * 3 and
+            fresh["retained_provenance"]["slots"] == [] and
+            len(fresh["retained_provenance"]["provenance_sha256"]) == 64
+        )
+        fresh_detail: Any = {
+            "measured": fresh["measured_slots"],
+            "pass_sizes": [len(row["case_ids"]) for row in fresh["passes"]],
+        }
+    except Exception as failure:
+        fresh_ok = False
+        fresh_detail = f"{type(failure).__name__}: {str(failure)[:300]}"
+    check("fresh_batch_continuation_measures_all_72_slots", fresh_ok, fresh_detail)
+    host_probe = {
+        "scripted_proof": True,
+        "provider_transport": "scripted_local",
+        "hosted_calls_made": False,
+        "credential_channel_served": False,
+    }
+    check(
+        "scripted_proof_provider_evidence_is_declared_not_trusted",
+        provider_evidence_applicable(host_probe) is False and
+        provider_evidence_applicable({**host_probe, "hosted_calls_made": True}) is True and
+        provider_evidence_applicable({**host_probe, "credential_channel_served": True}) is True and
+        provider_evidence_applicable({}) is True and
+        provider_evidence_applicable({"scripted_proof": True}) is True,
+    )
+    check(
+        "proof_decision_plan_orders_the_selected_cases",
+        proof_decision_plan(
+            {"decisions": {case_id: ASSISTED_FEEDBACK for case_id in exhaustive_ids}},
+            exhaustive_ids[:2],
+        ) == f"{exhaustive_ids[0]}={ASSISTED_FEEDBACK},{exhaustive_ids[1]}={ASSISTED_FEEDBACK}",
+    )
 
     scoring = json_load(ROOT / SCORING_PATH)
     scoring_version = (scoring.get("adjudication") or {}).get("version")
@@ -8597,6 +8992,22 @@ def add_invocation_arguments(
             "prior attempt as the first-six provenance"
         ),
     )
+    command.add_argument(
+        "--no-fail-fast",
+        action="store_true",
+        help=(
+            "explicit TEST-ONLY batch-continuation mode for a fresh full batch: a case-level "
+            "rubric verdict is retained and the next independent case still runs"
+        ),
+    )
+    command.add_argument(
+        "--scripted-proof",
+        action="store_true",
+        help=(
+            "explicit TEST-ONLY proof run using the deterministic scripted double; provider "
+            "transport evidence is declared not applicable and no rubric is measured"
+        ),
+    )
 
 
 def main() -> int:
@@ -8628,6 +9039,13 @@ def main() -> int:
     run_parser.add_argument(
         "--feedback-timeout-seconds", type=int, default=ASSISTED_DEFAULT_TIMEOUT_SECONDS,
         help="how long one slot waits for its one host-authored user message",
+    )
+    run_parser.add_argument(
+        "--proof-plan", type=Path,
+        help=(
+            "declared TEST-ONLY proof script/decision plan; required with --scripted-proof and "
+            "never used as score evidence"
+        ),
     )
     add_invocation_arguments(run_parser)
     assisted_status_parser = commands.add_parser(

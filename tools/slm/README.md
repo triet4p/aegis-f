@@ -744,6 +744,29 @@ review): 72 per-slot rows with provenance, origin digests, the retained a55 reco
 unchanged gates. The exhaustive mode is test-only evaluation metadata and batch-continuation
 policy; production app sources, prompts, tools, skills and the frozen scorer are unchanged.
 
+### Fresh-batch continuation and the assisted record binding (TEST-ONLY)
+
+`--no-fail-fast` selects the same `aegis-s813-exhaustive-continuation/v1` policy for a fresh full
+batch without a retained prefix: pass 1 measures all 24 frozen cases and passes 2-3 repeat them
+(72 slots). It is mutually exclusive with `--exhaustive-from`, and the freeze records which mode
+the attempt bound. A rubric failure — including a tentative `PROPOSED` link — keeps its own verdict
+and actual effects, and the next independent case still runs; only credential, isolation,
+infrastructure or capture-integrity conditions stop the batch.
+
+The assisted record now carries the same adjudication binding as its first attempt
+(`adjudication_version`, `financial_safety_match`, `quality_findings`). The host still recomputes
+every verdict from the recorded effects, trace and post-state, and a current record without the
+labels fails closed; retained a55 records are read exactly as recorded. The first phase's
+financial/authority verdict stays immutable for cumulative safety.
+
+`--scripted-proof --proof-plan <plan>` exercises this end to end without a hosted call: the real
+batch entry runs on the isolated package with the deterministic double, the real runner monitors
+and delivers the host-validated messages, and the real scorer computes the 72-slot evaluation.
+Provider-transport evidence is declared `not_applicable_scripted_provider`; every effect, trace,
+quality, masking, adjudication and cumulative-safety check still applies. The output is
+`proof-72.json` with `qualification_result: TEST_ONLY_PROOF_NOT_QUALIFICATION`, never a
+qualification metric.
+
 
 ## Assisted PASS@2 (in-session pause)
 

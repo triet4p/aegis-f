@@ -731,5 +731,60 @@ coordinator used for the a65 proof is
 `S813QualificationInstrumentedTest`, polls the ready files, writes each decision atomically and
 collects the device tree without reading a credential or making a hosted call.
 
+### Fresh-batch continuation and assisted record binding (attempt a71)
+
+The a68 measurement exposed two harness defects: a fresh assisted batch did not bind the
+already-approved batch-continuation policy (so one case's tentative `PROPOSED` proposal stopped
+the remaining independent cases), and the assisted record omitted the adjudication binding that
+the host scorer requires (so no continuation could be credited as recovery). Both are corrected
+without touching the fixture, expected rows, rubric, scorer, budgets, prompts or gates:
+
+- **Explicit fresh slot plan.** `--no-fail-fast` binds the same `aegis-s813-exhaustive-continuation/v1`
+  policy to a fresh full batch: the host declares an empty retained prefix, pass 1 measures all 24
+  frozen cases and passes 2–3 repeat them (72 measured slots). `--exhaustive-from
+  S8.13-qualification-a55` keeps the retained six-slot shape; the two modes are mutually exclusive.
+  The identity digest covers the declared retained prefix, so the device rejects a skipped leading
+  slot, a retained rerun, a forged digest or a different prior provenance before any effect.
+- **Case-level verdict, batch-level continuation.** A rubric failure — including
+  `unexpected_or_financially_unsafe_link` from a tentative proposal — stays on its own record with
+  its actual effects and `quality_findings`, and the next independent case still runs. Only a
+  credential-secrecy, isolation, infrastructure or capture-integrity condition stops the batch; a
+  real effect-safety violation remains a stop in every mode.
+- **One adjudication contract for both records.** The first attempt and its one assisted
+  continuation are annotated by the same binder, so both carry `adjudication_version`,
+  `financial_safety_match` and `quality_findings`. The host still recomputes every verdict from
+  the recorded effects, trace and post-state: the fields bind the contract, they are never a
+  trusted substitute for that recomputation. Current records lacking the labels fail closed;
+  immutable retained a55 records are read exactly as recorded. The first phase's financial/authority
+  verdict stays immutable, so a later clean continuation can never erase it.
+- **TEST-ONLY proof through the real path.** `--scripted-proof --proof-plan <plan>` runs the real
+  frozen batch entry on the isolated package with the deterministic double, the real host runner
+  and the real scorer. A declared per-case script drives both phases; a separate coordinator answers
+  only slots the real monitor marked `feedback_requested`, and the unmodified harness validates and
+  delivers each message. Because a double has no hosted exchange, provider-transport evidence is
+  declared `not_applicable_scripted_provider`; every effect, trace, quality, masking, adjudication
+  and cumulative-safety check still applies and is recomputed. The result is written as
+  `proof-72.json` with `qualification_result = TEST_ONLY_PROOF_NOT_QUALIFICATION` — it proves the
+  harness behaviour and never publishes a qualification metric.
+
+Proof commands (identical invocation on every step; no hosted call):
+
+```powershell
+$invocation = @(
+  "--attempt-id", "S8.13-assisted-contract-a71",
+  "--snapshot-id", "S8.13-assisted-contract-a71-freeze-71",
+  "--evidence-root", "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71",
+  "--no-fail-fast", "--scripted-proof"
+)
+uv run python tools/slm/s8_agent_v3_qualification.py run --pass-number 1 --assisted `
+  --proof-plan artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/host/proof-plan.json `
+  --main-approval <reference> @invocation
+uv run python tools/slm/s8_agent_v3_qualification.py score --semantic-reviews <reviewed-file> @invocation
+```
+
+The a65 lifetime proof remains valid for its own reproduction shape; the full-batch proof additionally
+exercises the fresh slot plan, the case-level continuation policy, the assisted handshake and the
+scorer's recovery arithmetic on the real device records.
+
 References: [S8.5 provider adapters](sprint-8-provider-adapters.md), [S8.9 executor](sprint-8-agent-executor.md), [S8.10 run history](sprint-8-agent-history.md), [S8.7 application tools](sprint-8-application-tools.md), and [S8.4 agent contract](sprint-8-agent-contract.md).
 

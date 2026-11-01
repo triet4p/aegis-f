@@ -53,6 +53,16 @@ and no release has been tagged or published. Format follows
   recorded scores are preserved and are not regraded.
 
 ### Fixed
+- Fixed the fresh assisted qualification batch so the already-approved no-fail-fast policy applies
+  without a retained prefix: a case-level rubric verdict, including a tentative duplicate-link
+  proposal, is recorded with its actual effects and the next independent case still runs. Credential
+  secrecy, case isolation, unreachable infrastructure, capture integrity and real effect-safety
+  violations still stop the batch, and the fixture, rubric and gates are unchanged.
+- Fixed the assisted qualification record so a genuinely corrected continuation can be credited as
+  recovery: the assisted record now carries the same adjudication version, financial-safety result
+  and quality findings as its first attempt. The host still recomputes every verdict from the
+  recorded effects and trace, current records without those labels fail closed, and the first
+  phase's financial or authority violation remains irreversible.
 - Fixed assisted continuation so the device keeps a case's database and local model lifecycle
   open through the host decision and the assisted record, and releases them once afterwards.
   Previously the continuation read already-closed state to build its postconditions, so the
