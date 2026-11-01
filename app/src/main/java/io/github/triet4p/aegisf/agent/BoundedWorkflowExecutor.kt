@@ -351,6 +351,12 @@ sealed interface WorkflowVerifiedEffect {
 
 /** The settled outcome of one bounded run. */
 sealed interface WorkflowRunOutcome {
+    /**
+     * The single-use assisted follow-up opportunity this outcome leaves open, or null when the
+     * conversation was not idle, the outcome is a terminal boundary, or a follow-up phase ran.
+     */
+    val followUp: WorkflowRunFollowUp?
+
     data class Completed(
         val answer: String,
         val verifiedEffects: List<WorkflowVerifiedEffect>,
@@ -363,6 +369,8 @@ sealed interface WorkflowRunOutcome {
         val compaction: AgentContextCompaction? = null,
         /** Content-free chronology of any bounded masking repair this run used. */
         val maskingRepairs: List<MaskingRepairRecord> = emptyList(),
+        /** The single-use in-process authority for one assisted follow-up message. */
+        override val followUp: WorkflowRunFollowUp? = null,
     ) : WorkflowRunOutcome
 
     data class Clarifying(
@@ -371,6 +379,15 @@ sealed interface WorkflowRunOutcome {
         val continuation: WorkflowRunContinuation,
         val trace: List<WorkflowRunStep>,
         val maskingRepairs: List<MaskingRepairRecord> = emptyList(),
+        /** Provider turns this suspension actually spent; never reported as zero. */
+        val turns: Int = 0,
+        /** Dispatched tool calls this suspension actually spent; never reported as zero. */
+        val toolCalls: Int = 0,
+        val usage: List<AgentRunUsage> = emptyList(),
+        val cacheKey: AgentCacheKey? = null,
+        val cacheSupport: AgentCacheSupport = AgentCacheSupport.USAGE_UNSUPPORTED,
+        /** The single-use in-process authority for one assisted follow-up message. */
+        override val followUp: WorkflowRunFollowUp? = null,
     ) : WorkflowRunOutcome
 
     data class Refused(
@@ -378,6 +395,8 @@ sealed interface WorkflowRunOutcome {
         val answer: String?,
         val trace: List<WorkflowRunStep>,
         val maskingRepairs: List<MaskingRepairRecord> = emptyList(),
+        /** A refusal is a terminal boundary; it never offers a follow-up. */
+        override val followUp: WorkflowRunFollowUp? = null,
     ) : WorkflowRunOutcome
 
     data class Incomplete(
@@ -393,6 +412,8 @@ sealed interface WorkflowRunOutcome {
         val compaction: AgentContextCompaction? = null,
         val privacyRefusal: HostedResponsePrivacyRefusal? = null,
         val maskingRepairs: List<MaskingRepairRecord> = emptyList(),
+        /** The single-use in-process authority for one assisted follow-up message. */
+        override val followUp: WorkflowRunFollowUp? = null,
     ) : WorkflowRunOutcome
 }
 
@@ -418,8 +439,32 @@ class WorkflowRunContinuation internal constructor(
 }
 
 /**
- * The production executor. Construct it with one trusted [WorkflowRunHost] and call [start] or
- * [resume] from a background coroutine.
+ * The single-use, in-process authority to append one user follow-up message to a finished run.
+ *
+ * It is minted only for a run that stopped with an idle provider conversation (no unanswered
+ * tool calls) and never for a run that has already been followed up, so one slot can receive
+ * exactly one assisted message. The handle keeps the same host, scope, vault, reference
+ * registry, journal and current state: a follow-up continues the existing conversation instead
+ * of starting a new run, re-reading nothing and replaying nothing.
+ */
+class WorkflowRunFollowUp internal constructor(
+    internal val run: ActiveRun,
+    private val owner: Any,
+    /** Provider turns the finished first phase actually spent. */
+    val initialTurns: Int,
+    /** Tool calls the finished first phase actually dispatched. */
+    val initialToolCalls: Int,
+    internal var consumed: Boolean = false,
+) {
+    internal fun belongsTo(expected: Any): Boolean = owner === expected
+
+    internal fun isIdle(): Boolean = run.conversationReady() && run.conversation.pendingCallIds.isEmpty()
+}
+
+/**
+ * The production executor. Construct it with one trusted [WorkflowRunHost] and call [start],
+ * [resume] (clarification answer) or [followUp] (one user follow-up message on the finished
+ * conversation) from a background coroutine.
  */
 class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
     private val identity = Any()
@@ -634,7 +679,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: MaskingBlockedException) {
-            return maskedIncomplete(run, trace, run.turns, run.toolCalls)
+            return maskedIncomplete(run, trace)
         }
         val clarificationEvidence = try {
             continuation.subjectRef?.let { subject ->
@@ -676,7 +721,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             observations = observations,
             prior = priorSummary(run),
         )
-        val maskedResume = safelyMask(resumeText, trace) ?: return maskedIncomplete(run, trace, run.turns, run.toolCalls)
+        val maskedResume = safelyMask(resumeText, trace) ?: return maskedIncomplete(run, trace)
         // The clarification observations may have minted new tokens; the inventory is rendered
         // after masking so this turn carries the complete current list.
         val resumeWithInventory = maskedResume + "\n\n" + tokenInventory()
@@ -709,13 +754,88 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: MaskingBlockedException) {
-            return maskedIncomplete(run, trace, run.turns, run.toolCalls)
+            return maskedIncomplete(run, trace)
         }
         continuation.consumed = true
         run.startedAtMillis = host.clock.nowMillis()
         transition(trace, WorkflowRunState.READY, "resumed_after_clarification")
         run.conversation = conversation
         run.contextCharacters += added
+        return drive(run)
+    }
+
+    /**
+     * Continues a finished run with exactly one additional user message.
+     *
+     * This is the assisted-follow-up seam, distinct from a clarification answer: the message is
+     * masked as an ordinary user instruction and is NOT registered as clarification evidence, so
+     * it can never mint a typed value the user did not supply. The provider conversation keeps
+     * every prior item (assistant text, tool calls and their actual results) and the same host,
+     * scope, vault, references and journal stay in force; the complete issued-token inventory is
+     * appended to this turn and the outbound/inbound privacy guard is unchanged.
+     *
+     * The follow-up runs under the same frozen per-request limits as a first attempt, accounted
+     * separately: the phase counters restart, while [WorkflowRunFollowUp.initialTurns] and
+     * [WorkflowRunFollowUp.initialToolCalls] preserve the first phase's spend and every outcome
+     * reports the cumulative total. No further follow-up is minted from this phase.
+     */
+    suspend fun followUp(
+        followUp: WorkflowRunFollowUp,
+        userMessage: String,
+    ): WorkflowRunOutcome {
+        if (!followUp.belongsTo(identity)) {
+            throw IllegalArgumentException("The follow-up belongs to another executor.")
+        }
+        if (followUp.consumed) {
+            throw IllegalStateException("The follow-up was already used.")
+        }
+        if (userMessage.isBlank()) {
+            throw IllegalArgumentException("A follow-up needs a nonblank user message.")
+        }
+        val run = followUp.run
+        followUp.consumed = true
+        if (!followUp.isIdle()) {
+            return incomplete(
+                run,
+                WorkflowRunStopReason.TOOL_FAILURE,
+                "the run left unanswered tool calls; a follow-up user message cannot be appended",
+            )
+        }
+        val maskedMessage = try {
+            host.boundary.maskOutbound(userMessage, MaskedPath.USER_INSTRUCTION)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: MaskingBlockedException) {
+            return maskedIncomplete(run, run.trace)
+        }
+        // One user turn: the masked follow-up plus this turn's complete issued-token inventory.
+        val appended = maskedMessage + "\n\n" + tokenInventory()
+        if (run.contextCharacters + appended.length > run.request.limits.maxContextCharacters) {
+            // Compaction would drop the actual first-attempt tool results this continuation must
+            // preserve, so the honest outcome is a budget stop rather than a rewritten history.
+            return incomplete(
+                run,
+                WorkflowRunStopReason.CONTEXT_BUDGET,
+                "the follow-up prompt exceeds the declared context bound",
+            )
+        }
+        val conversation = try {
+            host.gateway.appendUserMessage(run.conversation, appended)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: MaskingBlockedException) {
+            return maskedIncomplete(run, run.trace)
+        } catch (_: HostedConfigurationException) {
+            return incomplete(
+                run,
+                WorkflowRunStopReason.MALFORMED_TURN,
+                "protocol continuation refused the follow-up turn",
+            )
+        }
+        run.conversation = conversation
+        run.contextCharacters += appended.length
+        run.beginPhase(host.clock.nowMillis())
+        transition(run.trace, WorkflowRunState.READY, "follow-up user message accepted")
         return drive(run)
     }
 
@@ -765,7 +885,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                     observations = fresh,
                 )
                 val maskedCompacted = safelyMask(compactedPrompt, run.trace)
-                    ?: return maskedIncomplete(run, run.trace, run.turns, run.toolCalls)
+                    ?: return maskedIncomplete(run, run.trace)
                 // Re-read observations can mint tokens, so the compacted turn re-renders the
                 // complete current inventory instead of carrying a stale one.
                 val compactedWithInventory = maskedCompacted + "\n\n" + tokenInventory()
@@ -795,7 +915,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: MaskingBlockedException) {
-                return maskedIncomplete(run.trace, run.turns, run.toolCalls)
+                return maskedIncomplete(run, run.trace)
             } catch (_: HostedConfigurationException) {
                 return incomplete(run, WorkflowRunStopReason.MALFORMED_TURN, "provider contract refused the turn")
             }
@@ -848,13 +968,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                             outcome = "terminal",
                         )
                         transition(run.trace, WorkflowRunState.INCOMPLETE, "masking blocked the response")
-                        return maskedIncomplete(
-                            run,
-                            run.trace,
-                            run.turns,
-                            run.toolCalls,
-                            refusal,
-                        )
+                        return maskedIncomplete(run, run.trace, refusal)
                     }
                     return incomplete(
                         run,
@@ -879,7 +993,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                             run.noteUsage(turn.usage)
                             if (finish.reason == MASKING_BLOCKED_REASON) {
                                 transition(run.trace, WorkflowRunState.INCOMPLETE, "masking blocked the turn")
-                                return maskedIncomplete(run, run.trace, run.turns, run.toolCalls)
+                                return maskedIncomplete(run, run.trace)
                             }
                             transition(run.trace, WorkflowRunState.INCOMPLETE, "turn truncated")
                             return incomplete(
@@ -993,30 +1107,14 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         }
         run.toolCalls += calls.size
         clarification?.let { ask ->
-            transition(run.trace, WorkflowRunState.CLARIFYING, "application clarification: ${ask.field ?: "field"}")
-            val continuation = WorkflowRunContinuation(
-                run = run,
-                owner = identity,
-                question = ask.question,
-                field = ask.field,
-                subjectRef = ask.subjectRef,
-            )
-            return TurnStep.Stop(
-                WorkflowRunOutcome.Clarifying(
-                    question = ask.question,
-                    field = ask.field,
-                    continuation = continuation,
-                    trace = run.trace.toList(),
-                    maskingRepairs = run.maskingRepairs.toList(),
-                ),
-            )
+            return TurnStep.Stop(clarifyingOutcome(run, ask))
         }
         val maskedResults = try {
             results.map { HostedToolResult(it.callId, host.boundary.maskToolResultJson(it.outputJson)) }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: MaskingBlockedException) {
-            return TurnStep.Stop(maskedIncomplete(run, run.trace, run.turns, run.toolCalls))
+            return TurnStep.Stop(maskedIncomplete(run, run.trace))
         }
         // Honest cumulative charging: the provider conversation accumulates every turn (all
         // three adapters resend prior items), so each turn adds its masked results plus this
@@ -1042,29 +1140,10 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: MaskingBlockedException) {
-            return TurnStep.Stop(maskedIncomplete(run, run.trace, run.turns, run.toolCalls))
+            return TurnStep.Stop(maskedIncomplete(run, run.trace))
         } catch (_: HostedConfigurationException) {
             return TurnStep.Stop(
                 incomplete(run, WorkflowRunStopReason.MALFORMED_TURN, "protocol continuation was refused"),
-            )
-        }
-        clarification?.let { ask ->
-            transition(run.trace, WorkflowRunState.CLARIFYING, "application clarification: ${ask.field ?: "field"}")
-            val continuation = WorkflowRunContinuation(
-                run = run,
-                owner = identity,
-                question = ask.question,
-                field = ask.field,
-                subjectRef = ask.subjectRef,
-            )
-            return TurnStep.Stop(
-                WorkflowRunOutcome.Clarifying(
-                    question = ask.question,
-                    field = ask.field,
-                    continuation = continuation,
-                    trace = run.trace.toList(),
-                    maskingRepairs = run.maskingRepairs.toList(),
-                ),
             )
         }
         return TurnStep.Continue(next)
@@ -1222,7 +1301,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
     ): WorkflowRunOutcome? {
         if (!code.terminal) return null
         return when (code) {
-            AgentErrorCode.MASKING_REFUSED -> maskedIncomplete(run.trace, run.turns, run.toolCalls)
+            AgentErrorCode.MASKING_REFUSED -> maskedIncomplete(run, run.trace)
             AgentErrorCode.USER_DECISION_REQUIRED,
             AgentErrorCode.REFERENCE_SCOPE_REFUSED -> {
                 transition(run.trace, WorkflowRunState.REFUSED, "application boundary: ${code.name}")
@@ -1239,8 +1318,8 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                     reason = WorkflowRunStopReason.EFFECT_NOT_VERIFIED,
                     detail = "$tool:${code.name}",
                     answer = null,
-                    turns = run.turns,
-                    toolCalls = run.toolCalls,
+                    turns = run.totalTurns(),
+                    toolCalls = run.totalToolCalls(),
                     trace = run.trace.toList(),
                     usage = run.usages.toList(),
                     cacheKey = run.cacheKey,
@@ -1403,14 +1482,15 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         return WorkflowRunOutcome.Completed(
             answer = answer,
             verifiedEffects = reported,
-            turns = run.turns,
-            toolCalls = run.toolCalls,
+            turns = run.totalTurns(),
+            toolCalls = run.totalToolCalls(),
             trace = run.trace.toList(),
             usage = run.usages.toList(),
             cacheKey = run.cacheKey,
             cacheSupport = AgentContextManager.classifyCacheSupport(run.usages),
             compaction = run.compaction,
             maskingRepairs = run.maskingRepairs.toList(),
+            followUp = mintFollowUp(run),
         )
     }
 
@@ -1585,6 +1665,16 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             "- On stale data, inspect fresh state and reassess. Do not blindly retry with a refreshed " +
                 "reference, fabricate a missing fact or expand scope.",
         )
+        appendLine(
+            "- A clarification names the exact fact the source or user leaves unresolved, never a " +
+                "prerequisite you inferred: a clock time that is not remembered is time even when the " +
+                "date is also ungrounded, and the stored meaning keeps that component.",
+        )
+        appendLine(
+            "- Observations carry the application's own user_label for a row, and a pair observation " +
+                "carries the exact event_label and draft_label it binds. Name a row to the user only " +
+                "with that label, never with an identifier inferred from ordering or memory.",
+        )
         appendLine()
         appendLine("Truthful completion:")
         appendLine("- Claim an effect only when the host reports it verified. A historical receipt, provider HTTP 200 or a successful read is not proof of a current mutation.")
@@ -1699,33 +1789,82 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         if (trace.size < MAX_TRACE_STEPS) trace += WorkflowRunStep(state, detail)
     }
 
+    /**
+     * The suspended clarification outcome.
+     *
+     * It reports the provider turns and tool calls this suspension actually spent (previously
+     * reported as zero, which understated every clarifying slot) and mints the run's single
+     * assisted follow-up opportunity when the conversation is idle.
+     */
+    private fun clarifyingOutcome(run: ActiveRun, ask: CallClarification): WorkflowRunOutcome {
+        transition(run.trace, WorkflowRunState.CLARIFYING, "application clarification: ${ask.field ?: "field"}")
+        val continuation = WorkflowRunContinuation(
+            run = run,
+            owner = identity,
+            question = ask.question,
+            field = ask.field,
+            subjectRef = ask.subjectRef,
+        )
+        return WorkflowRunOutcome.Clarifying(
+            question = ask.question,
+            field = ask.field,
+            continuation = continuation,
+            trace = run.trace.toList(),
+            maskingRepairs = run.maskingRepairs.toList(),
+            turns = run.totalTurns(),
+            toolCalls = run.totalToolCalls(),
+            usage = run.usages.toList(),
+            cacheKey = run.cacheKey,
+            cacheSupport = AgentContextManager.classifyCacheSupport(run.usages),
+            followUp = mintFollowUp(run),
+        )
+    }
+
+    /**
+     * Mints the run's single assisted follow-up opportunity when its conversation is idle.
+     *
+     * A run that ended with unanswered tool calls (nothing can be appended without inventing
+     * results), one already in a follow-up phase, or one that already minted its handle returns
+     * null: the assisted path can never add a second message or a further phase.
+     */
+    private fun mintFollowUp(run: ActiveRun): WorkflowRunFollowUp? {
+        if (run.phase > 0 || run.followUpMinted) return null
+        if (!run.conversationReady() || run.conversation.pendingCallIds.isNotEmpty()) return null
+        run.followUpMinted = true
+        return WorkflowRunFollowUp(
+            run = run,
+            owner = identity,
+            initialTurns = run.totalTurns(),
+            initialToolCalls = run.totalToolCalls(),
+        )
+    }
+
     private fun incomplete(run: ActiveRun, reason: WorkflowRunStopReason, detail: String?) =
         WorkflowRunOutcome.Incomplete(
             reason = reason,
             detail = detail,
             answer = null,
-            turns = run.turns,
-            toolCalls = run.toolCalls,
+            turns = run.totalTurns(),
+            toolCalls = run.totalToolCalls(),
             trace = run.trace.toList(),
             usage = run.usages.toList(),
             cacheKey = run.cacheKey,
             cacheSupport = AgentContextManager.classifyCacheSupport(run.usages),
             compaction = run.compaction,
             maskingRepairs = run.maskingRepairs.toList(),
+            followUp = mintFollowUp(run),
         )
 
     private fun maskedIncomplete(
         run: ActiveRun,
         trace: List<WorkflowRunStep>,
-        turns: Int,
-        toolCalls: Int,
         privacyRefusal: HostedResponsePrivacyRefusal? = null,
     ) = WorkflowRunOutcome.Incomplete(
         reason = WorkflowRunStopReason.MASKING_BLOCKED,
         detail = "the local privacy boundary refused to emit or accept content",
         answer = null,
-        turns = turns,
-        toolCalls = toolCalls,
+        turns = run.totalTurns(),
+        toolCalls = run.totalToolCalls(),
         trace = trace.toList(),
         usage = run.usages.toList(),
         cacheKey = run.cacheKey,
@@ -1733,6 +1872,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         compaction = run.compaction,
         privacyRefusal = privacyRefusal,
         maskingRepairs = run.maskingRepairs.toList(),
+        followUp = mintFollowUp(run),
     )
 
     /** Pre-run masked path, with no run yet: no provider turn ever executed. */
@@ -1827,8 +1967,18 @@ internal class ActiveRun(
 ) {
     lateinit var runtime: AgentToolRuntime
     lateinit var conversation: MaskedConversation
+    /** Turns spent in the current phase (initial attempt or assisted follow-up). */
     var turns: Int = 0
+    /** Tool calls dispatched in the current phase. */
     var toolCalls: Int = 0
+    /** Turns spent by completed phases; outcomes report phase + cumulative totals. */
+    var cumulativeTurns: Int = 0
+    /** Tool calls dispatched by completed phases. */
+    var cumulativeToolCalls: Int = 0
+    /** 0 for the first attempt, then one per assisted follow-up phase. */
+    var phase: Int = 0
+    /** True once the single follow-up opportunity for this run was minted. */
+    var followUpMinted: Boolean = false
     var contextCharacters: Int = 0
     val dispatches: MutableList<DispatchRecord> = mutableListOf()
     /** Host-owned identity for each exact model-facing tool call in this run. */
@@ -1850,6 +2000,31 @@ internal class ActiveRun(
     var repairUsed: Boolean = false
     /** Content-free chronology of the refused attempt and the repair it triggered. */
     val maskingRepairs: MutableList<MaskingRepairRecord> = mutableListOf()
+
+    /** True once the run has a provider conversation bound to its masking boundary. */
+    fun conversationReady(): Boolean = this::conversation.isInitialized
+
+    /** Cumulative provider turns across every phase of this run. */
+    fun totalTurns(): Int = cumulativeTurns + turns
+
+    /** Cumulative dispatched tool calls across every phase of this run. */
+    fun totalToolCalls(): Int = cumulativeToolCalls + toolCalls
+
+    /**
+     * Starts one assisted follow-up phase under the same frozen per-request limits: the phase
+     * counters and the repeated-call ledger restart, while the finished phase's spend is carried
+     * into the cumulative totals so every report shows both. The conversation, context size,
+     * references, journal and issued-token inventory remain untouched.
+     */
+    fun beginPhase(startedAtMillis: Long) {
+        cumulativeTurns += turns
+        cumulativeToolCalls += toolCalls
+        turns = 0
+        toolCalls = 0
+        callCounts.clear()
+        phase += 1
+        this.startedAtMillis = startedAtMillis
+    }
 
     /** Privacy-safe one-line cache attribution for the run trace; never raw content. */
     fun describeCacheKey(): String {

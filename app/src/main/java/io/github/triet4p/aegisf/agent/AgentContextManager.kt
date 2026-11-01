@@ -50,8 +50,13 @@ object AgentContextManager {
      * enforced, and the host appends the run's complete issued-token list to every turn through
      * [tokenInventoryBlock]. The version is part of the cache identity, so this wording change
      * cannot reuse a prefix cached under the previous contract.
+     *
+     * v7 states the two grounding invariants that follow the observed failures: a clarification
+     * field names the component the source or user actually leaves unresolved (a missing clock
+     * time is time, not date), and a row is named to the user with the application's own
+     * user_label from the observation that binds it.
      */
-    const val CONTEXT_BLOCK_VERSION = "s8-agent-context/v6"
+    const val CONTEXT_BLOCK_VERSION = "s8-agent-context/v7"
 
     /** Version of the host-authored issued-token inventory; wording changes mint a new one. */
     const val TOKEN_INVENTORY_VERSION = "s8-agent-token-inventory/v1"

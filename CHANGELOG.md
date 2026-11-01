@@ -8,6 +8,17 @@ and no release has been tagged or published. Format follows
 ## [Unreleased]
 ### Added
 
+- Added assisted PASS@2 qualification. After a frozen-rubric first failure, the same phone run
+  can receive exactly one host-authored user message and continue from the same chat history,
+  database, vault, references and journal — no fixture reseed, no replay and no fresh run. The
+  harness records the first verdict, the verbatim message and its author, both phases, cumulative
+  safety and provider metrics, and reports PASS@1, assisted PASS@2 and recovery. Passing slots
+  are never continued, and the frozen rubric, per-slot budgets and numeric gates are unchanged.
+- Added one bounded user follow-up to the agent runtime: a finished run whose conversation is
+  idle can be continued with a single masked user message under a separately accounted phase
+  while its scope, references, journal and issued-token inventory stay in force. The opportunity
+  is single-use and never yields a further follow-up.
+
 - Added an explicit, frozen TEST-ONLY exhaustive continuation mode to the S8.13 qualification
   harness. It measures the 66 slots left unmeasured by the earlier six-slot attempt (pass-1
   suffix plus two full repetitions) while reusing the six retained results read-only, and reports
@@ -18,6 +29,14 @@ and no release has been tagged or published. Format follows
   copied or regraded.
 
 ### Changed
+
+- Agent observations now carry the application's own user label for each row ("draft #421",
+  "event #313"), and a pair observation names the exact event and draft labels it binds, so a
+  user-visible question copies the row the tool actually recorded instead of guessing it from
+  list order or memory.
+- A clarification asks for the temporal component the note actually leaves unknown: a clock time
+  that was not remembered is asked as a time even when the date is also ungrounded, and the
+  stored summary keeps that meaning instead of restating it as a missing date.
 
 - Replaced the agent-facing five-tool surface with a closed eleven-tool interface using flat
   arguments and host-issued opaque references. Agents now observe authorized state, select an
@@ -34,6 +53,8 @@ and no release has been tagged or published. Format follows
   recorded scores are preserved and are not regraded.
 
 ### Fixed
+- Fixed clarifying runs so they report the provider turns and tool calls they actually spent
+  instead of zero in the qualification record and durable run history.
 - Fixed the S8.13 qualification harness so full-suite `run` and `score` commands accept the new
   attempt, snapshot, and evidence-root identity and resolve the same immutable freeze before any
   hosted call. Diagnostic invocation, fixtures, scoring, gates, and retained snapshots are unchanged.

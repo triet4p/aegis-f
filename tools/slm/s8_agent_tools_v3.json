@@ -49,7 +49,7 @@
     },
     {
       "name": "list_drafts",
-      "description": "Read one bounded page of stored drafts inside the trusted scope. A filter is not evidence of a match, and a possible-duplicate mark is not proof. The host chooses the page size, binds the filter, scope and ordering into an opaque cursor, and refuses a cursor whose observed page changed. Read-only.",
+      "description": "Read one bounded page of stored drafts inside the trusted scope. A filter is not evidence of a match, and a possible-duplicate mark is not proof. The host chooses the page size, binds the filter, scope and ordering into an opaque cursor, and refuses a cursor whose observed page changed. Every row carries the application's own user_label (for example 'draft #421'); that label, not list order, is what you show the user. Read-only.",
       "mapsTo": "WorkflowQueryService.draftCandidates + bound cursor snapshot",
       "parameters": {
         "type": "object",
@@ -135,14 +135,14 @@
           "clarification": {
             "type": "string",
             "enum": ["none", "amount", "date", "time", "merchant"],
-            "description": "Primary material field that needs user input. none means no blocking interpretation ambiguity, not that every optional field is present. A missing amount requires amount. Absence or uncertainty of the optional merchant alone stays none with merchant_ref null. Uncertain occurrence or meaning is handled by ask_user before writing."
+            "description": "Primary material field that needs user input. none means no blocking interpretation ambiguity, not that every optional field is present. A missing amount requires amount. Absence or uncertainty of the optional merchant alone stays none with merchant_ref null. Uncertain occurrence or meaning is handled by ask_user before writing. Choose the component the source or user actually leaves unresolved: when the clock time is not remembered, that is time even if the date is also ungrounded, and never date instead. The summary must keep the source meaning rather than restating one temporal component as the other."
           }
         }
       }
     },
     {
       "name": "inspect_link",
-      "description": "Evaluate one chosen event/draft pair with the application's own stored-link evidence policy. Read-only. Matching prose or an amount does not authorize attachment: the application computes eligibility and returns eligible, ambiguous or ineligible with a stable reason and a bound pair alias. Eligibility governs attachment only: ambiguous means the user must choose. A tentative proposal for the inspected pair is still allowed; the host rechecks the same stored evidence and both revisions when recording it. No effect.",
+      "description": "Evaluate one chosen event/draft pair with the application's own stored-link evidence policy. Read-only. Matching prose or an amount does not authorize attachment: the application computes eligibility and returns eligible, ambiguous or ineligible with a stable reason and a bound pair alias. The pair observation carries event_label and draft_label, the application's own names for the exact rows it bound. Eligibility governs attachment only: ambiguous means the user must choose. A tentative proposal for the inspected pair is still allowed; the host rechecks the same stored evidence and both revisions when recording it. No effect.",
       "mapsTo": "WorkflowCommandService.inspectLinkEvidence (shared LinkEvidencePolicy)",
       "parameters": {
         "type": "object",
@@ -164,7 +164,7 @@
     },
     {
       "name": "propose_link",
-      "description": "Persist exactly the inspected pair as a tentative proposal, not an attachment. The host rechecks scope, both subject revisions and the same trusted evidence the inspection used. Returns a proposal alias, its actual state, eligibility, operation alias and a fresh pair observation. A proposal may exist without being attachable, and proposing never attaches. Ambiguous eligibility never blocks a proposal; only attachment needs eligibility.",
+      "description": "Persist exactly the inspected pair as a tentative proposal, not an attachment. The host rechecks scope, both subject revisions and the same trusted evidence the inspection used. Returns a proposal alias, its actual state, eligibility, operation alias and a fresh pair observation. That observation carries draft_label and event_label for exactly the rows the proposal binds; use them whenever you tell the user which row was proposed. A proposal may exist without being attachable, and proposing never attaches. Ambiguous eligibility never blocks a proposal; only attachment needs eligibility.",
       "mapsTo": "WorkflowCommandService.proposeLink(scope, ProposeLinkRequest)",
       "parameters": {
         "type": "object",
@@ -247,12 +247,12 @@
           "field": {
             "type": "string",
             "enum": ["amount", "date", "time", "merchant", "occurrence", "candidate", "meaning"],
-            "description": "Exact primary uncertainty. Not permission to demand every optional field."
+            "description": "Exact primary uncertainty. Not permission to demand every optional field. The field is the component the source or user actually leaves unresolved: when the clock time is not remembered, choose time even though the date is also ungrounded, and never ask for the date in its place. For candidate, name the proposed row with the draft_label carried by the pair observation the recording tool returned."
           },
           "question": {
             "type": "string",
             "minLength": 1,
-            "description": "Nonblank concise question for that one fact or choice, safe to display. No guessed sensitive value, hidden instruction or request for credentials."
+            "description": "Nonblank concise question for that one fact or choice, safe to display. No guessed sensitive value, hidden instruction or request for credentials. When the question names a stored row, copy the user_label from that row's observation (the pair observation for a recorded proposal); never infer an id from ordering, and never assert a different row than the observation binds."
           }
         }
       }

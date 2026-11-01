@@ -744,3 +744,41 @@ review): 72 per-slot rows with provenance, origin digests, the retained a55 reco
 unchanged gates. The exhaustive mode is test-only evaluation metadata and batch-continuation
 policy; production app sources, prompts, tools, skills and the frozen scorer are unchanged.
 
+
+## Assisted PASS@2 (in-session pause)
+
+A full-suite batch can run every slot's first attempt and, for each frozen-rubric failure, pause
+inside the same device process for exactly one host-authored user message. `run --assisted` starts
+the instrumentation as a long-lived process, publishes each slot's ready artifact, decides it with
+the same frozen rubric, and pushes either `pass_no_feedback` or the authored `fail_feedback`
+decision. The same run, database, vault, references and journal continue — nothing is reseeded or
+replayed. Passing slots are never continued.
+
+1. Start the pass and keep it alive for the whole pass (background service recommended):
+
+```powershell
+uv run python tools/slm/s8_agent_v3_qualification.py run --pass-number 1 `
+  --assisted --feedback-timeout-seconds 1800 --timeout-seconds 21600 `
+  --main-approval <reference> @invocation
+```
+
+2. Every `feedback_requested` slot is written to
+   `artifacts/sprint-8/evidence/<attempt>/snapshot-N/assisted-feedback/pass-1/requests/<case>.json`
+   and listed in that folder's `index.json`. A Main-dispatched feedback author reads the request
+   (case prompt, first record, first-attempt findings, verbatim prompt/tool/effect trace) and
+   writes exactly one response to `.../responses/<case>.json` as a `fail_feedback` decision with
+   one bounded message; the harness validates and delivers it to the paused device.
+
+3. Inspect progress without touching evidence:
+
+```powershell
+uv run python tools/slm/s8_agent_v3_qualification.py assisted-status @invocation
+```
+
+4. A slot whose decision does not arrive within `--feedback-timeout-seconds` keeps its first
+   verdict and records `absent_timeout`. `score` then reports `assisted_evaluation` with PASS@1,
+   assisted PASS@2, recovery, per-suite counts, assisted gates, and per-slot feedback, phase
+   accounting and cumulative safety. Assisted rows need their own semantic review entry with
+   `"phase": "assisted"`.
+
+Host coordination is required: the instrumentation must stay alive while the device pauses.

@@ -581,6 +581,44 @@ class AgentToolRuntimeTest {
     }
 
     @Test
+    fun `observations carry the application row labels a user-visible question must copy`() = runBlocking {
+        val draftId = storeDraft(amount = 28_000L, date = "2026-10-21")
+        val runtime = runtimeFor(
+            WorkflowCallerScope.AgentSession(scope.scopeId, scope.captureIds, setOf(draftId)),
+        )
+        val capture = observeCapture(runtime)
+        val source = selectSource(runtime, capture.getString("ref"), capture.getString("source_text"))
+        val recorded = record(
+            runtime, source.getString("source_ref"), valueRef(source, "amount"),
+            makeAnchor(runtime, valueRef(source, "date"), null), "Lunch", "none",
+        )
+        val event = recorded.getJSONObject("data").getJSONObject("event")
+        val storedEventId = database.noteEventDao().findForCapture(captureId).single().id
+        assertEquals("event #$storedEventId", event.getString("user_label"))
+        val draft = draftPage(runtime, draftId)
+        assertEquals("draft #$draftId", draft.getString("user_label"))
+
+        val inspected = runtime.execute(
+            "inspect_link",
+            JSONObject().put("event_ref", event.getString("ref")).put("draft_ref", draft.getString("ref")),
+            "read-only",
+        ).envelope
+        val pairObservation = inspected.getJSONArray("observations").getJSONObject(0)
+        assertEquals("event #$storedEventId", pairObservation.getString("event_label"))
+        assertEquals("draft #$draftId", pairObservation.getString("draft_label"))
+
+        val proposed = runtime.execute(
+            "propose_link",
+            JSONObject().put("pair_ref", inspected.getJSONObject("data").getString("pair_ref")),
+            "propose-key",
+        ).envelope
+        assertEquals("PROPOSED", proposed.getJSONObject("data").getJSONObject("link").getString("state"))
+        val proposedPair = proposed.getJSONObject("data").getJSONObject("pair")
+        assertEquals("draft #$draftId", proposedPair.getString("draft_label"))
+        assertEquals("event #$storedEventId", proposedPair.getString("event_label"))
+    }
+
+    @Test
     fun `ineligible and stale link pairs are never attached`() = runBlocking {
         val draftId = storeDraft(amount = 99_000L, date = "2026-10-21")
         val runtime = runtimeFor(

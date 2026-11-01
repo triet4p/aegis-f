@@ -743,6 +743,19 @@ class S813QualificationInstrumentedTest {
             "$attemptId/$snapshotId/$profile/pass-$pass"
         }
         val runDir = s813CreateRunDirectory(context.filesDir, runDirectory)
+        val assistedContract = instrumentationArguments[S813_ASSISTED_CONTRACT_ARG]
+        val assistedCoordinator = assistedContract?.let { contract ->
+            require(contract == S813_ASSISTED_CONTRACT) {
+                "unknown assisted continuation contract: $contract"
+            }
+            S813AssistedCoordinator(
+                runDir = runDir,
+                attemptId = attemptId,
+                snapshotId = snapshotId,
+                pass = pass,
+                timeoutMillis = s813AssistedFeedbackTimeoutMillis(instrumentationArguments),
+            )
+        }
         val started = Instant.now().toString()
         val outcomes = JSONArray()
         var safetyStop: String? = null
@@ -796,24 +809,29 @@ class S813QualificationInstrumentedTest {
                 case.getString("id"),
             )
             var fatalClass: String? = null
-            val result = bindDiagnosticIdentity(try {
+            val execution = try {
                 runCase(
                     context, case, runtimeFixture, projection, provider, profile, pass, runDir,
                     caseMapping, debugCapture, syntheticInputText, listOf(credential), diagnosticIdentity,
+                    assistedCoordinator,
                 )
             } catch (failure: Throwable) {
                 fatalClass = (failure as? S813FatalContinuationException)?.fatalClass
-                JSONObject()
-                    .put("case_id", case.getString("id"))
-                    .put("attempt_status", "harness_or_provider_error")
-                    .put("failure_type", failure::class.simpleName ?: "unknown")
-                    .put("failure_detail", provider.authentication.redact(failure.message ?: "no detail").take(300))
-                    .put(
-                        "failure_stack",
-                        provider.authentication.redact(failure.stackTraceToString()).take(8_000),
-                    )
-                    .put("provider_error", true)
-            })
+                S813CaseExecution(
+                    record = JSONObject()
+                        .put("case_id", case.getString("id"))
+                        .put("attempt_status", "harness_or_provider_error")
+                        .put("failure_type", failure::class.simpleName ?: "unknown")
+                        .put("failure_detail", provider.authentication.redact(failure.message ?: "no detail").take(300))
+                        .put(
+                            "failure_stack",
+                            provider.authentication.redact(failure.stackTraceToString()).take(8_000),
+                        )
+                        .put("provider_error", true),
+                    assisted = null,
+                )
+            }
+            val result = bindDiagnosticIdentity(execution.record)
             if (fatalClass == null) {
                 fatalClass = debugCapture?.fatalReason()
             }
@@ -835,6 +853,17 @@ class S813QualificationInstrumentedTest {
                 caseDecisions += continuation
             }
             File(runDir, "${case.getString("id")}.json").writeText(result.toString(2))
+            val assistedSlot = execution.assisted
+            if (assistedCoordinator != null && assistedSlot != null) {
+                runAssistedStep(
+                    coordinator = assistedCoordinator,
+                    slot = assistedSlot,
+                    caseId = case.getString("id"),
+                    firstRecord = result,
+                    initialAdjudication = adjudication,
+                    caseMapping = caseMapping,
+                )
+            }
             safetyStop = if (exhaustiveContinuation != null) {
                 continuation?.let {
                     if (it.getString("decision") == S813_EXHAUSTIVE_DECISION_STOP) it.optString("reason") else null
@@ -897,6 +926,11 @@ class S813QualificationInstrumentedTest {
             .put("safety_stop", safetyStop ?: JSONObject.NULL)
             .put("credential_recorded", false)
             .put("fixture_only", true)
+            .put("assisted_continuation", if (assistedCoordinator != null) JSONObject()
+                .put("contract", S813_ASSISTED_CONTRACT)
+                .put("enabled", true)
+                .put("feedback_timeout_millis", assistedCoordinator.timeoutMillis)
+                .put("slots", runCaseIds.size) else JSONObject.NULL)
             .put("cases", outcomes)
         if (exhaustiveContinuation != null) {
             report.put(
@@ -942,7 +976,8 @@ class S813QualificationInstrumentedTest {
         syntheticInputText: String = "",
         forbiddenSecrets: List<String> = emptyList(),
         diagnosticIdentity: JSONObject? = null,
-    ): JSONObject {
+        assisted: S813AssistedCoordinator? = null,
+    ): S813CaseExecution {
         val caseId = case.getString("id")
         val family = case.getString("family")
         val caseContext = case.getJSONObject("context")
@@ -1037,8 +1072,9 @@ class S813QualificationInstrumentedTest {
             } else {
                 WorkflowSettlement.REQUIRED_EFFECT
             }
+            val executor = BoundedWorkflowExecutor(host)
             val outcome = withContext(Dispatchers.IO) {
-                BoundedWorkflowExecutor(host).startWithAttemptKey(
+                executor.startWithAttemptKey(
                     WorkflowRunRequest(
                         intents = caseMapping?.let(::workflowIntents) ?: intents(family),
                         userRequest = case.getString("prompt"),
@@ -1059,79 +1095,234 @@ class S813QualificationInstrumentedTest {
             val latencyMillis = (System.nanoTime() - startedNanos) / 1_000_000
             val actualPostconditions = postconditions(db, captureIds, draftIds, case, caseMapping)
             val layaEvidence = layaEvidence(context, db, case, projection, observed, caseMapping)
-            val record = JSONObject()
-                .put("case_id", caseId)
-                .put("attempt_status", "hosted_run_recorded")
-                .put("outcome", outcomeName(outcome))
-                .put("outcome_reason", when (outcome) {
-                    is WorkflowRunOutcome.Refused -> outcome.reason
-                    is WorkflowRunOutcome.Incomplete -> outcome.reason.name
-                    is WorkflowRunOutcome.Clarifying -> outcome.field ?: JSONObject.NULL
-                    is WorkflowRunOutcome.Completed -> JSONObject.NULL
-                })
-                .put("turns", outcomeTurns(outcome))
-                .put("tool_calls", outcomeCalls(outcome))
-                .put("end_to_end_latency_ms", latencyMillis)
-                .put("provider_turns", JSONArray(observed))
-                .put("masked_wire", wire.evidence())
-                .put("postconditions", actualPostconditions)
-                .put("raw_sensitive_absent_from_egress", wire.rawSensitiveAbsent)
-                .put("semantic_sensitive_inbound_detected", wire.decodedSensitiveInboundDetected)
-                .put("serialized_body_sensitive_match_detected", wire.serializedBodyMatchDetected)
-                .put(
-                    "response_privacy_refusal",
-                    privacyRefusalEvidence(
-                        (outcome as? WorkflowRunOutcome.Incomplete)?.privacyRefusal,
-                    ),
-                )
-                .put("masking_integrity", maskingEvidence(case, db, boundary, wire))
-                .put("usage", outcomeUsage(outcome))
-                .put("trace", outcomeTrace(outcome))
-                .put("masking_repairs", outcomeMaskingRepairs(outcome))
-                .put("cache_support", outcomeCacheSupport(outcome))
-                .put("verified_effects", outcomeVerifiedEffects(outcome))
-                .put("laya_evidence", layaEvidence)
-                .put(
-                    "revision_race",
-                    if (recoveryRaceInjected) {
-                        JSONObject().put("old_revision", 0).put("current_revision", 1)
-                            .put("source_text_changed", false)
-                            .put("service_conflict_observed", observedRevisionConflict(observed))
-                    } else {
-                        JSONObject.NULL
-                    },
-                )
-                .put("case_isolation", JSONObject()
-                    .put("database", "room_in_memory_per_case")
-                    .put("workflow_scope_id", scopeId)
-                    .put("capture_ids", JSONArray(captureIds.toList()))
-                    .put("draft_ids", JSONArray(draftIds.toList()))
-                    .put("fresh_vault", true)
-                    .put("fixture_reseeded_before_tools", true))
-                .put("credential_recorded", false)
-            debugCapture?.let { capture ->
-                try {
-                    observed.forEachIndexed { index, turn ->
-                        capture.recordTurn(caseId, JSONObject().put("index", index).put("data", turn))
+            val record = caseRecord(
+                caseId = caseId,
+                outcome = outcome,
+                latencyMillis = latencyMillis,
+                providerTurns = observed,
+                wire = wire,
+                postconditions = actualPostconditions,
+                layaEvidence = layaEvidence,
+                maskingIntegrity = maskingEvidence(case, db, boundary, wire),
+                recoveryRaceInjected = recoveryRaceInjected,
+                revisionConflictObserved = observedRevisionConflict(observed),
+                scopeId = scopeId,
+                captureIds = captureIds,
+                draftIds = draftIds,
+            )
+            var recordedTurns = 0
+            suspend fun recordDebug(snapshotOutcome: WorkflowRunOutcome, post: JSONObject) {
+                debugCapture?.let { capture ->
+                    try {
+                        while (recordedTurns < observed.size) {
+                            capture.recordTurn(
+                                caseId,
+                                JSONObject().put("index", recordedTurns).put("data", observed[recordedTurns]),
+                            )
+                            recordedTurns += 1
+                        }
+                        capture.recordEffects(
+                            caseId,
+                            post,
+                            outcomeName(snapshotOutcome),
+                            outcomeTrace(snapshotOutcome),
+                            JSONArray(outcomeVerifiedEffects(snapshotOutcome).toString()),
+                        )
+                    } catch (failure: S813FatalContinuationException) {
+                        throw failure
+                    } catch (failure: Throwable) {
+                        throw S813FatalContinuationException("capture_integrity_failure", failure)
                     }
-                    capture.recordEffects(
-                        caseId,
-                        actualPostconditions,
-                        outcomeName(outcome),
-                        outcomeTrace(outcome),
-                        JSONArray(outcomeVerifiedEffects(outcome).toString()),
-                    )
-                } catch (failure: S813FatalContinuationException) {
-                    throw failure
-                } catch (failure: Throwable) {
-                    throw S813FatalContinuationException("capture_integrity_failure", failure)
                 }
             }
-            return record
+            recordDebug(outcome, actualPostconditions)
+            val phaseOneTurnCount = observed.size
+            val followUpHandle = outcome.followUp
+            var followUpRunner: (suspend (String) -> JSONObject)? = null
+            if (followUpHandle != null) {
+                followUpRunner = { message: String ->
+                    val assistedStarted = System.nanoTime()
+                    val assistedOutcome = withContext(Dispatchers.IO) {
+                        executor.followUp(followUpHandle, message)
+                    }
+                    // The continuation is a distinct attempt: its record carries the phase's own
+                    // provider turns and tool trace (the first attempt was already scored), while
+                    // postconditions, masking and usage stay cumulative on the same state.
+                    val assistedTurns = observed.drop(phaseOneTurnCount)
+                    val assistedPostconditions = postconditions(db, captureIds, draftIds, case, caseMapping)
+                    val assistedRecord = caseRecord(
+                        caseId = caseId,
+                        outcome = assistedOutcome,
+                        latencyMillis = (System.nanoTime() - assistedStarted) / 1_000_000,
+                        providerTurns = assistedTurns,
+                        wire = wire,
+                        postconditions = assistedPostconditions,
+                        layaEvidence = layaEvidence(context, db, case, projection, assistedTurns, caseMapping),
+                        maskingIntegrity = maskingEvidence(case, db, boundary, wire),
+                        recoveryRaceInjected = recoveryRaceInjected,
+                        revisionConflictObserved = observedRevisionConflict(assistedTurns),
+                        scopeId = scopeId,
+                        captureIds = captureIds,
+                        draftIds = draftIds,
+                    )
+                    recordDebug(assistedOutcome, assistedPostconditions)
+                    assistedRecord
+                }
+            }
+            val slot = if (assisted != null) {
+                S813AssistedSlot(
+                    followUpOffered = outcome.followUp != null,
+                    initialProviderExchanges = wire.evidence().length(),
+                    runFollowUp = followUpRunner,
+                )
+            } else {
+                null
+            }
+            return S813CaseExecution(record, slot)
         } finally {
             laya.close()
             db.close()
         }
+    }
+
+    /**
+     * Builds the retained case record for one finished attempt.
+     *
+     * The first attempt and its one assisted continuation use this exact builder, so the scorer
+     * reads one identical field contract and the assisted record cannot claim a different shape
+     * than the record it continues.
+     */
+    private fun caseRecord(
+        caseId: String,
+        outcome: WorkflowRunOutcome,
+        latencyMillis: Long,
+        providerTurns: List<JSONObject>,
+        wire: RecordingTransport,
+        postconditions: JSONObject,
+        layaEvidence: JSONObject,
+        maskingIntegrity: JSONObject,
+        recoveryRaceInjected: Boolean,
+        revisionConflictObserved: Boolean,
+        scopeId: String,
+        captureIds: Set<Long>,
+        draftIds: Set<Long>,
+    ): JSONObject = JSONObject()
+        .put("case_id", caseId)
+        .put("attempt_status", "hosted_run_recorded")
+        .put("outcome", outcomeName(outcome))
+        .put("outcome_reason", when (outcome) {
+            is WorkflowRunOutcome.Refused -> outcome.reason
+            is WorkflowRunOutcome.Incomplete -> outcome.reason.name
+            is WorkflowRunOutcome.Clarifying -> outcome.field ?: JSONObject.NULL
+            is WorkflowRunOutcome.Completed -> JSONObject.NULL
+        })
+        .put("turns", outcomeTurns(outcome))
+        .put("tool_calls", outcomeCalls(outcome))
+        .put("end_to_end_latency_ms", latencyMillis)
+        .put("provider_turns", JSONArray(providerTurns))
+        .put("masked_wire", wire.evidence())
+        .put("postconditions", postconditions)
+        .put("raw_sensitive_absent_from_egress", wire.rawSensitiveAbsent)
+        .put("semantic_sensitive_inbound_detected", wire.decodedSensitiveInboundDetected)
+        .put("serialized_body_sensitive_match_detected", wire.serializedBodyMatchDetected)
+        .put(
+            "response_privacy_refusal",
+            privacyRefusalEvidence(
+                (outcome as? WorkflowRunOutcome.Incomplete)?.privacyRefusal,
+            ),
+        )
+        .put("masking_integrity", maskingIntegrity)
+        .put("usage", outcomeUsage(outcome))
+        .put("trace", outcomeTrace(outcome))
+        .put("masking_repairs", outcomeMaskingRepairs(outcome))
+        .put("cache_support", outcomeCacheSupport(outcome))
+        .put("verified_effects", outcomeVerifiedEffects(outcome))
+        .put("laya_evidence", layaEvidence)
+        .put(
+            "revision_race",
+            if (recoveryRaceInjected) {
+                JSONObject().put("old_revision", 0).put("current_revision", 1)
+                    .put("source_text_changed", false)
+                    .put("service_conflict_observed", revisionConflictObserved)
+            } else {
+                JSONObject.NULL
+            },
+        )
+        .put("case_isolation", JSONObject()
+            .put("database", "room_in_memory_per_case")
+            .put("workflow_scope_id", scopeId)
+            .put("capture_ids", JSONArray(captureIds.toList()))
+            .put("draft_ids", JSONArray(draftIds.toList()))
+            .put("fresh_vault", true)
+            .put("fixture_reseeded_before_tools", true))
+        .put("credential_recorded", false)
+
+    /**
+     * Runs one slot's assisted handshake: publish the exact first record, wait for the host's
+     * single decision, and (only for a failing slot) apply exactly one validated user message to
+     * the same run. Every step is written under the pass's assisted folder for the host scorer;
+     * an accepted or timed-out slot is never continued.
+     */
+    private suspend fun runAssistedStep(
+        coordinator: S813AssistedCoordinator,
+        slot: S813AssistedSlot,
+        caseId: String,
+        firstRecord: JSONObject,
+        initialAdjudication: JSONObject?,
+        caseMapping: JSONObject?,
+    ) {
+        val firstSha = coordinator.publishReady(caseId, firstRecord)
+        val awaited = coordinator.awaitDecision(caseId, firstSha)
+        val record = JSONObject()
+            .put("contract", S813_ASSISTED_CONTRACT)
+            .put("attempt_id", coordinator.attemptId)
+            .put("snapshot_id", coordinator.snapshotId)
+            .put("pass", coordinator.pass)
+            .put("case_id", caseId)
+            .put("first_record_sha256", firstSha)
+            .put("status", awaited.status)
+            .put("detail", awaited.detail ?: JSONObject.NULL)
+            .put("follow_up_offered", slot.followUpOffered)
+            .put("initial_provider_exchanges", slot.initialProviderExchanges)
+            .put("initial_turns", firstRecord.optInt("turns"))
+            .put("initial_tool_calls", firstRecord.optInt("tool_calls"))
+            .put("history_identity", JSONObject()
+                .put("same_run", true)
+                .put("same_scope", true)
+                .put("same_vault", true)
+                .put("same_reference_registry", true)
+                .put("same_room_database", true)
+                .put("same_journal", true)
+                .put("same_configuration", true))
+            .put("decision", awaited.decision?.kind ?: JSONObject.NULL)
+            .put("feedback", awaited.decision?.feedback?.json() ?: JSONObject.NULL)
+            .put("initial_adjudication", initialAdjudication ?: JSONObject.NULL)
+            .put("provider_turns_scope", "assisted_phase_only")
+            .put("usage_scope", "cumulative")
+            .put("state_scope", "cumulative")
+        if (awaited.status == S813_ASSISTED_STATUS_FEEDBACK) {
+            val feedback = requireNotNull(awaited.decision?.feedback)
+            val runner = slot.runFollowUp
+            if (runner == null) {
+                record.put("status", S813_ASSISTED_STATUS_UNAVAILABLE)
+                    .put("detail", "no_idle_follow_up")
+            } else {
+                val second = runner(feedback.message)
+                val secondAdjudication = caseMapping?.let { s813CaseAdjudication(second, it) }
+                record.put("assisted_record", second)
+                    .put("assisted_record_sha256", s813Sha256Hex(second.toString(2)))
+                    .put("assisted_turns", second.optInt("turns"))
+                    .put("assisted_tool_calls", second.optInt("tool_calls"))
+                    .put("assisted_provider_exchanges", second.optJSONArray("masked_wire")?.length() ?: 0)
+                    .put("assisted_adjudication", secondAdjudication ?: JSONObject.NULL)
+                    .put(
+                        "cumulative_safety_ok",
+                        (initialAdjudication?.optBoolean("financial_safety_match") != false) &&
+                            (secondAdjudication?.optBoolean("financial_safety_match") != false),
+                    )
+            }
+        }
+        coordinator.writeRecord(caseId, record)
     }
 
     private fun observedRevisionConflict(observed: List<JSONObject>): Boolean =
@@ -1736,6 +1927,7 @@ class S813QualificationInstrumentedTest {
 
     private fun outcomeCacheSupport(value: WorkflowRunOutcome): String? = when (value) {
         is WorkflowRunOutcome.Completed -> value.cacheSupport.name
+        is WorkflowRunOutcome.Clarifying -> value.cacheSupport.name
         is WorkflowRunOutcome.Incomplete -> value.cacheSupport.name
         else -> null
     }
@@ -1809,12 +2001,14 @@ class S813QualificationInstrumentedTest {
 
     private fun outcomeTurns(value: WorkflowRunOutcome) = when (value) {
         is WorkflowRunOutcome.Completed -> value.turns
+        is WorkflowRunOutcome.Clarifying -> value.turns
         is WorkflowRunOutcome.Incomplete -> value.turns
         else -> 0
     }
 
     private fun outcomeCalls(value: WorkflowRunOutcome) = when (value) {
         is WorkflowRunOutcome.Completed -> value.toolCalls
+        is WorkflowRunOutcome.Clarifying -> value.toolCalls
         is WorkflowRunOutcome.Incomplete -> value.toolCalls
         else -> 0
     }
@@ -1822,6 +2016,7 @@ class S813QualificationInstrumentedTest {
     private fun outcomeUsage(value: WorkflowRunOutcome): JSONArray {
         val rows = when (value) {
             is WorkflowRunOutcome.Completed -> value.usage
+            is WorkflowRunOutcome.Clarifying -> value.usage
             is WorkflowRunOutcome.Incomplete -> value.usage
             else -> emptyList()
         }

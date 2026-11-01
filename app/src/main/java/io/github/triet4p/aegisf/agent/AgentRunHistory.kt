@@ -448,16 +448,19 @@ class AgentRunHistory(
     private fun safeObservation(outcome: WorkflowRunOutcome, boundary: MaskedPromptBoundary): String {
         val usage = when (outcome) {
             is WorkflowRunOutcome.Completed -> outcome.usage
+            is WorkflowRunOutcome.Clarifying -> outcome.usage
             is WorkflowRunOutcome.Incomplete -> outcome.usage
             else -> emptyList()
         }
         val support = when (outcome) {
             is WorkflowRunOutcome.Completed -> outcome.cacheSupport
+            is WorkflowRunOutcome.Clarifying -> outcome.cacheSupport
             is WorkflowRunOutcome.Incomplete -> outcome.cacheSupport
             else -> null
         }
         val cacheFingerprint = when (outcome) {
             is WorkflowRunOutcome.Completed -> outcome.cacheKey?.fingerprint()
+            is WorkflowRunOutcome.Clarifying -> outcome.cacheKey?.fingerprint()
             is WorkflowRunOutcome.Incomplete -> outcome.cacheKey?.fingerprint()
             else -> null
         }
@@ -485,7 +488,11 @@ class AgentRunHistory(
                         (cacheFingerprint?.let { " key=${it.take(12)}" } ?: "") +
                         (compaction?.let { " compacted=${it.droppedToolResults}" } ?: "")
                 is WorkflowRunOutcome.Clarifying -> "clarifying field=${outcome.field}" +
-                    (outcome.maskingRepairs.takeIf { it.isNotEmpty() }?.let { " masking_repairs=${it.size}" } ?: "")
+                    " turns=${outcome.turns} tools=${outcome.toolCalls}" +
+                    (outcome.maskingRepairs.takeIf { it.isNotEmpty() }?.let { " masking_repairs=${it.size}" } ?: "") +
+                    " in=$inTotal out=$outTotal cached=$cachedTotal" +
+                    " cache=${support?.name?.lowercase() ?: "na"}" +
+                    (cacheFingerprint?.let { " key=${it.take(12)}" } ?: "")
                 is WorkflowRunOutcome.Refused -> "refused reason=${outcome.reason}" +
                     (outcome.maskingRepairs.takeIf { it.isNotEmpty() }?.let { " masking_repairs=${it.size}" } ?: "")
                 is WorkflowRunOutcome.Incomplete ->
@@ -522,9 +529,14 @@ class AgentRunHistory(
                     .put("cacheFingerprint", cacheFingerprint?.take(16) ?: JSONObject.NULL)
                     .put("compactedToolResults", compaction?.droppedToolResults ?: 0)
             is WorkflowRunOutcome.Clarifying -> JSONObject().put("field", outcome.field)
+                .put("turns", outcome.turns).put("toolCalls", outcome.toolCalls)
                 .put("maskingRepairs", JSONArray().also { out ->
                     outcome.maskingRepairs.forEach { repair -> out.put(repairRecordJson(repair)) }
                 })
+                .put("inputTokens", inTotal).put("outputTokens", outTotal)
+                .put("cachedInputTokens", cachedTotal)
+                .put("cacheSupport", support?.name ?: JSONObject.NULL)
+                .put("cacheFingerprint", cacheFingerprint?.take(16) ?: JSONObject.NULL)
             is WorkflowRunOutcome.Refused -> JSONObject().put("reason", outcome.reason)
                 .put("maskingRepairs", JSONArray().also { out ->
                     outcome.maskingRepairs.forEach { repair -> out.put(repairRecordJson(repair)) }

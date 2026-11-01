@@ -637,6 +637,161 @@ class BoundedWorkflowExecutorTest {
         }
 
     @Test
+    fun `one assisted follow-up continues the same conversation and reference registry`() = runBlocking {
+        val fixture = prepare()
+        lateinit var adapter: ScriptedAdapter
+        val script = scripted()
+        var eventRef = ""
+        var promptsBeforeFollowUp = 0
+        script += { toolTurn(call("select_source", JSONObject()
+            .put("capture_ref", captureRef(adapter))
+            .put("quote", sourceText(adapter))
+            .put("occurrence", 1))) }
+        script += {
+            val source = previousEnvelope(adapter, 1).getJSONObject("data")
+            toolTurn(call("make_time_anchor", JSONObject()
+                .put("date_ref", valueRef(source, "date"))
+                .put("time_ref", valueRef(source, "time"))
+                .put("end_date_ref", JSONObject.NULL)
+                .put("end_time_ref", JSONObject.NULL)))
+        }
+        script += {
+            val source = previousEnvelope(adapter, 2).getJSONObject("data")
+            toolTurn(call("record_event", JSONObject()
+                .put("source_ref", source.getString("source_ref"))
+                .put("summary", "Coffee")
+                .put("amount_ref", valueRef(source, "amount"))
+                .put("anchor_ref", lastEnvelope(adapter).getJSONObject("data").getString("anchor_ref"))
+                .put("merchant_ref", JSONObject.NULL)
+                .put("clarification", "none")))
+        }
+        script += {
+            eventRef = lastEnvelope(adapter).getJSONObject("data")
+                .getJSONObject("event").getString("ref")
+            complete("Stored the coffee reading.")
+        }
+        // Exactly one assisted user message, then a real dispatch on the same reference registry.
+        script += {
+            promptsBeforeFollowUp = adapter.prompts.size
+            toolTurn(call("observe", JSONObject().put("ref", eventRef)))
+        }
+        script += {
+            val notice = adapter.notices.single()
+            assertTrue(
+                notice,
+                notice.contains("Please confirm whether") && notice.contains("is right."),
+            )
+            assertTrue(notice, notice.contains("issued_mask_token_inventory"))
+            assertEquals(
+                "event",
+                lastEnvelope(adapter).getJSONObject("data").getJSONObject("observation").getString("kind"),
+            )
+            complete("The same reading is still stored.")
+        }
+        adapter = ScriptedAdapter(script)
+        val executor = executor(fixture, adapter)
+        val first = executor.start(WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
+            userRequest = "Interpret the coffee note.",
+        ))
+        assertTrue("expected completion, got $first", first is WorkflowRunOutcome.Completed)
+        first as WorkflowRunOutcome.Completed
+        val followUp = requireNotNull(first.followUp) { "a completed idle run must offer one follow-up" }
+        assertEquals(first.turns, followUp.initialTurns)
+        assertEquals(first.toolCalls, followUp.initialToolCalls)
+
+        val assisted = executor.followUp(followUp, "Please confirm whether 25,000 VND is right.")
+        assertTrue("expected assisted completion, got $assisted", assisted is WorkflowRunOutcome.Completed)
+        assisted as WorkflowRunOutcome.Completed
+        assertEquals("the follow-up must not start a new provider conversation", promptsBeforeFollowUp, adapter.prompts.size)
+        assertEquals(first.turns + 2, assisted.turns)
+        assertEquals(first.toolCalls + 1, assisted.toolCalls)
+        assertNull("a follow-up phase never mints another follow-up", assisted.followUp)
+        assertEquals(1, database.noteEventDao().findForCapture(fixture.captureId).size)
+        assertTrue("the event alias is not empty", eventRef.isNotEmpty())
+        assertTrue("one transcript stays intact", adapter.toolResultPayloads.size == 4)
+    }
+
+    @Test
+    fun `a follow-up handle is single use and refuses a blank message`() = runBlocking {
+        val fixture = prepare()
+        lateinit var adapter: ScriptedAdapter
+        val script = scripted()
+        script += { toolTurn(call("select_source", JSONObject()
+            .put("capture_ref", captureRef(adapter))
+            .put("quote", sourceText(adapter))
+            .put("occurrence", 1))) }
+        script += {
+            val source = previousEnvelope(adapter, 1).getJSONObject("data")
+            toolTurn(call("record_event", JSONObject()
+                .put("source_ref", source.getString("source_ref"))
+                .put("summary", "Coffee")
+                .put("amount_ref", valueRef(source, "amount"))
+                .put("anchor_ref", JSONObject.NULL)
+                .put("merchant_ref", JSONObject.NULL)
+                .put("clarification", "none")))
+        }
+        script += { complete("Stored.") }
+        script += { complete("Still stored.") }
+        adapter = ScriptedAdapter(script)
+        val executor = executor(fixture, adapter)
+        val first = executor.start(WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
+            userRequest = "Interpret the coffee note.",
+        ))
+        first as WorkflowRunOutcome.Completed
+        val followUp = requireNotNull(first.followUp)
+        val blank = runCatching { executor.followUp(followUp, "   ") }
+        assertTrue("a blank follow-up must be refused", blank.exceptionOrNull() is IllegalArgumentException)
+        val assisted = executor.followUp(followUp, "Anything else I should record?")
+        assertTrue("expected assisted completion, got $assisted", assisted is WorkflowRunOutcome.Completed)
+        val reused = runCatching { executor.followUp(followUp, "One more message.") }
+        assertTrue("a second message must be refused", reused.exceptionOrNull() is IllegalStateException)
+    }
+
+    @Test
+    fun `clarifying outcomes report the turns and tool calls they actually spent`() = runBlocking {
+        val fixture = prepare()
+        lateinit var adapter: ScriptedAdapter
+        val script = scripted()
+        script += { toolTurn(call("select_source", JSONObject()
+            .put("capture_ref", captureRef(adapter))
+            .put("quote", sourceText(adapter))
+            .put("occurrence", 1))) }
+        script += {
+            val source = previousEnvelope(adapter, 1).getJSONObject("data")
+            toolTurn(call("record_event", JSONObject()
+                .put("source_ref", source.getString("source_ref"))
+                .put("summary", "Coffee")
+                .put("amount_ref", JSONObject.NULL)
+                .put("anchor_ref", JSONObject.NULL)
+                .put("merchant_ref", JSONObject.NULL)
+                .put("clarification", "amount")))
+        }
+        script += {
+            val source = previousEnvelope(adapter, 2).getJSONObject("data")
+            toolTurn(call("ask_user", JSONObject()
+                .put("subject_ref", source.getString("source_ref"))
+                .put("field", "amount")
+                .put("question", "What was the amount?")))
+        }
+        adapter = ScriptedAdapter(script)
+        val outcome = run(fixture, adapter, WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
+            userRequest = "Interpret the coffee note.",
+        ))
+        assertTrue("expected clarification, got $outcome", outcome is WorkflowRunOutcome.Clarifying)
+        outcome as WorkflowRunOutcome.Clarifying
+        assertEquals(3, outcome.turns)
+        assertEquals(3, outcome.toolCalls)
+        assertTrue(
+            "every dispatched call is traced",
+            outcome.trace.count { it.state == WorkflowRunState.DISPATCHING } >= 3,
+        )
+        assertNotNull("a clarifying run must offer one follow-up", outcome.followUp)
+    }
+
+    @Test
     fun `local model unavailability completes truthfully without a prediction`() = runBlocking {
         val fixture = prepare()
         lateinit var adapter: ScriptedAdapter

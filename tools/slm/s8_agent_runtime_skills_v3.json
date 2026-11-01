@@ -4,7 +4,7 @@
   "skills": [
     {
       "skill_id": "event-reading",
-      "skill_version": 4,
+      "skill_version": 5,
       "trigger": "The user asks to interpret or correct captured occurrences.",
       "tools": ["observe", "select_source", "make_time_anchor", "record_event", "ask_user"],
       "prerequisites": [
@@ -12,7 +12,8 @@
         "Every reference, view offset and value alias comes from a current observation. Aliases are opaque and are never constructed, reused across runs or parsed.",
         "Capture-page amount/date/time aliases are display-only. record_event and make_time_anchor accept value aliases issued by select_source for the selected occurrence, or by a clarification linked to that exact subject; a capture-page alias is not occurrence evidence.",
         "A merchant is a source handle, not a value alias and not prose. When the occurrence names its seller or place as the transaction counterparty, select that exact merchant substring with select_source in the same capture and pass the returned source alias as merchant_ref; it must lie inside the recorded occurrence's span. A product, item or activity description is not a merchant. Leave merchant_ref null when the occurrence states no counterparty, or when the candidate wording is uncertain; an absent or uncertain optional merchant is normal, not clarification-required and not a failed reading by itself.",
-        "A date-only anchor is complete without a time. A time needs its grounded date. A relative date needs an exact available DATE alias, otherwise ask for an absolute date."
+        "A date-only anchor is complete without a time. A time needs its grounded date. A relative date needs an exact available DATE alias, otherwise ask for an absolute date.",
+        "The clarification field names the exact temporal component the source or user leaves unresolved; it is not a prerequisite you inferred. When the source says the clock time is not remembered, the unresolved component is time (clarification time) even though the date is also absent. The summary keeps that same meaning: never restate a missing clock time as a missing date. A supplied time still needs its grounded date before an anchor is stored."
       ],
       "tool_order": [
         "Inspect the authorized capture/current events and identify each distinct source-grounded occurrence; do not manufacture one for a no-match request.",
@@ -26,7 +27,7 @@
       ],
       "branches": {
         "normal": "A complete occurrence uses the source alias and the amount/anchor aliases select_source issued for it (or an anchor make_time_anchor built from those grounded aliases) with clarification none. An explicitly named seller-or-place counterparty is recorded by passing the source alias select_source issued for that exact merchant substring; an occurrence that names no counterparty, or whose candidate wording is uncertain, leaves merchant_ref null with clarification none, and that null is not an error.",
-        "clarification": "A grounded but incomplete occurrence is stored with missing values null and the matching clarification field, then followed by one focused ask_user question.",
+        "clarification": "A grounded but incomplete occurrence is stored with missing values null and the matching clarification field, then followed by one focused ask_user question. The field is the component the source or user actually leaves unresolved: when the clock time is not remembered it is time, even if the date is also ungrounded, and never date in its place. The stored summary preserves that component and meaning.",
         "no_match": "Report that no supported occurrence was found; do not create a reading.",
         "error": "On error, use the actual code, path and constraint. STALE_OBSERVATION means observe and reassess; SOURCE_QUOTE_NOT_FOUND means reselect exact text; MISSING_REQUIRED_MEANING means correct or ask.",
         "retry": "Never resend the same failed call blindly. A correction uses fresh observations and is a new request; exact replay is only via a recorded operation alias."
@@ -85,6 +86,18 @@
             "clarification": "none"
           },
           "expected": "One verified reading with interpreted status and merchant null. An uncertain candidate is left null rather than guessed; absence or uncertainty of the optional merchant alone is neither clarification-required nor a failed reading."
+        },
+        {
+          "given": "The captured line states an amount and that the clock time cannot be recalled, and gives no date. select_source on the exact occurrence quote returns src_e with its amount alias only; no date or time alias is grounded.",
+          "arguments": {
+            "source_ref": "src_e",
+            "summary": "Bus fare; clock time not remembered",
+            "amount_ref": "amt_e",
+            "anchor_ref": null,
+            "merchant_ref": null,
+            "clarification": "time"
+          },
+          "expected": "One grounded partial reading with amount stored, both temporal fields null and clarification time, followed by ask_user field time about the clock time. Do not answer a missing clock time by asking for the date instead, and do not rewrite the summary as a missing date."
         }
       ],
       "completion": "Each requested occurrence has a verified current reading, or the run reports pending clarification, no-match or a partial outcome truthfully."
@@ -131,13 +144,14 @@
     },
     {
       "skill_id": "link-event-draft",
-      "skill_version": 2,
+      "skill_version": 3,
       "trigger": "The user asks to propose or attach an event-draft association.",
       "tools": ["observe", "list_drafts", "inspect_link", "propose_link", "attach_link", "ask_user"],
       "prerequisites": [
         "Use current event and draft aliases from observations in the trusted scope.",
         "Do not infer an association from prose, ids, dates or similar amounts. The application computes trusted evidence.",
-        "Attachment is allowed only for the exact inspected eligible pair; the agent never supplies an override."
+        "Attachment is allowed only for the exact inspected eligible pair; the agent never supplies an override.",
+        "Every observation carries the application's own user_label for that row (for example 'draft #421' or 'event #313'), and a pair observation names the exact event_label and draft_label it binds. Whenever you name a row to the user, copy the label from the observation of the exact alias you used. Never infer an id from list order or from your own notes, and never describe a proposal as being against a different draft than the pair observation the tool returned."
       ],
       "tool_order": [
         "Read the current event and candidate drafts.",
@@ -145,7 +159,7 @@
         "If no eligible pair exists, report no match or ineligibility; never change amounts or dates to force eligibility.",
         "If only a tentative proposal was requested, propose and stop after the verified proposal.",
         "If attachment was requested and permitted, propose, inspect the returned state, then attach the exact eligible proposal.",
-        "On ambiguity, record the single inspected candidate as a tentative proposal when the user asked for one, leave it unattached, then ask the user to choose. On stale evidence, observe and reinspect rather than retry blindly.",
+        "On ambiguity, record the single inspected candidate as a tentative proposal when the user asked for one, leave it unattached, then ask the user to choose. State the proposed row with the draft_label from the proposal's own pair observation, and name the other candidate only with the label from its own draft observation. On stale evidence, observe and reinspect rather than retry blindly.",
         "Finish attachment only on a verified ACCEPTED pair. No ledger confirmation is implied."
       ],
       "branches": {
@@ -166,6 +180,15 @@
           "given": "Observation issues event alias evt_a and draft alias draft_a. inspect_link returns pair alias pair_a with eligibility eligible.",
           "arguments": { "pair_ref": "pair_a" },
           "expected": "A proposal alias and actual proposal state. Attach only if the user requested attachment."
+        },
+        {
+          "given": "Two duplicate-looking drafts are observed as draft aliases draft_x (user_label 'draft #41') and draft_y (user_label 'draft #42'). inspect_link on event alias evt_a with draft_x returns pair alias pair_x and draft_label 'draft #41'; propose_link on pair_x returns a PROPOSED link and a fresh pair observation with the same draft_label.",
+          "arguments": {
+            "subject_ref": "pair_x",
+            "field": "candidate",
+            "question": "I recorded a tentative, unattached proposal against draft #41. Which draft should the event be attached to: draft #41, draft #42, or neither?"
+          },
+          "expected": "A tentative proposal with no attachment and one focused choice question. Both row names are copied from their own observations; the question never claims the proposal is against the other draft."
         }
       ],
       "completion": "A fresh application observation shows the intended proposal, or the exact pair ACCEPTED when attachment was requested. No ledger row exists."

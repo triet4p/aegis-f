@@ -114,11 +114,17 @@ class WorkflowSkillCatalog private constructor(
             // Version 4 adds focused select_source/record_event fewshots: only an explicitly named
             // seller-or-place counterparty is a merchant; a product/item/activity description is
             // never promoted, and an absent or uncertain merchant stays null without clarification.
-            WorkflowSkillId.EVENT_READING to 4,
+            // Version 5 names the exact unresolved temporal component for a clarification: a stated
+            // clock time that is not remembered is clarification time even when the date is also
+            // ungrounded, and the summary keeps that meaning instead of restating it as a missing date.
+            WorkflowSkillId.EVENT_READING to 5,
             WorkflowSkillId.DRAFT_SEARCH to 1,
             // Version 2 states that eligibility governs attachment only: an ambiguous pair may
             // still be recorded as one tentative proposal before the user is asked to choose.
-            WorkflowSkillId.LINK_EVENT_DRAFT to 2,
+            // Version 3 grounds user-visible narration: every observation carries the application's
+            // own user_label and a pair observation names the exact event/draft labels it binds, so a
+            // candidate question copies the proposed row's label instead of inferring it from order.
+            WorkflowSkillId.LINK_EVENT_DRAFT to 3,
             WorkflowSkillId.LOCAL_REVIEW to 1,
             WorkflowSkillId.OPERATION_REPLAY to 1,
         )

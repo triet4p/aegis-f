@@ -419,3 +419,32 @@ and the masking boundary are mandatory constraints, not tradeable numbers. The
 approval blocker is exactly one: **owner approval of numeric quality targets** before
 S8.13 qualification. All other contract work in §§1–9 is reachable without it and is
 not blocked.
+
+## 11. Follow-up continuation and assisted PASS@2
+
+A finished run whose provider conversation is idle MAY be continued exactly once with one
+user follow-up message. The follow-up is a normal masked user turn appended to the existing
+conversation: prior assistant text, tool calls and their actual results stay byte-identical,
+the run's host, scope, vault, reference registry, journal and current state stay in force, and
+the complete issued-token inventory is re-rendered as the last element of that turn. It is not
+a clarification answer, so it never registers clarification evidence or mints a typed value the
+user did not supply. The opportunity is single-use, is not minted for a run that ended with
+unanswered tool calls, and a follow-up phase never mints another one.
+
+Phase accounting: each phase runs under the same frozen per-request turn/tool/time/context
+limits, with phase counters restarting and cumulative totals reported. A follow-up that would
+need compaction instead stops with `CONTEXT_BUDGET`, because compaction would remove the actual
+first-attempt tool results the continuation must preserve.
+
+Assisted evaluation uses this seam only for a slot whose first attempt fails the frozen rubric:
+
+- exactly one host-authored message per failed slot, validated as one bounded message with no
+  tool name, opaque reference, masked-token delimiter, case identifier or undeclared field, plus
+  an author attestation for the prohibitions prose cannot prove;
+- the same state is preserved by an in-session pause (the process keeps the same run, database,
+  vault, references and journal) rather than a replay or a rehydrated fixture;
+- passing slots are never continued and no fixture is reseeded;
+- PASS@1 counts first attempts, assisted PASS@2 adds only recovered slots, and recovery requires
+  the continued attempt to pass the same rubric, the assisted semantic review to PASS, and both
+  the first and continued states to be financially/authority safe and masking-clean. Cumulative
+  safety violations are not erased by recovery.

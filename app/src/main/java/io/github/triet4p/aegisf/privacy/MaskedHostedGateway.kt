@@ -142,6 +142,23 @@ class MaskedHostedGateway(
         return MaskedConversation(adapter.appendUserNotice(conversation.inner, masked), boundary)
     }
 
+    /**
+     * Appends one user follow-up message as the next native user turn on the same conversation.
+     *
+     * This is the assisted-follow-up seam: the message is masked outbound exactly like any other
+     * prompt text, every prior item (assistant text, tool calls and their actual results) is kept
+     * byte-for-byte, and the conversation must have no pending call. It is not a clarification
+     * answer, so the caller never registers it as clarification evidence.
+     */
+    fun appendUserMessage(conversation: MaskedConversation, message: String): MaskedConversation {
+        conversation.requireBoundary(boundary)
+        require(conversation.pendingCallIds.isEmpty()) {
+            "A user follow-up cannot be appended while tool calls are unanswered."
+        }
+        val masked = maskOrThrow(message)
+        return MaskedConversation(adapter.appendUserNotice(conversation.inner, masked), boundary)
+    }
+
     private fun maskOrThrow(text: String): String = boundary.maskOutbound(text, MaskedPath.CONTEXT)
 
     private fun maskTurnOrBlock(turn: HostedTurn): HostedTurn {
