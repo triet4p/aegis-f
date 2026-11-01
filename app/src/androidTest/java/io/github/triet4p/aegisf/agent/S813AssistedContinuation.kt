@@ -2,6 +2,7 @@ package io.github.triet4p.aegisf.agent
 
 import java.io.File
 import kotlinx.coroutines.delay
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -126,11 +127,61 @@ internal class S813AssistedSlot(
     val runFollowUp: (suspend (String) -> JSONObject)?,
 )
 
-/** One case's first record plus the assisted hooks it exposes. */
+/**
+ * One case's first record plus the assisted hooks it exposes.
+ *
+ * The first attempt's Room database and Laya lifecycle stay owned by this execution until
+ * [close], because the assisted step reads that same live state for its postconditions, masking
+ * and Laya evidence after the host's decision. The batch closes it exactly once on every path;
+ * a failure inside [runCase] itself closes it before the failure propagates.
+ */
 internal class S813CaseExecution(
     val record: JSONObject,
     val assisted: S813AssistedSlot?,
-)
+    private val release: (() -> Unit)? = null,
+) : AutoCloseable {
+    private var released = false
+
+    override fun close() {
+        if (released) return
+        released = true
+        release?.invoke()
+    }
+}
+
+internal const val S813_ASSISTED_STATUS_STEP_ERROR = "assisted_step_error"
+
+/**
+ * TEST_ONLY lifecycle trace for the assisted resource-lifetime smoke.
+ *
+ * It stays inert until [enable] is called, so a hosted run records nothing extra. The trace
+ * exists to prove one observable boundary: a case's Room database and Laya lifecycle stay open
+ * through the in-session host pause and the assisted record that reads them, and are released
+ * exactly once afterwards, before the next case starts.
+ */
+internal object S813CaseLifecycleProbe {
+    private val events = mutableListOf<JSONObject>()
+    private var enabled = false
+
+    fun enable() {
+        enabled = true
+        events.clear()
+    }
+
+    fun record(caseId: String, event: String) {
+        if (!enabled) return
+        events += JSONObject()
+            .put("sequence", events.size)
+            .put("case_id", caseId)
+            .put("event", event)
+    }
+
+    fun eventsFor(caseId: String): List<JSONObject> =
+        events.filter { it.optString("case_id") == caseId }
+
+    fun snapshot(): JSONArray =
+        JSONArray().also { out -> events.forEach { out.put(JSONObject(it.toString())) } }
+}
 
 /** What the device learned when it waited for a slot decision. */
 internal data class S813AssistedAwait(

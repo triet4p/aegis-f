@@ -444,6 +444,13 @@ Assisted evaluation uses this seam only for a slot whose first attempt fails the
 - the same state is preserved by an in-session pause (the process keeps the same run, database,
   vault, references and journal) rather than a replay or a rehydrated fixture;
 - passing slots are never continued and no fixture is reseeded;
+- the device keeps the case's live Room database and Laya lifecycle open through the host pause
+  and the assisted record build, and releases them exactly once after that record is durable, so
+  the continuation's postconditions, masking and Laya evidence are read from the same state
+  rather than a rebuilt or rehydrated one;
+- a slot-level failure while applying the decision is retained as an `assisted_step_error` record
+  that keeps the first verdict and lets the remaining slots run; structured cancellation still
+  propagates and is never swallowed;
 - PASS@1 counts first attempts, assisted PASS@2 adds only recovered slots, and recovery requires
   the continued attempt to pass the same rubric, the assisted semantic review to PASS, and both
   the first and continued states to be financially/authority safe and masking-clean. Cumulative

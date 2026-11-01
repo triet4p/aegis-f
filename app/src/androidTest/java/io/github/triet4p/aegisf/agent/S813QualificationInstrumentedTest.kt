@@ -70,6 +70,7 @@ import java.security.MessageDigest
 import java.time.Instant
 import java.util.Locale
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -500,6 +501,19 @@ class S813QualificationInstrumentedTest {
         val pass = requireNotNull(args.getString("S813_PASS"))
         val rawCaseIds = args.getString("S813_CASE_IDS")
         val mode = s813QualificationMode(pass, rawCaseIds)
+        val scriptedProvider = args.getString(S813ScriptedProvider.ARG)?.takeIf { it.isNotBlank() }
+        if (scriptedProvider != null) {
+            require(scriptedProvider == S813ScriptedProvider.CONTRACT) {
+                "unknown scripted lifecycle provider contract: $scriptedProvider"
+            }
+            require(context.packageName == S813DebugCapture.ISOLATED_PACKAGE) {
+                "the scripted lifecycle provider is TEST_ONLY and only permitted in the isolated qualification package"
+            }
+            require(mode == S813QualificationMode.REPRODUCTION) {
+                "the scripted lifecycle provider runs an explicit reproduction subset, never a complete repetition"
+            }
+            S813CaseLifecycleProbe.enable()
+        }
         val fullSuite = mode == S813QualificationMode.FULL_SUITE
         val v3Diagnostic = mode == S813QualificationMode.DIAGNOSTIC
         val v3Reproduction = mode == S813QualificationMode.REPRODUCTION
@@ -609,6 +623,9 @@ class S813QualificationInstrumentedTest {
                 runCaseIds.isNotEmpty()
             },
         )
+        val scriptedPlan = scriptedProvider?.let {
+            S813ScriptedProvider.decisionPlan(args.getString(S813ScriptedProvider.PLAN_ARG), runCaseIds)
+        }
         val rows = JSONArray().apply {
             runCaseIds.forEach { id -> put(requireNotNull(caseRows[id]) { "selected case is not in frozen inputs" }) }
         }
@@ -697,7 +714,11 @@ class S813QualificationInstrumentedTest {
                 .toString(2))
             return@runBlocking
         }
-        val credential = s813ReadOneShotCredential(s813RequiredCredentialPort(instrumentationArguments))
+        val credential = if (scriptedProvider != null) {
+            S813ScriptedProvider.CREDENTIAL
+        } else {
+            s813ReadOneShotCredential(s813RequiredCredentialPort(instrumentationArguments))
+        }
         require(credential.isNotBlank())
         if (rows.toString().contains(credential)) error("credential unexpectedly overlaps fixture data")
         val provider = providerConfig(profile, credential, maxOutputTokens)
@@ -814,6 +835,7 @@ class S813QualificationInstrumentedTest {
                     context, case, runtimeFixture, projection, provider, profile, pass, runDir,
                     caseMapping, debugCapture, syntheticInputText, listOf(credential), diagnosticIdentity,
                     assistedCoordinator,
+                    scriptedAdapter = scriptedProvider?.let { S813ScriptedProvider.adapter() },
                 )
             } catch (failure: Throwable) {
                 fatalClass = (failure as? S813FatalContinuationException)?.fatalClass
@@ -831,49 +853,57 @@ class S813QualificationInstrumentedTest {
                     assisted = null,
                 )
             }
-            val result = bindDiagnosticIdentity(execution.record)
-            if (fatalClass == null) {
-                fatalClass = debugCapture?.fatalReason()
-            }
-            outcomes.put(result)
-            val adjudication = caseMapping?.let { qualificationAdjudication(result, it) }
-            if (adjudication != null) {
-                result.put("adjudication_version", S813_ADJUDICATION_VERSION)
-                result.put("financial_safety_match", adjudication.optBoolean("financial_safety_match"))
-                result.put("quality_findings", adjudication.getJSONArray("quality_findings"))
-            }
-            val continuation = if (exhaustiveContinuation != null) {
-                s813ContinuationDecision(case.getString("id"), result, adjudication, fatalClass)
-            } else {
-                null
-            }
-            if (continuation != null) {
-                result.put("batch_continuation", continuation)
-                result.put("slot_provenance", "measured_this_attempt")
-                caseDecisions += continuation
-            }
-            File(runDir, "${case.getString("id")}.json").writeText(result.toString(2))
-            val assistedSlot = execution.assisted
-            if (assistedCoordinator != null && assistedSlot != null) {
-                runAssistedStep(
-                    coordinator = assistedCoordinator,
-                    slot = assistedSlot,
-                    caseId = case.getString("id"),
-                    firstRecord = result,
-                    initialAdjudication = adjudication,
-                    caseMapping = caseMapping,
-                )
-            }
-            safetyStop = if (exhaustiveContinuation != null) {
-                continuation?.let {
-                    if (it.getString("decision") == S813_EXHAUSTIVE_DECISION_STOP) it.optString("reason") else null
+            try {
+                val result = bindDiagnosticIdentity(execution.record)
+                if (fatalClass == null) {
+                    fatalClass = debugCapture?.fatalReason()
                 }
-            } else {
-                adjudication?.let {
-                    if (it.isNull("safety_stop")) null else it.getString("safety_stop")
-                } ?: if (requestedCaseIds != null) diagnosticStopReason(result) else null
+                outcomes.put(result)
+                val adjudication = caseMapping?.let { qualificationAdjudication(result, it) }
+                if (adjudication != null) {
+                    result.put("adjudication_version", S813_ADJUDICATION_VERSION)
+                    result.put("financial_safety_match", adjudication.optBoolean("financial_safety_match"))
+                    result.put("quality_findings", adjudication.getJSONArray("quality_findings"))
+                }
+                val continuation = if (exhaustiveContinuation != null) {
+                    s813ContinuationDecision(case.getString("id"), result, adjudication, fatalClass)
+                } else {
+                    null
+                }
+                if (continuation != null) {
+                    result.put("batch_continuation", continuation)
+                    result.put("slot_provenance", "measured_this_attempt")
+                    caseDecisions += continuation
+                }
+                File(runDir, "${case.getString("id")}.json").writeText(result.toString(2))
+                S813CaseLifecycleProbe.record(case.getString("id"), "first_record_persisted")
+                val assistedSlot = execution.assisted
+                if (assistedCoordinator != null && assistedSlot != null) {
+                    runAssistedStep(
+                        coordinator = assistedCoordinator,
+                        slot = assistedSlot,
+                        caseId = case.getString("id"),
+                        firstRecord = result,
+                        initialAdjudication = adjudication,
+                        caseMapping = caseMapping,
+                        redactFailure = { text -> provider.authentication.redact(text) },
+                    )
+                }
+                safetyStop = when {
+                    scriptedProvider != null -> S813ScriptedProvider.scriptedSafetyStop(result)
+                    exhaustiveContinuation != null -> continuation?.let {
+                        if (it.getString("decision") == S813_EXHAUSTIVE_DECISION_STOP) it.optString("reason") else null
+                    }
+                    else -> adjudication?.let {
+                        if (it.isNull("safety_stop")) null else it.getString("safety_stop")
+                    } ?: if (requestedCaseIds != null) diagnosticStopReason(result) else null
+                }
+                if (safetyStop != null) stopFatalClass = fatalClass
+            } finally {
+                // The first attempt and its assisted step own the case's Room/Laya lifetime; the
+                // batch releases them exactly once, after the assisted record is durable.
+                execution.close()
             }
-            if (safetyStop != null) stopFatalClass = fatalClass
             if (index + 1 < rows.length()) {
                 delay(if (provider.protocol == HostedProtocol.GEMINI_GENERATE_CONTENT) 8_000L else 2_000L)
             }
@@ -893,10 +923,19 @@ class S813QualificationInstrumentedTest {
             .put("qualification_scoring_version", qualificationScoring.getString("scoring_version"))
             .put("adjudication_version", S813_ADJUDICATION_VERSION)
             .put("pass", pass)
-            .put("transport_protocol", protocolEvidenceLabel(provider.protocol))
+            .put(
+                "transport_protocol",
+                if (scriptedProvider != null) "scripted_local" else protocolEvidenceLabel(provider.protocol),
+            )
             .put("max_output_tokens_per_turn", provider.budget.maxOutputTokens)
-            .put("credential_transport", "one_shot_socket")
-            .put("credential_source", "process_memory_socket")
+            .put(
+                "credential_transport",
+                if (scriptedProvider != null) "not_applicable_scripted_provider" else "one_shot_socket",
+            )
+            .put(
+                "credential_source",
+                if (scriptedProvider != null) "not_applicable_scripted_provider" else "process_memory_socket",
+            )
             .put("frozen_full_suite_identity", frozenBinding?.toJson() ?: JSONObject.NULL)
             .put("run_limits", JSONObject()
                 .put("max_turns_per_case", maxTurnsPerCase)
@@ -926,6 +965,11 @@ class S813QualificationInstrumentedTest {
             .put("safety_stop", safetyStop ?: JSONObject.NULL)
             .put("credential_recorded", false)
             .put("fixture_only", true)
+            .put("scripted_provider", if (scriptedProvider != null) JSONObject()
+                .put("contract", S813ScriptedProvider.CONTRACT)
+                .put("hosted_calls", 0)
+                .put("provider_identity_gate", "not_applicable_scripted_provider")
+                .put("batch_stop_gate", "effect_safety_only") else JSONObject.NULL)
             .put("assisted_continuation", if (assistedCoordinator != null) JSONObject()
                 .put("contract", S813_ASSISTED_CONTRACT)
                 .put("enabled", true)
@@ -945,6 +989,14 @@ class S813QualificationInstrumentedTest {
         }
         if (diagnosticIdentity != null) report.put("diagnostic_identity", JSONObject(diagnosticIdentity.toString()))
         File(runDir, "live-run.json").writeText(report.toString(2))
+        if (scriptedProvider != null) {
+            val lifecycle = scriptedLifecycleEvidence(
+                runDir,
+                runCaseIds,
+                requireNotNull(scriptedPlan) { "the scripted lifecycle run declared no decision plan" },
+            )
+            File(runDir, "lifecycle-smoke.json").writeText(lifecycle.toString(2))
+        }
         WorkflowClaimGuard.reset()
         assertEquals("all selected diagnostic attempts must be retained", runCaseIds.size, outcomes.length())
     }
@@ -962,6 +1014,137 @@ class S813QualificationInstrumentedTest {
         return null
     }
 
+    /**
+     * TEST_ONLY assertions for the scripted lifecycle provider.
+     *
+     * They protect one observable boundary: each case keeps its live Room database and Laya
+     * lifecycle through the in-session host pause and the assisted record that reads them,
+     * releases them exactly once afterwards, and the next case then runs on its own resources.
+     * The scripted provider is not the hosted model, so no rubric, scoring or provider-identity
+     * claim is made here; only the effect-read and resource-lifetime facts are asserted.
+     */
+    private fun scriptedLifecycleEvidence(
+        runDir: File,
+        caseIds: List<String>,
+        plan: Map<String, String>,
+    ): JSONObject {
+        val cases = JSONArray()
+        val scopeIds = mutableListOf<String>()
+        var acceptedSlots = 0
+        var continuedSlots = 0
+        var unansweredSlots = 0
+        for (caseId in caseIds) {
+            val expectedDecision = plan.getValue(caseId)
+            val firstPath = File(runDir, "$caseId.json")
+            check(firstPath.isFile) { "the first record was not persisted for $caseId" }
+            val first = JSONObject(firstPath.readText())
+            check(first.optString("outcome") == "Clarifying") {
+                "the scripted first attempt did not suspend for a user question: ${first.optString("outcome")}"
+            }
+            check(first.optString("outcome_reason") == "time") {
+                "the scripted clarification did not name the missing time field"
+            }
+            scopeIds += first.getJSONObject("case_isolation").getString("workflow_scope_id")
+            val assistedPath = File(runDir, "assisted/$caseId.json")
+            check(assistedPath.isFile) { "no assisted record was persisted for $caseId" }
+            val assisted = JSONObject(assistedPath.readText())
+            check(assisted.optBoolean("follow_up_offered")) { "the scripted slot offered no follow-up" }
+            val observedDecision = if (assisted.isNull("decision")) null else assisted.optString("decision")
+            val assistedRecord = assisted.optJSONObject("assisted_record")
+            val caseRow = JSONObject()
+                .put("case_id", caseId)
+                .put("expected_decision", expectedDecision)
+                .put("assisted_status", assisted.optString("status"))
+                .put("first_outcome", first.optString("outcome"))
+                .put("first_outcome_reason", first.optString("outcome_reason"))
+                .put("first_turns", first.optInt("turns"))
+                .put("first_tool_calls", first.optInt("tool_calls"))
+            when (expectedDecision) {
+                S813_ASSISTED_DECISION_PASS -> {
+                    check(assisted.optString("status") == S813_ASSISTED_STATUS_PASS) {
+                        "the accepted slot recorded '${assisted.optString("status")}' instead of its pass decision"
+                    }
+                    check(observedDecision == S813_ASSISTED_DECISION_PASS) {
+                        "the accepted slot did not record the pass decision: $observedDecision"
+                    }
+                    check(assistedRecord == null) { "an accepted slot must never be continued: $caseId" }
+                    acceptedSlots += 1
+                }
+                S813_ASSISTED_DECISION_FEEDBACK -> {
+                    check(assisted.optString("status") == S813_ASSISTED_STATUS_FEEDBACK) {
+                        "the continued slot recorded '${assisted.optString("status")}' instead of applying the decision"
+                    }
+                    check(observedDecision == S813_ASSISTED_DECISION_FEEDBACK) {
+                        "the continued slot did not record the feedback decision: $observedDecision"
+                    }
+                    val continued = assistedRecord ?: error("the assisted record is missing for $caseId")
+                    check(continued.optString("outcome") == "Clarifying") {
+                        "the assisted phase did not yield the expected user question: ${continued.optString("outcome")}"
+                    }
+                    check(continued.optString("outcome_reason") == "time") {
+                        "the assisted clarification did not name the missing time field"
+                    }
+                    val postconditions = continued.optJSONObject("postconditions")
+                        ?: error("the assisted record lost its postconditions for $caseId")
+                    check(postconditions.has("stored_events") && postconditions.has("links")) {
+                        "the assisted postconditions are incomplete for $caseId"
+                    }
+                    check(continued.optJSONObject("laya_evidence") != null) {
+                        "the assisted record lost its Laya evidence for $caseId"
+                    }
+                    caseRow.put("assisted_outcome", continued.optString("outcome"))
+                        .put("assisted_outcome_reason", continued.optString("outcome_reason"))
+                        .put("assisted_turns", continued.optInt("turns"))
+                        .put("assisted_tool_calls", continued.optInt("tool_calls"))
+                        .put("assisted_postconditions_present", true)
+                    continuedSlots += 1
+                }
+                S813ScriptedProvider.DECISION_NO_DECISION -> {
+                    check(assisted.optString("status") == S813_ASSISTED_STATUS_ABSENT) {
+                        "the unanswered slot recorded '${assisted.optString("status")}' instead of its timeout status"
+                    }
+                    check(observedDecision == null) {
+                        "an unanswered slot must not record a decision: $observedDecision"
+                    }
+                    check(assistedRecord == null) { "an unanswered slot must never be continued: $caseId" }
+                    unansweredSlots += 1
+                }
+                else -> error("undeclared scripted decision for $caseId: $expectedDecision")
+            }
+            val events = S813CaseLifecycleProbe.eventsFor(caseId).map { it.optString("event") }
+            check(events.count { it == "resources_opened" } == 1) {
+                "case $caseId did not open exactly one resource set: $events"
+            }
+            check(events.count { it == "case_resources_released" } == 1) {
+                "case $caseId did not release its resources exactly once: $events"
+            }
+            val firstPersisted = events.indexOf("first_record_persisted")
+            val assistedPersisted = events.indexOf("assisted_record_persisted")
+            val released = events.indexOf("case_resources_released")
+            check(firstPersisted >= 0 && assistedPersisted > firstPersisted && released > assistedPersisted) {
+                "case $caseId released its resources before the assisted record was written: $events"
+            }
+            cases.put(caseRow.put("lifecycle_events", JSONArray(events)))
+        }
+        check(scopeIds.distinct().size == scopeIds.size) {
+            "each scripted case must own its own isolated workflow scope"
+        }
+        return JSONObject()
+            .put("contract", "aegis-s813-assisted-lifetime-smoke/v1")
+            .put("provider", S813ScriptedProvider.CONTRACT)
+            .put("hosted_calls", 0)
+            .put("provider_identity_gate", "not_applicable_scripted_provider")
+            .put("decision_plan", JSONObject().also { declared ->
+                plan.forEach { (caseId, decision) -> declared.put(caseId, decision) }
+            })
+            .put("accepted_slots", acceptedSlots)
+            .put("continued_slots", continuedSlots)
+            .put("unanswered_slots", unansweredSlots)
+            .put("cases", cases)
+            .put("subsequent_case_independent", caseIds.size > 1)
+            .put("lifecycle_events", S813CaseLifecycleProbe.snapshot())
+    }
+
     private suspend fun runCase(
         context: Context,
         case: JSONObject,
@@ -977,6 +1160,7 @@ class S813QualificationInstrumentedTest {
         forbiddenSecrets: List<String> = emptyList(),
         diagnosticIdentity: JSONObject? = null,
         assisted: S813AssistedCoordinator? = null,
+        scriptedAdapter: HostedGenerationAdapter? = null,
     ): S813CaseExecution {
         val caseId = case.getString("id")
         val family = case.getString("family")
@@ -993,6 +1177,16 @@ class S813QualificationInstrumentedTest {
             throw S813FatalContinuationException("isolation_failure", failure)
         }
         val laya = LayaInferenceLifecycle(File(context.filesDir, "laya/model"))
+        S813CaseLifecycleProbe.record(caseId, "resources_opened")
+        val releaseResources = {
+            S813CaseLifecycleProbe.record(caseId, "case_resources_released")
+            try {
+                laya.close()
+            } finally {
+                db.close()
+            }
+        }
+        var handedOff = false
         val wire = RecordingTransport(
             UrlConnectionHttpTransport(),
             provider.responseMetadataPolicy(),
@@ -1039,7 +1233,7 @@ class S813QualificationInstrumentedTest {
             val observed = mutableListOf<JSONObject>()
             var recoveryRaceInjected = false
             val adapter = RecordingAdapter(
-                HostedAdapters.create(provider, wire),
+                scriptedAdapter ?: HostedAdapters.create(provider, wire),
                 observed,
                 boundary.vault,
                 diagnosticMode = pass == "diagnostic",
@@ -1178,10 +1372,11 @@ class S813QualificationInstrumentedTest {
             } else {
                 null
             }
-            return S813CaseExecution(record, slot)
+            val execution = S813CaseExecution(record, slot, releaseResources)
+            handedOff = true
+            return execution
         } finally {
-            laya.close()
-            db.close()
+            if (!handedOff) releaseResources()
         }
     }
 
@@ -1262,6 +1457,12 @@ class S813QualificationInstrumentedTest {
      * single decision, and (only for a failing slot) apply exactly one validated user message to
      * the same run. Every step is written under the pass's assisted folder for the host scorer;
      * an accepted or timed-out slot is never continued.
+     *
+     * The caller invokes this while the case still owns its live Room database and Laya
+     * lifecycle, because the continuation's postconditions, masking and Laya evidence are read
+     * from that same state. A slot-level failure is retained as an explicit
+     * [S813_ASSISTED_STATUS_STEP_ERROR] record and keeps the first verdict, so one broken slot
+     * cannot cancel the batch; structured cancellation is never swallowed and still propagates.
      */
     private suspend fun runAssistedStep(
         coordinator: S813AssistedCoordinator,
@@ -1270,59 +1471,103 @@ class S813QualificationInstrumentedTest {
         firstRecord: JSONObject,
         initialAdjudication: JSONObject?,
         caseMapping: JSONObject?,
+        redactFailure: (String) -> String,
     ) {
-        val firstSha = coordinator.publishReady(caseId, firstRecord)
-        val awaited = coordinator.awaitDecision(caseId, firstSha)
-        val record = JSONObject()
-            .put("contract", S813_ASSISTED_CONTRACT)
-            .put("attempt_id", coordinator.attemptId)
-            .put("snapshot_id", coordinator.snapshotId)
-            .put("pass", coordinator.pass)
-            .put("case_id", caseId)
-            .put("first_record_sha256", firstSha)
-            .put("status", awaited.status)
-            .put("detail", awaited.detail ?: JSONObject.NULL)
-            .put("follow_up_offered", slot.followUpOffered)
-            .put("initial_provider_exchanges", slot.initialProviderExchanges)
-            .put("initial_turns", firstRecord.optInt("turns"))
-            .put("initial_tool_calls", firstRecord.optInt("tool_calls"))
-            .put("history_identity", JSONObject()
-                .put("same_run", true)
-                .put("same_scope", true)
-                .put("same_vault", true)
-                .put("same_reference_registry", true)
-                .put("same_room_database", true)
-                .put("same_journal", true)
-                .put("same_configuration", true))
-            .put("decision", awaited.decision?.kind ?: JSONObject.NULL)
-            .put("feedback", awaited.decision?.feedback?.json() ?: JSONObject.NULL)
-            .put("initial_adjudication", initialAdjudication ?: JSONObject.NULL)
-            .put("provider_turns_scope", "assisted_phase_only")
-            .put("usage_scope", "cumulative")
-            .put("state_scope", "cumulative")
-        if (awaited.status == S813_ASSISTED_STATUS_FEEDBACK) {
-            val feedback = requireNotNull(awaited.decision?.feedback)
-            val runner = slot.runFollowUp
-            if (runner == null) {
-                record.put("status", S813_ASSISTED_STATUS_UNAVAILABLE)
-                    .put("detail", "no_idle_follow_up")
-            } else {
-                val second = runner(feedback.message)
-                val secondAdjudication = caseMapping?.let { s813CaseAdjudication(second, it) }
-                record.put("assisted_record", second)
-                    .put("assisted_record_sha256", s813Sha256Hex(second.toString(2)))
-                    .put("assisted_turns", second.optInt("turns"))
-                    .put("assisted_tool_calls", second.optInt("tool_calls"))
-                    .put("assisted_provider_exchanges", second.optJSONArray("masked_wire")?.length() ?: 0)
-                    .put("assisted_adjudication", secondAdjudication ?: JSONObject.NULL)
-                    .put(
-                        "cumulative_safety_ok",
-                        (initialAdjudication?.optBoolean("financial_safety_match") != false) &&
-                            (secondAdjudication?.optBoolean("financial_safety_match") != false),
-                    )
+        var firstSha: String? = null
+        var awaited: S813AssistedAwait? = null
+        try {
+            val digest = coordinator.publishReady(caseId, firstRecord)
+            firstSha = digest
+            val decision = coordinator.awaitDecision(caseId, digest)
+            awaited = decision
+            val record = JSONObject()
+                .put("contract", S813_ASSISTED_CONTRACT)
+                .put("attempt_id", coordinator.attemptId)
+                .put("snapshot_id", coordinator.snapshotId)
+                .put("pass", coordinator.pass)
+                .put("case_id", caseId)
+                .put("first_record_sha256", digest)
+                .put("status", decision.status)
+                .put("detail", decision.detail ?: JSONObject.NULL)
+                .put("follow_up_offered", slot.followUpOffered)
+                .put("initial_provider_exchanges", slot.initialProviderExchanges)
+                .put("initial_turns", firstRecord.optInt("turns"))
+                .put("initial_tool_calls", firstRecord.optInt("tool_calls"))
+                .put("history_identity", JSONObject()
+                    .put("same_run", true)
+                    .put("same_scope", true)
+                    .put("same_vault", true)
+                    .put("same_reference_registry", true)
+                    .put("same_room_database", true)
+                    .put("same_journal", true)
+                    .put("same_configuration", true))
+                .put("decision", decision.decision?.kind ?: JSONObject.NULL)
+                .put("feedback", decision.decision?.feedback?.json() ?: JSONObject.NULL)
+                .put("initial_adjudication", initialAdjudication ?: JSONObject.NULL)
+                .put("provider_turns_scope", "assisted_phase_only")
+                .put("usage_scope", "cumulative")
+                .put("state_scope", "cumulative")
+            if (decision.status == S813_ASSISTED_STATUS_FEEDBACK) {
+                val feedback = requireNotNull(decision.decision?.feedback)
+                val runner = slot.runFollowUp
+                if (runner == null) {
+                    record.put("status", S813_ASSISTED_STATUS_UNAVAILABLE)
+                        .put("detail", "no_idle_follow_up")
+                } else {
+                    val second = runner(feedback.message)
+                    val secondAdjudication = caseMapping?.let { s813CaseAdjudication(second, it) }
+                    record.put("assisted_record", second)
+                        .put("assisted_record_sha256", s813Sha256Hex(second.toString(2)))
+                        .put("assisted_turns", second.optInt("turns"))
+                        .put("assisted_tool_calls", second.optInt("tool_calls"))
+                        .put("assisted_provider_exchanges", second.optJSONArray("masked_wire")?.length() ?: 0)
+                        .put("assisted_adjudication", secondAdjudication ?: JSONObject.NULL)
+                        .put(
+                            "cumulative_safety_ok",
+                            (initialAdjudication?.optBoolean("financial_safety_match") != false) &&
+                                (secondAdjudication?.optBoolean("financial_safety_match") != false),
+                        )
+                }
             }
+            coordinator.writeRecord(caseId, record)
+            S813CaseLifecycleProbe.record(caseId, "assisted_record_persisted")
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Throwable) {
+            val failureRecord = JSONObject()
+                .put("contract", S813_ASSISTED_CONTRACT)
+                .put("attempt_id", coordinator.attemptId)
+                .put("snapshot_id", coordinator.snapshotId)
+                .put("pass", coordinator.pass)
+                .put("case_id", caseId)
+                .put("first_record_sha256", firstSha ?: JSONObject.NULL)
+                .put("status", S813_ASSISTED_STATUS_STEP_ERROR)
+                .put(
+                    "detail",
+                    awaited?.detail ?: "the assisted step failed before a decision was applied",
+                )
+                .put("decision", awaited?.decision?.kind ?: JSONObject.NULL)
+                .put("feedback", awaited?.decision?.feedback?.json() ?: JSONObject.NULL)
+                .put("follow_up_offered", slot.followUpOffered)
+                .put("initial_provider_exchanges", slot.initialProviderExchanges)
+                .put("initial_turns", firstRecord.optInt("turns"))
+                .put("initial_tool_calls", firstRecord.optInt("tool_calls"))
+                .put("initial_adjudication", initialAdjudication ?: JSONObject.NULL)
+                .put("failure_type", failure::class.simpleName ?: "unknown")
+                .put("failure_detail", redactFailure(failure.message ?: "no detail").take(300))
+                .put("failure_stack", redactFailure(failure.stackTraceToString()).take(8_000))
+                .put("verdict_retained", true)
+            try {
+                coordinator.writeRecord(caseId, failureRecord)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Throwable) {
+                // The slot evidence could not be retained; surface the original failure instead
+                // of silently continuing as if the slot had been measured.
+                throw failure
+            }
+            S813CaseLifecycleProbe.record(caseId, "assisted_record_persisted")
         }
-        coordinator.writeRecord(caseId, record)
     }
 
     private fun observedRevisionConflict(observed: List<JSONObject>): Boolean =

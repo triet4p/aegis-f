@@ -53,6 +53,12 @@ and no release has been tagged or published. Format follows
   recorded scores are preserved and are not regraded.
 
 ### Fixed
+- Fixed assisted continuation so the device keeps a case's database and local model lifecycle
+  open through the host decision and the assisted record, and releases them once afterwards.
+  Previously the continuation read already-closed state to build its postconditions, so the
+  first delivered feedback message aborted the whole qualification pass. A slot that fails while
+  applying the decision now keeps its first verdict in an `assisted_step_error` record instead of
+  cancelling the remaining slots, while real cancellation still propagates.
 - Fixed clarifying runs so they report the provider turns and tool calls they actually spent
   instead of zero in the qualification record and durable run history.
 - Fixed the S8.13 qualification harness so full-suite `run` and `score` commands accept the new

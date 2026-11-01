@@ -699,5 +699,37 @@ uv run python tools/slm/s8_agent_v3_qualification.py score @invocation
 `score` writes `combined-72.json` (or `combined-72-reviewed.json` after independent semantic
 review) with the 72 per-slot provenance rows, the retained a55 digests and the unchanged gates.
 
+### Assisted continuation resource lifetime (attempt a65)
+
+A delivered feedback message previously aborted the whole pass: `runCase` closed its Room database
+and Laya lifecycle in its `finally` before the batch ran the assisted step, so the continuation
+record's postconditions were read from already-closed state and that exception escaped the batch.
+The fix makes the case execution own the lifetime: the first record is persisted, the in-session
+host pause and the assisted record build run on the same live database, and the batch releases the
+resources exactly once after the assisted record is durable. A slot-level failure while applying a
+decision is retained as an `assisted_step_error` record that keeps the first verdict and lets the
+remaining slots run; structured cancellation still propagates.
+
+The device proof is a TEST_ONLY scripted-provider mode inside the real batch entry
+(`runFrozenDevAndHeldoutSuites`): `S813_SCRIPTED_PROVIDER=aegis-s813-scripted-provider/v1` with a
+`reproduction` identity replaces only the provider adapter, so the real Room services, vault,
+reference registry, journal, debug capture and the in-session host pause still run. The device
+asserts that the first attempt suspends with a user question, that the assisted phase yields the
+same question shape from the same registry, that the assisted postconditions and Laya evidence were
+read while the case still owned its resources, and that each case released them exactly once after
+the assisted record was written. The run declares its per-slot host plan up front, so the same
+device proof covers an accepted slot (`pass_no_feedback`), one feedback continuation
+(`fail_feedback`) and an unanswered slot (`no_decision`, recorded as `absent_timeout`), and each
+declared outcome and release order is asserted rather than inferred. The hosted provider-identity
+and wire gates cannot apply without a hosted exchange, so the mode records that explicitly and
+evaluates only effect safety; it never produces a rubric or PASS result.
+
+The host side must answer `assisted/ready/<case>.json` with exactly one
+`assisted/decision/<case>.json` (the same contract the harness monitor writes). The attempt-scoped
+coordinator used for the a65 proof is
+`artifacts/sprint-8/evidence/S8.13-assisted-lifetime-a65/host/s813_lifetime_host.py`; it launches
+`S813QualificationInstrumentedTest`, polls the ready files, writes each decision atomically and
+collects the device tree without reading a credential or making a hosted call.
+
 References: [S8.5 provider adapters](sprint-8-provider-adapters.md), [S8.9 executor](sprint-8-agent-executor.md), [S8.10 run history](sprint-8-agent-history.md), [S8.7 application tools](sprint-8-application-tools.md), and [S8.4 agent contract](sprint-8-agent-contract.md).
 
