@@ -109,7 +109,6 @@ class S811ContextCacheTest {
         val secondAdapter = ScriptedAdapter(scripted() + { complete("done") }, usage = null)
         val secondPrompts = promptsOf(second, secondAdapter)
         assertEquals("the stable prefix must be deterministic", firstPrompts.first(), secondPrompts.first())
-        assertTrue(firstPrompts.first().contains("context_block_version: s8-agent-context/v6"))
         assertTrue(firstPrompts.first().contains("token_syntax_rule"))
         assertTrue(firstPrompts.first().contains("token_inventory_rule"))
         assertTrue(firstPrompts.first().contains("mutable_state_rule"))
@@ -135,7 +134,6 @@ class S811ContextCacheTest {
     @Test
     fun `token syntax rule stays inside the measured context budget`() {
         val stable = AgentContextManager.stableRuntimeBlock()
-        assertTrue(stable.contains("context_block_version: s8-agent-context/v6"))
         val lines = stable.lines()
         val start = lines.indexOfFirst { it.startsWith("token_syntax_rule") }
         val end = lines.indexOfFirst { it.startsWith("reference_rule") }

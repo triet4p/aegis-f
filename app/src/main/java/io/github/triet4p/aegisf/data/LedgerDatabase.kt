@@ -43,6 +43,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AgentRunEntity::class,
         AgentRunAttemptEntity::class,
         AgentConversationEntity::class,
+        AgentTraceEventEntity::class,
     ],
     version = LedgerDatabase.VERSION,
     exportSchema = true,
@@ -92,8 +93,11 @@ abstract class LedgerDatabase : RoomDatabase() {
     /** The user-visible conversation lines of agent runs; safe export source. */
     abstract fun agentConversationDao(): AgentConversationDao
 
+    /** The append-only local production trace of agent runs; private diagnostics, never exported. */
+    abstract fun agentTraceDao(): AgentTraceDao
+
     companion object {
-        const val VERSION = 13
+        const val VERSION = 14
 
         /** File name of the on-device database. */
         const val NAME = "aegis-ledger.db"
@@ -749,6 +753,72 @@ abstract class LedgerDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Version 13 to 14: the local production trace of agent runs.
+         *
+         * The new `agent_trace_events` table starts empty of live evidence, because version 13
+         * never captured a provider body, tool exchange or clarification. Every run and attempt
+         * that version 13 already stored gets one explicit `EVIDENCE_GAP` row instead: the owner
+         * requires missing historical evidence to be marked, and inventing a request, a response
+         * or a reasoning item that was never observed would be a fabricated trace.
+         *
+         * Nothing that version 13 already held is rewritten: the run/attempt journal, the
+         * user-visible conversation, and every business row keep their values, ids and totals.
+         * The gap rows are new diagnostic rows only; they authorize nothing.
+         */
+        val MIGRATION_13_14: Migration = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `agent_trace_events` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`runId` TEXT NOT NULL, " +
+                        "`scopeId` TEXT NOT NULL, " +
+                        "`attempt` INTEGER NOT NULL, " +
+                        "`kind` TEXT NOT NULL, " +
+                        "`turn` INTEGER, " +
+                        "`callId` TEXT, " +
+                        "`direction` TEXT NOT NULL, " +
+                        "`completion` TEXT NOT NULL, " +
+                        "`payloadJson` TEXT NOT NULL, " +
+                        "`createdAtEpochMillis` INTEGER NOT NULL, " +
+                        "FOREIGN KEY(`runId`) REFERENCES `agent_runs`(`runId`) " +
+                        "ON UPDATE CASCADE ON DELETE CASCADE)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_agent_trace_events_runId_attempt` " +
+                        "ON `agent_trace_events` (`runId`, `attempt`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_agent_trace_events_createdAtEpochMillis` " +
+                        "ON `agent_trace_events` (`createdAtEpochMillis`)",
+                )
+                db.execSQL(
+                    "INSERT INTO `agent_trace_events` (`runId`, `scopeId`, `attempt`, `kind`, " +
+                        "`turn`, `callId`, `direction`, `completion`, `payloadJson`, " +
+                        "`createdAtEpochMillis`) " +
+                        "SELECT `runId`, `scopeId`, " +
+                        AGENT_TRACE_RUN_SCOPE_ATTEMPT + ", '" +
+                        AGENT_TRACE_KIND_EVIDENCE_GAP + "', NULL, NULL, '" +
+                        AGENT_TRACE_DIRECTION_INTERNAL + "', '" +
+                        AGENT_TRACE_COMPLETION_UNAVAILABLE + "', " +
+                        PRE_TRACE_RUN_GAP_PAYLOAD + ", `updatedAtEpochMillis` " +
+                        "FROM `agent_runs`",
+                )
+                db.execSQL(
+                    "INSERT INTO `agent_trace_events` (`runId`, `scopeId`, `attempt`, `kind`, " +
+                        "`turn`, `callId`, `direction`, `completion`, `payloadJson`, " +
+                        "`createdAtEpochMillis`) " +
+                        "SELECT attempts.`runId`, runs.`scopeId`, attempts.`attempt`, '" +
+                        AGENT_TRACE_KIND_EVIDENCE_GAP + "', NULL, NULL, '" +
+                        AGENT_TRACE_DIRECTION_INTERNAL + "', '" +
+                        AGENT_TRACE_COMPLETION_UNAVAILABLE + "', " +
+                        PRE_TRACE_ATTEMPT_GAP_PAYLOAD + ", attempts.`updatedAtEpochMillis` " +
+                        "FROM `agent_run_attempts` AS attempts " +
+                        "INNER JOIN `agent_runs` AS runs ON runs.`runId` = attempts.`runId`",
+                )
+            }
+        }
+
         /** Builds the production database on the app's real file directory. */
         fun build(context: Context): LedgerDatabase =
             Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, NAME)
@@ -765,6 +835,7 @@ abstract class LedgerDatabase : RoomDatabase() {
                     MIGRATION_10_11,
                     MIGRATION_11_12,
                     MIGRATION_12_13,
+                    MIGRATION_13_14,
                 )
                 .build()
 
@@ -773,6 +844,21 @@ abstract class LedgerDatabase : RoomDatabase() {
 
 /** The table the 2-to-3 migration builds before renaming it over the version-2 table. */
 private const val DRAFT_TABLE_V3 = "pending_bank_drafts_v3"
+
+/**
+ * The explicit historical gap a version-13 run receives at upgrade. The run was stored before
+ * local production trace capture existed, so the trace records that no body or event is
+ * available instead of inventing one. The value is a complete SQL string literal.
+ */
+private const val PRE_TRACE_RUN_GAP_PAYLOAD =
+    "'{\"reason\":\"PRE_TRACE_HISTORY\",\"detail\":\"this run was recorded before local " +
+        "production trace capture; no provider request, response, tool call or clarification " +
+        "evidence exists for it\"}'"
+
+/** The same explicit gap for every pre-trace attempt row of those runs. */
+private const val PRE_TRACE_ATTEMPT_GAP_PAYLOAD =
+    "'{\"reason\":\"PRE_TRACE_ATTEMPT\",\"detail\":\"this attempt was recorded before local " +
+        "production trace capture; no exchange, tool or clarification evidence exists for it\"}'"
 
 /** The version-3 draft table: the entity's columns, its two foreign keys, and no indices yet. */
 private const val DRAFT_TABLE_V3_SQL =

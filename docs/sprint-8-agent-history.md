@@ -32,10 +32,15 @@ Three stores stay separate, exactly as the frozen contract requires:
    request fingerprint), retry attempts, allowed effect refs (event id + revision, link
    id + state + revision, draft id + decision source), pending/completed/unknown states,
    and privacy-safe observations. Vault mappings, protocol continuation items, transient
-   reasoning, and provider wire detail are not columns.
+   reasoning, and provider wire detail are not columns of this journal. They are retained
+   only by the separate local production trace below, which is never exported.
 3. **Business captures and the effect journal**: owned by the existing command/query
    services (`workflow_operations` et al). The history never writes them and never
    exports them; cancelling or deleting the conversation never touches them.
+4. **Local production trace** (`agent_trace_events`, schema v14): the ordered, append-only
+   diagnostic evidence of what actually crossed the provider and tool boundaries. It is
+   owner-approved local-only retention (see "Policy decision" below) and is never part of
+   the conversation export, the hosted prompt, or any write path.
 
 Effect references are the only cross-store pointers, and they are re-read — never
 trusted — before any replay or completion claim.
@@ -49,7 +54,13 @@ trusted — before any replay or completion claim.
 - `AgentRunFailure` classifies every end: transport, timeout, rate-limit, server failure,
   stale revision, schema repair, and uncertain write are retryable; truncation, content
   filter, masking block, scope refusal, user decision, loop, malformed turn, and exhausted
-  budgets are terminal and never retried.
+  budgets are terminal and never retried — with exactly one exception: a *pre-dispatch*
+  `UNKNOWN_TOKEN` response may be re-issued once by the host under the bounded masking-repair
+  rule (v5). The refused response and every call it carried are discarded whole, the attempt is
+  charged to the turn budget, and a second `UNKNOWN_TOKEN` or any foreign-token, raw-literal,
+  decoded-sensitive, malformed-JSON or metadata refusal is terminal with no fallback spelling,
+  endpoint or model. The chronology (`attempt`, `reason`, `reissued`/`terminal`) is recorded as
+  content-free `masking_repairs` in the durable observation and the case record.
 - Before any replay the run reconciles: the durable `workflow_operations` row plus the
   live rows behind the claimed effects are re-read. Journal `APPLIED` + live rows still
   carrying the effect → `Applied` (replay is a safe idempotent no-change). No journal
@@ -74,9 +85,96 @@ trusted — before any replay or completion claim.
   wire detail. `allowBackup="false"` stays set in the manifest, so history never leaves
   through auto-backup; the operation journal (`workflow_operations`) is never exported
   from this path at all.
+- The local production trace is retained in the same database but is deliberately outside
+  every export path: `safeExport` does not query `agent_trace_events`. Deleting a run
+  (retention pruning, a whole-session history delete, or a cascade) deletes its trace rows
+  with it; nothing is copied anywhere.
 - Deleting the visible conversation (whole session, or retention pruning) never deletes
   business captures, effect journal rows, or ledger records, and never claims to roll an
   effect back.
+
+## PT1 — local production trace (schema v14)
+
+Owner-approved correction: the run/attempt journal's aggregates could not reconstruct a
+run, so production now also keeps the complete evidence of what crossed the provider and
+tool boundaries.
+
+### Contract
+
+- **Location and ordering.** `agent_trace_events` in the production Room database;
+  `id` (autoincrement) is the ordered event identity, and `createdAtEpochMillis` is the
+  append time. Rows are append-only and never updated; a reader orders by `id`.
+- **Scope.** Every row carries `runId` (foreign key, cascade delete), `scopeId`, and
+  `attempt` (`0` for run-scope admission/cancellation). Provider rows also carry `turn`
+  (the attempt's exchange number) and tool rows carry the model's `callId`.
+- **Content.** `RUN_ADMITTED` (intents, limits, masked request), `ATTEMPT_STARTED`,
+  `PROVIDER_REQUEST` (exact URL, credential-free headers, complete body), `PROVIDER_RESPONSE`
+  (status, safe headers, complete body — this is where provider-returned reasoning /
+  continuation items live), `PROVIDER_FAILURE` (classified value-free code + detail),
+  `TOOL_CALL` (name, exact arguments, disposition), `TOOL_RESULT` (complete envelope,
+  effect, verification, dispatched state, operation/target identity), `TOOL_ERROR`,
+  `CLARIFICATION_REQUEST`, `CLARIFICATION_REPLY` (the user's own answer), `FOLLOW_UP_MESSAGE`,
+  `ATTEMPT_OUTCOME` (state, stop reason, answer, counts, usage, verified effects, repairs,
+  compaction, refusal), and `RUN_CANCELLED`.
+- **No truncation, no summaries.** Provider bodies, tool arguments/results and clarification
+  text are stored verbatim. The journal's aggregates remain in the journal; the trace never
+  substitutes a summary for observed content.
+- **No credentials.** The transport decorator drops credential/session headers by name
+  (`Authorization`, `x-goog-api-key`, cookies, …) and records their names only in
+  `redactedHeaders`; credential-looking URL query values are replaced with `[redacted]`.
+  No auth header, token, cookie or other transport secret is stored.
+- **Guard refusal is not a gap.** A provider response the inbound privacy guard refused is
+  still recorded exactly as returned. The guard governs publication, rehydration and
+  continuation of that body, not local evidence; the row is never displayed as an answer,
+  never rehydrated, never continued, never exported — and it is the evidence needed to
+  diagnose the refusal.
+- **Explicit gaps.** Missing evidence is never invented. Schema v14 writes one
+  `EVIDENCE_GAP` (`PRE_TRACE_HISTORY`) per pre-existing run and one (`PRE_TRACE_ATTEMPT`)
+  per pre-existing attempt; an exchange whose response never arrived is `PROVIDER_RESPONSE`
+  with completion `UNAVAILABLE` (failure) or `INTERRUPTED` (cancellation), and carries no
+  body.
+- **Trace-write failure is not completeness.** A failed append never fails a run. The store
+  records `EVIDENCE_GAP` / `TRACE_WRITE_FAILED` immediately, and if even that write fails it
+  keeps a per-run pending marker that the next successful write records as
+  `TRACE_WRITE_FAILED_EARLIER` (with the count and kinds of the lost events, still attributed
+  to the run that lost them). If the database itself stays unavailable, no marker can be
+  written at all: that absence is an unavoidable limit of local storage and must never be
+  read as "the trace is complete". The trace is complete only for the events whose rows exist.
+- **Production, not debug-only.** `AppContainer.createHostedWorkflowHost` always builds the
+  recorder and wraps the production transport with `TracingHttpTransport`; the binding is
+  set by `startTracked` / `resumeTracked` after the durable run/attempt exists. Tracing
+  failures are swallowed (with a gap marker when possible) and can never fail, duplicate or
+  authorize a tool call or business effect.
+- **Interrupted/partial exchanges.** Evidence is complete for what the app observed: a
+  request row exists before the call, and a cancelled or failed call is explicit. Streamed
+  provider output is not implemented in this app; the trace schema already supports it
+  (chunk rows closed `COMPLETE`/`INTERRUPTED`) so a later streaming transport cannot silently
+  drop a partial answer.
+
+### Policy decision (owner-approved, appended for PT1)
+
+Retain the complete provider request/response bodies, including provider-returned reasoning
+and protocol continuation items, **locally only** in the production database so a run can be
+reconstructed; never export or upload them, never store authentication headers/credentials,
+keep local-RAW and hosted-masking/guard policies unchanged, and mark every unavailable piece
+of evidence explicitly instead of reconstructing it. This supersedes the earlier blanket
+"never retain transient reasoning or wire detail" statement for the local diagnostic store
+only; the conversation, the hosted prompt and the export keep their previous policy.
+
+### Verification
+
+- `AgentTraceMigrationTest` (populated v13 database from the exported schema): every run,
+  attempt and conversation row and identity survives; one explicit `PRE_TRACE_HISTORY` gap
+  per run and one `PRE_TRACE_ATTEMPT` gap per attempt are recorded with no body; the trace
+  is usable and ordered afterwards; deleting the run cascades its trace; an injected
+  conflicting trace table aborts the upgrade and rolls back with the v13 rows intact.
+- `ProductionTraceTest`: the app container's own host, history and trace store over the real
+  chat-completions adapter and production transport decorator record the ordered run
+  admission, attempt start, both provider exchanges (including the provider's returned
+  reasoning), the tool call/result and the terminal outcome; no credential appears; the
+  same trace is re-read after reopening the container; failure and cancellation are recorded
+  as explicit gaps; a clarification question plus the user's raw reply are recorded on the
+  same run while the provider only receives the masked reply.
 
 ## Verification
 

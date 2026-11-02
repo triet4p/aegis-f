@@ -183,6 +183,12 @@ class WorkflowRunHost(
     val queries: WorkflowQueryService,
     val operationKeys: WorkflowOperationKeySource,
     val clock: WorkflowRunClock = WorkflowRunClock { System.currentTimeMillis() },
+    /**
+     * The local production trace of this run. The production container passes the store-backed
+     * recorder; a host deliberately built without one keeps [AgentTraceRecorder.disabled], so
+     * tracing is never a debug-only branch and never changes a run's behavior.
+     */
+    val trace: AgentTraceRecorder = AgentTraceRecorder.disabled(),
 ) {
     init {
         require(scope.scopeId.isNotBlank()) { "A run needs a trusted session identity." }
@@ -493,6 +499,9 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                 trace = listOf(WorkflowRunStep(WorkflowRunState.READY)),
             )
         }
+        // The run/attempt now exists durably: every provider exchange, tool call and outcome of
+        // this attempt is recorded against it from here on.
+        host.trace.bind(admitted.runId, host.scope.scopeId, attempt)
         var outcome = startWithAttemptKey(request, attemptKey, maxOutputTokens)
         history.recordAttemptOutcome(admitted.runId, attempt, outcome, host.boundary)
         if (outcome is WorkflowRunOutcome.Incomplete &&
@@ -512,6 +521,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             if (verdict is UncertainWriteVerdict.Applied) break
             if (verdict is UncertainWriteVerdict.Unknown) break
             val nowAttempt = history.reopenForRetry(host.scope, admitted.runId) ?: break
+            host.trace.bind(admitted.runId, host.scope.scopeId, nowAttempt.attempt)
             retryDelay(io.github.triet4p.aegisf.data.CanonicalAgentRetryPolicy.retryDelayMillis(nowAttempt.attempt))
             val retryOutcome = startWithAttemptKey(request, nowAttempt.attemptKey, maxOutputTokens)
             history.recordAttemptOutcome(admitted.runId, nowAttempt.attempt, retryOutcome, host.boundary)
@@ -569,6 +579,12 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         }
         val suspendedSeeds = continuation.fixedOperationSeeds()
         val admitted = history.reopenClarifying(host.scope, runId) ?: return null
+        host.trace.bind(runId, host.scope.scopeId, admitted.attempt)
+        host.trace.clarificationReply(
+            field = continuation.field,
+            question = continuation.question,
+            userAnswer = userAnswer,
+        )
         continuation.adoptFixedOperationSeeds(suspendedSeeds)
         val outcome = resume(continuation, userAnswer)
         history.recordAttemptOutcome(runId, admitted.attempt, outcome, host.boundary)
@@ -794,6 +810,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         }
         val run = followUp.run
         followUp.consumed = true
+        host.trace.followUpMessage(userMessage)
         if (!followUp.isIdle()) {
             return incomplete(
                 run,
@@ -921,6 +938,10 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             }
             when (generated) {
                 is HostedGenerationResult.ProviderFailure -> {
+                    host.trace.providerFailure(
+                        code = providerFailureCode(generated.failure),
+                        detail = failureDetail(generated.failure),
+                    )
                     val privacyBlocked = generated.failure as? HostedProviderFailure.PrivacyBlocked
                     if (privacyBlocked != null) {
                         val refusal = privacyBlocked.refusal
@@ -1082,10 +1103,12 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                 )
             }
             val answer = try {
+                host.trace.toolCall(run.turns, call)
                 answerCall(run, call)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
+                host.trace.toolError(run.turns, call, failure)
                 return TurnStep.Stop(
                     incomplete(
                         run,
@@ -1094,11 +1117,19 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                     ),
                 )
             }
+            host.trace.toolResult(run.turns, call.callId, call.name, answer.resultJson, answer.record)
             run.callCounts[signature] = (run.callCounts[signature] ?: 0) + 1
             results += HostedToolResult(call.callId, answer.resultJson)
             answer.record?.let { run.dispatches += it }
             if (answer.clarification != null) {
                 clarification = answer.clarification
+                host.trace.clarificationRequested(
+                    turn = run.turns,
+                    callId = call.callId,
+                    field = answer.clarification.field,
+                    question = answer.clarification.question,
+                    subjectRef = answer.clarification.subjectRef,
+                )
                 // A user question suspends the run: later calls in the same turn must not
                 // commit anything before the user answers.
                 break
@@ -1920,6 +1951,25 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         is HostedProviderFailure.ModelMismatch -> "model_mismatch"
         is HostedProviderFailure.PrivacyBlocked -> "masking_blocked"
         is HostedProviderFailure.InvalidResponse -> "invalid_response"
+    }
+
+    /**
+     * The diagnostic detail of one provider failure for the local trace. The adapters have
+     * already removed the configured credential from this text; bounded codes stay bounded and
+     * the value itself is never re-derived here.
+     */
+    private fun failureDetail(failure: HostedProviderFailure): String? = when (failure) {
+        is HostedProviderFailure.Transport -> failure.detail
+        is HostedProviderFailure.Authentication -> failure.detail
+        is HostedProviderFailure.Account -> failure.detail
+        is HostedProviderFailure.RateLimited -> failure.detail
+        is HostedProviderFailure.Rejected -> failure.detail
+        is HostedProviderFailure.Unavailable -> failure.detail
+        is HostedProviderFailure.Redirected -> failure.detail
+        is HostedProviderFailure.ProviderState -> failure.detail
+        is HostedProviderFailure.ModelMismatch -> "the provider did not echo the configured model"
+        is HostedProviderFailure.PrivacyBlocked -> failure.refusal.reason.name
+        is HostedProviderFailure.InvalidResponse -> failure.detail
     }
 
     private fun boundedReason(reason: String): String =

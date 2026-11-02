@@ -5,7 +5,9 @@ import io.github.triet4p.aegisf.data.laya.LayaClassificationEngine
 import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
 import io.github.triet4p.aegisf.provider.HostedProviderSettingsStore
 import io.github.triet4p.aegisf.agent.AgentRunHistory
+import io.github.triet4p.aegisf.agent.AgentTraceRecorder
 import io.github.triet4p.aegisf.agent.AgentToolDeclarations
+import io.github.triet4p.aegisf.agent.TracingHttpTransport
 import io.github.triet4p.aegisf.agent.WorkflowOperationKeySource
 import io.github.triet4p.aegisf.agent.WorkflowRunHost
 import io.github.triet4p.aegisf.agent.WorkflowSkillCatalog
@@ -166,22 +168,41 @@ class AppContainer(context: Context) {
         HostedProviderSettingsStore(appContext)
     }
 
-    /** Production hosted transport; instrumentation may wrap it without replacing the workflow. */
+    /** Production hosted transport; every run's traffic is traced by a decorator over it. */
     internal var hostedHttpTransport: HttpTransport = UrlConnectionHttpTransport()
 
-    /** Durable hosted-run metadata remains separate from conversations and business data. */
-    val agentRunHistory: AgentRunHistory by lazy { AgentRunHistory(database) }
+    /**
+     * The append-only local production trace of agent runs.
+     *
+     * It is the same Room file and the same process as the ledger, but a separate store: private
+     * diagnostics that never enter the conversation export, the hosted prompt, or a business
+     * command path. The run history writes lifecycle, tool and outcome events to it, and each
+     * run's transport decorator writes the complete provider exchanges.
+     */
+    private val agentTraceStore: AgentTraceStore by lazy {
+        AgentTraceStore(database.agentTraceDao())
+    }
+
+    /** Durable hosted-run metadata and the local production trace stay outside the conversation. */
+    val agentRunHistory: AgentRunHistory by lazy {
+        AgentRunHistory(database, traces = agentTraceStore)
+    }
 
     /**
      * Builds a run from the selected, already validated configuration. Each call creates a new
-     * vault and adapter, so provider changes affect only later runs and never reuse a conversation.
+     * vault, trace recorder and adapter, so provider changes affect only later runs and never
+     * reuse a conversation or write into another run's trace.
      */
     fun createHostedWorkflowHost(
         scope: WorkflowCallerScope.AgentSession,
         config: HostedProviderConfig,
     ): WorkflowRunHost {
         val boundary = MaskedPromptBoundary(SensitiveVault(scope.scopeId))
-        val adapter = HostedAdapters.create(config, hostedHttpTransport)
+        val trace = AgentTraceRecorder.enabled(agentTraceStore)
+        val adapter = HostedAdapters.create(
+            config,
+            TracingHttpTransport(hostedHttpTransport, trace),
+        )
         return WorkflowRunHost(
             scope = scope,
             boundary = boundary,
@@ -191,6 +212,7 @@ class AppContainer(context: Context) {
             commands = workflowCommandService,
             queries = workflowQueryService,
             operationKeys = WorkflowOperationKeySource { UUID.randomUUID().toString() },
+            trace = trace,
         )
     }
 }

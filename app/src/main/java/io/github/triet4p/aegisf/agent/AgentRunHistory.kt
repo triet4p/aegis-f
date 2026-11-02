@@ -3,6 +3,17 @@ package io.github.triet4p.aegisf.agent
 import io.github.triet4p.aegisf.data.AgentConversationEntity
 import io.github.triet4p.aegisf.data.AgentRunAttemptEntity
 import io.github.triet4p.aegisf.data.AgentRunEntity
+import io.github.triet4p.aegisf.data.AgentTraceEventEntity
+import io.github.triet4p.aegisf.data.AgentTraceStore
+import io.github.triet4p.aegisf.data.AGENT_TRACE_COMPLETION_COMPLETE
+import io.github.triet4p.aegisf.data.AGENT_TRACE_COMPLETION_INTERRUPTED
+import io.github.triet4p.aegisf.data.AGENT_TRACE_COMPLETION_NOT_APPLICABLE
+import io.github.triet4p.aegisf.data.AGENT_TRACE_DIRECTION_INTERNAL
+import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_ATTEMPT_OUTCOME
+import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_ATTEMPT_STARTED
+import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_RUN_ADMITTED
+import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_RUN_CANCELLED
+import io.github.triet4p.aegisf.data.AGENT_TRACE_RUN_SCOPE_ATTEMPT
 import io.github.triet4p.aegisf.data.CanonicalAgentRetryPolicy
 import io.github.triet4p.aegisf.data.LedgerDatabase
 import io.github.triet4p.aegisf.data.QueryPageRequest
@@ -16,23 +27,37 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * The durable S8.10 history of one caller session's agent runs.
+ * The durable S8.10 history of one caller session's agent runs, plus its local production trace.
  *
- * Three stores stay separate the way the contract requires: (a) the user-visible
- * conversation ([AgentConversationEntity]: request, status, and answer lines only);
- * (b) the business captures and effect journal (owned by the existing command
- * services, never here); (c) the run/attempt journal ([AgentRunEntity] /
- * [AgentRunAttemptEntity]: run identity, retry attempts, allowed effect references,
- * pending/completed/unknown states, and privacy-safe observations).
+ * Four stores stay separate:
  *
- * The history never stores credentials, vault mappings, protocol continuation items,
- * transient reasoning, or provider wire detail — none of those are columns and none
- * leave through the conversation read. The safe export is exactly the conversation
- * plus run states; the operation journal (`workflow_operations`) is never exported.
+ * (a) the user-visible conversation ([AgentConversationEntity]: request, status, and answer
+ * lines only);
+ * (b) the business captures and effect journal (owned by the existing command services, never
+ * here);
+ * (c) the run/attempt journal ([AgentRunEntity] / [AgentRunAttemptEntity]: run identity, retry
+ * attempts, allowed effect references, pending/completed/unknown states, and privacy-safe
+ * observations);
+ * (d) the local production trace ([io.github.triet4p.aegisf.data.AgentTraceEventEntity] through
+ * [io.github.triet4p.aegisf.data.AgentTraceStore]): ordered session/run/attempt events with the
+ * complete provider request/response bodies, tool arguments/results/errors, clarification
+ * questions and replies, cancellation and terminal outcomes.
+ *
+ * The trace exists because the journal above deliberately keeps aggregates and effect references
+ * only. It is private local diagnostics: it never stores authentication headers, credentials or
+ * transport secrets; it is never sent anywhere; and it is never part of [safeExport], which stays
+ * exactly the conversation plus the run rows. A trace row describes evidence and authorizes
+ * nothing. Missing evidence — a pre-trace run, an interrupted exchange, a failed trace write — is
+ * recorded as an explicit `EVIDENCE_GAP` instead of an invented body.
+ *
+ * Vault mappings, protocol continuation items and provider reasoning are still not columns of the
+ * conversation or the journal. Where a provider returned reasoning/continuation items, they are
+ * retained only inside the local trace's complete provider response body.
  */
 class AgentRunHistory(
     private val database: LedgerDatabase,
     private val clock: () -> Long = System::currentTimeMillis,
+    private val traces: AgentTraceStore = AgentTraceStore(database.agentTraceDao(), clock),
 ) {
     private val runs = database.agentRunDao()
     private val attempts = database.agentRunAttemptDao()
@@ -108,6 +133,25 @@ class AgentRunHistory(
             attempts.insert(firstAttempt)
             appendLine(runId, "USER", maskedRequest.take(MAX_REQUEST_CHARS), now)
             appendLine(runId, "STATUS", "Run admitted.", now)
+            traces.append(
+                runId = runId,
+                scopeId = scope.scopeId,
+                attempt = 1,
+                kind = AGENT_TRACE_KIND_RUN_ADMITTED,
+                payloadJson = JSONObject()
+                    .put("intents", JSONArray(request.intents.map { it.name }.sorted()))
+                    .put("maskedRequest", maskedRequest)
+                    .put("limits", JSONObject()
+                        .put("maxTurns", limits.maxTurns)
+                        .put("maxToolCalls", limits.maxToolCalls)
+                        .put("maxContextCharacters", limits.maxContextCharacters)
+                        .put("maxWallClockMillis", limits.maxWallClockMillis)
+                        .put("maxRepeatedIdenticalCalls", limits.maxRepeatedIdenticalCalls)
+                        .put("maxCaptureObservations", limits.maxCaptureObservations))
+                    .put("maxOutputTokens", maxOutputTokens ?: JSONObject.NULL)
+                    .put("attemptKey", CanonicalAgentRetryPolicy.attemptKey(runId, 1))
+                    .toString(),
+            )
             return AdmittedRun(
                 runId = runId,
                 scopeId = scope.scopeId,
@@ -132,8 +176,27 @@ class AgentRunHistory(
      * Claims the admitted run for execution. Returns false when another opener already
      * holds it, so a repeated send never starts a second workflow for one run.
      */
-    suspend fun claimForExecution(runId: String, attempt: Int): Boolean =
-        runs.claimPending(runId, attempt, clock()) == 1
+    suspend fun claimForExecution(runId: String, attempt: Int): Boolean {
+        val claimed = runs.claimPending(runId, attempt, clock()) == 1
+        if (claimed) {
+            val stored = runs.findByRunId(runId)
+            if (stored != null) {
+                traces.append(
+                    runId = runId,
+                    scopeId = stored.scopeId,
+                    attempt = attempt,
+                    kind = AGENT_TRACE_KIND_ATTEMPT_STARTED,
+                    completion = AGENT_TRACE_COMPLETION_NOT_APPLICABLE,
+                    payloadJson = JSONObject()
+                        .put("attempt", attempt)
+                        .put("reason", "claim")
+                        .put("state", "RUNNING")
+                        .toString(),
+                )
+            }
+        }
+        return claimed
+    }
 
     /**
      * Records the durable end of one attempt: settles the attempt row and advances the
@@ -198,6 +261,17 @@ class AgentRunHistory(
                 runs.finish(runId, "FAILED", outcome.reason.name, null, null, now)
             }
         }
+        val stored = runs.findByRunId(runId)
+        if (stored != null) {
+            traces.append(
+                runId = runId,
+                scopeId = stored.scopeId,
+                attempt = attempt,
+                kind = AGENT_TRACE_KIND_ATTEMPT_OUTCOME,
+                completion = AGENT_TRACE_COMPLETION_COMPLETE,
+                payloadJson = traceOutcomePayload(outcome, attemptState, reason, stored.state),
+            )
+        }
     }
 
     /**
@@ -241,8 +315,10 @@ class AgentRunHistory(
      */
     suspend fun cancelRun(runId: String, reason: String): Boolean {
         val now = clock()
+        val stored = runs.findByRunId(runId)
         val rows = attempts.findForRun(runId)
-        rows.filter { it.state == "PENDING" && it.ownerToken != null }.forEach { row ->
+        val cancelledAttempts = rows.filter { it.state == "PENDING" && it.ownerToken != null }
+        cancelledAttempts.forEach { row ->
             try {
                 attempts.cancel(row.id, row.ownerToken!!, reason, now)
             } catch (cancelled: CancellationException) {
@@ -251,12 +327,44 @@ class AgentRunHistory(
             }
         }
         appendLine(runId, "STATUS", "The run was cancelled.", now)
-        return runs.cancel(runId, reason, now) == 1
+        val cancelled = runs.cancel(runId, reason, now) == 1
+        if (cancelled && stored != null) {
+            traces.append(
+                runId = runId,
+                scopeId = stored.scopeId,
+                attempt = AGENT_TRACE_RUN_SCOPE_ATTEMPT,
+                kind = AGENT_TRACE_KIND_RUN_CANCELLED,
+                direction = AGENT_TRACE_DIRECTION_INTERNAL,
+                completion = AGENT_TRACE_COMPLETION_INTERRUPTED,
+                payloadJson = JSONObject()
+                    .put("reason", reason)
+                    .put("attempts", JSONArray().also { out ->
+                        cancelledAttempts.forEach { row -> out.put(row.attempt) }
+                    })
+                    .put("state", "CANCELLED")
+                    .toString(),
+            )
+        }
+        return cancelled
     }
 
     /** The durable user-visible conversation of one run, in display order. */
     suspend fun conversationForRun(runId: String): List<AgentConversationEntity> =
         conversation.findForRun(runId)
+
+    /**
+     * The complete local production trace of one run, in append order: the run admission, each
+     * attempt start, every provider request/response body, every tool call and result, the
+     * clarification question and reply, and the attempt/run outcomes.
+     *
+     * This is private local diagnostics. It is deliberately not part of [safeExport]: callers are
+     * the app's own evidence paths, never the hosted prompt or an export.
+     */
+    suspend fun traceForRun(runId: String): List<AgentTraceEventEntity> = traces.findForRun(runId)
+
+    /** The trace events of one attempt of a run, in append order. */
+    suspend fun traceForAttempt(runId: String, attempt: Int): List<AgentTraceEventEntity> =
+        traces.findForAttempt(runId, attempt)
 
     /**
      * Reopens one failed/clarifying run for its next bounded attempt. The returned
@@ -317,6 +425,18 @@ class AgentRunHistory(
             ),
         )
         appendLine(runId, "STATUS", "The run was retried (attempt $next).", now)
+        traces.append(
+            runId = runId,
+            scopeId = hostScope.scopeId,
+            attempt = next,
+            kind = AGENT_TRACE_KIND_ATTEMPT_STARTED,
+            completion = AGENT_TRACE_COMPLETION_NOT_APPLICABLE,
+            payloadJson = JSONObject()
+                .put("attempt", next)
+                .put("reason", if (stored.state == "FAILED") "retry" else "clarification")
+                .put("state", "PENDING")
+                .toString(),
+        )
         return AdmittedRun(runId, hostScope.scopeId, next, key, token, replayed = false)
     }
 
@@ -345,9 +465,11 @@ class AgentRunHistory(
     /**
      * The privacy-safe export of one session: conversation lines plus run states only.
      * Operation keys, digests, attempt tokens, observations, vault mappings, protocol
-     * continuation items, transient reasoning, and wire detail are never columns and
-     * never leave through this path. Business captures and the effect journal are
-     * separate stores and are never exported here.
+     * continuation items, reasoning, and wire detail are never columns of the exported
+     * rows and never leave through this path. The local production trace
+     * (`agent_trace_events`) is a separate private store and is never included here.
+     * Business captures and the effect journal are separate stores and are never
+     * exported here either.
      */
     suspend fun safeExport(scopeId: String, limit: Int, offset: Int): org.json.JSONObject {
         val lines = conversation.findExportPage(scopeId, limit, offset)
@@ -558,6 +680,141 @@ class AgentRunHistory(
             .put("detail", detail)
             .toString()
     }
+
+    /**
+     * The complete, untruncated payload of one attempt outcome.
+     *
+     * It repeats the same facts the journal observation summarizes (state, stop reason, counts,
+     * usage, verified effects) and adds the parts the journal deliberately omits: the masked
+     * answer the user saw, the clarification question, the ordered run steps, the compaction
+     * record, and any privacy refusal. Provider bodies are already recorded by the transport
+     * decorator, so nothing here is inferred from or substituted for them.
+     */
+    private fun traceOutcomePayload(
+        outcome: WorkflowRunOutcome,
+        attemptState: String,
+        stopReason: String?,
+        runState: String,
+    ): String {
+        val payload = JSONObject()
+            .put("attemptState", attemptState)
+            .put("runState", runState)
+            .put("stopReason", stopReason ?: JSONObject.NULL)
+        when (outcome) {
+            is WorkflowRunOutcome.Completed -> payload
+                .put("answer", outcome.answer)
+                .put("turns", outcome.turns)
+                .put("toolCalls", outcome.toolCalls)
+                .put("trace", stepsJson(outcome.trace))
+                .put("usage", usageJson(outcome.usage))
+                .put("verifiedEffects", effectsJson(outcome.verifiedEffects))
+                .put("maskingRepairs", repairsJson(outcome.maskingRepairs))
+                .put("compaction", compactionJson(outcome.compaction))
+            is WorkflowRunOutcome.Clarifying -> payload
+                .put("question", outcome.question)
+                .put("field", outcome.field ?: JSONObject.NULL)
+                .put("turns", outcome.turns)
+                .put("toolCalls", outcome.toolCalls)
+                .put("trace", stepsJson(outcome.trace))
+                .put("usage", usageJson(outcome.usage))
+                .put("maskingRepairs", repairsJson(outcome.maskingRepairs))
+            is WorkflowRunOutcome.Refused -> payload
+                .put("reason", outcome.reason)
+                .put("answer", outcome.answer ?: JSONObject.NULL)
+                .put("trace", stepsJson(outcome.trace))
+                .put("maskingRepairs", repairsJson(outcome.maskingRepairs))
+            is WorkflowRunOutcome.Incomplete -> payload
+                .put("reason", outcome.reason.name)
+                .put("detail", outcome.detail ?: JSONObject.NULL)
+                .put("turns", outcome.turns)
+                .put("toolCalls", outcome.toolCalls)
+                .put("trace", stepsJson(outcome.trace))
+                .put("usage", usageJson(outcome.usage))
+                .put("maskingRepairs", repairsJson(outcome.maskingRepairs))
+                .put("compaction", compactionJson(outcome.compaction))
+                .put(
+                    "privacyRefusal",
+                    outcome.privacyRefusal?.let { refusal ->
+                        JSONObject()
+                            .put("reason", refusal.reason.name)
+                            .put("sensitiveKind", refusal.sensitiveKind ?: JSONObject.NULL)
+                            .put("safeLocation", refusal.safeLocation)
+                            .put("nodeType", refusal.nodeType)
+                    } ?: JSONObject.NULL,
+                )
+        }
+        return payload.toString()
+    }
+
+    private fun stepsJson(steps: List<WorkflowRunStep>): JSONArray = JSONArray().also { out ->
+        steps.forEach { step ->
+            out.put(JSONObject().put("state", step.state.name).put("detail", step.detail ?: JSONObject.NULL))
+        }
+    }
+
+    private fun usageJson(usage: List<AgentRunUsage>): JSONArray = JSONArray().also { out ->
+        usage.forEach { turn ->
+            out.put(
+                JSONObject()
+                    .put("inputTokens", turn.inputTokens ?: JSONObject.NULL)
+                    .put("outputTokens", turn.outputTokens ?: JSONObject.NULL)
+                    .put("reasoningTokens", turn.reasoningTokens ?: JSONObject.NULL)
+                    .put("cachedInputTokens", turn.cachedInputTokens ?: JSONObject.NULL),
+            )
+        }
+    }
+
+    private fun effectsJson(effects: List<WorkflowVerifiedEffect>): JSONArray = JSONArray().also { out ->
+        effects.forEach { effect ->
+            val item = JSONObject()
+            when (effect) {
+                is WorkflowVerifiedEffect.EventReading -> item
+                    .put("kind", "event_reading")
+                    .put("eventId", effect.eventId)
+                    .put("captureId", effect.captureId)
+                    .put("revision", effect.revision)
+                is WorkflowVerifiedEffect.LinkState -> item
+                    .put("kind", "link_state")
+                    .put("linkId", effect.linkId)
+                    .put("eventId", effect.eventId)
+                    .put("draftId", effect.draftId)
+                    .put("state", effect.state.name)
+                    .put("revision", effect.revision)
+                is WorkflowVerifiedEffect.Classification -> item
+                    .put("kind", "classification")
+                    .put("draftId", effect.draftId)
+                    .put("source", effect.source.name)
+                    .put("suggestedCategoryId", effect.suggestedCategoryId ?: JSONObject.NULL)
+                    .put("confidence", effect.confidence ?: JSONObject.NULL)
+                    .put("reviewStatus", effect.reviewStatus.name)
+                is WorkflowVerifiedEffect.ClassificationUnavailable -> item
+                    .put("kind", "classification_unavailable")
+                    .put("draftId", effect.draftId)
+                    .put("reasonCode", effect.reasonCode)
+                    .put("reviewStatus", effect.reviewStatus.name)
+                is WorkflowVerifiedEffect.ReplayIdentity -> item
+                    .put("kind", "replay_identity")
+                    .put("operationKey", effect.operationKey)
+                    .put("currentEffectMatches", effect.currentEffectMatches)
+                is WorkflowVerifiedEffect.NoEffect -> item
+                    .put("kind", effect.kindName)
+                    .put("intent", effect.intent.name)
+                    .put("summary", effect.toString())
+            }
+            out.put(item)
+        }
+    }
+
+    private fun repairsJson(repairs: List<MaskingRepairRecord>): JSONArray = JSONArray().also { out ->
+        repairs.forEach { repair -> out.put(repairRecordJson(repair)) }
+    }
+
+    private fun compactionJson(compaction: AgentContextCompaction?): Any = compaction?.let { record ->
+        JSONObject()
+            .put("compactedTurns", record.compactedTurns)
+            .put("droppedToolResults", record.droppedToolResults)
+            .put("carriedDispatches", record.carriedDispatches)
+    } ?: JSONObject.NULL
 
     /** Content-free repair chronology for durable history; never refused text or a token. */
     private fun repairRecordJson(repair: MaskingRepairRecord): JSONObject = JSONObject()

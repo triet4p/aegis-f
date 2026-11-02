@@ -7,6 +7,15 @@ and no release has been tagged or published. Format follows
 
 ## [Unreleased]
 ### Added
+- Added a complete local production trace of each agent run. The app's own Room database now
+  keeps the ordered run/attempt evidence: the exact provider request and response bodies
+  (including provider-returned reasoning and continuation items), tool call arguments and
+  results, clarification questions and the user's replies, provider failures, cancellation and
+  terminal outcomes. The trace is local-only, is never exported or uploaded, and never stores
+  authentication headers or credentials; interrupted, failed or pre-upgrade evidence is marked
+  as an explicit gap instead of being reconstructed. Existing databases upgrade in place
+  (schema v14) with every stored run, attempt and conversation row preserved.
+
 - Added a bounded S8.14 physical-phone integration runner for the actual app UI. Its credential-free
   local mode exercises recovery and offline work; the separately selected
   `--hosted-primary-replay-slice` runs only the real hosted primary workflow and its persisted

@@ -211,10 +211,13 @@ The boundary MUST:
   inventory (opaque tokens and kinds only, never raw values or mappings), rendered after
   new observations, clarification, compaction and repair, so a value absent from the list
   is unauthorized.
-- Exclude credentials, mappings, transient reasoning and sensitive continuation data
-  from logs/history/export by default. Sensitive continuation data, where a protocol
-  requires it, stays protected, task-scoped and retention-bounded; plaintext reasoning
-  prose is never retained.
+- Exclude credentials and vault mappings from logs/history/export in every case. The local
+  production trace (`agent_trace_events`) is the owner-approved exception for transient
+  reasoning and protocol continuation data: it retains the complete provider
+  request/response bodies, tool arguments/results and clarification text **locally only**,
+  never exports or uploads them, and never stores an authentication header or credential.
+  Sensitive continuation data stays protected, task-scoped and retention-bounded; the
+  conversation, hosted prompt and safe export keep the previous exclusion.
 - Disclose the selected endpoint and residual contextual exposure before real-data
   cloud use. Masking is data minimization, not anonymity and not a no-remote-processing
   claim. No silent inference upload; no bundled developer keys.

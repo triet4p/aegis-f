@@ -238,14 +238,18 @@ the actual hosted-exchange slice remains the separate a1 live evidence.
 ## S8.10 durable history (summary)
 
 Full contract in `docs/sprint-8-agent-history.md`. One `AgentRunHistory` per session owns
-three separate stores: the user-visible conversation (`agent_conversation`), the
+three separate stores — the user-visible conversation (`agent_conversation`), the
 run/attempt journal (`agent_runs` / `agent_run_attempts` with allowed effect refs and
 pending/completed/unknown states), and — untouched — the business captures and the
-`workflow_operations` effect journal. `startTracked` admits (or replays) the durable run,
-claims it for execution, records the attempt outcome, reconciles an uncertain write
-before any bounded retry (max 3 attempts), and never claims rollback on cancel. The
-safe export is conversation lines plus run states only: no keys, digests, mappings,
-credentials, reasoning, or wire detail.
+`workflow_operations` effect journal — plus the append-only local production trace
+(`agent_trace_events`, schema v14; PT1). `startTracked` admits (or replays) the durable run,
+claims it for execution, binds the trace recorder to the run/attempt, records the attempt
+outcome, reconciles an uncertain write before any bounded retry (max 3 attempts), and never
+claims rollback on cancel. The safe export is conversation lines plus run states only: no
+keys, digests, mappings, credentials, reasoning, or wire detail. The separate trace retains
+the complete provider bodies (including provider-returned reasoning), tool arguments/results
+and clarifications locally, never exports them, and records explicit gaps for interrupted or
+pre-trace evidence.
 
 Proven 2026-10-27 (`S8.10-replan-a1`): 6/6 `S810DurableRunHistoryTest` + 2/2
 `AgentRunMigrationTest` on the host; a real Go Chat Completions run

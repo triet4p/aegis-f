@@ -150,7 +150,10 @@ missing Responses prerequisite for this task.
 ## Limits and follow-ups
 
 - No streaming, no retry/backoff and no prompt caching: those belong to S8.9/S8.11. A rate-limited
-  or transport-failed turn is returned classified and is not retried here.
+  or transport-failed turn is returned classified and is not retried here. When streaming is
+  added, the transport seam is the place to expose per-exchange chunks and the PT1 trace already
+  models partial completion: chunk events are closed `COMPLETE` or `INTERRUPTED` instead of
+  fabricating a body.
 - Masking boundary (S8.6) is the only supported production caller: `MaskedHostedGateway` masks
   system/user instructions and tool-result JSON before `begin`/`continueWithToolResults`, keeps the
   protocol's required continuation items byte-identical, and scans decoded keys, strings and
@@ -169,8 +172,11 @@ missing Responses prerequisite for this task.
   duplicate keys, malformed/trailing JSON and unsupported roots fail closed as
   `Incomplete("masking_blocked")` with no dispatchable calls or continuation. Privacy refusals carry
   a fixed reason, optional sensitive-kind label, node type and allowlisted structural path, while a
-  schema-validated exemption reports only its kind, path and node type. Local evidence records
-  neither response values nor reasoning; serialized-body matches are diagnostic only. Known
+  schema-validated exemption reports only its kind, path and node type. Masking-refusal evidence
+  records neither response values nor reasoning; serialized-body matches are diagnostic only. The
+  separate local production trace (PT1, `agent_trace_events`) retains the complete provider
+  request/response bodies — including returned reasoning and continuation items — locally only; it
+  is never exported or uploaded and never stores authentication headers or credentials. Known
   session-scoped tokens remain allowed; raw adapter calls remain for tests; production must not
   bypass the gateway.
 - Production Chat supplies the adapters through `MaskedHostedGateway`, the typed application
