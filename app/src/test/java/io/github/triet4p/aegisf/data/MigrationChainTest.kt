@@ -37,10 +37,10 @@ import java.util.TimeZone
  * confirmed draft and its record, and the truthful provenance of the descriptions that
  * the old schema never timestamped.
  *
- * The second test injects a failure into the last step of the chain and asserts that the
- * whole upgrade rolls back — the older rows, their values, and their totals intact, the
- * version unchanged, and nothing deleted — and that the same file opens and migrates
- * successfully once the injected defect is gone.
+ * A rollback test injects a failure while the durable classification-work table is created and
+ * asserts that the whole upgrade rolls back — the older rows, their values, and their totals
+ * intact, the version unchanged, and nothing deleted — and that the same file opens and
+ * migrates successfully once the injected defect is gone.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -339,6 +339,27 @@ class MigrationChainTest {
                 database.close()
             }
         }
+    @Test
+    fun `version fourteen snapshot migration preserves source baseline and backfills its legacy identity`() =
+        runTest {
+            writeVersionFourteenDatabase()
+            val database = LedgerDatabase.build(context)
+            try {
+                val room = database.openHelper.writableDatabase
+                val migrated = database.classificationSnapshotDao().findForDraft(PENDING_DRAFT_ID)!!
+                assertEquals(LedgerDatabase.VERSION.toLong(), scalar(room, "PRAGMA user_version"))
+                assertEquals(ClassificationInputKind.STORED_SOURCE.name, migrated.classificationInputKind)
+                assertEquals("legacy-effective-input-digest", migrated.classificationInputIdentity)
+                assertEquals("legacy-effective-input-digest", migrated.effectiveInputDigest)
+                assertNull(migrated.translationSourceRevision)
+                assertEquals(PredictionSource.NO_FIT.name, migrated.decisionSource)
+                assertEquals("PENDING", database.pendingBankDraftDao().findById(PENDING_DRAFT_ID)!!.reviewStatus.name)
+                assertTrue(database.transactionDao().findAll().isEmpty())
+            } finally {
+                database.close()
+            }
+        }
+
 
     @Test
     fun `the upgraded database still obeys the revision idempotency and resolution rules`() =
@@ -522,9 +543,9 @@ class MigrationChainTest {
         }
 
     @Test
-    fun `an injected failure in the last migration rolls the whole chain back and a retry keeps the data`() =
+    fun `an injected classification-work migration failure rolls the whole chain back and a retry keeps the data`() =
         runTest {
-            writeVersionSixDatabase(injectFailureInLastMigration = true)
+            writeVersionSixDatabase(injectFailureInClassificationWorkMigration = true)
             val database = LedgerDatabase.build(context)
             var failed = false
             try {
@@ -583,7 +604,7 @@ class MigrationChainTest {
                     )
                 }
                 assertEquals(
-                    "the column the failed step added must be gone again",
+                    "a column added by an earlier migration must be gone after rollback",
                     0L,
                     scalar(
                         legacy,
@@ -595,7 +616,7 @@ class MigrationChainTest {
                     assertFalse("the failed upgrade left a foreign-key violation", cursor.moveToFirst())
                 }
                 // The injected defect is removed: the file is the older database again,
-                // without the object that made the last step fail.
+                // without the malformed classification-work table that made its migration fail.
                 legacy.execSQL("DROP TABLE `classification_work`")
             } finally {
                 legacy.close()
@@ -642,22 +663,20 @@ class MigrationChainTest {
      * version-6 release — so the fixture is the real historical structure and not a
      * current one wearing an old version number.
      *
-     * With [injectFailureInLastMigration] the fixture also holds a `note_events` table
-     * that already carries the column the last migration adds. The last step of the
-     * chain then fails on the duplicate column, which is a failure inside the upgrade
-     * transaction rather than before it.
+     * With [injectFailureInClassificationWorkMigration] the fixture also holds a malformed
+     * `classification_work` table. The migration that creates the table and its indices then
+     * fails inside the upgrade transaction rather than before it.
      */
-    private fun writeVersionSixDatabase(injectFailureInLastMigration: Boolean = false) {
+    private fun writeVersionSixDatabase(injectFailureInClassificationWorkMigration: Boolean = false) {
         val file = context.getDatabasePath(LedgerDatabase.NAME)
         file.parentFile?.mkdirs()
         file.delete()
         val database = SQLiteDatabase.openOrCreateDatabase(file, null)
         try {
             exportedStatements(6).forEach { statement -> database.execSQL(statement) }
-            if (injectFailureInLastMigration) {
-                // A table under the name the last migration creates, of a shape its own
-                // index statement cannot use: the last step of the chain then fails on
-                // the missing column, which is a failure inside the upgrade transaction.
+            if (injectFailureInClassificationWorkMigration) {
+                // A malformed table under the name the classification-work migration creates
+                // makes its index statement fail inside the upgrade transaction.
                 database.execSQL(
                     "CREATE TABLE `classification_work` (" +
                         "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `note` TEXT)",
@@ -756,6 +775,40 @@ class MigrationChainTest {
             database.close()
         }
     }
+    private fun writeVersionFourteenDatabase() {
+        val file = context.getDatabasePath(LedgerDatabase.NAME)
+        file.parentFile?.mkdirs()
+        file.delete()
+        val database = SQLiteDatabase.openOrCreateDatabase(file, null)
+        try {
+            exportedStatements(14).forEach { statement -> database.execSQL(statement) }
+            insertCategory(database, FOOD_CATEGORY_ID, "Food", archived = 0)
+            insertDraft(
+                database,
+                PENDING_DRAFT_ID,
+                "lt1-version-fourteen",
+                "v14-evidence-digest",
+                "PENDING",
+                null,
+                "Bánh mì",
+            )
+            database.execSQL(
+                "INSERT INTO `classification_snapshots` (`id`, `draftId`, `contextRevision`, " +
+                    "`categoryRevision`, `ruleRevision`, `modelRevision`, `candidateSetVersion`, " +
+                    "`decisionSource`, `suggestedCategoryId`, `candidateIds`, `probabilities`, " +
+                    "`unknownShare`, `confidence`, `effectiveInputDigest`, `eventIds`, " +
+                    "`predictionTime`, `staleReason`) VALUES " +
+                    "(1, $PENDING_DRAFT_ID, 'legacy-context-revision', 'legacy-category-revision', " +
+                    "'legacy-rule-revision', 'legacy-model-revision', 'legacy-candidates', " +
+                    "'NO_FIT', NULL, '$FOOD_CATEGORY_ID', '0.1', 0.9, 0.1, " +
+                    "'legacy-effective-input-digest', '', $FIXTURE_MOMENT, NULL)",
+            )
+            database.execSQL("PRAGMA user_version = 14")
+        } finally {
+            database.close()
+        }
+    }
+
 
     private fun insertCategory(database: SQLiteDatabase, id: Long, name: String, archived: Int) {
         database.execSQL(

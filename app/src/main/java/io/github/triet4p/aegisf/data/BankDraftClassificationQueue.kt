@@ -39,6 +39,9 @@ import kotlinx.coroutines.launch
  *   the queue to re-check its jobs, and a job whose question did not change is not asked
  *   again. Redrawing a screen, re-reading a draft, or correcting an amount (none of which
  *   changes the model's input) schedules nothing.
+ * - **Derived translations are not raw queue answers.** A fresh hosted-English snapshot has
+ *   a different input identity, so the automatic stored-source queue never reuses it as though
+ *   it classified the untranslated bank memo and linked readings.
  * - **Resumable across process death.** A running job is written before the model is
  *   asked and finished only by the attempt that wrote it. When the queue starts in a new
  *   process every interrupted running job returns to pending before the worker claims
@@ -313,14 +316,16 @@ class BankDraftClassificationQueue(
      * The stored prediction of the draft when it still answers the question the draft
      * poses now, or null.
      *
-     * A prediction is fresh only while every dependency it was recorded against still
-     * matches, and those dependencies include the description and the linked readings —
-     * so a fresh prediction is the answer to the same question the queue would ask. A
-     * re-read delivery, or a draft carried over from a build that did not keep durable
-     * jobs, therefore reuses it instead of spending an inference on a known answer.
+     * A prediction is reusable only while every dependency it was recorded against still
+     * matches and its input kind is [ClassificationInputKind.STORED_SOURCE]. Hosted English
+     * is a different question, even with current source revisions, so the automatic queue
+     * asks its ordinary stored-source input instead of replaying that derived snapshot.
      */
     private suspend fun freshSnapshotId(draftId: Long): Long? = try {
-        val fresh = snapshots.snapshotFor(draftId)?.takeIf { it.staleReason == null }
+        val fresh = snapshots.snapshotFor(draftId)?.takeIf {
+            it.staleReason == null &&
+                it.classificationInputKind == ClassificationInputKind.STORED_SOURCE
+        }
         if (fresh == null) null else snapshots.storedSnapshot(draftId)?.id
     } catch (cancelled: CancellationException) {
         throw cancelled

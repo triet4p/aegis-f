@@ -105,8 +105,8 @@ class WorkflowSkillCatalog private constructor(
     }
 
     companion object {
-        const val ASSET_NAME = "s8_agent_runtime_skills_v4.json"
-        const val SCHEMA = "aegis-f-s8-agent-runtime-skills/v4"
+        const val ASSET_NAME = "s8_agent_runtime_skills_v5.json"
+        const val SCHEMA = "aegis-f-s8-agent-runtime-skills/v5"
 
         private val EXPECTED_IDS = WorkflowSkillId.entries.associateBy(WorkflowSkillId::wireId)
         private val EXPECTED_VERSIONS = mapOf(
@@ -132,7 +132,10 @@ class WorkflowSkillCatalog private constructor(
             // own user_label and a pair observation names the exact event/draft labels it binds, so a
             // candidate question copies the proposed row's label instead of inferring it from order.
             WorkflowSkillId.LINK_EVENT_DRAFT to 3,
-            WorkflowSkillId.LOCAL_REVIEW to 1,
+            // Version 2 adds optional source-bound English translation for local Laya: it covers
+            // the complete current draft and active linked readings, preserves neutral tokens,
+            // and never replaces the ordinary source-text path when translation is not needed.
+            WorkflowSkillId.LOCAL_REVIEW to 2,
             WorkflowSkillId.OPERATION_REPLAY to 1,
         )
         private val REQUIRED_BRANCHES = setOf("normal", "error")

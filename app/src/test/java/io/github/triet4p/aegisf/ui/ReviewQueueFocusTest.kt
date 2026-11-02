@@ -250,6 +250,9 @@ class ReviewQueueFocusTest {
             unknownShare = stored.unknownShare,
             confidence = confidence,
             effectiveInputDigest = stored.effectiveInputDigest,
+            classificationInputKind = stored.classificationInputKind,
+            classificationInputIdentity = stored.classificationInputIdentity,
+            translationSourceRevision = stored.translationSourceRevision,
             eventIds = stored.eventIds,
             predictionTime = stored.predictionTime,
         )

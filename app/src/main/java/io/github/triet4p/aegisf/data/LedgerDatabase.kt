@@ -97,7 +97,7 @@ abstract class LedgerDatabase : RoomDatabase() {
     abstract fun agentTraceDao(): AgentTraceDao
 
     companion object {
-        const val VERSION = 14
+        const val VERSION = 15
 
         /** File name of the on-device database. */
         const val NAME = "aegis-ledger.db"
@@ -818,6 +818,34 @@ abstract class LedgerDatabase : RoomDatabase() {
                 )
             }
         }
+        /**
+         * Version 14 to 15 records the derivation and source binding of a classification input.
+         *
+         * Existing snapshots came from the stored source, so their kind is backfilled to
+         * `STORED_SOURCE` and their existing effective-input digest remains their legacy identity.
+         * No translated text is added to the database; later hosted English inputs store only
+         * one-way source/input digests.
+         */
+        val MIGRATION_14_15: Migration = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `classification_snapshots` ADD COLUMN " +
+                        "`classificationInputKind` TEXT NOT NULL DEFAULT 'STORED_SOURCE'",
+                )
+                db.execSQL(
+                    "ALTER TABLE `classification_snapshots` ADD COLUMN " +
+                        "`classificationInputIdentity` TEXT NOT NULL DEFAULT ''",
+                )
+                db.execSQL(
+                    "ALTER TABLE `classification_snapshots` ADD COLUMN " +
+                        "`translationSourceRevision` TEXT",
+                )
+                db.execSQL(
+                    "UPDATE `classification_snapshots` SET `classificationInputIdentity` = " +
+                        "`effectiveInputDigest` WHERE `classificationInputIdentity` = ''",
+                )
+            }
+        }
 
         /** Builds the production database on the app's real file directory. */
         fun build(context: Context): LedgerDatabase =
@@ -836,6 +864,7 @@ abstract class LedgerDatabase : RoomDatabase() {
                     MIGRATION_11_12,
                     MIGRATION_12_13,
                     MIGRATION_13_14,
+                    MIGRATION_14_15,
                 )
                 .build()
 

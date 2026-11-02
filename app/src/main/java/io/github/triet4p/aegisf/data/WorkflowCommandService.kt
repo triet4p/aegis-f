@@ -767,10 +767,34 @@ class WorkflowCommandService(
      * user already chose keeps the user's choice. The stored prediction is review-only
      * evidence: no bank field is changed by any of this.
      */
-    suspend fun requestClassification(
-        scope: WorkflowCallerScope,
-        request: ClassificationRequest,
-    ): WorkflowCommandOutcome {
+suspend fun requestClassification(
+    scope: WorkflowCallerScope,
+    request: ClassificationRequest,
+): WorkflowCommandOutcome = requestClassificationInternal(scope, request, null)
+
+/** Classification entry point reserved for the source-bound hosted translation tool. */
+internal suspend fun requestHostedEnglishClassification(
+    scope: WorkflowCallerScope,
+    request: ClassificationRequest,
+    input: HostedEnglishClassificationInput,
+): WorkflowCommandOutcome = requestClassificationInternal(scope, request, input)
+
+/** Re-reads the authorized source revisions before a model translation may be accepted. */
+internal suspend fun classificationTranslationSource(
+    scope: WorkflowCallerScope,
+    binding: ClassificationTranslationBinding,
+): ClassificationTranslationSource? {
+    if (!scope.mayTouchDraft(binding.draftId)) return null
+    val source = snapshots.translationSource(binding) ?: return null
+    if (source.eventCaptureIds.any { !scope.mayTouchCapture(it) }) return null
+    return source
+}
+
+private suspend fun requestClassificationInternal(
+    scope: WorkflowCallerScope,
+    request: ClassificationRequest,
+    hostedEnglishInput: HostedEnglishClassificationInput?,
+): WorkflowCommandOutcome {
         if (request.idempotencyKey.isBlank()) {
             return WorkflowCommandOutcome.Failed("A command needs a non-blank idempotency key.")
         }
@@ -778,14 +802,31 @@ class WorkflowCommandService(
         if (!scope.mayTouchDraft(request.draftId)) {
             return WorkflowCommandOutcome.Denied(WorkflowDenialReason.CALLER_SCOPE)
         }
-        val digest = canonicalDependencyDigest(
-            listOf(
-                COMMAND_REQUEST_CLASSIFICATION,
-                request.draftId.toString(),
-                request.description,
-                request.expectedReviewRevision?.toString(),
-            ),
+        if (hostedEnglishInput != null) {
+            val binding = hostedEnglishInput.binding
+            if (binding.draftId != request.draftId ||
+                request.expectedReviewRevision != binding.draftReviewRevision
+            ) {
+                return WorkflowCommandOutcome.Conflict("The translation is not bound to this draft revision.")
+            }
+            val source = snapshots.translationSource(binding)
+                ?: return WorkflowCommandOutcome.Conflict("The translation's source binding is stale.")
+            if (source.eventCaptureIds.any { !scope.mayTouchCapture(it) }) {
+                return WorkflowCommandOutcome.Denied(WorkflowDenialReason.CALLER_SCOPE)
+            }
+        }
+        val digestParts = mutableListOf<String?>(
+            COMMAND_REQUEST_CLASSIFICATION,
+            request.draftId.toString(),
+            request.description,
+            request.expectedReviewRevision?.toString(),
         )
+        hostedEnglishInput?.let {
+            digestParts += ClassificationInputKind.HOSTED_ENGLISH_TRANSLATION.name
+            digestParts += it.text
+            digestParts += it.binding.sourceRevision
+        }
+        val digest = canonicalDependencyDigest(digestParts)
         val claim = claimOperation(scope, request.idempotencyKey, digest)
         when (claim) {
             is OperationClaim.Refused -> return claim.outcome
@@ -796,7 +837,7 @@ class WorkflowCommandService(
         val acquired = claim as OperationClaim.Acquired
         val hold = ClaimHold(acquired, request.idempotencyKey)
         try {
-            return runClaimedClassification(scope, request, digest, acquired, hold)
+            return runClaimedClassification(scope, request, digest, acquired, hold, hostedEnglishInput)
         } catch (cancelled: CancellationException) {
             // A cancelled request leaves the key free again: the work never finished, so
             // nothing is recorded and a later attempt may use the key. The model work
@@ -825,6 +866,7 @@ class WorkflowCommandService(
         digest: String,
         claim: OperationClaim.Acquired,
         hold: ClaimHold,
+        hostedEnglishInput: HostedEnglishClassificationInput?,
     ): WorkflowCommandOutcome {
         val draft = draftDao.findById(request.draftId)
             ?: return releaseWith(hold, WorkflowCommandOutcome.NotFound)
@@ -837,7 +879,7 @@ class WorkflowCommandService(
             )
         }
         val description = request.description.trim()
-        if (description.isEmpty()) {
+        if (hostedEnglishInput == null && description.isEmpty()) {
             return releaseWith(
                 hold,
                 WorkflowCommandOutcome.NeedsClarification(
@@ -846,12 +888,27 @@ class WorkflowCommandService(
                 ),
             )
         }
-        val effective = snapshots.effectiveContextFor(request.draftId, description)
-            ?: return releaseWith(hold, WorkflowCommandOutcome.NotFound)
+        if (hostedEnglishInput != null && request.description != draft.classificationDescription()) {
+            return releaseWith(
+                hold,
+                WorkflowCommandOutcome.Conflict("The draft description changed under the caller."),
+            )
+        }
+        val effective = if (hostedEnglishInput == null) {
+            snapshots.effectiveContextFor(request.draftId, description)
+                ?: return releaseWith(hold, WorkflowCommandOutcome.NotFound)
+        } else {
+            snapshots.effectiveContextForTranslated(request.draftId, hostedEnglishInput)
+                ?: return releaseWith(
+                    hold,
+                    WorkflowCommandOutcome.Conflict("The translation's source binding is stale."),
+                )
+        }
+        val classificationText = effective.context.primaryText
         val activeCategories = query.categoryCatalog().filterNot { it.archived }
         val produced = when (
             val decision = decideRememberedBeforeInference(
-                description = description,
+                description = classificationText,
                 context = effective.context,
                 activeCategories = activeCategories,
                 findRememberedCategory = findRememberedCategory,
@@ -911,7 +968,7 @@ class WorkflowCommandService(
                 probabilities = emptyList(),
                 unknownShare = null,
                 confidence = null,
-                effectiveInputDigest = effectiveInputDigest(description),
+                effectiveInputDigest = effectiveInputDigest(classificationText),
             )
             is Produced.Decided -> produced.decision.classificationPrediction()
         }

@@ -218,6 +218,46 @@ class ClassificationWorkLifecycleTest {
     // --- Cases -------------------------------------------------------------
 
     @Test
+    fun `raw queue request does not reuse a fresh translated snapshot`() = runBlocking<Unit> {
+        val draftId = storeDraft("Bánh mì", "translated-before-queue")
+        val draft = database.pendingBankDraftDao().findById(draftId)!!
+        val repository = ClassificationSnapshotRepository(database)
+        val source = repository.translationSource(
+            ClassificationTranslationBinding(draftId, draft.reviewRevision, ""),
+        )!!
+        val translation = "Bought bread this morning."
+        assertTrue(
+            commands.requestHostedEnglishClassification(
+                WorkflowCallerScope.User,
+                ClassificationRequest(
+                    idempotencyKey = "translated-before-queue-operation",
+                    draftId = draftId,
+                    description = draft.classificationDescription(),
+                    expectedReviewRevision = draft.reviewRevision,
+                ),
+                HostedEnglishClassificationInput(translation, source.binding),
+            ) is WorkflowCommandOutcome.Applied,
+        )
+        assertEquals(1, engine.calls)
+        assertEquals(translation, engine.questions.single())
+        assertEquals(
+            ClassificationInputKind.HOSTED_ENGLISH_TRANSLATION.name,
+            snapshotOf(draftId)!!.classificationInputKind,
+        )
+
+        queue.admit(draftId)
+        val work = awaitWork(draftId) { it.state == CLASSIFICATION_WORK_RESULT }
+        assertNotNull(work.snapshotId)
+        assertEquals(2, engine.calls)
+        assertEquals(listOf(translation, "Bánh mì"), engine.questions)
+        assertEquals(
+            ClassificationInputKind.STORED_SOURCE.name,
+            snapshotOf(draftId)!!.classificationInputKind,
+        )
+        assertTrue(database.transactionDao().findAll().isEmpty())
+    }
+
+    @Test
     fun `marking an older attempt preserves and runs a concurrently retargeted question`() =
         runBlocking<Unit> {
             queue.close()

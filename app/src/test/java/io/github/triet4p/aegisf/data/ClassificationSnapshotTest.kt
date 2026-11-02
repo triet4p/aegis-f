@@ -3,9 +3,12 @@ package io.github.triet4p.aegisf.data
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import io.github.triet4p.aegisf.notification.PermittedNotificationContent
+import io.github.triet4p.aegisf.data.laya.LayaEffectiveContextComposer
+import io.github.triet4p.aegisf.data.laya.LayaTokenizerLoader
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -135,6 +138,96 @@ class ClassificationSnapshotTest {
                 effective.dependencies.contextRevision,
                 repository.storedSnapshot(draftId)!!.contextRevision,
             )
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun `translation binding supports draft-only and linked inputs and distinguishes the no-fit baseline`() = runTest {
+        val database = open()
+        try {
+            val categoryId = ledger(database).addCategory("Food")
+            val captureId = captures(database).saveQuickCapture(NOTE_TEXT)
+            val event = storeEvent(database, captureId, "Fuel 50,000 at 15:00", "Fuel")
+            val draftId = storeDraft(database, "fuel-translation-key", 50_000L)
+            val draft = database.pendingBankDraftDao().findById(draftId)!!
+            val repository = snapshots(database)
+            val emptySource = repository.translationSource(
+                ClassificationTranslationBinding(draftId, draft.reviewRevision, ""),
+            )!!
+            assertTrue(emptySource.eventReadings.isEmpty())
+            assertEquals(BANK_MEMO, emptySource.primaryText)
+
+            assertTrue(events(database).proposeLink(event.id, draftId) is ContextLinkResult.Linked)
+            val source = repository.translationSource(
+                ClassificationTranslationBinding(draftId, draft.reviewRevision, ""),
+            )!!
+            assertEquals(listOf(event.id), source.eventReadings.map { it.eventId })
+            assertEquals("Fuel", source.eventReadings.single().text)
+            assertNotEquals(emptySource.binding.sourceRevision, source.binding.sourceRevision)
+
+            val raw = repository.effectiveContextFor(draftId, BANK_MEMO)!!
+            val rawInput = LayaEffectiveContextComposer.compose(LayaTokenizerLoader.loadFromRepoFile(), raw.context)
+            val baseline = ClassificationPrediction(
+                source = PredictionSource.NO_FIT,
+                suggestedCategoryId = null,
+                candidateIds = listOf(categoryId),
+                probabilities = listOf(0.1),
+                unknownShare = 0.9,
+                confidence = 0.1,
+                effectiveInputDigest = rawInput.digest,
+            )
+            assertTrue(repository.recordPrediction(draftId, baseline, raw.dependencies) is SnapshotWriteResult.Stored)
+            val baselineIdentity = repository.storedSnapshot(draftId)!!.classificationInputIdentity
+            val lateRaw = repository.effectiveContextFor(draftId, BANK_MEMO)!!
+            val translatedText = "Circle K store; fuel."
+            val translated = repository.effectiveContextForTranslated(
+                draftId,
+                HostedEnglishClassificationInput(translatedText, source.binding),
+            )!!
+            assertEquals(translatedText, translated.context.primaryText)
+            assertTrue("source readings must not be appended to the translated input", translated.context.eventReadings.isEmpty())
+            assertEquals(listOf(event.id), translated.dependencies.eventIds)
+            val prediction = ClassificationPrediction(
+                source = PredictionSource.MODEL,
+                suggestedCategoryId = categoryId,
+                candidateIds = listOf(categoryId),
+                probabilities = listOf(0.75),
+                unknownShare = 0.25,
+                confidence = 0.5,
+                effectiveInputDigest = effectiveInputDigest(translatedText),
+            )
+            assertTrue(
+                repository.recordPrediction(draftId, prediction, translated.dependencies) is SnapshotWriteResult.Stored,
+            )
+            val stored = repository.storedSnapshot(draftId)!!
+            assertEquals(ClassificationInputKind.HOSTED_ENGLISH_TRANSLATION.name, stored.classificationInputKind)
+            assertEquals(source.binding.sourceRevision, stored.translationSourceRevision)
+            assertNotEquals(baselineIdentity, stored.classificationInputIdentity)
+            assertEquals(effectiveInputDigest(translatedText), stored.effectiveInputDigest)
+            assertEquals(
+                "a raw prediction already in flight cannot replace the newer translated snapshot",
+                SnapshotWriteResult.Stale,
+                repository.recordPrediction(draftId, baseline, lateRaw.dependencies),
+            )
+            assertEquals(
+                ClassificationInputKind.HOSTED_ENGLISH_TRANSLATION.name,
+                repository.storedSnapshot(draftId)!!.classificationInputKind,
+            )
+            assertNull(repository.snapshotFor(draftId)!!.staleReason)
+
+            assertTrue(events(database).rejectLink(event.id, draftId, expectedRevision = 0) is ContextLinkResult.Linked)
+            assertNull(
+                "a translation bound before a linked-source change must be refused",
+                repository.effectiveContextForTranslated(
+                    draftId,
+                    HostedEnglishClassificationInput(translatedText, source.binding),
+                ),
+            )
+            assertEquals(PredictionStaleReason.CONTEXT_CHANGED, repository.snapshotFor(draftId)!!.staleReason)
+            assertEquals("Fuel", database.noteEventDao().findById(event.id)!!.normalizedText)
+            assertEquals(0, database.transactionDao().findAll().size)
         } finally {
             database.close()
         }

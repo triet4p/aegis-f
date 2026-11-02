@@ -49,16 +49,17 @@ validated local observation. Runtime handles are never parsed for meaning, never
 matching regex alone, and never cross an authorized session boundary. The bounded registry is
 scoped to the run, holds at most 512 handles, evicts the oldest, and is never persisted; after a
 restart the host re-establishes observations and old aliases are not current. Reference kinds are
-`capture`, `source`, `amount`, `date`, `time`, `anchor`, `draft`, `event`, `pair`, `proposal`,
-`operation` and pagination `cursor`; each field states and enforces its expected kind.
+`capture`, `source`, neutral `value`, `anchor`, `draft`, `classification_context`, `event`, `pair`,
+`proposal`, `operation` and pagination `cursor`; each field states and enforces its expected kind.
 
 A handle binds the observation it came from: scope, capture/event/link/review revisions, exact
 source coordinates, the complete masked typed token, or the recorded operation identity. Mutations
 compare those bindings at the application boundary and answer `STALE_OBSERVATION` without
 overwriting. A value observed on a capture page is not authorized for an occurrence merely because
-it shares a session: `record_event` accepts amount/date/time handles only from the selected source
-span or from a clarification linked to that exact subject. Capture-page value handles are display-only;
-`make_time_anchor` likewise refuses them, so a grounded anchor is built from `select_source` handles.
+it shares a session: `record_event` accepts neutral value aliases only from the selected source
+span or from a clarification linked to that exact subject; the host parses the value for the
+argument's role. Capture-page value aliases are display-only; `make_time_anchor` refuses them,
+so a grounded anchor is built from the selected occurrence's value aliases.
 
 `select_source(capture_ref, quote, occurrence)` requires a nonblank exact contiguous copy of the
 current masked source, preserves complete masked tokens, verifies the occurrence index and token
@@ -130,14 +131,29 @@ revision and evidence inside the real mutation and always invokes the non-overri
 model no longer supplies `userOverride`. Ambiguous, ineligible, stale or refused pairs are never
 attached, and no tool rewrites amounts/dates to force eligibility.
 
-`classify_draft(draft_ref)` binds the authoritative stored description and review revision, calls
-the existing local Laya engine and stores the actual result. It never accepts model-copied text,
-never shortens an oversize input, never falls back to a hosted model and never treats a local
-model/unavailable state as a fabricated suggestion. A settled classification returns its journaled
-`operation_ref`, so the exact receipt can be selected for same-run replay; the call's own result is
-independently verified against the stored review state. `MODEL_UNAVAILABLE` and `INPUT_OVER_BUDGET`
-are truthful settled attempts with a verification claim for the actual manual review state, while a
-request another attempt still owns is `OPERATION_PENDING`, not a model-unavailable claim.
+`classify_draft(draft_ref)` keeps its ordinary source-text path: the host binds the authoritative stored
+description and review revision, calls local Laya, and stores the actual result. An optional hosted
+translation is accepted only as the pair `classification_context_ref` plus `english_translation`.
+`observe(draft)` issues that opaque context alias with a revision digest over the current draft and
+every active linked event reading, link and source revision; its masked display contains the draft
+description and all current linked readings, including zero, one or several. The host rechecks the
+digest, rejects stale contexts or changed neutral-token multiplicity, and rehydrates tokens only
+inside the local boundary. Laya receives the translated English as its sole primary input, never the
+original non-English context appended a second time. The snapshot stores only the input kind and
+one-way input/source identities, not the translation text; the result is labeled machine-derived,
+not owner-authored. Snapshot writes also compare the input identity observed before inference,
+so a late answer cannot replace a newer result produced from a different derived input.
+Translation adds no category hint, fact or confirmation authority. An explicitly
+requested but unavailable translation is reported as unavailable rather than silently classified
+from the untranslated source; ordinary offline/manual/intake review remains usable without it.
+
+The host never shortens an oversize input, falls back to a hosted classification model, or treats a
+local model/unavailable state as a fabricated suggestion. A settled classification returns its
+journaled `operation_ref`, so the exact receipt can be selected for same-run replay; the call's own
+result is independently verified against the stored review state. `MODEL_UNAVAILABLE` and
+`INPUT_OVER_BUDGET` are truthful settled attempts with a verification claim for the actual manual
+review state, while a request another attempt still owns is `OPERATION_PENDING`, not a
+model-unavailable claim.
 
 `ask_user(subject_ref, field, question)` validates that the subject supports the requested fact,
 masks the question, and returns `outcome: clarifying`, `control: await_user`. It changes no business
@@ -192,13 +208,14 @@ candidate answer.
 
 ## Assets, identity and affected consumers
 
-`tools/slm/s8_agent_tools_v3.json` and `tools/slm/s8_agent_runtime_skills_v3.json` are the runtime
-inputs copied into the Android assets by `app/build.gradle.kts`; `AgentToolDeclarations` and
-`WorkflowSkillCatalog` validate their schema markers, closed tool/skill IDs, versions and required
-content at load time. The five skills are `event-reading/4`, `draft-search/1`, `link-event-draft/2`,
-`local-review/1` and `explicit-operation-replay/1`; each names its tools, prerequisites, ordered
-steps, normal/clarification/no-match/error/retry branches, recovery guidance, synthetic examples and
-completion condition.
+`tools/slm/s8_agent_tools_v5.json` and `tools/slm/s8_agent_runtime_skills_v5.json` are the current
+runtime inputs copied into the Android assets by `app/build.gradle.kts`; historical S8.13
+qualification fixtures retain their pinned v4 assets. `AgentToolDeclarations` and
+`WorkflowSkillCatalog` validate schema markers, closed tool/skill IDs, versions and required
+content at load time. The five current skills are `event-reading/7`, `draft-search/1`,
+`link-event-draft/3`, `local-review/2` and `explicit-operation-replay/1`; each names its tools,
+prerequisites, ordered steps, branches, recovery guidance, synthetic examples and completion
+condition.
 
 The stable cache identity (`AgentContextManager.cacheKey`) includes the protocol, endpoint host,
 model, generation budget, interface contract, the canonical selected tool-schema digest, the

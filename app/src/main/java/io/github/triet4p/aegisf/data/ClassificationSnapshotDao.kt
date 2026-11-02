@@ -41,7 +41,6 @@ abstract class ClassificationSnapshotDao {
         offset: Int,
     ): List<ClassificationSnapshotEntity>
 
-    /** Replaces the stored snapshot of one draft with the one just computed. */
     @Query(
         "UPDATE classification_snapshots SET " +
             "contextRevision = :contextRevision, " +
@@ -56,6 +55,9 @@ abstract class ClassificationSnapshotDao {
             "unknownShare = :unknownShare, " +
             "confidence = :confidence, " +
             "effectiveInputDigest = :effectiveInputDigest, " +
+            "classificationInputKind = :classificationInputKind, " +
+            "classificationInputIdentity = :classificationInputIdentity, " +
+            "translationSourceRevision = :translationSourceRevision, " +
             "eventIds = :eventIds, " +
             "predictionTime = :predictionTime, " +
             "staleReason = NULL " +
@@ -75,6 +77,9 @@ abstract class ClassificationSnapshotDao {
         unknownShare: Double?,
         confidence: Double?,
         effectiveInputDigest: String,
+        classificationInputKind: String,
+        classificationInputIdentity: String,
+        translationSourceRevision: String?,
         eventIds: String,
         predictionTime: Long,
     ): Int

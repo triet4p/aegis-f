@@ -1,5 +1,6 @@
 package io.github.triet4p.aegisf.data
 
+import io.github.triet4p.aegisf.data.laya.LayaEventReading
 import io.github.triet4p.aegisf.data.laya.LayaContextDecision
 
 /**
@@ -411,8 +412,9 @@ data class UnlinkLinkRequest(
 /**
  * One request to classify a bank draft.
  *
- * The description is the effective suggestion input: the permitted bank description the
- * review works with, or the user's own explicit note — never the two concatenated.
+ * The description is the current authoritative stored primary source. Ordinary requests pass
+ * it to Laya and compose active linked readings. With [HostedEnglishClassificationInput], it
+ * remains a current-draft check while Laya receives only the bound English translation.
  *
  * [expectedReviewRevision] is the draft's own review revision when the caller wants the
  * request pinned to the state it read; null leaves the draft's review state open, and the
@@ -425,6 +427,34 @@ data class ClassificationRequest(
     val expectedReviewRevision: Int? = null,
 )
 
+/**
+ * A digest binding a hosted English translation to the draft's complete current Laya source context.
+ * The digest covers the draft review revision and every active linked reading, link, and source revision.
+ * It supports draft-only input as well as zero, one, or several current linked readings.
+ */
+internal data class ClassificationTranslationBinding(
+    val draftId: Long,
+    val draftReviewRevision: Int,
+    val sourceRevision: String,
+)
+
+/** One in-memory translation result, with a redacted string form to avoid accidental logging. */
+internal class HostedEnglishClassificationInput(
+    val text: String,
+    val binding: ClassificationTranslationBinding,
+) {
+    override fun toString(): String = "HostedEnglishClassificationInput(<redacted>)"
+}
+
+/** Full authorized source context for one translation request; never serialized as an agent result. */
+internal class ClassificationTranslationSource(
+    val binding: ClassificationTranslationBinding,
+    val primaryText: String,
+    val eventReadings: List<LayaEventReading>,
+    val eventCaptureIds: List<Long>,
+) {
+    override fun toString(): String = "ClassificationTranslationSource(<redacted>)"
+}
 /**
  * One request to add a category to the catalog.
  *

@@ -456,6 +456,8 @@ data class ReviewQueueEntry(
     val candidateSetVersion: String? = null,
     /** The stored linked readings the prediction's input was composed from. */
     val eventIds: List<Long> = emptyList(),
+    /** Whether the suggestion input was stored source text or a derived English translation. */
+    val classificationInputKind: ClassificationInputKind = ClassificationInputKind.STORED_SOURCE,
     /** The active category count at read time, stated with a suggestion's scope. */
     val activeCategoryCount: Int = 0,
     /** The policy-gated relative statement, or null when no label is allowed. */

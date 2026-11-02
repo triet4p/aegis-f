@@ -20,8 +20,9 @@ multi-turn executor with verification; durable run state with safe retry/cancel/
 and the task-level evaluation in this revision.
 
 It does **not** deliver production adapters, the executor, masking, or settings
-implementations — those are S8.5–S8.12 tasks. Nothing here changes local Laya behavior,
-offline manual/intake/ledger guarantees, or the frozen v2 contract.
+implementations — those were S8.5–S8.12 tasks. Current production adds an optional, source-bound
+English translation input for local Laya without changing the pinned model, offline/manual/intake
+behavior, ledger guarantees, or frozen evaluation contracts.
 
 Inspected application surface (behavioral, not aspirational):
 
@@ -246,21 +247,26 @@ boundary behavior: masked outbound text carries no raw sensitive value; mapping-
 equality/ordering/relative-time relations survive; unknown tokens and mapping failures
 are refused; rehydrated commands carry exact integer VND, dates/times and spans.
 
-Allowed tools for the agent (closed set): the eleven task-relevant operations declared by
-`tools/slm/s8_agent_tools_v4.json` (`aegis-f-s8-agent-tools/v4`, contract
-`aegis-agent-interface/4`) — `observe`, `select_source`, `list_drafts`, `make_time_anchor`,
+Allowed tools for the agent (closed set): the eleven task-relevant operations in the current
+production declaration `tools/slm/s8_agent_tools_v5.json` (`aegis-f-s8-agent-tools/v5`, contract
+`aegis-agent-interface/5`) — `observe`, `select_source`, `list_drafts`, `make_time_anchor`,
 `record_event`, `inspect_link`, `propose_link`, `attach_link`, `classify_draft`,
 `replay_operation`, and `ask_user`. Only the subset the host-selected skills require is
 loaded for a run; an unloaded tool is neither offered nor executable. Model arguments are
 flat primitives and host-issued opaque references, never raw sensitive scalars, revisions,
-operation keys, scope or override flags. The frozen `tools/slm/s8_agent_tools.json` v1 and
+operation keys, scope or override flags. `classify_draft` retains the ordinary stored-source
+path and may instead receive an English translation only paired with the opaque current
+classification-context reference from `observe(draft)`. That reference binds the complete
+active draft/event/link/source revision set, including zero or several linked readings;
+stale, out-of-scope or token-incomplete inputs are refused before local inference. Laya gets
+only the English derived input, while stored source remains unchanged and the snapshot stores
+only safe provenance/input digests. The historical S8.13 qualification fixture remains pinned
+to its copied v4 declaration. The frozen `tools/slm/s8_agent_tools.json` v1 and
 `s8_agent_tools_v2.json` v2 evaluation schemas remain unchanged historical inputs and are
 not loaded by the production Android runtime. There is explicitly **no** financial
 confirmation, deletion, arbitrary SQL, shell, arbitrary filesystem access, general plugin
 system, or device automation tool. Unknown tools, `execute_sql`, `confirm`/`delete` shapes,
 and caller-supplied evidence fields never reach the API.
-
-## 5. Skill shape, trusted ownership, and authority
 
 ### 5.1 Skill shape (versioned, bundled)
 
@@ -272,10 +278,10 @@ observable condition that ends it). The runtime loads relevant instructions per 
 never every workflow on every turn. Stable deterministic transitions belong in code;
 judgment and ambiguity stay with the model/user. Bundled skills for this contract:
 
-- `event-reading/4` — grounded occurrence interpretation, atomic recording, exact explicitly named seller-or-place counterparty selection and clarification; absent or uncertain merchant stays null and is not clarification-required;
+- `event-reading/7` — grounded occurrence interpretation, atomic recording, explicitly named counterparty source selection, exact neutral value references and clarification;
 - `draft-search/1` — bounded candidate reads;
-- `link-event-draft/1` — inspect, propose and policy-gated attach;
-- `local-review/1` — Laya-to-review preparation (review-only);
+- `link-event-draft/3` — inspect, propose and policy-gated attach;
+- `local-review/2` — optional source-bound English translation into local Laya, with the ordinary source-text path retained;
 - `explicit-operation-replay/1` — exact journal-backed replay of a recorded operation.
 
 ### 5.2 Trusted scope, revision and idempotency ownership

@@ -1,5 +1,6 @@
 package io.github.triet4p.aegisf.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -74,6 +75,12 @@ enum class PredictionSource {
     /** Nothing fit, and the review stays manual. */
     NO_FIT,
 }
+/** Whether Laya received the stored source context or a hosted machine translation. */
+enum class ClassificationInputKind {
+    STORED_SOURCE,
+    HOSTED_ENGLISH_TRANSLATION,
+}
+
 
 /**
  * One stored prediction about one bank draft, with the dependencies it was made against.
@@ -136,6 +143,14 @@ data class ClassificationSnapshotEntity(
     val confidence: Double?,
     /** The digest of the composed model input; the input itself is never stored. */
     val effectiveInputDigest: String,
+    /** How this input was derived; translated text itself remains ephemeral. */
+    @ColumnInfo(defaultValue = "'STORED_SOURCE'")
+    val classificationInputKind: String = ClassificationInputKind.STORED_SOURCE.name,
+    /** Hash of input kind, source revision (when translated), and the exact composed Laya input digest. */
+    @ColumnInfo(defaultValue = "''")
+    val classificationInputIdentity: String = "",
+    /** Source/draft/link revision identity required to keep a hosted translation current. */
+    val translationSourceRevision: String? = null,
     /** The stored event readings the input was composed from, ascending. */
     val eventIds: String,
     /** When the prediction was recorded. */
@@ -151,6 +166,15 @@ data class ClassificationSnapshotEntity(
  * stays ephemeral.
  */
 fun effectiveInputDigest(text: String): String = sha256Hex(text)
+
+/** Digest of the actual composed model input together with its derivation and current source binding. */
+internal fun classificationInputIdentity(
+    kind: ClassificationInputKind,
+    translationSourceRevision: String?,
+    composedInputDigest: String,
+): String = canonicalDependencyDigest(
+    listOf(kind.name, translationSourceRevision, composedInputDigest),
+)
 
 /**
  * The canonical digest of a set of dependency values.

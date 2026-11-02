@@ -20,19 +20,21 @@ object AgentInterface {
     /**
      * Envelope contract shared by every tool result.
      *
-     * v4 replaces the typed value-reference kinds with one neutral `value` kind: a masked value's
-     * role comes from the tool argument the model passes it to, not from the token or the alias.
+     * v4 replaced typed value-reference kinds with one neutral `value` kind: a masked value's
+     * role comes from the tool argument the model passes it to, not from the token or alias.
+     * v5 adds only a complete-current-context-bound optional English translation input for
+     * local classification; arbitrary text replacement and category targeting remain absent.
      */
-    const val CONTRACT: String = "aegis-agent-interface/4"
+    const val CONTRACT: String = "aegis-agent-interface/5"
 
     /** Declaration schema identity; changing semantics changes the cache identity. */
-    const val TOOL_SCHEMA: String = "aegis-f-s8-agent-tools/v4"
+    const val TOOL_SCHEMA: String = "aegis-f-s8-agent-tools/v5"
 
     /** Bundled skill schema identity. */
-    const val SKILL_SCHEMA: String = "aegis-f-s8-agent-runtime-skills/v4"
+    const val SKILL_SCHEMA: String = "aegis-f-s8-agent-runtime-skills/v5"
 
     /** Version of the authored runtime examples bundled with the skills. */
-    const val EXAMPLES_VERSION: String = "s8-agent-examples/2"
+    const val EXAMPLES_VERSION: String = "s8-agent-examples/4"
 
     /** Extraction provenance label the host records for model-derived readings. */
     const val EXTRACTION_VERSION: String = "agent-interface/4"
@@ -66,8 +68,9 @@ enum class AgentReferenceKind(val wire: String) {
     CAPTURE("capture"),
     SOURCE("source"),
     VALUE("value"),
-    ANCHOR("anchor"),
     DRAFT("draft"),
+    ANCHOR("anchor"),
+    CLASSIFICATION_CONTEXT("classification_context"),
     EVENT("event"),
     PAIR("pair"),
     PROPOSAL("proposal"),
@@ -96,9 +99,12 @@ data class AgentReference(
     val eventRevision: Int? = null,
     val draftId: Long? = null,
     val draftReviewRevision: Int? = null,
+    /** Digest of the complete current Laya source context for a draft-bound translation. */
+    val classificationSourceRevision: String? = null,
     val linkId: Long? = null,
-    val linkState: String? = null,
     val linkRevision: Int? = null,
+    /** The state of the observed event/draft link. */
+    val linkState: String? = null,
     val spanStart: Int? = null,
     val spanEnd: Int? = null,
     val maskedStart: Int? = null,

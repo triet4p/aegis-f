@@ -57,6 +57,7 @@ import io.github.triet4p.aegisf.data.BankDraftClassificationQueue
 import io.github.triet4p.aegisf.data.BankDraftReviewEdits
 import io.github.triet4p.aegisf.data.BankDraftReviewField
 import io.github.triet4p.aegisf.data.CategoryEntity
+import io.github.triet4p.aegisf.data.ClassificationInputKind
 import io.github.triet4p.aegisf.data.ClassificationWorkState
 import io.github.triet4p.aegisf.data.ClassificationWorkStatus
 import io.github.triet4p.aegisf.data.ClassificationWorkStatusReason
@@ -500,6 +501,13 @@ private fun DraftInboxCard(
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
             )
+            if (entry.classificationInputKind == ClassificationInputKind.HOSTED_ENGLISH_TRANSLATION) {
+                Text(
+                    text = "Machine-translated English · derived input; original source unchanged.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             if (entry.group == ReviewQueueGroup.SUGGESTION && entry.relativeConfidence != null) {
                 Text(
                     text = "A suggestion among the evaluated options; it is not a guarantee " +
@@ -2173,6 +2181,13 @@ private fun StoredSuggestionPanel(
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (entry?.classificationInputKind == ClassificationInputKind.HOSTED_ENGLISH_TRANSLATION) {
+            Text(
+                text = "Machine-translated English · derived input; the original source remains unchanged.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         if (reading) {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             Text("Reading the stored suggestion…", style = MaterialTheme.typography.bodyMedium)

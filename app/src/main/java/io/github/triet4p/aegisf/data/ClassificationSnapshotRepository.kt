@@ -35,7 +35,7 @@ const val CURRENT_CANDIDATE_SET_VERSION: String = "laya-candidates-v1"
  * from.
  */
 data class PredictionDependencies(
-    /** Digest of the working description and the linked event readings the input is made from. */
+    /** Digest of the stored source description and linked event readings. */
     val contextRevision: String,
     /** Digest of the category catalog. */
     val categoryRevision: String,
@@ -47,6 +47,12 @@ data class PredictionDependencies(
     val candidateSetVersion: String,
     /** The stored event readings the prediction's input was composed from, ascending. */
     val eventIds: List<Long>,
+    /** Whether the composed input was source text or a hosted English translation. */
+    val classificationInputKind: ClassificationInputKind,
+    /** Exact current source/draft/link revisions bound to a hosted translation. */
+    val translationSourceRevision: String?,
+    /** The current snapshot identity, fencing a late answer from replacing newer input. */
+    val snapshotInputIdentity: String?,
 )
 
 /** The effective context of one draft, together with the dependencies it was built from. */
@@ -107,6 +113,10 @@ data class StoredPrediction(
     val effectiveInputDigest: String,
     val eventIds: List<Long>,
     val predictionTime: Long,
+    /** Whether the exact input was source-authored or machine-translated. */
+    val classificationInputKind: ClassificationInputKind,
+    /** One-way identity of the actual composed input and its source binding. */
+    val classificationInputIdentity: String,
     /** Why the prediction no longer applies, or null while it does. */
     val staleReason: PredictionStaleReason?,
 )
@@ -120,6 +130,9 @@ data class StoredPrediction(
  *   the stored readings of the events that are linked to THAT draft. A note with several
  *   events contributes only the readings of the events linked to the draft being reviewed, so
  *   a multi-event note is never copied into every draft.
+ * - A hosted English translation may replace the composed source text only after the current
+ *   draft and every active link/event/capture revision are revalidated. The English input is
+ *   primary text only; raw source readings are not appended again or stored with the snapshot.
  * - A prediction is stored only against the state it was actually made in. A result that
  *   arrives after the context moved on is refused, so a late result can never replace a
  *   newer context.
@@ -145,6 +158,7 @@ internal class ClassificationSnapshotRepository(
     private val draftDao = database.pendingBankDraftDao()
     private val linkDao = database.contextLinkDao()
     private val eventDao = database.noteEventDao()
+    private val captureDao = database.captureMessageDao()
     private val categoryDao = database.categoryDao()
     private val ruleDao = database.rememberedCategoryRuleDao()
 
@@ -160,13 +174,68 @@ internal class ClassificationSnapshotRepository(
         val draft = draftDao.findById(draftId) ?: return null
         val state = contextState(draftId)
         val readings = activeReadings(state)
+        val snapshotInputIdentity = snapshotDao.findForDraft(draftId)?.classificationInputIdentity
         return EffectiveDraftContext(
             draftId = draftId,
             context = LayaEffectiveContext(primaryText = primaryText, eventReadings = readings),
             dependencies = dependencies(
-                description = draft.classificationDescription(),
+                draft = draft,
+                state = state,
                 readings = readings,
                 categories = categoryDao.findAll(),
+                snapshotInputIdentity = snapshotInputIdentity,
+            ),
+        )
+    }
+
+    /**
+     * Re-reads the complete current Laya source context before the agent may use a translation.
+     * It supports the draft description alone or every active linked event reading.
+     */
+    suspend fun translationSource(
+        binding: ClassificationTranslationBinding,
+    ): ClassificationTranslationSource? {
+        val draft = draftDao.findById(binding.draftId) ?: return null
+        if (draft.reviewStatus != IntakeReviewStatus.PENDING || draft.reviewCategoryResolved) return null
+        val state = contextState(binding.draftId)
+        val current = currentTranslationBinding(binding, draft, state) ?: return null
+        val readings = activeReadings(state)
+        return ClassificationTranslationSource(
+            binding = current,
+            primaryText = draft.classificationDescription().trim(),
+            eventReadings = readings,
+            eventCaptureIds = readings.mapNotNull { reading ->
+                state.events.firstOrNull { it.id == reading.eventId }?.captureId
+            },
+        )
+    }
+
+    /**
+     * Builds an English-only Laya input after rechecking the exact source binding.
+     * Stored source context remains the dependency state; translation text is never made evidence.
+     */
+    suspend fun effectiveContextForTranslated(
+        draftId: Long,
+        input: HostedEnglishClassificationInput,
+    ): EffectiveDraftContext? {
+        val draft = draftDao.findById(draftId) ?: return null
+        if (draft.reviewStatus != IntakeReviewStatus.PENDING || draft.reviewCategoryResolved) return null
+        if (input.binding.draftId != draftId || input.text.isBlank()) return null
+        val state = contextState(draftId)
+        val current = currentTranslationBinding(input.binding, draft, state) ?: return null
+        if (current != input.binding) return null
+        val readings = activeReadings(state)
+        val snapshotInputIdentity = snapshotDao.findForDraft(draftId)?.classificationInputIdentity
+        return EffectiveDraftContext(
+            draftId = draftId,
+            context = LayaEffectiveContext(primaryText = input.text),
+            dependencies = dependencies(
+                draft = draft,
+                state = state,
+                readings = readings,
+                categories = categoryDao.findAll(),
+                classificationInputKind = ClassificationInputKind.HOSTED_ENGLISH_TRANSLATION,
+                snapshotInputIdentity = snapshotInputIdentity,
             ),
         )
     }
@@ -217,18 +286,21 @@ internal class ClassificationSnapshotRepository(
         }
         val state = contextState(draftId)
         val categories = categoryDao.findAll()
+        val existing = snapshotDao.findForDraft(draftId)
         val current = dependencies(
-            description = draft.classificationDescription(),
+            draft = draft,
+            state = state,
             readings = activeReadings(state),
             categories = categories,
+            classificationInputKind = expected.classificationInputKind,
+            snapshotInputIdentity = existing?.classificationInputIdentity,
         )
-        val existing = snapshotDao.findForDraft(draftId)
         if (current != expected) {
-            // The late result describes a state that no longer exists. It is refused, and
-            // the prediction that is stored is marked with the first reason it stopped
-            // applying in the same transaction, so a later read cannot mistake it for a
-            // fresh answer to the current state.
-            markFirstReason(draftId, existing, current, state, draft, categories)
+            // A source/dependency change invalidates the late answer. A different prediction
+            // with the same source has its own identity and wins without being marked stale.
+            if (current.copy(snapshotInputIdentity = expected.snapshotInputIdentity) != expected) {
+                markFirstReason(draftId, existing, current, state, draft, categories)
+            }
             return@withTransaction SnapshotWriteResult.Stale
         }
         if (!suggestionResolves(prediction.suggestedCategoryId, categories)) {
@@ -255,6 +327,13 @@ internal class ClassificationSnapshotRepository(
                     unknownShare = prediction.unknownShare,
                     confidence = prediction.confidence,
                     effectiveInputDigest = prediction.effectiveInputDigest,
+                    classificationInputKind = current.classificationInputKind.name,
+                    classificationInputIdentity = classificationInputIdentity(
+                        current.classificationInputKind,
+                        current.translationSourceRevision,
+                        prediction.effectiveInputDigest,
+                    ),
+                    translationSourceRevision = current.translationSourceRevision,
                     eventIds = current.eventIds.joinToString(","),
                     predictionTime = now,
                     staleReason = null,
@@ -276,6 +355,13 @@ internal class ClassificationSnapshotRepository(
                 unknownShare = prediction.unknownShare,
                 confidence = prediction.confidence,
                 effectiveInputDigest = prediction.effectiveInputDigest,
+                classificationInputKind = current.classificationInputKind.name,
+                classificationInputIdentity = classificationInputIdentity(
+                    current.classificationInputKind,
+                    current.translationSourceRevision,
+                    prediction.effectiveInputDigest,
+                ),
+                translationSourceRevision = current.translationSourceRevision,
                 eventIds = current.eventIds.joinToString(","),
                 predictionTime = now,
             )
@@ -298,9 +384,12 @@ internal class ClassificationSnapshotRepository(
         val state = contextState(draftId)
         val categories = categoryDao.findAll()
         val current = dependencies(
-            description = draft.classificationDescription(),
+            draft = draft,
+            state = state,
             readings = activeReadings(state),
             categories = categories,
+            classificationInputKind = ClassificationInputKind.valueOf(stored.classificationInputKind),
+            snapshotInputIdentity = stored.classificationInputIdentity,
         )
         val reason = staleReason(stored, current, state, draft, categories)
         if (reason == null) return stored.toStoredPrediction()
@@ -378,6 +467,9 @@ internal class ClassificationSnapshotRepository(
             } else {
                 PredictionStaleReason.CONTEXT_CHANGED
             }
+        stored.classificationInputKind != current.classificationInputKind.name ||
+            stored.translationSourceRevision != current.translationSourceRevision ->
+            PredictionStaleReason.CONTEXT_CHANGED
         stored.categoryRevision != current.categoryRevision ||
             !suggestionResolves(stored.suggestedCategoryId, categories) ->
             PredictionStaleReason.CATEGORY_CHANGED
@@ -458,6 +550,53 @@ internal class ClassificationSnapshotRepository(
     }
 
     /**
+     * Validates the draft revision and the composite source identity of all active linked readings.
+     * A valid binding may contain zero, one, or several current event readings.
+     */
+    private suspend fun currentTranslationBinding(
+        binding: ClassificationTranslationBinding,
+        draft: PendingBankDraftEntity,
+        state: DraftContextState,
+    ): ClassificationTranslationBinding? {
+        if (draft.id != binding.draftId || draft.reviewRevision != binding.draftReviewRevision) return null
+        val currentSourceRevision = translationSourceRevision(draft, state)
+        if (binding.sourceRevision.isNotEmpty() && binding.sourceRevision != currentSourceRevision) return null
+        return binding.copy(sourceRevision = currentSourceRevision)
+    }
+
+    /** A digest of the current stored draft, all links, and their source/event revisions. */
+    private suspend fun translationSourceRevision(
+        draft: PendingBankDraftEntity,
+        state: DraftContextState,
+    ): String {
+        val parts = ArrayList<String?>()
+        parts += "hosted-english-source/v1"
+        parts += draft.id.toString()
+        parts += draft.reviewRevision.toString()
+        parts += draft.classificationDescription()
+        val activeLinks = state.activeLinks.sortedBy { it.id }
+        val activeEventIds = activeLinks.mapTo(HashSet(activeLinks.size)) { it.eventId }
+        for (link in activeLinks) {
+            parts += link.id.toString()
+            parts += link.eventId.toString()
+            parts += link.state.name
+            parts += link.revision.toString()
+        }
+        for (event in state.events.filter { it.id in activeEventIds }.sortedBy { it.id }) {
+            val capture = captureDao.findById(event.captureId)
+            parts += event.id.toString()
+            parts += event.captureId.toString()
+            parts += event.revision.toString()
+            parts += event.sourceRevision.toString()
+            parts += event.status.name
+            parts += event.normalizedText
+            parts += capture?.revision?.toString()
+            parts += capture?.tombstone?.toString()
+        }
+        return canonicalDependencyDigest(parts)
+    }
+
+    /**
      * The dependency state of one draft, as the digests a prediction is recorded against.
      *
      * [contextRevision] is the identity of the exact model input class: the draft's
@@ -467,16 +606,25 @@ internal class ClassificationSnapshotRepository(
      * stale, and a description correction or a link change always changes this digest.
      */
     private suspend fun dependencies(
-        description: String,
+        draft: PendingBankDraftEntity,
+        state: DraftContextState,
         readings: List<LayaEventReading>,
         categories: List<CategoryEntity>,
+        classificationInputKind: ClassificationInputKind = ClassificationInputKind.STORED_SOURCE,
+        snapshotInputIdentity: String?,
     ): PredictionDependencies {
         val contextParts = ArrayList<String?>()
-        contextParts.add(description)
+        contextParts.add(draft.classificationDescription())
         for (reading in readings) {
             contextParts.add(reading.eventId.toString())
             contextParts.add(reading.text)
         }
+        val translationSourceRevision =
+            if (classificationInputKind == ClassificationInputKind.HOSTED_ENGLISH_TRANSLATION) {
+                translationSourceRevision(draft, state)
+            } else {
+                null
+            }
         return PredictionDependencies(
             contextRevision = canonicalDependencyDigest(contextParts),
             categoryRevision = categoryCatalogRevision(categories),
@@ -484,6 +632,9 @@ internal class ClassificationSnapshotRepository(
             modelRevision = modelRevision,
             candidateSetVersion = candidateSetVersion,
             eventIds = readings.map { it.eventId },
+            classificationInputKind = classificationInputKind,
+            translationSourceRevision = translationSourceRevision,
+            snapshotInputIdentity = snapshotInputIdentity,
         )
     }
 
@@ -509,6 +660,8 @@ internal class ClassificationSnapshotRepository(
         effectiveInputDigest = effectiveInputDigest,
         eventIds = eventIds.toIdList(),
         predictionTime = predictionTime,
+        classificationInputKind = ClassificationInputKind.valueOf(classificationInputKind),
+        classificationInputIdentity = classificationInputIdentity,
         staleReason = staleReason?.let { PredictionStaleReason.valueOf(it) },
     )
 }

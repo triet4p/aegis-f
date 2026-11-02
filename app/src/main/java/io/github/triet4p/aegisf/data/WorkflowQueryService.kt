@@ -990,6 +990,8 @@ private fun ReviewQueueRow.toQueueEntry(
         modelRevision = queueModelRevision,
         candidateSetVersion = queueCandidateSetVersion,
         eventIds = queueEventIds?.toIdList().orEmpty(),
+        classificationInputKind = queueClassificationInputKind?.let(ClassificationInputKind::valueOf)
+            ?: ClassificationInputKind.STORED_SOURCE,
         activeCategoryCount = activeCategories.size,
         relativeConfidence = relativeConfidence(
             group = group,

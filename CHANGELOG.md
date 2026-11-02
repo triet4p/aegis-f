@@ -49,6 +49,16 @@ and no release has been tagged or published. Format follows
   as an explicit gap instead of being reconstructed. Existing databases upgrade in place
   (schema v14) with every stored run, attempt and conversation row preserved.
 
+- Added optional hosted English translation as derived input to local Laya review. The existing
+  `classify_draft(draft_ref)` source-text path remains available; translation requires the opaque
+  complete-current-context reference from `observe(draft)` and a faithful rendering of the draft
+  plus every active linked reading. The host revalidates source revisions and masked-token identity,
+  rehydrates only at the local inference boundary, and sends English as the sole input. Category
+  hints, arbitrary text replacement, source mutation and ledger confirmation remain unavailable.
+  Snapshots store only input-kind/source/input digests, and a compare-and-set identity fence
+  prevents late inference from replacing a newer differently derived input. Offline/manual/intake
+  review remains usable without translation. Database schema v15 migrates existing snapshots in place.
+
 - Added a bounded S8.14 physical-phone integration runner for the actual app UI. Its credential-free
   local mode exercises recovery and offline work; the separately selected
   `--hosted-primary-replay-slice` runs only the real hosted primary workflow and its persisted

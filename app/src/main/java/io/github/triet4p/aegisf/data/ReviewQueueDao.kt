@@ -51,6 +51,8 @@ data class ReviewQueueRow(
     val queueCandidateSetVersion: String?,
     /** The stored linked readings the prediction was composed from, or null. */
     val queueEventIds: String?,
+    /** Whether the stored input was source text or hosted English translation. */
+    val queueClassificationInputKind: String?,
 )
 
 /**
@@ -129,8 +131,9 @@ private const val REVIEW_QUEUE_FACTS_SQL =
         "s.unknownShare AS queueUnknownShare, " +
         "s.predictionTime AS queuePredictionTime, " +
         "s.modelRevision AS queueModelRevision, " +
-        "s.candidateSetVersion AS queueCandidateSetVersion, " +
         "s.eventIds AS queueEventIds, " +
+        "s.candidateSetVersion AS queueCandidateSetVersion, " +
+        "s.classificationInputKind AS queueClassificationInputKind, " +
         "s.confidence AS queueConfidence, " +
         "CASE WHEN s.draftId IS NOT NULL " +
         "AND s.decisionSource = 'MODEL' " +
@@ -205,6 +208,7 @@ private const val REVIEW_QUEUE_ORDERED_SQL =
         "f.queueModelRevision AS queueModelRevision, " +
         "f.queueCandidateSetVersion AS queueCandidateSetVersion, " +
         "f.queueEventIds AS queueEventIds, " +
+        "f.queueClassificationInputKind AS queueClassificationInputKind, " +
         "f.queueCreatedAt AS queueCreatedAt " +
         "FROM (" + REVIEW_QUEUE_FACTS_SQL + ") f"
 
@@ -233,7 +237,8 @@ private const val REVIEW_QUEUE_SELECT_COLUMNS =
         "q.queuePredictionTime AS queuePredictionTime, " +
         "q.queueModelRevision AS queueModelRevision, " +
         "q.queueCandidateSetVersion AS queueCandidateSetVersion, " +
-        "q.queueEventIds AS queueEventIds"
+        "q.queueEventIds AS queueEventIds, " +
+        "q.queueClassificationInputKind AS queueClassificationInputKind"
 
 /** One pending draft's computed queue row, read by its stable id. */
 private const val REVIEW_QUEUE_ENTRY_SQL =

@@ -537,6 +537,23 @@ class ReviewQueueTest {
             offset += page.items.size
         }
     }
+    @Test
+    fun `review queue preserves machine translated input provenance`() = runTest {
+        val draftId = storeDraft("translated", BASE_INSTANT, memo = "Bread")
+        storeSnapshot(
+            draftId = draftId,
+            source = PredictionSource.NO_FIT,
+            confidence = null,
+            candidateIds = emptyList(),
+            classificationInputKind = ClassificationInputKind.HOSTED_ENGLISH_TRANSLATION,
+        )
+
+        assertEquals(
+            ClassificationInputKind.HOSTED_ENGLISH_TRANSLATION,
+            query.reviewQueueEntry(draftId)!!.classificationInputKind,
+        )
+    }
+
 
     private suspend fun storeDraft(
         key: String,
@@ -587,6 +604,7 @@ class ReviewQueueTest {
         confidence: Double?,
         candidateIds: List<Long>,
         staleReason: PredictionStaleReason? = null,
+        classificationInputKind: ClassificationInputKind = ClassificationInputKind.STORED_SOURCE,
     ) {
         database.classificationSnapshotDao().insert(
             ClassificationSnapshotEntity(
@@ -603,6 +621,7 @@ class ReviewQueueTest {
                 unknownShare = 0.2,
                 confidence = confidence,
                 effectiveInputDigest = "input-$draftId",
+                classificationInputKind = classificationInputKind.name,
                 eventIds = "",
                 predictionTime = BASE_INSTANT,
                 staleReason = staleReason?.name,

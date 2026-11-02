@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import io.github.triet4p.aegisf.data.AddCategoryRequest
+import io.github.triet4p.aegisf.data.ClassificationInputKind
 import io.github.triet4p.aegisf.data.CategoryEntity
 import io.github.triet4p.aegisf.data.CaptureKind
 import io.github.triet4p.aegisf.data.CaptureMessageEntity
@@ -11,13 +12,20 @@ import io.github.triet4p.aegisf.data.CaptureSourceKind
 import io.github.triet4p.aegisf.data.ClassificationEngine
 import io.github.triet4p.aegisf.data.ClassificationEngineResult
 import io.github.triet4p.aegisf.data.ContextLinkState
+import io.github.triet4p.aegisf.data.ContextLinkResult
+import io.github.triet4p.aegisf.data.EventContextRepository
 import io.github.triet4p.aegisf.data.IntakeDirection
 import io.github.triet4p.aegisf.data.IntakeFieldState
 import io.github.triet4p.aegisf.data.IntakeParseStatus
 import io.github.triet4p.aegisf.data.IntakeReviewStatus
+import io.github.triet4p.aegisf.data.NoteEventInterpretation
+import io.github.triet4p.aegisf.data.NoteEventTimeAnchor
+import io.github.triet4p.aegisf.data.NoteEventWriteResult
 import io.github.triet4p.aegisf.data.LedgerDatabase
-import io.github.triet4p.aegisf.data.LinkOperationQuery
 import io.github.triet4p.aegisf.data.PendingBankDraftEntity
+import io.github.triet4p.aegisf.data.LinkOperationQuery
+import io.github.triet4p.aegisf.data.PredictionStaleReason
+import io.github.triet4p.aegisf.data.PredictionSource
 import io.github.triet4p.aegisf.data.QueryPageRequest
 import io.github.triet4p.aegisf.data.RejectLinkRequest
 import io.github.triet4p.aegisf.data.ReviseCaptureRequest
@@ -29,11 +37,14 @@ import io.github.triet4p.aegisf.data.WorkflowCommandOutcome
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.data.classificationDescription
+import io.github.triet4p.aegisf.data.effectiveInputDigest
 import io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner
+import io.github.triet4p.aegisf.data.laya.LayaEffectiveContextComposer
 import io.github.triet4p.aegisf.data.laya.LayaContextDecision
 import io.github.triet4p.aegisf.data.laya.LayaEffectiveContext
 import io.github.triet4p.aegisf.data.laya.LayaEffectiveInput
 import io.github.triet4p.aegisf.data.laya.LayaEvaluation
+import io.github.triet4p.aegisf.data.laya.LayaTokenizerLoader
 import io.github.triet4p.aegisf.privacy.MaskedPromptBoundary
 import io.github.triet4p.aegisf.privacy.SensitiveVault
 import io.github.triet4p.aegisf.provider.HostedToolDeclaration
@@ -97,6 +108,23 @@ class AgentToolRuntimeTest {
         boundary = MaskedPromptBoundary(SensitiveVault(scope.scopeId))
         declarations = AgentToolDeclarations.load(context.assets::open)
         assertEquals(11, declarations.size)
+    }
+
+    @Test
+    fun `classification declaration permits only the draft and paired source-bound translation fields`() {
+        val declaration = declarations.single { it.name == "classify_draft" }
+        val parameters = declaration.parameters
+        val properties = parameters.getJSONObject("properties")
+        val required = parameters.getJSONArray("required")
+
+        assertFalse(parameters.getBoolean("additionalProperties"))
+        assertEquals(3, properties.length())
+        assertEquals(1, required.length())
+        assertEquals("draft_ref", required.getString(0))
+        assertEquals("string", properties.getJSONObject("classification_context_ref").getString("type"))
+        assertEquals("string", properties.getJSONObject("english_translation").getString("type"))
+        assertFalse(properties.has("description"))
+        assertFalse(properties.has("category_id"))
     }
 
     @Test
@@ -910,6 +938,244 @@ class AgentToolRuntimeTest {
             queries.linkOperations(LinkOperationQuery(draftId = draftId, bounds = QueryPageRequest(20, 0))).items,
         )
         assertNull(database.workflowOperationDao().findByKey(operationKey))
+    }
+
+    @Test
+    fun `hosted translation binds all current readings and stores distinct English input identity`() = runBlocking {
+        val sourceText = "Bread 50,000 VND at 10:00; coffee 50,000 VND at 10:15"
+        val sourceCaptureId = storeCapture("lt1-translation-source", sourceText)
+        val eventRepository = EventContextRepository(database)
+        suspend fun readEvent(span: String, time: String) = run {
+            val start = sourceText.indexOf(span)
+            val result = eventRepository.recordEvent(
+                captureId = sourceCaptureId,
+                expectedCaptureRevision = 0,
+                interpretation = NoteEventInterpretation(
+                    spanStart = start,
+                    spanEnd = start + span.length,
+                    normalizedText = span,
+                    amountVnd = 50_000L,
+                    timeAnchor = NoteEventTimeAnchor(
+                        date = "2026-11-02",
+                        time = time,
+                        timezoneId = "Asia/Ho_Chi_Minh",
+                    ),
+                ),
+                extractionVersion = "lt1-behavior-fixture",
+            )
+            assertTrue("the note reading was not stored: $result", result is NoteEventWriteResult.Stored)
+            eventRepository.findEvent((result as NoteEventWriteResult.Stored).eventId)!!
+        }
+        val breadEvent = readEvent("Bread 50,000 VND at 10:00", "10:00")
+        val coffeeEvent = readEvent("coffee 50,000 VND at 10:15", "10:15")
+        val draftId = storeDraft(amount = 50_000L, date = "2026-11-02", memo = "Bread")
+        assertTrue(eventRepository.proposeLink(breadEvent.id, draftId) is ContextLinkResult.Linked)
+        assertTrue(eventRepository.proposeLink(coffeeEvent.id, draftId) is ContextLinkResult.Linked)
+
+        val foodsId = database.categoryDao().insert(
+            CategoryEntity(
+                name = "Foods",
+                createdAtEpochMillis = 1_798_000_000_000L,
+                updatedAtEpochMillis = 1_798_000_000_000L,
+            ),
+        )
+        database.categoryDao().insert(
+            CategoryEntity(
+                name = "Transport",
+                createdAtEpochMillis = 1_798_000_000_001L,
+                updatedAtEpochMillis = 1_798_000_000_001L,
+            ),
+        )
+        val observedInputs = ArrayList<LayaEffectiveInput>()
+        var returnNoFit = true
+        val tokenizer = LayaTokenizerLoader.loadFromRepoFile()
+        val recordingEngine = object : ClassificationEngine {
+            override suspend fun classify(
+                context: LayaEffectiveContext,
+                categories: List<CategoryEntity>,
+            ): ClassificationEngineResult {
+                val effective = LayaEffectiveContextComposer.compose(tokenizer, context)
+                observedInputs.add(effective)
+                val evaluated = categories.map { it.id }
+                val distribution = LayaEvaluation(
+                    categoryIds = evaluated,
+                    probabilities = List(evaluated.size) { 0.3 },
+                    unknownShare = 0.4,
+                    confidence = 0.4,
+                )
+                val decision = if (returnNoFit) {
+                    LayaCandidatePlanner.Decision.Unknown(LayaCandidatePlanner.ManualReason.MODEL_NO_FIT)
+                } else {
+                    val foods = categories.single { it.id == foodsId }
+                    LayaCandidatePlanner.Decision.Category(
+                        categoryId = foods.id,
+                        snapshotName = foods.name,
+                        source = LayaCandidatePlanner.SuggestionSource.MODEL,
+                        confidence = 0.4,
+                    )
+                }
+                return ClassificationEngineResult.Decided(
+                    LayaContextDecision(decision, effective, distribution),
+                )
+            }
+        }
+        val sessionScope = WorkflowCallerScope.AgentSession(
+            scopeId = scope.scopeId,
+            captureIds = scope.captureIds + sourceCaptureId,
+            draftIds = setOf(draftId),
+        )
+        val translationCommands = WorkflowCommandService(
+            database = database,
+            clock = SystemLedgerClock,
+            timezoneId = { "Asia/Ho_Chi_Minh" },
+            engine = recordingEngine,
+        )
+        val runtime = AgentToolRuntime(
+            commands = translationCommands,
+            queries = queries,
+            session = AgentToolSession(
+                sessionScope,
+                boundary,
+                AgentReferenceRegistry(sessionScope.scopeId),
+            ),
+            declarations = declarations,
+        )
+        val draft = draftPage(runtime, draftId)
+        assertEquals(2, draft.getInt("linked_context_count"))
+        val linked = draft.getJSONArray("linked_context")
+        val firstText = linked.getJSONObject(0).getJSONObject("event").getString("text")
+        val secondText = linked.getJSONObject(1).getJSONObject("event").getString("text")
+        fun tokensIn(text: String): List<String> = boundary.vault.issuedTokens()
+            .mapNotNull { issued ->
+                text.indexOf(issued.token).takeIf { it >= 0 }?.let { it to issued.token }
+            }
+            .sortedBy { it.first }
+            .map { it.second }
+        val firstTokens = tokensIn(firstText)
+        val secondTokens = tokensIn(secondText)
+        assertTrue("the observed event text must expose its masked amount and time", firstTokens.size >= 2)
+        assertTrue("the second current reading must be displayed", secondTokens.size >= 2)
+
+        val rawResult = runtime.execute(
+            "classify_draft",
+            JSONObject().put("draft_ref", draft.getString("ref")),
+            "lt1-baseline-no-fit",
+        ).envelope
+        assertEquals("ok", rawResult.getString("outcome"))
+        assertEquals("NO_FIT", rawResult.getJSONObject("data").getString("source"))
+        assertEquals("stored_source", rawResult.getJSONObject("data")
+            .getJSONObject("classification_input").getString("provenance"))
+        val rawInput = observedInputs.single()
+        assertEquals(
+            "Bread ${breadEvent.normalizedText} ${coffeeEvent.normalizedText}",
+            rawInput.text,
+        )
+        assertEquals(2, rawInput.includedReadings.size)
+        val baselineSnapshot = database.classificationSnapshotDao().findForDraft(draftId)!!
+        assertEquals(PredictionSource.NO_FIT.name, baselineSnapshot.decisionSource)
+        assertEquals(ClassificationInputKind.STORED_SOURCE.name, baselineSnapshot.classificationInputKind)
+        val baselineIdentity = baselineSnapshot.classificationInputIdentity
+
+        val amountOne = firstTokens.first()
+        val amountTwo = secondTokens.first()
+        val translation = "Bread cost $amountOne at ${firstTokens.last()}; " +
+            "coffee cost $amountTwo at ${secondTokens.last()}."
+        val currentContextRef = draft.getString("classification_context_ref")
+        val missingBinding = runtime.execute(
+            "classify_draft",
+            JSONObject()
+                .put("draft_ref", draft.getString("ref"))
+                .put("english_translation", translation),
+            "lt1-missing-context",
+        ).envelope
+        assertEquals("SCHEMA_INVALID", missingBinding.getJSONObject("error").getString("code"))
+        val droppedToken = firstTokens.last()
+        val tokenDropped = translation.replaceFirst(droppedToken, "")
+        val missingFact = runtime.execute(
+            "classify_draft",
+            JSONObject()
+                .put("draft_ref", draft.getString("ref"))
+                .put("classification_context_ref", currentContextRef)
+                .put("english_translation", tokenDropped),
+            "lt1-missing-source-token",
+        ).envelope
+        assertEquals("SCHEMA_INVALID", missingFact.getJSONObject("error").getString("code"))
+        assertEquals(1, observedInputs.size)
+        assertEquals(baselineSnapshot, database.classificationSnapshotDao().findForDraft(draftId))
+
+        returnNoFit = false
+        val translated = runtime.execute(
+            "classify_draft",
+            JSONObject()
+                .put("draft_ref", draft.getString("ref"))
+                .put("classification_context_ref", currentContextRef)
+                .put("english_translation", translation),
+            "lt1-hosted-translation",
+        ).envelope
+        assertEquals("ok", translated.getString("outcome"))
+        val translatedData = translated.getJSONObject("data")
+        assertEquals(
+            "machine_translated_english",
+            translatedData.getJSONObject("classification_input").getString("provenance"),
+        )
+        val translatedInput = observedInputs.last()
+        assertEquals(boundary.vault.rehydrateText(translation), translatedInput.text)
+        assertTrue(translatedInput.includedReadings.isEmpty())
+        assertTrue(translatedInput.droppedReadings.isEmpty())
+        assertFalse(translatedInput.text.contains("Bread 50,000 VND"))
+        val translatedSnapshot = database.classificationSnapshotDao().findForDraft(draftId)!!
+        assertEquals(ClassificationInputKind.HOSTED_ENGLISH_TRANSLATION.name, translatedSnapshot.classificationInputKind)
+        assertNotEquals(baselineIdentity, translatedSnapshot.classificationInputIdentity)
+        assertEquals(
+            translatedData.getJSONObject("classification_input").getString("identity"),
+            translatedSnapshot.classificationInputIdentity,
+        )
+        assertEquals(
+            translatedSnapshot.effectiveInputDigest,
+            translatedData.getJSONObject("classification_input").getString("effective_input_digest"),
+        )
+        assertEquals(effectiveInputDigest(translatedInput.text), translatedSnapshot.effectiveInputDigest)
+        assertTrue(!translatedSnapshot.translationSourceRevision.isNullOrBlank())
+        assertNull(translatedSnapshot.staleReason)
+
+        val scopeLimited = AgentToolRuntime(
+            commands = translationCommands,
+            queries = queries,
+            session = AgentToolSession(
+                WorkflowCallerScope.AgentSession(scope.scopeId, scope.captureIds, setOf(draftId)),
+                boundary,
+                AgentReferenceRegistry(scope.scopeId),
+            ),
+            declarations = declarations,
+        )
+        val limitedDraft = scopeLimited.execute(
+            "list_drafts",
+            JSONObject().put("review_status", "PENDING").put("duplicates_only", false).put("cursor", JSONObject.NULL),
+            "read-only",
+        ).envelope.getJSONObject("data").getJSONArray("items").getJSONObject(0)
+        val outOfScope = scopeLimited.execute(
+            "observe",
+            JSONObject().put("ref", limitedDraft.getString("ref")),
+            "read-only",
+        ).envelope
+        assertEquals("REFERENCE_SCOPE_REFUSED", outOfScope.getJSONObject("error").getString("code"))
+        assertEquals(0, outOfScope.getJSONArray("observations").length())
+
+        assertTrue(eventRepository.rejectLink(coffeeEvent.id, draftId, expectedRevision = 0) is ContextLinkResult.Linked)
+        val staleBinding = runtime.execute(
+            "classify_draft",
+            JSONObject()
+                .put("draft_ref", draft.getString("ref"))
+                .put("classification_context_ref", currentContextRef)
+                .put("english_translation", translation),
+            "lt1-stale-context",
+        ).envelope
+        assertEquals("STALE_OBSERVATION", staleBinding.getJSONObject("error").getString("code"))
+        assertEquals(2, observedInputs.size)
+        val staleSnapshot = database.classificationSnapshotDao().findForDraft(draftId)!!
+        assertEquals(PredictionStaleReason.CONTEXT_CHANGED.name, staleSnapshot.staleReason)
+        assertEquals("Bread", database.pendingBankDraftDao().findById(draftId)!!.classificationDescription())
+        assertEquals(0, database.transactionDao().findAll().size)
     }
 
 

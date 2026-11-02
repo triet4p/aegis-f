@@ -63,6 +63,20 @@ class WorkflowSkillCatalogTest {
         )
     }
 
+    @Test
+    fun `local review skill describes complete source-bound translation and the offline path`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val catalog = WorkflowSkillCatalog.load(context.assets::open)
+        val review = catalog.select(setOf(WorkflowIntent.PREPARE_LAYA_REVIEW)).single()
+
+        assertEquals(2, review.version)
+        assertTrue(review.prerequisites.any { it.contains("every active linked event reading") })
+        assertTrue(review.toolOrder.any { it.contains("complete displayed source context") })
+        assertTrue(review.toolOrder.any { it.contains("ordinary local source-text path") })
+        assertTrue(review.errorRecovery.getValue("stale_observation").contains("fresh classification_context_ref"))
+        assertTrue(review.examples.any { it.getString("expected").contains("machine-translated") })
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun `empty trusted intent selection cannot expand to all skills`() {
         val context = ApplicationProvider.getApplicationContext<Context>()

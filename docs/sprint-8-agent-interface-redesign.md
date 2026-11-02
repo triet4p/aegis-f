@@ -87,7 +87,7 @@ Every handle binds:
 - exact masked/source mapping and allowed provenance;
 - a local immutable descriptor, not an LLM-authored payload.
 
-Reference types: `capture`, `source`, `amount`, `date`, `time`, `anchor`, `draft`, `event`, `pair`, `proposal`, `operation`, and pagination `cursor`. All wire values are strings; expected kind is stated in each field description and enforced locally. A time/amount from another occurrence is not authorized merely because it belongs to the same session: selection must be supported by the chosen source or explicit user clarification linked to it.
+Reference types: `capture`, `source`, neutral `value`, `anchor`, `draft`, `classification_context`, `event`, `pair`, `proposal`, `operation`, and pagination `cursor`. All wire values are strings; expected kind is stated in each field description and enforced locally. A value from another occurrence is not authorized merely because it belongs to the same session: selection must be supported by the chosen source or explicit user clarification linked to it.
 
 A new observation does not silently retarget an older handle. Mutations compare the revisions bound to their handles at the application boundary. If state changed, return `STALE_OBSERVATION` without overwriting it; re-observe and reconsider. Changing text cannot silently remap a quote to a different occurrence.
 
@@ -113,7 +113,7 @@ No expiry seconds are invented here. References become unusable on scope revocat
 }
 ```
 
-Only display placeholders are shown; no raw amount/date/time leaves the device. Host-issued anchors appear only when their grouping is already explicit/trusted. The host must not preselect the meaning of multiple possible dates. If there is no unambiguous anchor, expose primitive date/time references for `make_time_anchor` and let the model choose the grounded combination.
+Only display placeholders are shown; no raw amount/date/time leaves the device. Host-issued anchors appear only when their grouping is already explicit/trusted. The host must not preselect the meaning of multiple possible dates. If there is no unambiguous anchor, expose neutral value references for the date/time fields of `make_time_anchor` and let the model choose the grounded combination.
 
 Initial host observations use the same shape as `observe` results. Tool availability is explicit; no skill asks for a private host function.
 
@@ -288,15 +288,19 @@ Host rechecks scope, revisions and real proposal policy. Returns `proposal_ref`,
 
 Host rechecks current unique evidence and CAS inside the actual mutation boundary. Returns actual accepted state plus verified pair observation, or explicit ambiguity/ineligible/stale/user-decision result. Never pick another draft. The model no longer supplies `userOverride: null`; host always invokes the non-override agent path. Example `{"proposal_ref":"proposal_a"}`. A stale reference or ambiguous pair cannot be bypassed by calling again blindly.
 
-### 6.9 `classify_draft(draft_ref)`
+### 6.9 `classify_draft(draft_ref[, classification_context_ref, english_translation])`
 
-**Purpose:** request the existing local Laya review suggestion for the exact observed draft state. Not a request to rewrite its description, choose a category or use hosted inference for classification.
+**Purpose:** request the existing local Laya review suggestion for the exact observed draft state. The optional English input is a hosted translation of authorized current source meaning, not category selection or an arbitrary text override.
 
 | Field | Type | Meaning and source |
 | --- | --- | --- |
-| `draft_ref` | string | Current observed draft reference binding authoritative description and review revision. |
+| `draft_ref` | string, required | Current observed draft reference binding authoritative description and review revision. |
+| `classification_context_ref` | string, optional | Opaque complete source-context reference returned by `observe(draft)`, binding the draft and its active event/link/capture/source revisions. Required with `english_translation`. |
+| `english_translation` | string, optional | Faithful English translation of exactly the complete displayed Laya source context: the draft description plus every active linked event reading, or the description alone when none are linked. Required with `classification_context_ref`. |
 
-Host loads that stored description, performs strict revision check and calls existing Laya. No model-copied description or nullable revision. Return actual remembered-rule/model/distribution/manual/blocked state with fresh review observation; classify only when asked or part of the selected user-authorized workflow. Oversize input is refused before evaluation effects, never shortened to force inference. Example `{"draft_ref":"draft_a"}`. Errors: `STALE_OBSERVATION`, `MODEL_UNAVAILABLE`, `INPUT_OVER_BUDGET`, `MASKING_REFUSED`; manual review remains possible, no hosted fallback.
+The host refuses a partial context when any linked source is outside the trusted scope. It revalidates the composite binding and every issued neutral-token occurrence before local rehydration. Laya receives the English translation as its sole primary input; raw Vietnamese linked readings are not appended. Names, uncertainty and absent facts remain unchanged, and no category names, desired labels or extracted facts absent from the source are added. The original draft, capture, events, links and ledger are untouched. Only the input kind and one-way source/input identities are stored; the translation text stays ephemeral. Results identify machine-translated input separately from owner-authored evidence.
+
+With no translation fields, the host retains the ordinary stored-source path. A requested translation that is stale, unavailable or not faithful is reported truthfully; the host does not silently classify untranslated text instead. Oversize input is refused, never shortened to force inference. Example source-path call: `{"draft_ref":"draft_a"}`. Example translated call: `{"draft_ref":"draft_a","classification_context_ref":"context_a","english_translation":"Bought bread this morning; the time is not remembered."}`. Errors: `STALE_OBSERVATION`, `SCHEMA_INVALID`, `MODEL_UNAVAILABLE`, `INPUT_OVER_BUDGET`.
 
 ### 6.10 `replay_operation(operation_ref)`
 
@@ -487,14 +491,17 @@ Version every changed skill and its tool-contract dependency. These are proposed
 
 The judgment between observing candidates and selecting a pair is why this is not a hard-coded chain. Inside proposal/attachment calls, evidence validation and revision checks are fixed host code.
 
-#### `local-review/1`
+#### `local-review/2`
 
 **Trigger:** user requests existing local suggestion/review preparation. **Tools:** list_drafts, observe, classify_draft, ask_user.
 
-1. Identify actual draft; clarify if multiple plausible drafts.
-2. Call classify on its current draft ref. Do not submit alternate text.
-3. Report actual suggestion/manual/unavailable/overbudget state. Leave category choice and confirmation to the user.
-4. No hosted classification fallback, no fabricated prediction and no shortening the text.
+1. Identify the actual draft; clarify if multiple are plausible.
+2. Observe the selected current draft and inspect the fresh draft `ref`, description, complete linked context and `classification_context_ref`.
+3. When English translation is requested, translate only the complete displayed current Laya context and call `classify_draft` with the fresh `ref`, that same observation's context reference and translation. Preserve every neutral token exactly, names, uncertainty and missing facts; add no categories, facts or untranslated duplicate source.
+4. When translation is not requested, call `classify_draft` with the fresh draft `ref` only and keep the ordinary local source-text path.
+5. Report the actual suggestion/manual/unavailable state and whether its input was machine-translated. Leave category choice and confirmation to the user.
+
+An explicit translation request that cannot be fulfilled faithfully is reported as unavailable; do not pretend untranslated input was English. No hosted classification fallback, fabricated prediction or shortening.
 
 #### `explicit-operation-replay/1`
 
@@ -581,10 +588,17 @@ Truthful completion:
 - Do not claim rollback, exact replay or complete search unless actually proved.
 - No tool grants financial confirmation, deletion, arbitrary SQL/shell/filesystem
   access or user-only evidence overrides. Local Laya is review-only.
+- For a user-requested English translation, use only the complete current Laya source context
+  displayed by `observe(draft)`. Preserve neutral tokens, proper names, uncertainty and absent
+  facts; do not add category names or extracted facts. Pass the current context reference with
+  the translation. The translated text is the sole local Laya input, not an addition to raw source.
+- Without a translation request, keep the existing local source-text path. A requested translation
+  that is missing, stale or unfaithful is unavailable; never silently classify untranslated text
+  as though it had been translated.
 - Privacy or authority refusal is not an invitation to try another spelling,
   endpoint, raw value or fallback model. The host — never the model — may re-issue one
   refused turn under the bounded masking-repair rule (`s8-agent-masking-repair/v1`,
-  context `s8-agent-context/v5`): only a pre-dispatch `UNKNOWN_TOKEN`, exactly once per run,
+  context `s8-agent-context/v10`): only a pre-dispatch `UNKNOWN_TOKEN`, exactly once per run,
   with the refused response discarded whole and a fixed shape-only notice appended.
 ```
 
@@ -616,7 +630,7 @@ Keep examples at the level needed for the selected workflow. Common success exam
 | update_event_interpretation | select_source + optional make_time_anchor + atomic record_event | Source offsets/text copy, revisions, producer version, typed scalar rehydration, command identity |
 | propose_link(eventId,draftId) | inspect_link → propose_link(pair_ref) | Trusted evidence observation and pair binding |
 | attach_link(pair IDs,revision,null override) | attach_link(proposal_ref) | Exact pair/link revision and fixed agent non-override |
-| request_laya_classification(id,description,revision) | classify_draft(draft_ref) | Current authoritative description/revision |
+| request_laya_classification(id,description,revision) | classify_draft(draft_ref[, classification_context_ref, english_translation]) | Current authoritative source path or complete revision-bound derived-English input identity |
 | Repeat original giant JSON | replay_operation(operation_ref) | Immutable digest/identity and actual journal replay |
 | Implicit/model text clarification seam | ask_user with explicit field/subject | Single-use run suspension, masked answer ingress |
 
