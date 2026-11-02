@@ -136,11 +136,10 @@ A prediction is stored only against the state it was actually made in.
 
 ## Privacy and authority boundary
 
-- The composed model input is the user's own text: the bank description the review already
-  shows, and the readings of the user's own saved note. No notification body, no OTP or
-  security text, no account identifier, and no balance is added to it. The safety guard that
-  keeps OTP/security-like text and bank reference codes out of the model now applies to the
-  readings as well, so a second door to the model cannot be opened by the new context.
+- The local model input is the review description (or the user's explicit note in its place)
+  plus eligible stored event readings linked to that draft. S8.14 passes those descriptions
+  and readings to on-device Laya as raw text, without OTP/security-word or bank-reference
+  filtering. Hosted outbound masking remains a separate boundary.
 - The composed text is not stored. Only its digest is, and a digest cannot be read back as
   text.
 - Storing, refusing, or marking a prediction stale changes no amount, date, time, memo, type,

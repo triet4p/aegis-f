@@ -289,10 +289,12 @@ judgment and ambiguity stay with the model/user. Bundled skills for this contrac
   an agent attach needs still-current `UNIQUE` evidence bound to the exact
   source/event/draft/revisions. Rejections are durable and user-only
   (`USER_DECISION_REQUIRED`); refused pairs stay refused.
-- **Laya** is review-only: remembered rules answer before inference; blank, sparse,
-  blocked-safety, or over-budget inputs stay manual; predictions never write ledger
-  fields. Confirmation, dismissal, ledger edits/deletion and category changes are
-  user-only and have no agent tool.
+- **Laya** is review-only: remembered rules answer before inference; blank or sparse
+  descriptions and over-budget inputs stay manual. Genuine model failures remain
+  model-unavailable; eligible event readings remain subject to provenance and input-budget
+  rules; no-fit predictions stay reviewable. Predictions never write ledger fields.
+  Confirmation, dismissal, ledger edits/deletion and category changes are user-only and
+  have no agent tool.
 
 ## 6. Verification postconditions (before COMPLETED)
 

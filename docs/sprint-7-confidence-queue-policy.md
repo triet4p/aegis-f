@@ -124,9 +124,9 @@ anything, and never reaches the ledger.
   silent fallback: `EMPTY_DESCRIPTION`, `NO_ACTIVE_CATEGORIES`,
   `INVALID_CATEGORY_METADATA`, `CORRECTION_TARGET_UNAVAILABLE`,
   `AMBIGUOUS_CORRECTIONS`, `NO_METADATA_EVIDENCE`, `NO_FIT_CANDIDATES`,
-  `SEQUENCE_UNFIT`, `EFFECTIVE_INPUT_OVER_BUDGET`, `MODEL_NO_FIT`, plus safety and
-  model-unavailable outcomes (`Missing` / `CorruptOrIncompatible` / `Ready`, reported
-  honestly, intake unaffected).
+  `SEQUENCE_UNFIT`, `EFFECTIVE_INPUT_OVER_BUDGET`, `MODEL_NO_FIT`. Model provisioning
+  is reported honestly as `Missing` / `CorruptOrIncompatible` / `Ready`; intake is
+  unaffected.
 - Subset scope always travels in `RetrievalUncertainty` (active / offered / omitted /
   omitted-metadata-evidence counts) and is never relabeled as full-catalog. Omitted
   categories never receive fabricated shares. With 206 active categories the
@@ -229,8 +229,8 @@ by itself promote the draft.
 Rank 1 — stale / missing / unknown / non-comparable classification, ordered by
 `(subkind, createdAtEpochMillis ascending, id ascending)`:
 
-- 1a missing: no snapshot row (never classified, model unavailable, input refused by
-  the safety/budget gate, failed or cancelled with nothing recorded).
+- 1a missing: no snapshot row (never classified for missing input, model unavailable,
+  an over-budget refusal, or failure/cancellation before anything was recorded).
 - 1b stale: `staleReason != null` (first-mover reason kept; check order frozen in §7
   preamble). Stored confidence is ignored.
 - 1c unknown: `PredictionSource.NO_FIT`, including unknown-topped model distributions

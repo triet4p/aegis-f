@@ -100,7 +100,6 @@ mutation verifies against freshly read state:
 | Attached link | the exact pair is `ACCEPTED` with the recorded link id and revision |
 | Laya classification | a non-stale stored snapshot for the draft with the recorded source/category and a prediction time at or after the dispatch, while the draft's review status and revision are unchanged |
 | Laya unavailable/overbudget | the actual draft review status/revision is unchanged and no fabricated snapshot exists |
-| Suggestion-safety refusal | the `description` clarification is returned before local inference; no classification snapshot or workflow operation is recorded and the draft review state is unchanged |
 | Journal replay | the domain replay returned `no_change` for the exact scope/command/digest; `current_effect_matches` is reported separately and a superseded effect is never claimed as current |
 | Operation identity | one durable `workflow_operations` row exists for each applied/no-change mutation key |
 | No unexpected effect | no financial/confirmation/deletion tool exists; the draft stays `PENDING` |

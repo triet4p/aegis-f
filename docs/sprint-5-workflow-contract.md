@@ -180,9 +180,9 @@ budget-exact model shortlist → `ManualReview` (never a silent fallback).
   `StaleCategory` (or non-selectable `ResolvedOption`s); valid rows stay selectable
   with their truthful shares. Permanent deletion reuses this path.
 - Suggestion gate (frozen input precedence): remembered rule before inference;
-  blank input stays manual; OTP/security-like text and mixed letter-digit reference
-  codes stay manual (never a language allowlist); explicit note evaluated **alone**
-  when present, else the visible memo text as-is — the two are never concatenated,
+  blank input stays manual; local inference receives nonblank text as written without
+  OTP/security-like or mixed letter-digit reference-code rejection; explicit note evaluated
+  **alone** when present, else the visible memo text as-is — the two are never concatenated,
   the stored memo is never rewritten, the note is never persisted, and the category
   field changes only on explicit user action. Results that arrive after form/text/
   category changes are discarded (`takeIfCurrent` → `Idle`/`Stale`).
@@ -208,7 +208,7 @@ budget-exact model shortlist → `ManualReview` (never a silent fallback).
 | C9 | `LedgerRepository` categories | `add/rename/archive/deleteCategory`, `categoryDeletionImpact`, `categories/observeCategories/assignable` | Reads move to shared bounded query layer (S5.5); deletes keep the detach-count-report transaction |
 | C10 | `LedgerRepository` transactions/rules | `addTransaction(TransactionInput)`, `editTransaction(id, TransactionCorrection)`, `deleteTransaction`, `transactions/observeAll/findTransaction`, `remember*/findRemembered*/removeRemembered*` | Writes move to shared commands (S5.6 user-prep vs S5.7 user-only confirm/correct); correction still cannot rewrite confirmation/source |
 | C11 | `CategoryDao / TransactionDao / RememberedCategoryRuleDao` | Direct SQL for the four tables | Add new DAOs beside them; each schema task ships its own migration + populated-data smoke |
-| C12 | `BankDraftReviewScreen` inbox + `DraftDetailContent` | `observeDrafts/observeCategories/categories`, `findRememberedCategoryForDescription`, `layaInferenceLifecycle.suggest`, `resolveCurrent`, `saveReview/confirmDraft/dismissDraft` | Same screen drives link/propose/reject + classification-snapshot commands (S5.6/7, S6); suggestion gate precedence unchanged |
+| C12 | `BankDraftReviewScreen` inbox + `DraftDetailContent` | `observeDrafts/observeCategories/categories`, `findRememberedCategoryForDescription`, `layaInferenceLifecycle.suggest`, `resolveCurrent`, `saveReview/confirmDraft/dismissDraft` | Same screen drives link/propose/reject + classification-snapshot commands (S5.6/7, S6); S8.14 raw local input policy is summarized in C19 |
 | C13 | `TransactionEditorScreen` | `findTransaction/findCategory`, `observeCategories/categories`, remembered-rule lookup, `suggest`, `addTransaction/editTransaction`, `rememberCategoryForDescription/removeRememberedCategoryRule` | Manual save/correct flows re-route through shared commands with idempotency keys; rule actions stay explicit |
 | C14 | `TransactionDetailScreen` | `findTransaction/findCategory/deleteTransaction` | Delete stays an explicit user-only command (never agent-exposed) |
 | C15 | `TransactionListScreen` | `observeTransactions/observeCategories` + `applyTransactionFilters` | Reads move to shared typed queries (S5.5); filters stay read-only |
@@ -250,7 +250,8 @@ budget-exact model shortlist → `ManualReview` (never a silent fallback).
 4. Suggestion order: remembered exact rule → category-name phrase match → model on a
    budget-exact candidate set → explicit manual review. Direct hits carry no scores.
 5. Note vs memo: explicit note alone, else visible memo as-is; never concatenated;
-   safety-blocked note yields null (no silent fallback to memo).
+   the note is not replaced by the memo, and local text is not rejected for
+   OTP/security-word or bank-reference patterns.
 6. Freshness wins: any context/link/category/rule/model revision change invalidates
    pending predictions; stale results are shown as stale or discarded, never applied
    over a newer user choice; background work never overwrites the user.
