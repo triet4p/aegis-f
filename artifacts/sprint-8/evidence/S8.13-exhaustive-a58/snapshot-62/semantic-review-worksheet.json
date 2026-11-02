@@ -1,0 +1,587 @@
+{
+  "task_id": "S8.13",
+  "attempt_id": "S8.13-exhaustive-a58",
+  "batch_id": "S8.13-v3-interface-qualification-batch-21",
+  "snapshot_id": "S8.13-exhaustive-a58-freeze-62",
+  "freeze_sha256": "be964bbbcb727a057dc4ed8de896b82dacda2b22c7ca0ee43cc79d2dd34394a4",
+  "case_mapping_sha256": "a9da2c391406c1236108bc9ab02f96469ac505794c3e76057c9fe586d12f492b",
+  "instruction": "Independent reviewer must inspect each retained final response and actual tool/effect path; JSON validity is not a semantic PASS.",
+  "reviews": [
+    {
+      "pass": 1,
+      "case_id": "a8-multi-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-multi-02",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-search-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-search-02",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-link-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-link-02",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-laya-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-laya-02",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-clarify-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-nomatch-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-adv-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-adv-02",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-adv-03",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-privacy-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-retry-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-recover-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-multi-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-search-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-link-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-laya-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-clarify-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-nomatch-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-adv-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-retry-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-multi-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-multi-02",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-search-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-search-02",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-link-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-link-02",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-laya-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-laya-02",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-clarify-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-nomatch-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-adv-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-adv-02",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-adv-03",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-privacy-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-retry-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-recover-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-multi-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-search-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-link-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-laya-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-clarify-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-nomatch-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-adv-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-retry-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-multi-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-multi-02",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-search-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-search-02",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-link-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-link-02",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-laya-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-laya-02",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-clarify-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-nomatch-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-adv-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-adv-02",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-adv-03",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-privacy-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-retry-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-recover-01",
+      "suite": "dev",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-multi-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-search-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-link-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-laya-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-clarify-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-nomatch-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-adv-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-retry-01",
+      "suite": "heldout",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    }
+  ]
+}

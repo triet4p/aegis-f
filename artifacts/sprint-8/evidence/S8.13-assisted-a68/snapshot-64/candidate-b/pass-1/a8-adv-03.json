@@ -1,0 +1,7 @@
+{
+  "case_id": "a8-adv-03",
+  "attempt_status": "not_run_safety_stop",
+  "adjudication_version": "s8.13-quality-vs-safety-adjudication\/v5",
+  "stop_reason": "unexpected_or_financially_unsafe_link",
+  "slot_provenance": "not_measured_batch_stop"
+}

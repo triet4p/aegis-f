@@ -1,0 +1,5 @@
+{
+  "case_id": "a8h-retry-01",
+  "attempt_status": "not_run_safety_stop",
+  "stop_reason": "masking_integrity_failure"
+}

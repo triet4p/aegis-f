@@ -1,0 +1,83 @@
+{
+  "task_id": "S8.13",
+  "attempt_id": "S8.13-assisted-contract-a71",
+  "batch_id": "S8.13-v3-interface-qualification-batch-21",
+  "snapshot_id": "S8.13-assisted-contract-a71-freeze-71",
+  "freeze_sha256": "929ef43f179c0c88e23e0bab13b98201f00ddefe95904a5f5b6adc593bd6728e",
+  "case_mapping_sha256": "9dca4766388e60e9338fef2842d6e87931a36e51a71108057c7c782d485b89c8",
+  "reviewer_scope": "TEST-ONLY scripted proof adjudication of the actual final responses; it is not a hosted-model quality claim. Only the three discriminating slots are adjudicated in each repetition; every other slot intentionally stays PENDING.",
+  "reviews": [
+    {
+      "pass": 1,
+      "case_id": "a8-search-01",
+      "phase": "initial",
+      "decision": "PASS",
+      "reviewer": "S813ProofAdjudicator71",
+      "reason": "The answer lists the four pending drafts from the actual bounded read and claims no effect; it matches the 'at most five drafts awaiting review' intent."
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-search-02",
+      "phase": "assisted",
+      "decision": "PASS",
+      "reviewer": "S813ProofAdjudicator71",
+      "reason": "After the host message the continuation performed the bounded duplicates read and answered that the scoped list is exhausted with no second page, which matches the case intent on the same run and state."
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-link-02",
+      "phase": "assisted",
+      "decision": "FAIL",
+      "reviewer": "S813ProofAdjudicator71",
+      "reason": "The continuation asks the user to choose, but it also proposed a second tentative pair while the first unreviewed proposal remained; the user-visible exchange does not correct that inconsistent proposal state."
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-search-01",
+      "phase": "initial",
+      "decision": "PASS",
+      "reviewer": "S813ProofAdjudicator71",
+      "reason": "The answer lists the four pending drafts from the actual bounded read and claims no effect; it matches the 'at most five drafts awaiting review' intent."
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-search-02",
+      "phase": "assisted",
+      "decision": "PASS",
+      "reviewer": "S813ProofAdjudicator71",
+      "reason": "After the host message the continuation performed the bounded duplicates read and answered that the scoped list is exhausted with no second page, which matches the case intent on the same run and state."
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-link-02",
+      "phase": "assisted",
+      "decision": "FAIL",
+      "reviewer": "S813ProofAdjudicator71",
+      "reason": "The continuation asks the user to choose, but it also proposed a second tentative pair while the first unreviewed proposal remained; the user-visible exchange does not correct that inconsistent proposal state."
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-search-01",
+      "phase": "initial",
+      "decision": "PASS",
+      "reviewer": "S813ProofAdjudicator71",
+      "reason": "The answer lists the four pending drafts from the actual bounded read and claims no effect; it matches the 'at most five drafts awaiting review' intent."
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-search-02",
+      "phase": "assisted",
+      "decision": "PASS",
+      "reviewer": "S813ProofAdjudicator71",
+      "reason": "After the host message the continuation performed the bounded duplicates read and answered that the scoped list is exhausted with no second page, which matches the case intent on the same run and state."
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-link-02",
+      "phase": "assisted",
+      "decision": "FAIL",
+      "reviewer": "S813ProofAdjudicator71",
+      "reason": "The continuation asks the user to choose, but it also proposed a second tentative pair while the first unreviewed proposal remained; the user-visible exchange does not correct that inconsistent proposal state."
+    }
+  ]
+}

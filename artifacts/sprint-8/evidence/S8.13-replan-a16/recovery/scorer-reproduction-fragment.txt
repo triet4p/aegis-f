@@ -1,0 +1,275 @@
+def validate_reproduction_live_run(live_path: Path, freeze: dict[str, Any]) -> str | None:
+    """Identity and scope checks for the small discriminating reproduction, not a gate verdict."""
+    if not live_path.is_file():
+        return "missing_reproduction_live_run"
+    live = json_load(live_path)
+    checks = (
+        live.get("task") == "S8.13",
+        live.get("attempt_id") == ATTEMPT_ID,
+        live.get("batch_id") == BATCH_ID,
+        live.get("snapshot_id") == SNAPSHOT_ID,
+        live.get("pass") == "reproduction",
+        live.get("profile") == PROFILE,
+        live.get("qualification_fixture_id") == FIXTURE_ID,
+        live.get("qualification_scoring_version") == freeze.get("scoring_version"),
+        live.get("transport_protocol") == PROTOCOL,
+        live.get("max_output_tokens_per_turn") == MAX_OUTPUT_TOKENS,
+        live.get("measurement_scope") == "reproduction_subset",
+        live.get("expected_cases") == len(REPRODUCTION_CASE_IDS),
+        live.get("recorded_cases") == len(REPRODUCTION_CASE_IDS),
+        live.get("case_ids") == REPRODUCTION_CASE_IDS,
+        live.get("adjudication_version") == ADJUDICATION_VERSION,
+        live.get("credential_recorded") is False,
+        isinstance(live.get("debug_capture"), dict),
+        (live.get("debug_capture") or {}).get("enabled") is True,
+        (live.get("debug_capture") or {}).get("contract") == DEBUG_CAPTURE_CONTRACT,
+        (live.get("debug_capture") or {}).get("header_values_recorded") is False,
+    )
+    return None if all(checks) else "reproduction_live_run_identity_or_scope_mismatch"
+
+
+def validate_debug_tree(directory: Path, freeze: dict[str, Any]) -> dict[str, Any]:
+    """Validate the TEST_ONLY synthetic debug tree and return body-free summary facts."""
+    session_path = directory / "session.json"
+    if not session_path.is_file():
+        raise RuntimeError("debug tree is missing its session record")
+    session = json_load(session_path)
+    if (session.get("TEST_ONLY") is not True or
+            session.get("capture_contract") != DEBUG_CAPTURE_CONTRACT or
+            session.get("capture_mode") != "synthetic_only_full_bodies" or
+            session.get("package") != PACKAGE or
+            session.get("attempt_id") != ATTEMPT_ID or
+            session.get("batch_id") != BATCH_ID or
+            session.get("snapshot_id") != SNAPSHOT_ID or
+            session.get("fixture_id") != FIXTURE_ID or
+            session.get("fixture_sha256") != freeze.get("fixture_sha256") or
+            session.get("header_values_recorded") is not False):
+        raise RuntimeError("debug tree session does not match the authorized TEST_ONLY contract")
+    per_case: dict[str, Any] = {}
+    bearer_hits: list[str] = []
+    for case_id in REPRODUCTION_CASE_IDS:
+        case_dir = directory / case_id
+        exchanges_path = case_dir / "exchanges.jsonl"
+        if not exchanges_path.is_file():
+            raise RuntimeError(f"debug tree has no captured exchanges for {case_id}")
+        lines = [line for line in exchanges_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        if not lines:
+            raise RuntimeError(f"debug tree captured no exchange for {case_id}")
+        reasons: dict[str, int] = {}
+        stages: dict[str, int] = {}
+        near_misses = 0
+        unissued_in_response = 0
+        for line in lines:
+            record = json.loads(line)
+            if (record.get("TEST_ONLY") is not True or
+                    record.get("capture_contract") != DEBUG_CAPTURE_CONTRACT or
+                    not isinstance(record.get("request_body"), str) or
+                    not isinstance(record.get("response_body"), str)):
+                raise RuntimeError(f"debug exchange for {case_id} is not the authorized full-body shape")
+            guard = record.get("response_privacy_guard") or {}
+            if guard.get("accepted") is False:
+                reason = guard.get("refusal_reason") or "unknown"
+                reasons[reason] = reasons.get(reason, 0) + 1
+            stage = record.get("refusal_stage") or "unknown"
+            stages[stage] = stages.get(stage, 0) + 1
+            provenance = record.get("token_provenance") or {}
+            if not isinstance(provenance.get("issued_tokens_at_turn"), list):
+                raise RuntimeError(f"debug exchange for {case_id} lacks the per-turn issued-token context")
+            for candidate in provenance.get("candidates") or []:
+                if candidate.get("near_miss_to_issued_this_turn") is True:
+                    near_misses += 1
+                if candidate.get("seen_in_response") is True and candidate.get("issued_in_this_turn_request") is False:
+                    unissued_in_response += 1
+        if "Bearer " in exchanges_path.read_text(encoding="utf-8"):
+            bearer_hits.append(case_id)
+        per_case[case_id] = {
+            "exchanges": len(lines),
+            "refusal_reasons": reasons,
+            "refusal_stages": stages,
+            "near_miss_candidates": near_misses,
+            "response_tokens_not_issued_this_turn": unissued_in_response,
+            "case_record_path": relative(case_dir / "case.json"),
+            "effects_record_path": relative(case_dir / "effects.json") if (case_dir / "effects.json").is_file() else None,
+        }
+    if bearer_hits:
+        raise RuntimeError(f"debug tree contains an authorization header value for {', '.join(bearer_hits)}")
+    forbidden = (".env", "PRIVATE KEY", "OPENCODE_GO_API_KEY=")
+    for path in directory.rglob("*"):
+        if path.is_file():
+            text = path.read_text(encoding="utf-8", errors="replace")
+            if any(marker in text for marker in forbidden):
+                raise RuntimeError(f"debug tree member {relative(path)} looks like secret material")
+    return {
+        "session_contract": DEBUG_CAPTURE_CONTRACT,
+        "test_only": True,
+        "header_values_recorded": False,
+        "full_bodies_retained": True,
+        "per_case": per_case,
+    }
+
+
+def action_reproduce_blocked(args: argparse.Namespace) -> int:
+    if not args.main_approval or not args.main_approval.strip():
+        raise RuntimeError("Main's explicit approval reference is required before any hosted request")
+    freeze = strict_freeze()
+    debug_binding = freeze.get("debug_capture") or {}
+    if (debug_binding.get("contract") != DEBUG_CAPTURE_CONTRACT or
+            debug_binding.get("enabled_for_reproduction") is not True or
+            debug_binding.get("reproduction_case_ids") != REPRODUCTION_CASE_IDS):
+        raise RuntimeError("the frozen candidate does not authorize this reproduction")
+    run_root = DEBUG_ROOT / REPRODUCTION_RUN_NAME
+    if run_root.exists():
+        raise RuntimeError("refusing to overwrite a retained reproduction debug tree")
+    device_debug_relative = f"files/{ATTEMPT_ID}/debug/{SNAPSHOT_ID}/{REPRODUCTION_RUN_NAME}"
+    device_debug_root = f"/data/user/0/{PACKAGE}/{device_debug_relative}"
+    device_run_relative = f"files/{ATTEMPT_ID}/{SNAPSHOT_ID}/{PROFILE}/{REPRODUCTION_RUN_NAME}"
+    if remote_exists(device_run_relative) or remote_exists(device_debug_relative):
+        raise RuntimeError("reproduction paths already exist on the isolated phone; refusing overwrite")
+    device_model, android_release = verify_phone()
+    packages = freeze["package_identity"]
+    for apk in (APP_APK, TEST_APK):
+        install = adb("install", "-r", str(apk), timeout=240)
+        if "Success" not in install.stdout:
+            raise RuntimeError("isolated evidence APK installation was not confirmed")
+    if pinned_laya_hashes() != freeze["pinned_laya_files_sha256"]:
+        raise RuntimeError("pinned local Laya source drifted after the frozen device preflight")
+    stage_laya()
+    key_loader = __import__("s8_trials", fromlist=["load_hosted_key"]).load_hosted_key
+    credential = key_loader("OPENCODE_GO_API_KEY")
+    if not credential:
+        raise RuntimeError("process-memory hosted credential unavailable; no endpoint was attempted")
+    secret_values = (credential,)
+    server = OneShotCredentialServer(credential)
+    credential = ""
+    instrumentation: dict[str, Any]
+    try:
+        adb("reverse", f"tcp:{server.port}", f"tcp:{server.port}", keys=secret_values)
+        server.start()
+        instrumentation = run_instrumentation(
+            "io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest",
+            [
+                ("S813_PROFILE", PROFILE),
+                ("S813_PASS", "reproduction"),
+                ("S813_ATTEMPT_ID", ATTEMPT_ID),
+                ("S813_BATCH_ID", BATCH_ID),
+                ("S813_SNAPSHOT_ID", SNAPSHOT_ID),
+                ("S813_MAX_OUTPUT_TOKENS", str(MAX_OUTPUT_TOKENS)),
+                ("S813_CASE_IDS", ",".join(REPRODUCTION_CASE_IDS)),
+                ("S813_DEBUG_ROOT", device_debug_root),
+                ("S813_DEBUG_FIXTURE_SHA256", freeze["fixture_sha256"]),
+                ("S813_CREDENTIAL_PORT", str(server.port)),
+            ],
+            timeout=args.timeout_seconds,
+            redact_keys=secret_values,
+            packages=packages,
+        )
+    except Exception as failure:
+        instrumentation = {
+            "class": "io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest",
+            "exit_code": 125,
+            "timed_out": False,
+            "status": "host_runner_error",
+            "failure_type": type(failure).__name__,
+            "failure_detail_redacted": legacy.redact(str(failure), secret_values)[:1000],
+        }
+    finally:
+        try:
+            adb("reverse", "--remove", f"tcp:{server.port}", check=False, keys=secret_values)
+        finally:
+            server.close()
+            credential = ""
+
+    run_destination = run_root / "evidence"
+    debug_destination = run_root / "debug"
+    collection_error = None
+    debug_collection_error = None
+    if remote_exists(device_run_relative):
+        try:
+            pull_remote_tree(device_run_relative, run_destination, forbidden_values=secret_values)
+        except Exception as failure:
+            collection_error = legacy.redact(f"{type(failure).__name__}: {str(failure)[:1000]}", secret_values)
+    else:
+        collection_error = "reproduction attempt directory was not present after instrumentation"
+    if remote_exists(device_debug_relative):
+        try:
+            pull_remote_tree(device_debug_relative, debug_destination, forbidden_values=secret_values)
+        except Exception as failure:
+            debug_collection_error = legacy.redact(
+                f"{type(failure).__name__}: {str(failure)[:1000]}", secret_values)
+    else:
+        debug_collection_error = "synthetic debug tree was not present after instrumentation"
+
+    live_path = run_destination / "live-run.json"
+    validation_error = validate_reproduction_live_run(live_path, freeze) if collection_error is None else collection_error
+    debug_summary: dict[str, Any] = {}
+    if debug_collection_error is None:
+        try:
+            debug_summary = validate_debug_tree(debug_destination, freeze)
+        except Exception as failure:
+            debug_collection_error = f"{type(failure).__name__}: {str(failure)[:1000]}"
+    hard_stop = None
+    try:
+        live_run = json_load(live_path) if live_path.is_file() else {}
+    except (json.JSONDecodeError, OSError):
+        live_run = {}
+    if live_run.get("safety_stop") not in (None, "null"):
+        hard_stop = f"runtime_safety_stop:{live_run.get('safety_stop')}"
+    if instrumentation.get("status") != "OK (1 test)":
+        hard_stop = hard_stop or "instrumentation_failed"
+    if not server.served:
+        hard_stop = hard_stop or "credential_channel_not_consumed"
+    summary = {
+        "task_id": "S8.13",
+        "attempt_id": ATTEMPT_ID,
+        "batch_id": BATCH_ID,
+        "snapshot_id": SNAPSHOT_ID,
+        "candidate": CANDIDATE,
+        "scope": "small discriminating reproduction of previously blocked reasoning-token cases; not a qualification pass and no gate is scored",
+        "case_ids": REPRODUCTION_CASE_IDS,
+        "main_approval_ref": args.main_approval,
+        "freeze_sha256": sha256_file(FREEZE_PATH),
+        "scoring_version": freeze["scoring_version"],
+        "refusal_evidence_contract": REFUSAL_EVIDENCE_CONTRACT,
+        "debug_capture_contract": DEBUG_CAPTURE_CONTRACT,
+        "debug_root": relative(DEBUG_ROOT),
+        "debug_root_tracked": False,
+        "debug_root_excluded_from_reports": True,
+        "debug_tree_path": relative(debug_destination) if debug_destination.is_dir() else None,
+        "debug_tree_files": sorted(
+            relative(path) for path in debug_destination.rglob("*") if path.is_file()
+        ) if debug_destination.is_dir() else [],
+        "debug_summary": debug_summary,
+        "debug_collection_error": debug_collection_error,
+        "evidence_path": relative(run_destination) if run_destination.is_dir() else None,
+        "instrumentation": {
+            "class": instrumentation.get("class"),
+            "status": instrumentation.get("status"),
+            "exit_code": instrumentation.get("exit_code"),
+            "timed_out": instrumentation.get("timed_out"),
+        },
+        "credential_channel_served": server.served,
+        "credential_recorded": False,
+        "validation_error": validation_error,
+        "hard_stop": hard_stop,
+        "device_serial": DEVICE_SERIAL,
+        "device_model": device_model,
+        "android_release": android_release,
+        "hosted_provider_calls": 0 if instrumentation.get("status") != "OK (1 test)" else None,
+        "finished_at": utc_now(),
+    }
+    write_new_json(PREPARATION_ROOT / "reproduction-summary.json", summary)
+    print(json.dumps({
+        "result": "reproduction_recorded",
+        "instrumentation_status": summary["instrumentation"]["status"],
+        "case_ids": REPRODUCTION_CASE_IDS,
+        "debug_tree": summary["debug_tree_path"],
+        "debug_summary": debug_summary,
+        "validation_error": validation_error,
+        "debug_collection_error": debug_collection_error,
+        "hard_stop": hard_stop,
+        "credential_channel_served": server.served,
+        "summary": relative(PREPARATION_ROOT / "reproduction-summary.json"),
+    }, indent=2))
+    return 0 if (validation_error is None and debug_collection_error is None and hard_stop is None) else 1
+
+

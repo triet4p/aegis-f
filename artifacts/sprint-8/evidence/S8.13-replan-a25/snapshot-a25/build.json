@@ -1,0 +1,10 @@
+{
+ "app_apk_path": "app/build/outputs/apk/debug/app-debug.apk",
+ "test_apk_path": "app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk",
+ "app_apk_sha256": "0860c6b5b807ea96c9e09e57820b7a9aa623838828014a83e4683634c06e4e41",
+ "app_apk_bytes": 90022208,
+ "test_apk_sha256": "e9d0ad08dfcf38b39b4b5e88a0c2ffc5f787c2b3d4af89f83e652c8a9845e5c6",
+ "test_apk_bytes": 1700556,
+ "target_package": "io.github.triet4p.aegisf.s813evidence",
+ "freeze_snapshot": "S8.13-v3-interface-a25-freeze-31"
+}

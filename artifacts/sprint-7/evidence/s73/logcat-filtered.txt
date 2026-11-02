@@ -1,0 +1,16 @@
+10-25 00:01:57.733 20030 20030 I BankNotificationListener: requestActiveReconciliation: listener not connected, requesting rebind
+10-25 00:01:57.734  2168  3812 I PackageManager: setEnabledSetting pkg:io.github.triet4p.aegisf.s73evidence, className:io.github.triet4p.aegisf.notification.BankNotificationListener, newState:2, flags:1, userId:0, CallingPid:20030, CallingUid:10336
+10-25 00:01:57.736  2168  3400 I PackageManager: setEnabledSetting pkg:io.github.triet4p.aegisf.s73evidence, className:io.github.triet4p.aegisf.notification.BankNotificationListener, newState:1, flags:1, userId:0, CallingPid:20030, CallingUid:10336
+10-25 00:01:57.907 20030 20030 I BankNotificationListener: requestActiveReconciliation: listener not connected, requesting rebind
+10-25 00:01:57.907  2168  3400 I PackageManager: setEnabledSetting pkg:io.github.triet4p.aegisf.s73evidence, className:io.github.triet4p.aegisf.notification.BankNotificationListener, newState:2, flags:1, userId:0, CallingPid:20030, CallingUid:10336
+10-25 00:01:57.909  2168  3812 I PackageManager: setEnabledSetting pkg:io.github.triet4p.aegisf.s73evidence, className:io.github.triet4p.aegisf.notification.BankNotificationListener, newState:1, flags:1, userId:0, CallingPid:20030, CallingUid:10336
+10-25 00:01:58.758  2168  2168 I NotificationListeners: populateComponentsToBind: enabledService={ComponentInfo{io.github.triet4p.aegisf.s73evidence/io.github.triet4p.aegisf.notification.BankNotificationListener}, ComponentInfo{io.github.triet4p.aegisf/io.github.triet4p.aegisf.notification.BankNotificationListener}, ComponentInfo{com.google.android.projection.gearhead/com.google.android.gearhead.notifications.SharedNotificationListenerManager$ListenerService}};userIdSize=1
+10-25 00:01:58.758  2168  2168 V NotificationListeners: enabling notification listener for 0: ComponentInfo{io.github.triet4p.aegisf.s73evidence/io.github.triet4p.aegisf.notification.BankNotificationListener}
+10-25 00:01:58.759  2168  2168 V NotificationListeners: binding: Intent { act=android.service.notification.NotificationListenerService cmp=io.github.triet4p.aegisf.s73evidence/io.github.triet4p.aegisf.notification.BankNotificationListener (has extras) }
+10-25 00:01:58.792  2168  2168 V NotificationListeners: enabling notification listener for 0: ComponentInfo{io.github.triet4p.aegisf/io.github.triet4p.aegisf.notification.BankNotificationListener}
+10-25 00:01:58.792  2168  2168 V NotificationListeners: Not registering ComponentInfo{io.github.triet4p.aegisf/io.github.triet4p.aegisf.notification.BankNotificationListener} is already bound
+10-25 00:01:58.852 20030 20030 I BankNotificationListener: onCreate: listener service created
+10-25 00:01:58.859  2168  2168 V NotificationListeners: 0 notification listener service connected: ComponentInfo{io.github.triet4p.aegisf.s73evidence/io.github.triet4p.aegisf.notification.BankNotificationListener}
+10-25 00:01:58.872 20030 20030 I BankNotificationListener: onListenerConnected: listener connected, loading allowlist snapshot
+10-25 00:01:58.887 20030 28917 I BankNotificationListener: onListenerConnected: allowlist ready (1 packages), draining queue and reconciling
+10-25 00:01:58.943 20030 28917 I BankNotificationListener: reconcileCurrentActive: active=14, permitted candidates=7

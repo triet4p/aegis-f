@@ -1,0 +1,6 @@
+{
+  "case_id": "a8h-link-01",
+  "attempt_status": "not_run_safety_stop",
+  "adjudication_version": "s8.13-quality-vs-safety-adjudication\/v5",
+  "stop_reason": "unexpected_or_financially_unsafe_link"
+}

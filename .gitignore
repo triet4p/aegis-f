@@ -106,4 +106,30 @@ __pycache__/
 /artifacts/sprint-5/workflow-replan/workers/S5.7-replan-a2.md
 /artifacts/sprint-5/workflow-replan/workers/S5.8-replan-a1.md
 /artifacts/sprint-5/workflow-replan/workers/S5.8-replan-a2.md
+
+# Repository hygiene (HYGIENE2): private/generated/local evidence under artifacts/.
+# Tracks reviewed sanitized reports/manifests/checkpoints/memory/docs; ignores raw traces.
+/artifacts/**/*.db
+/artifacts/**/*.sqlite
+/artifacts/**/*.sqlite3
+/artifacts/**/*.png
+!/artifacts/**/*redacted*.png
+/artifacts/**/*.xml
+/artifacts/**/*.jsonl
+/artifacts/**/*.log
+/artifacts/**/*.tar
+/artifacts/**/*.stdout
+/artifacts/**/*.stderr
+/artifacts/**/*.patch
+/artifacts/**/*.diff
+/artifacts/**/*.html
+/artifacts/**/*.py
+/artifacts/**/debug/
+# Sensitive/uncertain JSON (provider payloads, DB snapshots, per-case outputs, manifests).
+/artifacts/**/*.json
+!/artifacts/repository-hygiene/*.json
 /artifacts/sprint-5/workflow-replan/workers/S5.9-replan-a1.md
+
+# Root-local generated/session artifacts (HYGIENE2)
+/path-identity-preflight-stage-failure.json
+/omp-session-*.html

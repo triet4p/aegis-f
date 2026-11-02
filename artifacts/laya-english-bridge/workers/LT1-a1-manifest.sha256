@@ -1,0 +1,46 @@
+LT1-a1 owned-path SHA-256 manifest
+Base: 8518676c3e8f7475c1a5140275224fe286cb4a92
+Scope: worker-owned source, test, documentation, evidence, worker summary, and installed candidate APK only. This manifest intentionally excludes its own self-hash.
+
+cbb808e436b00c12d6c693b8a4064c8841fc933f214742f55190348a8f790b5a  .agents/memory/decisions.md
+7937de17b1577eedf954ae11cbcaaae095ded8fdc53f515939a6d15f010c0d3a  .agents/memory/lessons-learned.md
+bccdaa6f9fd7359bcd3dc32f1e2f9ea0994d5c9ace2d5eec934dfba72db56de7  CHANGELOG.md
+a69f76bead9883ab1bdc4760ee3ecac66cb6858a9bd8a477d1d2f4514ee326de  app/build.gradle.kts
+4e4f5d7d87e44a288d93e9c13392b04bdf209e3ba495106efd051f4d0ffcf60c  app/src/main/java/io/github/triet4p/aegisf/agent/AgentContextManager.kt
+02c1122d29fe704b08aa5a855933186177f8d705038f032a7fc560e77e19b683  app/src/main/java/io/github/triet4p/aegisf/agent/AgentInterfaceContract.kt
+fc5ba11464b70d4bdf460eb9bb6aa22ca9783045d1f82d5941607df717a9438b  app/src/main/java/io/github/triet4p/aegisf/agent/AgentToolRuntime.kt
+a564d5f1bffe57c0b3a9e774a56d31b7a2090d6e3ec93d7882f338c4d97dd7f6  app/src/main/java/io/github/triet4p/aegisf/agent/WorkflowSkillCatalog.kt
+dff4d60e3b5904a72fbb03b4928bffb93a6a386ef72cb1891dce7aa0bcd325f5  app/src/main/java/io/github/triet4p/aegisf/data/BankDraftClassificationQueue.kt
+abe555a4e600b839379dd633f86961c66d67c073ef0fbbcda281a3274611f2f0  app/src/main/java/io/github/triet4p/aegisf/data/ClassificationSnapshotDao.kt
+fbacbb3f1722da08c7003746033c0f41085227cd52d9ef039cad11a0126b718d  app/src/main/java/io/github/triet4p/aegisf/data/ClassificationSnapshotEntity.kt
+96cca75d8dd9e60696e1b0754c16582c156a29d83f82e8017c14a16b36d1b702  app/src/main/java/io/github/triet4p/aegisf/data/ClassificationSnapshotRepository.kt
+70b90d104730d691b05b7e649f007e1cf9e259e60d8f462f5479a6c01f730041  app/src/main/java/io/github/triet4p/aegisf/data/LedgerDatabase.kt
+b4e0747c9e159c8804c71a09be6d603151da04786ace6dac2bcf1bb162e9eef9  app/src/main/java/io/github/triet4p/aegisf/data/ReviewQueueDao.kt
+019c39a78394d406f0666ae8cf1d9b5f337a86510445fefc6774bc38ab488476  app/src/main/java/io/github/triet4p/aegisf/data/WorkflowCommandService.kt
+9f0d8a56612587d6c6d0ceb4d9111d334fc08a99c51a8a5ea43da8bae0fbaaad  app/src/main/java/io/github/triet4p/aegisf/data/WorkflowCommandTypes.kt
+ffb1f645f45082e19f8344fa9f02bd3622ff92551103e4c83672ba139b030376  app/src/main/java/io/github/triet4p/aegisf/data/WorkflowQueryService.kt
+80dba817cbef9642be3b3a8175f2157750687ce3a78e269c04f39d64e0a1f8d1  app/src/main/java/io/github/triet4p/aegisf/data/WorkflowQueryTypes.kt
+d0c2f5303861f1fb32f6fbe9ab28d1bf2678705055341c4d7f94de5f7bb2a516  app/src/main/java/io/github/triet4p/aegisf/ui/BankDraftReviewScreen.kt
+d04860a71df1652f965b6e38c17189e2f20b7059f8b6e0b4741403cf828ee9f2  app/src/test/java/io/github/triet4p/aegisf/agent/AgentToolRuntimeTest.kt
+843d4fa859b3df568125d39e2593df94c8da2ca1a434063aa11f92b7fdf6746d  app/src/test/java/io/github/triet4p/aegisf/agent/WorkflowSkillCatalogTest.kt
+24b0fd34422dc78f3dd022640541cc2c17b25fddd1cfabd5d4396f33eb35c7a3  app/src/test/java/io/github/triet4p/aegisf/data/ClassificationSnapshotTest.kt
+a30f6661abab1b79a2c4e1be4ec925fd214f1cd25f58d0136b46d211a6d76251  app/src/test/java/io/github/triet4p/aegisf/data/ClassificationWorkLifecycleTest.kt
+6b4e37c52d72b69ab16f77dee578c3cdccf1198df937fb5971b962312ee372a4  app/src/test/java/io/github/triet4p/aegisf/data/MigrationChainTest.kt
+40d7ad66563bb60060791f14ae639af8bba943e0d89ba70c50d1ac5a893c4fb9  app/src/test/java/io/github/triet4p/aegisf/data/ReviewQueueTest.kt
+aaae9a2e7d42e9608f91d5f6ee28aaabe4d1a9388be4021c7dc3b58c17f09682  app/src/test/java/io/github/triet4p/aegisf/ui/ReviewQueueFocusTest.kt
+80bce526e73500b4c02a68aa046c117aeb13fc9b9cdc9968c5eb6d58bd9e3ec2  app/schemas/io.github.triet4p.aegisf.data.LedgerDatabase/15.json
+2d08e1923e89d1bdb2573815729ee51ca504d0676666535a57768245e2050637  docs/laya-english-tooling-bridge.md
+017b0a2a9a1ddadda907dcaa9110a9b203c82ea1bf9a8bd1aa984b402673e2cd  docs/sprint-8-agent-contract.md
+1ad0f192e293cf7fb3a26eaa46c17ca37e6c7ec55bf2f94555f74c0eb90c9f09  docs/sprint-8-agent-interface-redesign.md
+e8d1b057ce3a001f00a05b40972ad53fa1506377170b9bf291e74afbf76937a0  docs/sprint-8-application-tools.md
+f519f1f8f2d68cfe95f494b8e1de06e05b331acf38ec9a968833eecd75ba2736  tools/slm/s8_agent_runtime_skills_v5.json
+5cc932949e8421936baae1c61d91984cdd8edf272104c4c34a746d5ada00a6af  tools/slm/s8_agent_tools_v5.json
+cd1a82c006d5c14b1c650c716ab0122390bc88ca39c18b8d35ca8bab06414818  artifacts/laya-english-bridge/evidence/LT1-a1/attempt-01-main-compile-failure.log
+a522297b8ecde352e91489f36d55aee30f34d6e9042420b3cecde25e7c43276e  artifacts/laya-english-bridge/evidence/LT1-a1/attempt-02-test-compile-failure.log
+bae88277c5d30c5eea03f1763fed738ca2af618de8201ea2ebfc52ad6a6dbed5  artifacts/laya-english-bridge/evidence/LT1-a1/attempt-03-full-suite-failure.log
+136829c062da492dda5d55bd24e417c518caead8b8bf331410a4885d0a2eb1bd  artifacts/laya-english-bridge/evidence/LT1-a1/first-main-run.md
+63162c00032d2722518ec9b9d8457537f682193020b0078105aa6c0bbca9f041  artifacts/laya-english-bridge/evidence/LT1-a1/full-tests-and-main-apk.log
+033132b2b0329e3c9522f5f77b364de897247bca7ca010bd7d52c2213d7ee0c9  artifacts/laya-english-bridge/evidence/LT1-a1/main-ui-db-proof.md
+fefb15376809a46c910b0076871dc6fe48922f3ff00cbb8351d48a5a55babe90  artifacts/laya-english-bridge/evidence/LT1-a1/main-ui-redacted.png
+14e5882a7b3d4d4289551b7aa3dacc177499d9704aa6dc15be7a2d460ec7ead3  artifacts/laya-english-bridge/workers/LT1-a1.md
+cfb6802cff01ee457a96302a3f0423acde67a29e674c747d76c9fd32594855e1  app/build/outputs/apk/debug/app-debug.apk

@@ -1,0 +1,44 @@
+INSTRUMENTATION_STATUS: class=io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=
+io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest:
+INSTRUMENTATION_STATUS: test=runFrozenDevAndHeldoutSuites
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stack=java.lang.IllegalStateException: the scripted first attempt did not suspend for a user question: 
+	at io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest.scriptedLifecycleEvidence(S813QualificationInstrumentedTest.kt:1026)
+	at io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest.access$scriptedLifecycleEvidence(S813QualificationInstrumentedTest.kt:492)
+	at io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest$runFrozenDevAndHeldoutSuites$1.invokeSuspend(S813QualificationInstrumentedTest.kt:990)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:98)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:263)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:94)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking(Builders.kt:70)
+	at kotlinx.coroutines.BuildersKt.runBlocking(dex-id-977871c13826ac5a26eb32f0d10928e9302ba7d7:1)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking$default(Builders.kt:48)
+	at kotlinx.coroutines.BuildersKt.runBlocking$default(dex-id-977871c13826ac5a26eb32f0d10928e9302ba7d7:1)
+	at io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest.runFrozenDevAndHeldoutSuites(S813QualificationInstrumentedTest.kt:495)
+
+INSTRUMENTATION_STATUS: stream=
+Error in runFrozenDevAndHeldoutSuites(io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest):
+java.lang.IllegalStateException: the scripted first attempt did not suspend for a user question: 
+	at io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest.scriptedLifecycleEvidence(S813QualificationInstrumentedTest.kt:1026)
+	at io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest.access$scriptedLifecycleEvidence(S813QualificationInstrumentedTest.kt:492)
+	at io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest$runFrozenDevAndHeldoutSuites$1.invokeSuspend(S813QualificationInstrumentedTest.kt:990)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:98)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:263)
+	at kotlinx.coroutines.BlockingCoroutine.joinBlocking(Builders.kt:94)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking(Builders.kt:70)
+	at kotlinx.coroutines.BuildersKt.runBlocking(dex-id-977871c13826ac5a26eb32f0d10928e9302ba7d7:1)
+	at kotlinx.coroutines.BuildersKt__BuildersKt.runBlocking$default(Builders.kt:48)
+	at kotlinx.coroutines.BuildersKt.runBlocking$default(dex-id-977871c13826ac5a26eb32f0d10928e9302ba7d7:1)
+	at io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest.runFrozenDevAndHeldoutSuites(S813QualificationInstrumentedTest.kt:495)
+
+INSTRUMENTATION_STATUS: test=runFrozenDevAndHeldoutSuites
+INSTRUMENTATION_STATUS_CODE: -2

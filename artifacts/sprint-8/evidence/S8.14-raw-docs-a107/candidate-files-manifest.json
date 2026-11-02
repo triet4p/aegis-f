@@ -1,0 +1,32 @@
+{
+  "task_id": "S8.14",
+  "attempt_id": "S8.14-raw-docs-a107",
+  "agent_id": "S814RawDocs107",
+  "review_cycle_id": "S8.14-cycle-1",
+  "review_round": 3,
+  "base_commit": "7adf65219532b53fecfc82c894c83d7e7c83f142",
+  "scope": "Documentation-only correction of exactly five existing behavior documents; no source, tests, runner, model, or new product documents.",
+  "candidate_document_count": 5,
+  "candidate_documents": [
+    {
+      "path": "docs/sprint-5-effective-context.md",
+      "sha256": "4e603bb0d8303d54f213136e8160564650be8f53bdcde1ee9c2eafd8fd74780d"
+    },
+    {
+      "path": "docs/sprint-8-agent-executor.md",
+      "sha256": "970061c4c6e74db3d19943750597dec27902ca25eac5d393bea1aab820e4c395"
+    },
+    {
+      "path": "docs/sprint-8-agent-contract.md",
+      "sha256": "79acfa4f68ecee576cd2b0d6b7272dd562a746770513e94290337338be4d808e"
+    },
+    {
+      "path": "docs/sprint-7-confidence-queue-policy.md",
+      "sha256": "42ec9b77f4ce7ef73a09676fc081670f45e8a9cce2f8fa3e5ef2c6274c920af4"
+    },
+    {
+      "path": "docs/sprint-5-workflow-contract.md",
+      "sha256": "8e95fd169bc5b4197c62f858a1fc7723a4edb4800eeac16da0bb5d342d87aa3a"
+    }
+  ]
+}

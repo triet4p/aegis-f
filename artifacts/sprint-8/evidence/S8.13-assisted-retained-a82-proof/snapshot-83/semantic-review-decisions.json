@@ -1,0 +1,59 @@
+{
+  "task_id": "S8.13",
+  "attempt_id": "S8.13-assisted-retained-a82-proof",
+  "batch_id": "S8.13-v3-interface-qualification-batch-21",
+  "snapshot_id": "S8.13-assisted-retained-a82-proof-freeze-83",
+  "freeze_sha256": "181ea4923ae9fa34610e0b08dc9bfbf4ddb3656795de726e76b9b73229ff6861",
+  "case_mapping_sha256": "524d97e9f97f80760e1846edecd8e8fa9a69c047337734e1ffb91b2609099fa7",
+  "reviewer_scope": "TEST-ONLY scripted proof adjudication of the actual final responses; it is not a hosted-model quality claim. Only the three discriminating slots are adjudicated in each measured repetition; pass-1 decisions come from the frozen retained origin review.",
+  "reviews": [
+    {
+      "pass": 2,
+      "case_id": "a8-search-01",
+      "phase": "initial",
+      "decision": "PASS",
+      "reviewer": "S813ProofAdjudicator82",
+      "reason": "The answer lists the pending drafts from the actual bounded read and claims no effect; it matches the scoped list intent."
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-search-02",
+      "phase": "assisted",
+      "decision": "PASS",
+      "reviewer": "S813ProofAdjudicator82",
+      "reason": "After the host message the continuation performed the bounded duplicates read and answered that the scoped list is exhausted with no second page, which matches the case intent on the same run and state."
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-link-02",
+      "phase": "assisted",
+      "decision": "FAIL",
+      "reviewer": "S813ProofAdjudicator82",
+      "reason": "The continuation asks the user to choose, but it also proposed a tentative pair while the first unreviewed proposal remained; the user-visible exchange does not correct that inconsistent proposal state."
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-search-01",
+      "phase": "initial",
+      "decision": "PASS",
+      "reviewer": "S813ProofAdjudicator82",
+      "reason": "The answer lists the pending drafts from the actual bounded read and claims no effect; it matches the scoped list intent."
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-search-02",
+      "phase": "assisted",
+      "decision": "PASS",
+      "reviewer": "S813ProofAdjudicator82",
+      "reason": "After the host message the continuation performed the bounded duplicates read and answered that the scoped list is exhausted with no second page, which matches the case intent on the same run and state."
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-link-02",
+      "phase": "assisted",
+      "decision": "FAIL",
+      "reviewer": "S813ProofAdjudicator82",
+      "reason": "The continuation asks the user to choose, but it also proposed a tentative pair while the first unreviewed proposal remained; the user-visible exchange does not correct that inconsistent proposal state."
+    }
+  ]
+}

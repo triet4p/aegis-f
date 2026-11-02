@@ -1,0 +1,5 @@
+0|com.android.shell|2020|r2lockoff|2000
+0|com.android.shell|2020|r2rulefire|2000
+0|com.android.shell|2020|r3lock|2000
+0|com.android.shell|2020|r2lock2|2000
+0|com.android.shell|2020|r3after|2000

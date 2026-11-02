@@ -1,0 +1,7 @@
+{
+  "default": "Please finish my request using the information the app actually returned.",
+  "cases": {
+    "a8-search-02": "Please actually run the bounded duplicates check and tell me whether a second page exists; don't claim exhaustion without a result.",
+    "a8-link-02": "The current proposal is tentative, not a confirmed match. Ask me which draft I mean and leave it unconfirmed until I decide."
+  }
+}

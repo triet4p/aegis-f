@@ -1,0 +1,29 @@
+--------- beginning of system
+11-02 23:50:45.599 21890 21890 W HwApsManager: HwApsManagerService, registerCallback, start !
+11-02 23:51:24.284 21890 21890 D RtgSched: resetRtgSchedHandle failed enable:0
+11-02 23:51:24.489 21890 21890 D RtgSched: resetRtgSchedHandle failed enable:1
+11-02 23:51:51.245 21890 21890 I HwForceDarkManager: setAllowedHwForceDark:false package:io.github.triet4p.aegisf mCurrProcessState:0 mIsPackageNameChange:false hwForceDarkState:0 isViewAllowedForceDark:false isLastHonorForceDark:false
+11-02 23:51:51.283 21890 21890 I HwForceDarkManager: setAllowedHwForceDark:false package:io.github.triet4p.aegisf mCurrProcessState:0 mIsPackageNameChange:false hwForceDarkState:0 isViewAllowedForceDark:true isLastHonorForceDark:false
+11-02 23:51:51.613 21890 21890 I VRI[Cửa sổ bật lên]: dispatchDetachedFromWindow in doDie
+11-02 23:57:11.622 21890 21890 D RtgSched: resetRtgSchedHandle failed enable:0
+11-02 23:57:11.634 21890 21890 I VRI[MainActivity]: send MSG_WINDOW_FOCUS_CHANGED msg
+11-02 23:57:11.634 21890 21890 I ViewRootImpl: focus window changed, set pointer icon to default
+11-02 23:57:13.434 21890 21890 D RtgSched: resetRtgSchedHandle failed enable:1
+11-02 23:57:13.445 21890 21890 I VRI[MainActivity]: send MSG_WINDOW_FOCUS_CHANGED msg
+--------- beginning of main
+11-02 23:59:26.921 21890 21890 I HiTouch_PressGestureDetector: checkDoublePointerLimit:xPoss,yPoss:360,1200
+11-02 23:59:26.928 21890 21890 D Choreographer: still have 1 traversal callbacks
+11-02 23:59:26.945 21890 21890 W HiTouch_PressGestureDetector: [HiTouch Stop]checkDoublePointerMove:pointerId:0,pointerIndex:0 is move:xDiff,yDiff:0,20
+11-02 23:59:27.434 21890 21890 W HiTouch_PressGestureDetector: action:Up,touchSlop:16,interrupted:true
+11-02 23:59:41.214 21890 21890 I HiTouch_PressGestureDetector: checkDoublePointerLimit:xPoss,yPoss:360,1100
+11-02 23:59:41.241 21890 21890 W HiTouch_PressGestureDetector: [HiTouch Stop]checkDoublePointerMove:pointerId:0,pointerIndex:0 is move:xDiff,yDiff:0,24
+11-02 23:59:41.717 21890 21890 W HiTouch_PressGestureDetector: action:Up,touchSlop:16,interrupted:true
+11-03 00:00:00.655 21890 21890 D BankNotificationListener: onNotificationPosted: package=com.hihonor.health
+11-03 00:00:00.656 21890  3351 D BankNotificationListener: persistOne: dropped notification from com.hihonor.health (not in allowlist)
+11-03 00:00:00.727 21890 21890 D BankNotificationListener: onNotificationPosted: package=com.hihonor.health
+11-03 00:00:00.728 21890  3353 D BankNotificationListener: persistOne: dropped notification from com.hihonor.health (not in allowlist)
+11-03 00:00:01.166 21890 21890 D BankNotificationListener: onNotificationPosted: package=com.hihonor.health
+11-03 00:00:01.167 21890  3353 D BankNotificationListener: persistOne: dropped notification from com.hihonor.health (not in allowlist)
+11-03 00:00:04.781 21890 21890 I HiTouch_PressGestureDetector: checkDoublePointerLimit:xPoss,yPoss:360,700
+11-03 00:00:04.818 21890 21890 W HiTouch_PressGestureDetector: [HiTouch Stop]checkDoublePointerMove:pointerId:0,pointerIndex:0 is move:xDiff,yDiff:0,40
+11-03 00:00:05.191 21890 21890 W HiTouch_PressGestureDetector: action:Up,touchSlop:16,interrupted:true

@@ -1,0 +1,12 @@
+--------- beginning of main
+10-24 17:01:20.659  6182  6182 I BankNotificationListener: reconcileNow: active reconciliation requested
+10-24 17:01:20.667  6182  9944 I BankNotificationListener: reconcileCurrentActive: active=14, permitted candidates=6
+10-24 17:01:20.679  6182  9945 I BankDraftClassification: intake classification skipped: draft=6 already carries the user's category
+10-24 17:01:20.691  6182 13048 I BankDraftClassification: intake classification draft=5 scheduled against its revision
+10-24 17:01:20.692  6182 13048 I BankDraftClassification: intake classification draft=5 outcome=NO_CHANGE
+10-24 17:01:20.699  6182  9944 I BankDraftClassification: intake classification draft=4 scheduled against its revision
+10-24 17:01:20.701  6182  9944 I BankDraftClassification: intake classification draft=4 outcome=NO_CHANGE
+10-24 17:01:20.706  6182 13048 I BankDraftClassification: intake classification draft=3 scheduled against its revision
+10-24 17:01:20.708  6182 13048 I BankDraftClassification: intake classification draft=3 outcome=NO_CHANGE
+10-24 17:01:20.714  6182 13048 I BankDraftClassification: intake classification draft=1 scheduled against its revision
+10-24 17:01:20.716  6182 13048 I BankDraftClassification: intake classification draft=1 outcome=NO_CHANGE

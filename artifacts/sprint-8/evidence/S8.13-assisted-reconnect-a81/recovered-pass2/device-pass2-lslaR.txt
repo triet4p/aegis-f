@@ -1,0 +1,54 @@
+./S8.13-assisted-a74-freeze-74/candidate-b/pass-2:
+total 197
+drwx------ 3 u0_a398 u0_a398  3452 2026-11-01 19:30 .
+drwx------ 4 u0_a398 u0_a398  3452 2026-11-01 18:14 ..
+-rw------- 1 u0_a398 u0_a398 12498 2026-11-01 19:30 a8-laya-01.json
+-rw------- 1 u0_a398 u0_a398  3904 2026-11-01 19:30 a8-laya-01.provider-attempts.json
+-rw------- 1 u0_a398 u0_a398 23738 2026-11-01 18:15 a8-link-01.json
+-rw------- 1 u0_a398 u0_a398  9625 2026-11-01 18:15 a8-link-01.provider-attempts.json
+-rw------- 1 u0_a398 u0_a398 17248 2026-11-01 18:15 a8-link-02.json
+-rw------- 1 u0_a398 u0_a398  5811 2026-11-01 18:15 a8-link-02.provider-attempts.json
+-rw------- 1 u0_a398 u0_a398 27359 2026-11-01 18:14 a8-multi-01.json
+-rw------- 1 u0_a398 u0_a398  7719 2026-11-01 18:14 a8-multi-01.provider-attempts.json
+-rw------- 1 u0_a398 u0_a398 24814 2026-11-01 18:14 a8-multi-02.json
+-rw------- 1 u0_a398 u0_a398  7719 2026-11-01 18:14 a8-multi-02.provider-attempts.json
+-rw------- 1 u0_a398 u0_a398 12247 2026-11-01 18:14 a8-search-01.json
+-rw------- 1 u0_a398 u0_a398  3906 2026-11-01 18:14 a8-search-01.provider-attempts.json
+-rw------- 1 u0_a398 u0_a398 10403 2026-11-01 18:15 a8-search-02.json
+-rw------- 1 u0_a398 u0_a398  3906 2026-11-01 18:15 a8-search-02.provider-attempts.json
+drwx------ 4 u0_a398 u0_a398  3452 2026-11-01 19:29 assisted
+
+./S8.13-assisted-a74-freeze-74/candidate-b/pass-2/assisted:
+total 36
+drwx------ 4 u0_a398 u0_a398 3452 2026-11-01 19:29 .
+drwx------ 3 u0_a398 u0_a398 3452 2026-11-01 19:30 ..
+-rw------- 1 u0_a398 u0_a398 1024 2026-11-01 18:15 a8-link-01.json
+-rw------- 1 u0_a398 u0_a398 1044 2026-11-01 19:29 a8-link-02.json
+-rw------- 1 u0_a398 u0_a398 1025 2026-11-01 18:14 a8-multi-01.json
+-rw------- 1 u0_a398 u0_a398 1025 2026-11-01 18:14 a8-multi-02.json
+-rw------- 1 u0_a398 u0_a398 1026 2026-11-01 18:15 a8-search-01.json
+-rw------- 1 u0_a398 u0_a398 1026 2026-11-01 18:15 a8-search-02.json
+drwx------ 2 u0_a398 u0_a398 3452 2026-11-01 18:15 decision
+drwx------ 2 u0_a398 u0_a398 3452 2026-11-01 19:30 ready
+
+./S8.13-assisted-a74-freeze-74/candidate-b/pass-2/assisted/decision:
+total 26
+drwx------ 2 u0_a398 u0_a398 3452 2026-11-01 18:15 .
+drwx------ 4 u0_a398 u0_a398 3452 2026-11-01 19:29 ..
+-rw-rw-rw- 1 u0_a398 u0_a398  311 2026-11-01 18:15 a8-link-01.json
+-rw-rw-rw- 1 u0_a398 u0_a398  312 2026-11-01 18:14 a8-multi-01.json
+-rw-rw-rw- 1 u0_a398 u0_a398  312 2026-11-01 18:14 a8-multi-02.json
+-rw-rw-rw- 1 u0_a398 u0_a398  313 2026-11-01 18:15 a8-search-01.json
+-rw-rw-rw- 1 u0_a398 u0_a398  313 2026-11-01 18:15 a8-search-02.json
+
+./S8.13-assisted-a74-freeze-74/candidate-b/pass-2/assisted/ready:
+total 158
+drwx------ 2 u0_a398 u0_a398  3452 2026-11-01 19:30 .
+drwx------ 4 u0_a398 u0_a398  3452 2026-11-01 19:29 ..
+-rw------- 1 u0_a398 u0_a398 13609 2026-11-01 19:30 a8-laya-01.json
+-rw------- 1 u0_a398 u0_a398 25477 2026-11-01 18:15 a8-link-01.json
+-rw------- 1 u0_a398 u0_a398 18571 2026-11-01 18:15 a8-link-02.json
+-rw------- 1 u0_a398 u0_a398 29052 2026-11-01 18:14 a8-multi-01.json
+-rw------- 1 u0_a398 u0_a398 26437 2026-11-01 18:14 a8-multi-02.json
+-rw------- 1 u0_a398 u0_a398 13230 2026-11-01 18:14 a8-search-01.json
+-rw------- 1 u0_a398 u0_a398 11360 2026-11-01 18:15 a8-search-02.json

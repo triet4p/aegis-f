@@ -1,0 +1,9 @@
+{
+  "contract": "aegis-s813-assisted-continuation/v1",
+  "attempt_id": "S8.13-assisted-a85",
+  "snapshot_id": "S8.13-assisted-a85-freeze-85",
+  "pass": "2",
+  "case_id": "a8-privacy-01",
+  "first_record_sha256": "aed3cf611bc2d8afcbdc5e41fa99fd788ee38a78218a4846b501368b97a0cc3d",
+  "decision": "pass_no_feedback"
+}

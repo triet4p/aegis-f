@@ -1,0 +1,112 @@
+11-03 00:38:21.437 16197 16234 I TestRunner: started: staleRevisionAndArchivedCategoryAreRefusedOnDevice(io.github.triet4p.aegisf.data.Cat1ThrowawayInstrumentedTest)
+11-03 00:38:21.446  3933  4191 I AppManager: dependence has been existed:2350 -> 6894
+11-03 00:38:21.453  3933  4191 I AppManager: dependence has been existed:2350 -> 6894
+11-03 00:38:21.474  6894  9137 W Auth    : [RequestTokenManager] getToken() -> BAD_AUTHENTICATION. App: com.android.vending, Service: oauth2:https://www.googleapis.com/auth/googleplay [CONTEXT service_id=343 ]
+11-03 00:38:21.474  6894  9137 W Auth    : bpjx: Long live credential not available.
+11-03 00:38:21.474  6894  9137 W Auth    : 	at alur.a(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):1205)
+11-03 00:38:21.474  6894  9137 W Auth    : 	at aluy.b(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):26)
+11-03 00:38:21.474  6894  9137 W Auth    : 	at aluw.a(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):643)
+11-03 00:38:21.474  6894  9137 W Auth    : 	at aluv.b(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):135)
+11-03 00:38:21.474  6894  9137 W Auth    : 	at afas.d(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):971)
+11-03 00:38:21.474  6894  9137 W Auth    : 	at alnu.getAuthToken(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):360)
+11-03 00:38:21.474  6894  9137 W Auth    : 	at android.accounts.AbstractAccountAuthenticator$Transport.getAuthToken(AbstractAccountAuthenticator.java:251)
+11-03 00:38:21.474  6894  9137 W Auth    : 	at android.accounts.IAccountAuthenticator$Stub.onTransact(IAccountAuthenticator.java:253)
+11-03 00:38:21.474  6894  9137 W Auth    : 	at android.os.Binder.transact(Binder.java:1202)
+11-03 00:38:21.474  6894  9137 W Auth    : 	at dalp.onTransact(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):8)
+11-03 00:38:21.474  6894  9137 W Auth    : 	at android.os.Binder.transact(Binder.java:1202)
+11-03 00:38:21.474  6894  9137 W Auth    : 	at cltx.onTransact(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):168)
+11-03 00:38:21.474  6894  9137 W Auth    : 	at android.os.Binder.execTransactInternal(Binder.java:1371)
+11-03 00:38:21.474  6894  9137 W Auth    : 	at android.os.Binder.execTransact(Binder.java:1310)
+11-03 00:38:21.474  6894  9137 W Auth    : [RequestTokenManager] Message is Long live credential not available. [CONTEXT service_id=343 ]
+11-03 00:38:21.482  3690  3690 W WindowOnBackDispatcher: sendCancelIfRunning: isInProgress=falsecallback=android.view.ViewRootImpl$$ExternalSyntheticLambda20@57b77a1
+11-03 00:38:21.483   975   975 D lowmemorykiller: critical pressure event polling check
+11-03 00:38:21.487  3690  3922 I BufferQueueProducer: [VRI[Toast]#2519(BLAST Consumer)2519](id:e6a000009f5,api:1,p:3690,c:3690) disconnect: api 1
+11-03 00:38:21.488  1677  8778 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=510229141952880, lux = 220, raw_adc=1339, raw_2=1542
+11-03 00:38:21.489  3933  4236 I PG_ash  : view remove pid:3690 uid:10081
+11-03 00:38:21.490  3690  3690 I SurfaceControl: nativeRelease 0xb4000071d18f0650 count: 5 name: Toast#69298
+11-03 00:38:21.494  2350  3859 W InputManager-JNI: Input channel object '47bc392 Toast (client)' was disposed without first being removed with the input manager!
+11-03 00:38:21.498  2350  3859 I SurfaceControl: nativeRelease 0xb4000071d18ec670 count: 2 name: Toast#69298
+11-03 00:38:21.499  2350  3859 I SurfaceControl: nativeRelease 0xb4000071d18f2bf0 count: 2 name: 47bc392 Toast#69297
+11-03 00:38:21.501  3690  6354 I BufferQueueConsumer: [VRI[Toast]#2519(BLAST Consumer)2519](id:e6a000009f5,api:0,p:-1,c:3690) disconnect
+11-03 00:38:21.503  3690  6354 I SurfaceControl: ~SurfaceControl 0xb4000071d18f0650 Toast#69298
+11-03 00:38:21.505 16197 16241 D iMonitor: create: 942010008
+11-03 00:38:21.507 16197 16241 I iMonitor: send: 942010008
+11-03 00:38:21.516  2350  3859 I SurfaceControl: ~SurfaceControl 0xb4000071d18ec670 Toast#69298
+11-03 00:38:21.516  2350  3859 I SurfaceControl: ~SurfaceControl 0xb4000071d18f2bf0 47bc392 Toast#69297
+11-03 00:38:21.528  6894  9137 I Auth    : (REDACTED) [GetToken] GetToken failed for app=%s with userRecoverable status: %s
+11-03 00:38:21.529  6894  9137 W Auth    : [ChimeraGetToken] exception while trying to fetch auth tokens for app=com.google.android.gms, scope=oauth2:https://www.googleapis.com/auth/googleplay [CONTEXT service_id=153 ]
+11-03 00:38:21.529  6894  9137 W Auth    : aluq: GetToken failed with status code and recovery intent: BadAuthentication
+11-03 00:38:21.529  6894  9137 W Auth    : 	at aluv.b(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):323)
+11-03 00:38:21.529  6894  9137 W Auth    : 	at afas.d(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):971)
+11-03 00:38:21.529  6894  9137 W Auth    : 	at alnu.getAuthToken(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):360)
+11-03 00:38:21.529  6894  9137 W Auth    : 	at android.accounts.AbstractAccountAuthenticator$Transport.getAuthToken(AbstractAccountAuthenticator.java:251)
+11-03 00:38:21.529  6894  9137 W Auth    : 	at android.accounts.IAccountAuthenticator$Stub.onTransact(IAccountAuthenticator.java:253)
+11-03 00:38:21.529  6894  9137 W Auth    : 	at android.os.Binder.transact(Binder.java:1202)
+11-03 00:38:21.529  6894  9137 W Auth    : 	at dalp.onTransact(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):8)
+11-03 00:38:21.529  6894  9137 W Auth    : 	at android.os.Binder.transact(Binder.java:1202)
+11-03 00:38:21.529  6894  9137 W Auth    : 	at cltx.onTransact(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):168)
+11-03 00:38:21.529  6894  9137 W Auth    : 	at android.os.Binder.execTransactInternal(Binder.java:1371)
+11-03 00:38:21.529  6894  9137 W Auth    : 	at android.os.Binder.execTransact(Binder.java:1310)
+11-03 00:38:21.530  6894  9137 W Auth    : [GmsAccountAuthenticatorImpl] error status while fetching token:BadAuthentication [CONTEXT service_id=343 ]
+11-03 00:38:21.531  1757  1757 I Layer   : [reparent] [Toast#69298] newParent is null [0xb4000079bb2668a0]
+11-03 00:38:21.531  1757  1757 I Layer   : [reparent] [47bc392 Toast#69297] newParent is null [0xb4000079bb263110]
+11-03 00:38:21.534  1686  1849 D vendor.honor.hardware.aoservice@1.0-service: [AO_SVC] (reopen_timer_handler:50):enter reopen handler
+11-03 00:38:21.538  6894  9137 W Auth    : [RequestTokenManager] getToken() -> BAD_AUTHENTICATION. App: com.android.vending, Service: oauth2:https://www.googleapis.com/auth/googleplay [CONTEXT service_id=343 ]
+11-03 00:38:21.538  6894  9137 W Auth    : bpjx: Long live credential not available.
+11-03 00:38:21.538  6894  9137 W Auth    : 	at alur.a(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):1205)
+11-03 00:38:21.538  6894  9137 W Auth    : 	at aluy.b(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):26)
+11-03 00:38:21.538  6894  9137 W Auth    : 	at aluw.a(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):643)
+11-03 00:38:21.538  6894  9137 W Auth    : 	at aluv.b(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):135)
+11-03 00:38:21.538  6894  9137 W Auth    : 	at afas.d(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):971)
+11-03 00:38:21.538  6894  9137 W Auth    : 	at alnu.getAuthToken(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):360)
+11-03 00:38:21.538  6894  9137 W Auth    : 	at android.accounts.AbstractAccountAuthenticator$Transport.getAuthToken(AbstractAccountAuthenticator.java:251)
+11-03 00:38:21.538  6894  9137 W Auth    : 	at android.accounts.IAccountAuthenticator$Stub.onTransact(IAccountAuthenticator.java:253)
+11-03 00:38:21.538  6894  9137 W Auth    : 	at android.os.Binder.transact(Binder.java:1202)
+11-03 00:38:21.538  6894  9137 W Auth    : 	at dalp.onTransact(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):8)
+11-03 00:38:21.538  6894  9137 W Auth    : 	at android.os.Binder.transact(Binder.java:1202)
+11-03 00:38:21.538  6894  9137 W Auth    : 	at cltx.onTransact(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):168)
+11-03 00:38:21.538  6894  9137 W Auth    : 	at android.os.Binder.execTransactInternal(Binder.java:1371)
+11-03 00:38:21.538  6894  9137 W Auth    : 	at android.os.Binder.execTransact(Binder.java:1310)
+11-03 00:38:21.538  6894  9137 W Auth    : [RequestTokenManager] Message is Long live credential not available. [CONTEXT service_id=343 ]
+11-03 00:38:21.547  1757  1757 I Layer   : ~Layer layername: 47bc392 Toast#69297 address = 0xb4000079bb263110
+11-03 00:38:21.548  1757  1757 I SurfaceFlinger: [onLayerDestroyed] [47bc392 Toast#69297] address:0xb4000079bb263110 has destroyed
+11-03 00:38:21.548  1757  1757 I Layer   : ~Layer layername: Toast#69298 address = 0xb4000079bb2668a0
+11-03 00:38:21.548  1757  1757 I SurfaceFlinger: [onLayerDestroyed] [Toast#69298] address:0xb4000079bb2668a0 has destroyed
+11-03 00:38:21.563  6894  9137 I Auth    : (REDACTED) [GetToken] GetToken failed for app=%s with userRecoverable status: %s
+11-03 00:38:21.564  6894  9137 W Auth    : [ChimeraGetToken] exception while trying to fetch auth tokens for app=com.google.android.gms, scope=oauth2:https://www.googleapis.com/auth/googleplay [CONTEXT service_id=153 ]
+11-03 00:38:21.564  6894  9137 W Auth    : aluq: GetToken failed with status code and recovery intent: BadAuthentication
+11-03 00:38:21.564  6894  9137 W Auth    : 	at aluv.b(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):323)
+11-03 00:38:21.564  6894  9137 W Auth    : 	at afas.d(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):971)
+11-03 00:38:21.564  6894  9137 W Auth    : 	at alnu.getAuthToken(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):360)
+11-03 00:38:21.564  6894  9137 W Auth    : 	at android.accounts.AbstractAccountAuthenticator$Transport.getAuthToken(AbstractAccountAuthenticator.java:251)
+11-03 00:38:21.564  6894  9137 W Auth    : 	at android.accounts.IAccountAuthenticator$Stub.onTransact(IAccountAuthenticator.java:253)
+11-03 00:38:21.564  6894  9137 W Auth    : 	at android.os.Binder.transact(Binder.java:1202)
+11-03 00:38:21.564  6894  9137 W Auth    : 	at dalp.onTransact(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):8)
+11-03 00:38:21.564  6894  9137 W Auth    : 	at android.os.Binder.transact(Binder.java:1202)
+11-03 00:38:21.564  6894  9137 W Auth    : 	at cltx.onTransact(:com.google.android.gms@264131029@26.41.31 (190400-1002748488):168)
+11-03 00:38:21.564  6894  9137 W Auth    : 	at android.os.Binder.execTransactInternal(Binder.java:1371)
+11-03 00:38:21.564  6894  9137 W Auth    : 	at android.os.Binder.execTransact(Binder.java:1310)
+11-03 00:38:21.565  6894  9137 W Auth    : [GmsAccountAuthenticatorImpl] error status while fetching token:BadAuthentication [CONTEXT service_id=343 ]
+11-03 00:38:21.576  8852 15967 I Finsky  : [58311] Completed 2 account content syncs with 0 successful.
+11-03 00:38:21.577  8852  8852 I Finsky  : [2] [ContentSync] Installation state replication failed, parameters=Id: 12-1, CT: 1793641069747, Constraints: [{ L: 15000, D: 86400000, C: CHARGING_NONE, I: IDLE_NONE, N: NET_ANY, B: BATTERY_ANY }].
+11-03 00:38:21.577  8852  8852 I Finsky  : [2] [ContentSync] Scheduling replication attempt 0.
+11-03 00:38:21.577  8852  8852 I Finsky  : [2] SCH: jobFinished: 12-1. TimeElapsed: 5539ms.
+11-03 00:38:21.578  8852  8852 I Finsky  : [2] WM::SCH: Logging work end for 12-1
+11-03 00:38:21.584   975   975 D lowmemorykiller: critical pressure event polling check
+11-03 00:38:21.584  8852 14640 I Finsky  : [58294] SCH: Attempting to reschedule job: Id: 12-1, Constraints: [{ L: 20000, D: 86400000, C: CHARGING_NONE, I: IDLE_NONE, N: NET_ANY, B: BATTERY_ANY }]
+11-03 00:38:21.591  8852 11037 I Finsky  : [58178] SCH: Scheduling phonesky job Id: 1-1337, CT: 1793635318700, Constraints: [{ L: 39164768, D: 82364768, C: CHARGING_NONE, I: IDLE_NONE, N: NET_ANY, B: BATTERY_ANY }]
+11-03 00:38:21.591  8852 11037 I Finsky  : [58178] SCH: Scheduling phonesky job Id: 28--559038737, CT: 1793635319110, Constraints: [{ L: 18000000, D: 82800000, C: CHARGING_NONE, I: IDLE_NONE, N: NET_ANY, B: BATTERY_ANY }]
+11-03 00:38:21.591  8852 11037 I Finsky  : [58178] SCH: Scheduling phonesky job Id: 34-4310, CT: 1793588106537, Constraints: [{ L: 604800000, D: 2420509313, C: CHARGING_NONE, I: IDLE_NONE, N: NET_ANY, B: BATTERY_ANY }]
+11-03 00:38:21.591  8852 11037 I Finsky  : [58178] SCH: Scheduling phonesky job Id: 34-4311, CT: 1793588106538, Constraints: [{ L: 604800000, D: 2500677842, C: CHARGING_NONE, I: IDLE_NONE, N: NET_ANY, B: BATTERY_ANY }]
+11-03 00:38:21.591  8852 11037 I Finsky  : [58178] SCH: Scheduling phonesky job Id: 34-4315, CT: 1793588106538, Constraints: [{ L: 604800000, D: 2580185714, C: CHARGING_NONE, I: IDLE_NONE, N: NET_ANY, B: BATTERY_ANY }]
+11-03 00:38:21.592  8852 11037 I Finsky  : [58178] SCH: Scheduling phonesky job Id: 34-4318, CT: 1793588106539, Constraints: [{ L: 67383656, D: 1363383656, C: CHARGING_NONE, I: IDLE_NONE, N: NET_ANY, B: BATTERY_ANY }]
+11-03 00:38:21.598  8852 11035 I Finsky  : [58176] SCH: Scheduling 1 system job(s)
+11-03 00:38:21.598  1677  8778 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=510229251658453, lux = 220, raw_adc=1338, raw_2=1542
+11-03 00:38:21.598  8852 11035 I Finsky  : [58176] SCH: Scheduling system job Id: 9258, L: 12217512, D: 76581870, C: false, I: false, N: 1
+11-03 00:38:21.605  8852 15389 I Finsky  : [58305] SCH: job service finished with id 9237.
+11-03 00:38:21.609  2350  3859 I power   : release wakelock: PowerManagerService.WakeLocks
+11-03 00:38:21.609  1033  5086 I android.system.suspend-service: decSuspendCounter-- success,name:PowerManagerService.WakeLocks mUseSuspendCounter:1 mSuspendCounter:3: Success
+11-03 00:38:21.615  1739  5224 D AudioPolicyService: getUidState(10140) cacheIter->second.first, return cacheIter->second.second(8)
+11-03 00:38:21.624  1739  5224 D AudioPolicyService: getUidState(10140) cacheIter->second.first, return cacheIter->second.second(10)
+11-03 00:38:21.654 16197 16234 I CAT1-RUNTIME: stale_revision=Conflict archived_category=CATEGORY_UNAVAILABLE draft=pending ledger=empty
+11-03 00:38:21.658 16197 16234 I TestRunner: finished: staleRevisionAndArchivedCategoryAreRefusedOnDevice(io.github.triet4p.aegisf.data.Cat1ThrowawayInstrumentedTest)

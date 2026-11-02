@@ -1,0 +1,17 @@
+List of devices attached
+AAAJBB4930914141       device product:ALT-LX2 model:ALT_LX2 device:HNALT-QL transport_id:3
+
+
+Sun Nov  1 19:37:25 +07 2026
+
+ALT-LX2
+14
+
+10603    01:23:05 io.github.triet4p.aegisf.s813evidence
+29895       00:01 sh -c run-as io.github.triet4p.aegisf.s813evidence sh -c 'cd files/S8.13-assisted-a74 && find . -type f | sort | grep -E "candidate-b/pass-2|debug/S8.13-assisted-a74-freeze-74/pass-2" | while read f; do sha256sum "$f"; done'
+29917       00:01 sh -c ps -A -o PID,ELAPSED,ARGS | grep aegisf
+29921       00:01 grep aegisf
+
+  Active instrumentation:
+    Instrumentation #0: ActiveInstrumentation{dcfe69f {io.github.triet4p.aegisf.s813evidence.test/androidx.test.runner.AndroidJUnitRunner} 1 procs}
+      mClass=ComponentInfo{io.github.triet4p.aegisf.s813evidence.test/androidx.test.runner.AndroidJUnitRunner} mFinished=false

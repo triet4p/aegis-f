@@ -1,0 +1,137 @@
+{
+  "task": "S8.10",
+  "attempt": "S8.10-replan-a1",
+  "base": "fea9ed61ba3b8668b6daa4081544690e34142f71",
+  "files": [
+    {
+      "path": "app/src/main/java/io/github/triet4p/aegisf/agent/AgentRunHistory.kt",
+      "bytes": 23502,
+      "sha256": "0848775aa8ef5eeec0f0dd94507b23ecaad5c56d26b1f4f484bdf02beb373613"
+    },
+    {
+      "path": "app/src/main/java/io/github/triet4p/aegisf/agent/AgentRunFailure.kt",
+      "bytes": 7626,
+      "sha256": "51385f25e6090263a15fc8aa5554ef197ad392471ef09343f67659448b53c7a8"
+    },
+    {
+      "path": "app/src/main/java/io/github/triet4p/aegisf/agent/BoundedWorkflowExecutor.kt",
+      "bytes": 60781,
+      "sha256": "975e68ef44c559ff5c81747f6640e22cee85f121b35b3019568515f10508a28a"
+    },
+    {
+      "path": "app/src/main/java/io/github/triet4p/aegisf/agent/BoundedWorkflowToolAdapter.kt",
+      "bytes": 27988,
+      "sha256": "ce385a35167f711bbb18c54838bb7e1e9437e65becc8b44394b8305edf926c94"
+    },
+    {
+      "path": "app/src/main/java/io/github/triet4p/aegisf/data/AgentRunEntity.kt",
+      "bytes": 4193,
+      "sha256": "ba0544d097394bcb8a592a23427867c3423caa5bceec6b4513a3fe10e2338f88"
+    },
+    {
+      "path": "app/src/main/java/io/github/triet4p/aegisf/data/AgentRunDao.kt",
+      "bytes": 5154,
+      "sha256": "fc2c0bf6ff196c582cda90aee8c15632c4c53a247a1df13390bcb2750b0c4cdf"
+    },
+    {
+      "path": "app/src/main/java/io/github/triet4p/aegisf/data/AgentRunAttemptEntity.kt",
+      "bytes": 4392,
+      "sha256": "74360da372cc06dcb2a6b9e948baf8a03d48407b1278ea5848f8b7cc2f3e3d20"
+    },
+    {
+      "path": "app/src/main/java/io/github/triet4p/aegisf/data/AgentRunAttemptDao.kt",
+      "bytes": 3945,
+      "sha256": "ff9316f41020765b3d4dfee02a6dd3028f8e2b707781f882ca9ac183da3a3038"
+    },
+    {
+      "path": "app/src/main/java/io/github/triet4p/aegisf/data/AgentConversationEntity.kt",
+      "bytes": 2360,
+      "sha256": "a72bdad359bd653630f4bbc23277001c34416aea9a8aa914251b3ffa0fcf19a0"
+    },
+    {
+      "path": "app/src/main/java/io/github/triet4p/aegisf/data/AgentConversationDao.kt",
+      "bytes": 1706,
+      "sha256": "3f80b6aacb8c275c76e94e40051ddb0a46beaa1ebff548f3ea3f6ded565dc0ea"
+    },
+    {
+      "path": "app/src/main/java/io/github/triet4p/aegisf/data/CanonicalAgentRetryPolicy.kt",
+      "bytes": 4424,
+      "sha256": "ff01d861568a00c561217f6dfc2d5721925b4fbf4e106bd1b0a7acfe8322f8ef"
+    },
+    {
+      "path": "app/src/main/java/io/github/triet4p/aegisf/data/LedgerDatabase.kt",
+      "bytes": 47666,
+      "sha256": "913edf7e998b38a023b7d509eabfb3a4ac8f335ba0ad82d89738632187f6eaf1"
+    },
+    {
+      "path": "app/src/test/java/io/github/triet4p/aegisf/agent/S810DurableRunHistoryTest.kt",
+      "bytes": 21210,
+      "sha256": "d2485f56dd397aa1025e66bd91185abff1179cb84a85774069bce0081730f464"
+    },
+    {
+      "path": "app/src/test/java/io/github/triet4p/aegisf/data/AgentRunMigrationTest.kt",
+      "bytes": 19355,
+      "sha256": "7161dc78fe9faa6678c4c2ffa9024ebd80a3d9499059f6267d572e8f17da2bcd"
+    },
+    {
+      "path": "app/src/test/java/io/github/triet4p/aegisf/agent/S810DurableLiveSmokeTest.kt",
+      "bytes": 22165,
+      "sha256": "71670c090e225ca75a4a00f21b9ac90633a1f2df09f83ea31511db37a3f298d4"
+    },
+    {
+      "path": "app/src/androidTest/java/io/github/triet4p/aegisf/agent/S810DurableDeviceInstrumentedTest.kt",
+      "bytes": 29222,
+      "sha256": "d44acd4f1442fa89584d0afdf22ffde616db0de7ac1a1116c5db38f001efeb6b"
+    },
+    {
+      "path": "docs/sprint-8-agent-history.md",
+      "bytes": 7720,
+      "sha256": "f2073b839343a11becf2d4319604a1fb3488c4ce9290dc0e6a09fc8bf9186b37"
+    },
+    {
+      "path": "docs/sprint-8-agent-executor.md",
+      "bytes": 13695,
+      "sha256": "94f1e4e3855b353a30c84dc7c6bee18b46ea739cbf00f848b008e0d2853dd380"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "bytes": 52619,
+      "sha256": "7d52515c61ca632de8fa713d6aa586355cb9999967fed50afc681a6fb83c2df8"
+    },
+    {
+      "path": "app/schemas/io.github.triet4p.aegisf.data.LedgerDatabase/13.json",
+      "bytes": 52461,
+      "sha256": "ec333b7edb08050e59885b8058c44241deef26e2cff9e407aeeae3ada3483eef"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.10-replan-a1-live-attempt-01.json",
+      "bytes": 164877,
+      "sha256": "e8b13daadad53a7918eaf97715fed25bcc9a632668a19b21bb43cba95ebb5da9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.10-replan-a1-instrumentation.log",
+      "bytes": 1680,
+      "sha256": "54e21f59629e06d01c3a8e6ef882d459e18f3a310c6f52048eaab31e224e94c0"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.10-replan-a1-laya.logcat",
+      "bytes": 250,
+      "sha256": "273b8bc599d3e690e614b2a1101054ae0a768f7c41f8536c66470b73472beb9c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.10-replan-a1-device.logcat",
+      "bytes": 914,
+      "sha256": "394873aaf5843d0e83fc76d0d8438be1ec1fcdf67c2b9e6ca3d233bfd473990e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.10-replan-a1-device-result.json",
+      "bytes": 1064,
+      "sha256": "3180cca5f166daefcde53cadae707cbaa0a92341bc2be660acfd61da3dce1520"
+    },
+    {
+      "path": "artifacts/sprint-8/workers/S8.10-replan-a1.md",
+      "bytes": 13607,
+      "sha256": "4d9c2822a713be0eacfd3a33892f7e2c664d1d130e16e17278301924e97ee302"
+    }
+  ]
+}

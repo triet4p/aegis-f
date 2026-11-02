@@ -1,0 +1,4207 @@
+{
+ "ops": 276,
+ "states": [
+  {
+   "seq": 0,
+   "label": "S813V3QualificationSilver10:629@2026-10-28T21:09:28.039Z",
+   "tool": "write",
+   "tag": "D626",
+   "expected_result_tag": "D626",
+   "tag_ok": true,
+   "sha": "939764210dffed930be2c36526177e14240f21667cc361e7056a15e46803b633",
+   "bytes": 91215,
+   "lines": 1703
+  },
+  {
+   "seq": 1,
+   "label": "S813V3QualificationSilver10:647@2026-10-28T21:11:00.745Z",
+   "tool": "edit-patch",
+   "pre_tag": "D626",
+   "expected_pre_tag": "D626",
+   "pre_ok": true,
+   "tag": "D3AD",
+   "expected_result_tag": "D3AD",
+   "tag_ok": true,
+   "sha": "495b4048e8b183802c6b06eef091624cb3ef70f0b003cdecf8c847d1f2330f84",
+   "bytes": 91336,
+   "lines": 1705,
+   "repairs": [
+    [
+     "PUT 292.=293:",
+     "dropped 2 trailing echo row(s)"
+    ]
+   ],
+   "ops": [
+    "PUT >76:",
+    "PUT 292.=293:"
+   ]
+  },
+  {
+   "seq": 2,
+   "label": "S813V3QualificationSilver10:656@2026-10-28T21:11:15.523Z",
+   "tool": "edit-patch",
+   "pre_tag": "D3AD",
+   "expected_pre_tag": "D3AD",
+   "pre_ok": true,
+   "tag": "376E",
+   "expected_result_tag": "376E",
+   "tag_ok": true,
+   "sha": "86ba8502b99a98ee1ec8427dc930b308557e33e7d4244c7df08f4ef8b1ac59b3",
+   "bytes": 92525,
+   "lines": 1733,
+   "repairs": [],
+   "ops": [
+    "PUT 1383.=1418:"
+   ]
+  },
+  {
+   "seq": 3,
+   "label": "S813V3QualificationSilver10:665@2026-10-28T21:11:24.726Z",
+   "tool": "edit-patch",
+   "pre_tag": "376E",
+   "expected_pre_tag": "376E",
+   "pre_ok": true,
+   "tag": "45E0",
+   "expected_result_tag": "45E0",
+   "tag_ok": true,
+   "sha": "95f2750f83debc9a24f4178f8723a83d1af5f70205b99f40819246a0dd128cbb",
+   "bytes": 92534,
+   "lines": 1733,
+   "repairs": [],
+   "ops": [
+    "PUT 1456.=1456:"
+   ]
+  },
+  {
+   "seq": 5,
+   "label": "S813V3QualificationSilver10:674@2026-10-28T21:11:42.964Z",
+   "tool": "edit-patch",
+   "pre_tag": "45E0",
+   "expected_pre_tag": "45E0",
+   "pre_ok": true,
+   "tag": "F3C0",
+   "expected_result_tag": "F3C0",
+   "tag_ok": true,
+   "sha": "891134644918a6b8b51001d1edb2e0ef39e405e719c3d96f211bb46cefb043fd",
+   "bytes": 93048,
+   "lines": 1741,
+   "repairs": [
+    [
+     "PUT 1247.=1275:",
+     "dropped 1 trailing echo row(s)"
+    ]
+   ],
+   "ops": [
+    "PUT 1247.=1275:"
+   ]
+  },
+  {
+   "seq": 6,
+   "label": "S813V3QualificationSilver10:680@2026-10-28T21:11:56.306Z",
+   "tool": "edit-patch",
+   "pre_tag": "F3C0",
+   "expected_pre_tag": "F3C0",
+   "pre_ok": true,
+   "tag": "F2B0",
+   "expected_result_tag": "F2B0",
+   "tag_ok": true,
+   "sha": "2bd4bb2553d747a89aa0c02f74586e83edd2735f3b9bf1f48695d809b089c2c9",
+   "bytes": 94493,
+   "lines": 1766,
+   "repairs": [],
+   "ops": [
+    "PUT 1369.=1381:"
+   ]
+  },
+  {
+   "seq": 7,
+   "label": "S813V3QualificationSilver10:692@2026-10-28T21:12:26.300Z",
+   "tool": "edit-patch",
+   "pre_tag": "F2B0",
+   "expected_pre_tag": "F2B0",
+   "pre_ok": true,
+   "tag": "D291",
+   "expected_result_tag": "D291",
+   "tag_ok": true,
+   "sha": "ee1fc69478894aa09ed6c8c5931fbd9c3e2a39357ebb5904cffae7b487c7b538",
+   "bytes": 95937,
+   "lines": 1788,
+   "repairs": [],
+   "ops": [
+    "PUT 1292.=1308:",
+    "PUT 1314.=1314:"
+   ]
+  },
+  {
+   "seq": 8,
+   "label": "S813V3QualificationSilver10:698@2026-10-28T21:12:35.394Z",
+   "tool": "edit-patch",
+   "pre_tag": "D291",
+   "expected_pre_tag": "D291",
+   "pre_ok": true,
+   "tag": "861E",
+   "expected_result_tag": "861E",
+   "tag_ok": true,
+   "sha": "b81e49a9153dcd9bff1964a351e4de4fdb1efa9f4c4204eba4e149c3622e82c7",
+   "bytes": 95997,
+   "lines": 1789,
+   "repairs": [],
+   "ops": [
+    "PUT >1323:"
+   ]
+  },
+  {
+   "seq": 9,
+   "label": "S813V3QualificationSilver10:704@2026-10-28T21:12:44.238Z",
+   "tool": "edit-patch",
+   "pre_tag": "861E",
+   "expected_pre_tag": "861E",
+   "pre_ok": true,
+   "tag": "35AA",
+   "expected_result_tag": "35AA",
+   "tag_ok": true,
+   "sha": "f50d2d642c7209e0816f91a7d260297436e0dbacc2f07f55f3ad7b067063e5cd",
+   "bytes": 96167,
+   "lines": 1791,
+   "repairs": [],
+   "ops": [
+    "PUT 1357.=1358:"
+   ]
+  },
+  {
+   "seq": 10,
+   "label": "S813V3QualificationSilver10:707@2026-10-28T21:12:48.211Z",
+   "tool": "edit-patch",
+   "pre_tag": "35AA",
+   "expected_pre_tag": "35AA",
+   "pre_ok": true,
+   "tag": "1884",
+   "expected_result_tag": "1884",
+   "tag_ok": true,
+   "sha": "ea7edcd63620bbcc75d00a13249f1c9dc5ab0104101e5fe37457cb3571d5b348",
+   "bytes": 96199,
+   "lines": 1792,
+   "repairs": [],
+   "ops": [
+    "PUT <1357:"
+   ]
+  },
+  {
+   "seq": 11,
+   "label": "S813V3QualificationSilver10:722@2026-10-28T21:13:22.780Z",
+   "tool": "edit-patch",
+   "pre_tag": "1884",
+   "expected_pre_tag": "1884",
+   "pre_ok": true,
+   "tag": "30A7",
+   "expected_result_tag": "30A7",
+   "tag_ok": true,
+   "sha": "785e4d8f20c968004d5ae31e2e77f5f8439290d44a66042d1968ebf2533d5859",
+   "bytes": 96485,
+   "lines": 1796,
+   "repairs": [],
+   "ops": [
+    "PUT 661.=780:"
+   ]
+  },
+  {
+   "seq": 12,
+   "label": "S813V3QualificationSilver10:740@2026-10-28T21:14:03.196Z",
+   "tool": "edit-patch",
+   "pre_tag": "30A7",
+   "expected_pre_tag": "30A7",
+   "pre_ok": true,
+   "tag": "7629",
+   "expected_result_tag": "7629",
+   "tag_ok": true,
+   "sha": "c843079bf74194472546cdb78b99fb6567c8eaa69cfc5514f79411f55abbd824",
+   "bytes": 96644,
+   "lines": 1798,
+   "repairs": [],
+   "ops": [
+    "PUT 480.=484:"
+   ]
+  },
+  {
+   "seq": 13,
+   "label": "S813V3QualificationSilver10:746@2026-10-28T21:14:09.064Z",
+   "tool": "edit-patch",
+   "pre_tag": "7629",
+   "expected_pre_tag": "7629",
+   "pre_ok": true,
+   "tag": "49F3",
+   "expected_result_tag": "49F3",
+   "tag_ok": true,
+   "sha": "76c0407f6e97e3ba9130bf37ee5714b81e3683a775f6a0765dd269fc1cbe051b",
+   "bytes": 96770,
+   "lines": 1800,
+   "repairs": [],
+   "ops": [
+    "PUT 648.=658:"
+   ]
+  },
+  {
+   "seq": 14,
+   "label": "S813V3QualificationSilver10:752@2026-10-28T21:14:16.444Z",
+   "tool": "edit-patch",
+   "pre_tag": "49F3",
+   "expected_pre_tag": "49F3",
+   "pre_ok": true,
+   "tag": "6D41",
+   "expected_result_tag": "6D41",
+   "tag_ok": true,
+   "sha": "7676b07256fbaae62be4679b9ac7067f1f0820151d4cc5d288fa41ac79d5a5e4",
+   "bytes": 97380,
+   "lines": 1810,
+   "repairs": [],
+   "ops": [
+    "PUT 797.=805:"
+   ]
+  },
+  {
+   "seq": 15,
+   "label": "S813V3QualificationSilver10:758@2026-10-28T21:14:26.582Z",
+   "tool": "edit-patch",
+   "pre_tag": "6D41",
+   "expected_pre_tag": "6D41",
+   "pre_ok": true,
+   "tag": "D393",
+   "expected_result_tag": "D393",
+   "tag_ok": true,
+   "sha": "9e3bc49d43f8c6b90bf8947367b2ef5a5134c1f2411a2ea55cb0519924cee2f3",
+   "bytes": 97515,
+   "lines": 1813,
+   "repairs": [],
+   "ops": [
+    "PUT <827:",
+    "PUT <833:",
+    "PUT 832.=832:",
+    "PUT 869.=870:"
+   ]
+  },
+  {
+   "seq": 16,
+   "label": "S813V3QualificationSilver10:764@2026-10-28T21:14:33.557Z",
+   "tool": "edit-patch",
+   "pre_tag": "D393",
+   "expected_pre_tag": "D393",
+   "pre_ok": true,
+   "tag": "26A2",
+   "expected_result_tag": "26A2",
+   "tag_ok": true,
+   "sha": "b07843fb87bec0b3904ea09fcf1d39854c05f113f5ccdad4a8d400fa0e54ffeb",
+   "bytes": 97515,
+   "lines": 1813,
+   "repairs": [],
+   "ops": [
+    "PUT 834.=836:"
+   ]
+  },
+  {
+   "seq": 17,
+   "label": "S813V3QualificationSilver10:770@2026-10-28T21:14:48.707Z",
+   "tool": "edit-patch",
+   "pre_tag": "26A2",
+   "expected_pre_tag": "26A2",
+   "pre_ok": true,
+   "tag": "7F35",
+   "expected_result_tag": "7F35",
+   "tag_ok": true,
+   "sha": "2b8e38f3f121fd170b8e9b9c6f3dea464430d1979769e0b3fc31ac4f072204fd",
+   "bytes": 99616,
+   "lines": 1841,
+   "repairs": [],
+   "ops": [
+    "PUT 924.=925:",
+    "PUT 927.=947:"
+   ]
+  },
+  {
+   "seq": 18,
+   "label": "S813V3QualificationSilver10:776@2026-10-28T21:15:10.758Z",
+   "tool": "edit-patch",
+   "pre_tag": "7F35",
+   "expected_pre_tag": "7F35",
+   "pre_ok": true,
+   "tag": "A0F1",
+   "expected_result_tag": "A0F1",
+   "tag_ok": true,
+   "sha": "7b8ddd2310ab7c7e139f14aac414e56eaec03b97634095619b5ba79cfdf872b7",
+   "bytes": 99593,
+   "lines": 1840,
+   "repairs": [],
+   "ops": [
+    "PUT <1072:",
+    "CUT 1086.=1089"
+   ]
+  },
+  {
+   "seq": 19,
+   "label": "S813V3QualificationSilver10:824@2026-10-28T21:17:27.097Z",
+   "tool": "edit-patch",
+   "pre_tag": "A0F1",
+   "expected_pre_tag": "A0F1",
+   "pre_ok": true,
+   "tag": "CCEB",
+   "expected_result_tag": "CCEB",
+   "tag_ok": true,
+   "sha": "7b13071312996e60afbde9271409bd0b537cb2783e2c000dd032f1f6ed13d461",
+   "bytes": 99816,
+   "lines": 1844,
+   "repairs": [],
+   "ops": [
+    "PUT >190:"
+   ]
+  },
+  {
+   "seq": 20,
+   "label": "S813V3QualificationSilver10:830@2026-10-28T21:17:38.172Z",
+   "tool": "edit-patch",
+   "pre_tag": "CCEB",
+   "expected_pre_tag": "CCEB",
+   "pre_ok": true,
+   "tag": "4DA8",
+   "expected_result_tag": "4DA8",
+   "tag_ok": true,
+   "sha": "32f99ea6fae579fe23418c521977086e06f996bcb460d6aeb6fe8e6e2a445924",
+   "bytes": 100362,
+   "lines": 1850,
+   "repairs": [],
+   "ops": [
+    "PUT 557.=566:"
+   ]
+  },
+  {
+   "seq": 21,
+   "label": "S813V3QualificationSilver10:845@2026-10-28T21:18:37.007Z",
+   "tool": "edit-patch",
+   "pre_tag": "4DA8",
+   "expected_pre_tag": "4DA8",
+   "pre_ok": true,
+   "tag": "67A5",
+   "expected_result_tag": "67A5",
+   "tag_ok": true,
+   "sha": "78c078a1f05aff6c132cbf0c73c1b92451e8235db50b63c7d9a5c91865f236a1",
+   "bytes": 101523,
+   "lines": 1880,
+   "repairs": [],
+   "ops": [
+    "PUT >58:"
+   ]
+  },
+  {
+   "seq": 23,
+   "label": "S813V3QualificationSilver10:854@2026-10-28T21:18:48.451Z",
+   "tool": "edit-patch",
+   "pre_tag": "67A5",
+   "expected_pre_tag": "67A5",
+   "pre_ok": true,
+   "tag": "7A33",
+   "expected_result_tag": "7A33",
+   "tag_ok": true,
+   "sha": "16757517cb6ed21ed01c12f90b978501faf106d796f6cc71b6d419ca964c8d6a",
+   "bytes": 101460,
+   "lines": 1880,
+   "repairs": [
+    [
+     "PUT 749.=753:",
+     "dropped 1 leading echo row(s)"
+    ]
+   ],
+   "ops": [
+    "PUT 526.=528:",
+    "PUT 535.=535:",
+    "PUT 544.=544:",
+    "PUT 643.=643:",
+    "PUT 717.=717:",
+    "PUT 749.=753:"
+   ]
+  },
+  {
+   "seq": 25,
+   "label": "S813V3QualificationSilver10:866@2026-10-28T21:19:08.542Z",
+   "tool": "edit-patch",
+   "pre_tag": "7A33",
+   "expected_pre_tag": "7A33",
+   "pre_ok": true,
+   "tag": "7006",
+   "expected_result_tag": "7006",
+   "tag_ok": true,
+   "sha": "304d6e780006366c23d7d54a453e7542a7619899ec429bb8365fe691341a0479",
+   "bytes": 101562,
+   "lines": 1881,
+   "repairs": [],
+   "ops": [
+    "PUT 705.=707:",
+    "PUT 714.=714:"
+   ]
+  },
+  {
+   "seq": 26,
+   "label": "S813V3QualificationSilver10:872@2026-10-28T21:19:17.067Z",
+   "tool": "edit-patch",
+   "pre_tag": "7006",
+   "expected_pre_tag": "7006",
+   "pre_ok": true,
+   "tag": "147E",
+   "expected_result_tag": "147E",
+   "tag_ok": true,
+   "sha": "0cb5fe78986f7756ace2f54f23564f00409c6048c9c3d4543730fd6474ef3058",
+   "bytes": 101781,
+   "lines": 1885,
+   "repairs": [],
+   "ops": [
+    "PUT >754:",
+    "PUT 755.=762:"
+   ]
+  },
+  {
+   "seq": 27,
+   "label": "S813V3QualificationSilver10:884@2026-10-28T21:19:43.443Z",
+   "tool": "edit-patch",
+   "pre_tag": "147E",
+   "expected_pre_tag": "147E",
+   "pre_ok": true,
+   "tag": "6A90",
+   "expected_result_tag": "6A90",
+   "tag_ok": true,
+   "sha": "d719760fd4b11ae98ed6220e1b89cfc039d77051d70d7e3a92dffe7c2f4bacfb",
+   "bytes": 102081,
+   "lines": 1889,
+   "repairs": [],
+   "ops": [
+    "PUT 539.=539:",
+    "PUT 572.=572:"
+   ]
+  },
+  {
+   "seq": 28,
+   "label": "S813V3QualificationSilver10:890@2026-10-28T21:20:09.438Z",
+   "tool": "edit-patch",
+   "pre_tag": "6A90",
+   "expected_pre_tag": "6A90",
+   "pre_ok": true,
+   "tag": "0F97",
+   "expected_result_tag": "0F97",
+   "tag_ok": true,
+   "sha": "599ecdb97e93ce682590f9ba94a5dfbd85f5d230e094c890c62c5dc791c33338",
+   "bytes": 104397,
+   "lines": 1936,
+   "repairs": [],
+   "ops": [
+    "PUT >1109:"
+   ]
+  },
+  {
+   "seq": 29,
+   "label": "S813V3QualificationSilver10:896@2026-10-28T21:20:35.112Z",
+   "tool": "edit-patch",
+   "pre_tag": "0F97",
+   "expected_pre_tag": "0F97",
+   "pre_ok": true,
+   "tag": "7C3C",
+   "expected_result_tag": "7C3C",
+   "tag_ok": true,
+   "sha": "3165c72f0c48a0769a202dc55676ddb6958d576c8d3a538fab36054630ffe5a6",
+   "bytes": 105524,
+   "lines": 1960,
+   "repairs": [],
+   "ops": [
+    "PUT 1159.=1292:"
+   ]
+  },
+  {
+   "seq": 30,
+   "label": "S813V3QualificationSilver10:905@2026-10-28T21:21:00.779Z",
+   "tool": "edit-patch",
+   "pre_tag": "7C3C",
+   "expected_pre_tag": "7C3C",
+   "pre_ok": true,
+   "tag": "8E32",
+   "expected_result_tag": "8E32",
+   "tag_ok": true,
+   "sha": "9e7ecdfedffda0fc7296a6916b33f8f140ac02867f2ac0a9773368187358db88",
+   "bytes": 105677,
+   "lines": 1965,
+   "repairs": [],
+   "ops": [
+    "PUT 78.=81:"
+   ]
+  },
+  {
+   "seq": 31,
+   "label": "S813V3QualificationSilver10:914@2026-10-28T21:21:14.608Z",
+   "tool": "edit-patch",
+   "pre_tag": "8E32",
+   "expected_pre_tag": "8E32",
+   "pre_ok": true,
+   "tag": "B8E6",
+   "expected_result_tag": "B8E6",
+   "tag_ok": true,
+   "sha": "0e9ccef714252f5b93d0e8f7d2a6a01b0df9cdb12cfc3f0ad1ecfa77f3618915",
+   "bytes": 105915,
+   "lines": 1969,
+   "repairs": [],
+   "ops": [
+    "PUT <763:",
+    "PUT 763.=763:",
+    "PUT <796:",
+    "PUT >811:"
+   ]
+  },
+  {
+   "seq": 32,
+   "label": "S813V3QualificationSilver10:923@2026-10-28T21:21:29.577Z",
+   "tool": "edit-patch",
+   "pre_tag": "B8E6",
+   "expected_pre_tag": "B8E6",
+   "pre_ok": true,
+   "tag": "3D8A",
+   "expected_result_tag": "3D8A",
+   "tag_ok": true,
+   "sha": "0ece195bee74a305f8a96ff03c8f599f9ec9e520a23a61abbd069ddde1732b76",
+   "bytes": 106068,
+   "lines": 1971,
+   "repairs": [],
+   "ops": [
+    "PUT 865.=866:",
+    "PUT >937:",
+    "PUT >1017:"
+   ]
+  },
+  {
+   "seq": 33,
+   "label": "S813V3QualificationSilver10:926@2026-10-28T21:21:33.506Z",
+   "tool": "edit-patch",
+   "pre_tag": "3D8A",
+   "expected_pre_tag": "3D8A",
+   "pre_ok": true,
+   "tag": "7DD5",
+   "expected_result_tag": "7DD5",
+   "tag_ok": true,
+   "sha": "37380b595c90e2a9e5046761066a7b9cb5c0626bd5c067d95f57f68a862c8770",
+   "bytes": 106141,
+   "lines": 1972,
+   "repairs": [],
+   "ops": [
+    "PUT <865:"
+   ]
+  },
+  {
+   "seq": 34,
+   "label": "S813V3QualificationSilver10:932@2026-10-28T21:21:53.816Z",
+   "tool": "edit-patch",
+   "pre_tag": "7DD5",
+   "expected_pre_tag": "7DD5",
+   "pre_ok": true,
+   "tag": "AD49",
+   "expected_result_tag": "AD49",
+   "tag_ok": true,
+   "sha": "e290b38db5f7a84d5ddbee42b1818f8b57aa682fc9e4d0ed078bc5b6476543a2",
+   "bytes": 106466,
+   "lines": 1977,
+   "repairs": [],
+   "ops": [
+    "PUT >338:"
+   ]
+  },
+  {
+   "seq": 35,
+   "label": "S813V3QualificationSilver10:941@2026-10-28T21:22:05.048Z",
+   "tool": "edit-patch",
+   "pre_tag": "AD49",
+   "expected_pre_tag": "AD49",
+   "pre_ok": true,
+   "tag": "F721",
+   "expected_result_tag": "F721",
+   "tag_ok": true,
+   "sha": "8169f09e1a3806e77c86b16b1935248401fb979490678a25d23b1b731b5ac1c5",
+   "bytes": 106669,
+   "lines": 1982,
+   "repairs": [],
+   "ops": [
+    "PUT 1106.=1126:"
+   ]
+  },
+  {
+   "seq": 36,
+   "label": "S813V3QualificationSilver10:947@2026-10-28T21:22:12.689Z",
+   "tool": "edit-patch",
+   "pre_tag": "F721",
+   "expected_pre_tag": "F721",
+   "pre_ok": true,
+   "tag": "28BB",
+   "expected_result_tag": "28BB",
+   "tag_ok": true,
+   "sha": "9b4208d11d3cdb52003c67485617f9d8cbb27c6627fd0ed9aaad279df0211e3f",
+   "bytes": 106748,
+   "lines": 1985,
+   "repairs": [],
+   "ops": [
+    "PUT 1271.=1271:"
+   ]
+  },
+  {
+   "seq": 37,
+   "label": "S813V3QualificationSilver10:953@2026-10-28T21:22:20.405Z",
+   "tool": "edit-patch",
+   "pre_tag": "28BB",
+   "expected_pre_tag": "28BB",
+   "pre_ok": true,
+   "tag": "23D6",
+   "expected_result_tag": "23D6",
+   "tag_ok": true,
+   "sha": "6b4cc8580a97abb6d3d39852978c833780497d713ee063231363fb3621652be9",
+   "bytes": 106922,
+   "lines": 1989,
+   "repairs": [],
+   "ops": [
+    "PUT >739:"
+   ]
+  },
+  {
+   "seq": 38,
+   "label": "S813V3QualificationSilver10:968@2026-10-28T21:22:47.038Z",
+   "tool": "edit-patch",
+   "pre_tag": "23D6",
+   "expected_pre_tag": "23D6",
+   "pre_ok": true,
+   "tag": "7EEB",
+   "expected_result_tag": "7EEB",
+   "tag_ok": true,
+   "sha": "4aa1e81ae2db28d42da035de5aefdcabb5496b22b5563dc257fa5d1ad646cccc",
+   "bytes": 107076,
+   "lines": 1991,
+   "repairs": [],
+   "ops": [
+    "PUT 1598.=1602:"
+   ]
+  },
+  {
+   "seq": 39,
+   "label": "S813V3QualificationSilver10:992@2026-10-28T21:23:28.310Z",
+   "tool": "edit-patch",
+   "pre_tag": "7EEB",
+   "expected_pre_tag": "7EEB",
+   "pre_ok": true,
+   "tag": "90AE",
+   "expected_result_tag": "90AE",
+   "tag_ok": true,
+   "sha": "82fc3f24b2360d39acc24f3d6f771373fd8c8acd1721cfe84ff11b22a0d84a9b",
+   "bytes": 107278,
+   "lines": 1998,
+   "repairs": [],
+   "ops": [
+    "PUT 1757.=1760:",
+    "PUT 1794.=1797:"
+   ]
+  },
+  {
+   "seq": 40,
+   "label": "S813V3QualificationSilver10:998@2026-10-28T21:23:42.209Z",
+   "tool": "edit-patch",
+   "pre_tag": "90AE",
+   "expected_pre_tag": "90AE",
+   "pre_ok": true,
+   "tag": "0B9B",
+   "expected_result_tag": "0B9B",
+   "tag_ok": true,
+   "sha": "ff28dea97e62a5dec677b33b5384282a5604dffc91d8b0d7b0830ba5f11ded97",
+   "bytes": 108523,
+   "lines": 2024,
+   "repairs": [],
+   "ops": [
+    "PUT 1634.=1638:"
+   ]
+  },
+  {
+   "seq": 42,
+   "label": "S813V3QualificationSilver10:1010@2026-10-28T21:23:58.415Z",
+   "tool": "edit-patch",
+   "pre_tag": "0B9B",
+   "expected_pre_tag": "0B9B",
+   "pre_ok": true,
+   "tag": "82F2",
+   "expected_result_tag": "82F2",
+   "tag_ok": true,
+   "sha": "82c87073dbef281bb02cae7004ac1a0f911677df4e02d25f2221d5e76b122b8c",
+   "bytes": 108640,
+   "lines": 2026,
+   "repairs": [],
+   "ops": [
+    "PUT 1802.=1805:",
+    "PUT 1847.=1847:"
+   ]
+  },
+  {
+   "seq": 43,
+   "label": "S813V3QualificationSilver10:1014@2026-10-28T21:24:02.381Z",
+   "tool": "edit-patch",
+   "pre_tag": "82F2",
+   "expected_pre_tag": "82F2",
+   "pre_ok": true,
+   "tag": "A177",
+   "expected_result_tag": "A177",
+   "tag_ok": true,
+   "sha": "92d873857cda98d974111adc03e4f1d35bc983c390f31b4cb4b4284f9bce5096",
+   "bytes": 108701,
+   "lines": 2027,
+   "repairs": [],
+   "ops": [
+    "PUT >1806:"
+   ]
+  },
+  {
+   "seq": 44,
+   "label": "S813V3QualificationSilver10:1029@2026-10-28T21:24:24.773Z",
+   "tool": "edit-patch",
+   "pre_tag": "A177",
+   "expected_pre_tag": "A177",
+   "pre_ok": true,
+   "tag": "7196",
+   "expected_result_tag": "7196",
+   "tag_ok": true,
+   "sha": "eb17ed9bc7d42cf366d822374595f40d6a96d3100eab0b767d4c9b687d7f5d18",
+   "bytes": 109070,
+   "lines": 2033,
+   "repairs": [],
+   "ops": [
+    "PUT 806.=807:",
+    "PUT 1207.=1207:"
+   ]
+  },
+  {
+   "seq": 45,
+   "label": "S813V3QualificationSilver10:1035@2026-10-28T21:24:31.125Z",
+   "tool": "edit-patch",
+   "pre_tag": "7196",
+   "expected_pre_tag": "7196",
+   "pre_ok": true,
+   "tag": "CE73",
+   "expected_result_tag": "CE73",
+   "tag_ok": true,
+   "sha": "ce7a14ee1077388ea775dc89da7c1fb45cafe8714519687c396182bf5e949552",
+   "bytes": 109087,
+   "lines": 2034,
+   "repairs": [],
+   "ops": [
+    "PUT >1213:"
+   ]
+  },
+  {
+   "seq": 46,
+   "label": "S813V3QualificationSilver10:1038@2026-10-28T21:24:33.922Z",
+   "tool": "edit-patch",
+   "pre_tag": "CE73",
+   "expected_pre_tag": "CE73",
+   "pre_ok": true,
+   "tag": "FCDB",
+   "expected_result_tag": "FCDB",
+   "tag_ok": true,
+   "sha": "6b9d83456c0380022255ce7a024758be2834848630ca1bf70dde4190ffc6a1c5",
+   "bytes": 109266,
+   "lines": 2036,
+   "repairs": [],
+   "ops": [
+    "PUT >1214:"
+   ]
+  },
+  {
+   "seq": 47,
+   "label": "S813V3QualificationSilver10:1115@2026-10-28T21:26:19.657Z",
+   "tool": "edit-patch",
+   "pre_tag": "FCDB",
+   "expected_pre_tag": "FCDB",
+   "pre_ok": true,
+   "tag": "C084",
+   "expected_result_tag": "C084",
+   "tag_ok": true,
+   "sha": "d644196d9083dae2d6cdc832c1c365a081cb15a9aaab386bda5c4c30d370322c",
+   "bytes": 109159,
+   "lines": 2035,
+   "repairs": [],
+   "ops": [
+    "PUT 1811.=1815:"
+   ]
+  },
+  {
+   "seq": 49,
+   "label": "S813V3QualificationSilver10:1124@2026-10-28T21:26:29.573Z",
+   "tool": "edit-patch",
+   "pre_tag": "C084",
+   "expected_pre_tag": "C084",
+   "pre_ok": true,
+   "tag": "A1C0",
+   "expected_result_tag": "A1C0",
+   "tag_ok": true,
+   "sha": "69385155f213844932363e1e39452e6fab8ea285d2095942c3725c1998cd9f2e",
+   "bytes": 109205,
+   "lines": 2035,
+   "repairs": [],
+   "ops": [
+    "PUT 1857.=1857:"
+   ]
+  },
+  {
+   "seq": 50,
+   "label": "S813V3QualificationSilver10:1139@2026-10-28T21:27:01.990Z",
+   "tool": "edit-patch",
+   "pre_tag": "A1C0",
+   "expected_pre_tag": "A1C0",
+   "pre_ok": true,
+   "tag": "9F17",
+   "expected_result_tag": "9F17",
+   "tag_ok": true,
+   "sha": "5f6ac4cca2eb95f772500d6daed6cd658c0335b9d99425291498c60bda9ff56d",
+   "bytes": 109511,
+   "lines": 2040,
+   "repairs": [],
+   "ops": [
+    "PUT >1736:"
+   ]
+  },
+  {
+   "seq": 53,
+   "label": "S813V3QualificationSilver10:1151@2026-10-28T21:27:18.387Z",
+   "tool": "edit-patch",
+   "pre_tag": "9F17",
+   "expected_pre_tag": "9F17",
+   "pre_ok": true,
+   "tag": "DD76",
+   "expected_result_tag": "DD76",
+   "tag_ok": true,
+   "sha": "2d2c77710c0cbbdce494e02a6e12133add8067134f61ba1d55a3c0a7f51494d6",
+   "bytes": 110694,
+   "lines": 2066,
+   "repairs": [],
+   "ops": [
+    "PUT <1892:"
+   ]
+  },
+  {
+   "seq": 54,
+   "label": "S813V3QualificationSilver10:1157@2026-10-28T21:27:28.506Z",
+   "tool": "edit-patch",
+   "pre_tag": "DD76",
+   "expected_pre_tag": "DD76",
+   "pre_ok": true,
+   "tag": "2BFB",
+   "expected_result_tag": "2BFB",
+   "tag_ok": true,
+   "sha": "f09b8ed06a2059414b5ba044fcabe5e8ae57ac5de464d9549abe277d64d8fdfe",
+   "bytes": 110595,
+   "lines": 2064,
+   "repairs": [],
+   "ops": [
+    "PUT 1941.=1946:"
+   ]
+  },
+  {
+   "seq": 55,
+   "label": "S813V3QualificationSilver10:1163@2026-10-28T21:27:34.852Z",
+   "tool": "edit-patch",
+   "pre_tag": "2BFB",
+   "expected_pre_tag": "2BFB",
+   "pre_ok": true,
+   "tag": "436A",
+   "expected_result_tag": "436A",
+   "tag_ok": true,
+   "sha": "2ffcd51a8a02e2313b52b84ab4df0173f6884f77a8a4131c3b3271e5b785e682",
+   "bytes": 110518,
+   "lines": 2062,
+   "repairs": [],
+   "ops": [
+    "PUT 1994.=2000:"
+   ]
+  },
+  {
+   "seq": 56,
+   "label": "S813V3QualificationSilver10:1244@2026-10-28T21:30:45.105Z",
+   "tool": "edit-patch",
+   "pre_tag": "436A",
+   "expected_pre_tag": "436A",
+   "pre_ok": true,
+   "tag": "F16D",
+   "expected_result_tag": "F16D",
+   "tag_ok": true,
+   "sha": "5cf49d0a1c89970cd9a5921338e2ef946500c12a76f86a788a707fa8f3ef8fe3",
+   "bytes": 110629,
+   "lines": 2064,
+   "repairs": [],
+   "ops": [
+    "PUT >330:"
+   ]
+  },
+  {
+   "seq": 57,
+   "label": "S813V3QualificationSilver10:1286@2026-10-28T21:32:44.130Z",
+   "tool": "edit-patch",
+   "pre_tag": "F16D",
+   "expected_pre_tag": "F16D",
+   "pre_ok": true,
+   "tag": "7785",
+   "expected_result_tag": "7785",
+   "tag_ok": true,
+   "sha": "1fe77a8cd31762b294a9938723641b74c60c4ee0b784141b343a0643e50d787b",
+   "bytes": 110724,
+   "lines": 2068,
+   "repairs": [],
+   "ops": [
+    "PUT 290.=291:"
+   ]
+  },
+  {
+   "seq": 58,
+   "label": "S813V3QualificationSilver10:1304@2026-10-28T21:33:32.234Z",
+   "tool": "edit-patch",
+   "pre_tag": "7785",
+   "expected_pre_tag": "7785",
+   "pre_ok": true,
+   "tag": "0151",
+   "expected_result_tag": "0151",
+   "tag_ok": true,
+   "sha": "1ec20441ba628f5581d9b12d9893c040bc8cd26967c2492cd6e72a2391f83d6e",
+   "bytes": 111727,
+   "lines": 2090,
+   "repairs": [],
+   "ops": [
+    "PUT >217:"
+   ]
+  },
+  {
+   "seq": 59,
+   "label": "S813V3QualificationSilver10:1310@2026-10-28T21:33:43.414Z",
+   "tool": "edit-patch",
+   "pre_tag": "0151",
+   "expected_pre_tag": "0151",
+   "pre_ok": true,
+   "tag": "E82B",
+   "expected_result_tag": "E82B",
+   "tag_ok": true,
+   "sha": "1f806138a23f2a5c6809903dee4ada16e46bf1c3bdf0774eac7b84d71e62d1d5",
+   "bytes": 111737,
+   "lines": 2091,
+   "repairs": [],
+   "ops": [
+    "PUT 227.=230:"
+   ]
+  },
+  {
+   "seq": 60,
+   "label": "S813V3QualificationSilver10:1316@2026-10-28T21:33:52.041Z",
+   "tool": "edit-patch",
+   "pre_tag": "E82B",
+   "expected_pre_tag": "E82B",
+   "pre_ok": true,
+   "tag": "6D5B",
+   "expected_result_tag": "6D5B",
+   "tag_ok": true,
+   "sha": "88988c9ac2070073f91e02fcafd11abc95f3e2c677c7a0a3924110c304776e16",
+   "bytes": 111793,
+   "lines": 2091,
+   "repairs": [],
+   "ops": [
+    "PUT 357.=357:"
+   ]
+  },
+  {
+   "seq": 61,
+   "label": "S813V3QualificationSilver10:1346@2026-10-28T21:35:13.196Z",
+   "tool": "edit-patch",
+   "pre_tag": "6D5B",
+   "expected_pre_tag": "6D5B",
+   "pre_ok": true,
+   "tag": "D0F6",
+   "expected_result_tag": "D0F6",
+   "tag_ok": true,
+   "sha": "092985b30a629e6f31a1dfd39cac50c0a8a89a4e5eb3f2bbea290d682d12bb73",
+   "bytes": 112450,
+   "lines": 2104,
+   "repairs": [],
+   "ops": [
+    "PUT 357.=359:"
+   ]
+  },
+  {
+   "seq": 62,
+   "label": "S813V3QualificationSilver10:1352@2026-10-28T21:35:21.913Z",
+   "tool": "edit-patch",
+   "pre_tag": "D0F6",
+   "expected_pre_tag": "D0F6",
+   "pre_ok": true,
+   "tag": "BF6B",
+   "expected_result_tag": "BF6B",
+   "tag_ok": true,
+   "sha": "6fdbd7d35739ac10622dbbe75b48fd4439fc887dc39f0823881da0c110c1a9f2",
+   "bytes": 112528,
+   "lines": 2105,
+   "repairs": [],
+   "ops": [
+    "PUT >451:"
+   ]
+  },
+  {
+   "seq": 63,
+   "label": "S813V3QualificationSilver10:1385@2026-10-28T21:36:17.537Z",
+   "tool": "edit-patch",
+   "pre_tag": "BF6B",
+   "expected_pre_tag": "BF6B",
+   "pre_ok": true,
+   "tag": "5CA8",
+   "expected_result_tag": "5CA8",
+   "tag_ok": true,
+   "sha": "2d99f6237619397aa2d38b15f615297f356d90e19a0eacde5a9a8298a37a325e",
+   "bytes": 112555,
+   "lines": 2106,
+   "repairs": [],
+   "ops": [
+    "PUT 100.=100:",
+    "PUT >101:"
+   ]
+  },
+  {
+   "seq": 64,
+   "label": "S813V3QualificationSilver10:1412@2026-10-28T21:38:31.728Z",
+   "tool": "edit-patch",
+   "pre_tag": "5CA8",
+   "expected_pre_tag": "5CA8",
+   "pre_ok": true,
+   "tag": "C213",
+   "expected_result_tag": "C213",
+   "tag_ok": true,
+   "sha": "ec66f2a7dc08f48043a96300442fa190ab59a81c6496c0ff19c76d2ad84ab35c",
+   "bytes": 112619,
+   "lines": 2107,
+   "repairs": [],
+   "ops": [
+    "PUT 25.=25:",
+    "PUT 50.=54:"
+   ]
+  },
+  {
+   "seq": 65,
+   "label": "S813V3QualificationSilver10:1482@2026-10-28T21:42:07.568Z",
+   "tool": "edit-patch",
+   "pre_tag": "C213",
+   "expected_pre_tag": "C213",
+   "pre_ok": true,
+   "tag": "3CB5",
+   "expected_result_tag": "3CB5",
+   "tag_ok": true,
+   "sha": "978f3300072b34c24e90908e2523f76716bc02e7ba039c381954b3b3af063664",
+   "bytes": 112619,
+   "lines": 2107,
+   "repairs": [],
+   "ops": [
+    "PUT 25.=25:",
+    "PUT 50.=50:"
+   ]
+  },
+  {
+   "seq": 66,
+   "label": "S813V3QualificationSilver10:1550@2026-10-28T21:47:57.852Z",
+   "tool": "edit-patch",
+   "pre_tag": "3CB5",
+   "expected_pre_tag": "3CB5",
+   "pre_ok": true,
+   "tag": "A4FB",
+   "expected_result_tag": "A4FB",
+   "tag_ok": true,
+   "sha": "ad4e7e5dd98bf5bd5c7e50c94f224c2e4f4edcff5828c92d25ce20fd01e6f2c4",
+   "bytes": 112649,
+   "lines": 2108,
+   "repairs": [],
+   "ops": [
+    "PUT 637.=638:",
+    "PUT 642.=644:"
+   ]
+  },
+  {
+   "seq": 67,
+   "label": "S813V3QualificationSilver10:1562@2026-10-28T21:48:22.582Z",
+   "tool": "edit-patch",
+   "pre_tag": "A4FB",
+   "expected_pre_tag": "A4FB",
+   "pre_ok": true,
+   "tag": "6C8A",
+   "expected_result_tag": "6C8A",
+   "tag_ok": true,
+   "sha": "20132dfb96a3c05cf05829b2f2e91085db6ba3c5f3ca5461e2646c11c7fda36c",
+   "bytes": 112754,
+   "lines": 2110,
+   "repairs": [],
+   "ops": [
+    "PUT 664.=665:",
+    "PUT 810.=811:",
+    "PUT 826.=826:",
+    "PUT 830.=830:",
+    "PUT 832.=832:",
+    "PUT 838.=842:"
+   ]
+  },
+  {
+   "seq": 68,
+   "label": "S813V3QualificationSilver10:1568@2026-10-28T21:48:32.422Z",
+   "tool": "edit-patch",
+   "pre_tag": "6C8A",
+   "expected_pre_tag": "6C8A",
+   "pre_ok": true,
+   "tag": "01D5",
+   "expected_result_tag": "01D5",
+   "tag_ok": true,
+   "sha": "6bd992ea782172ac4eb69e220c3b84282a1245f72d3b53ec05109e412bdc1038",
+   "bytes": 112727,
+   "lines": 2112,
+   "repairs": [],
+   "ops": [
+    "PUT 915.=915:",
+    "PUT 925.=926:",
+    "PUT 935.=936:"
+   ]
+  },
+  {
+   "seq": 69,
+   "label": "S813V3QualificationSilver10:1574@2026-10-28T21:48:48.186Z",
+   "tool": "edit-patch",
+   "pre_tag": "01D5",
+   "expected_pre_tag": "01D5",
+   "pre_ok": true,
+   "tag": "AF6F",
+   "expected_result_tag": "AF6F",
+   "tag_ok": true,
+   "sha": "8133cb321551eb34009bd723748f0e26711ef256f60b98f69e2feb16274e7532",
+   "bytes": 112727,
+   "lines": 2112,
+   "repairs": [],
+   "ops": [
+    "PUT 25.=25:",
+    "PUT 50.=50:"
+   ]
+  },
+  {
+   "seq": 70,
+   "label": "S813V3QualificationSilver10:2094@2026-10-28T22:19:59.411Z",
+   "tool": "edit-patch",
+   "pre_tag": "AF6F",
+   "expected_pre_tag": "AF6F",
+   "pre_ok": true,
+   "tag": "773C",
+   "expected_result_tag": "773C",
+   "tag_ok": true,
+   "sha": "e038520e2dc0ce6d8926706ad5061a179e4a336f34a307c44ad57d9cb506bc77",
+   "bytes": 112732,
+   "lines": 2112,
+   "repairs": [],
+   "ops": [
+    "PUT 24.=25:",
+    "PUT 50.=50:",
+    "PUT 946.=946:"
+   ]
+  },
+  {
+   "seq": 71,
+   "label": "S813V3QualificationSilver10:2097@2026-10-28T22:20:04.594Z",
+   "tool": "edit-patch",
+   "pre_tag": "773C",
+   "expected_pre_tag": "773C",
+   "pre_ok": true,
+   "tag": "FC34",
+   "expected_result_tag": "FC34",
+   "tag_ok": true,
+   "sha": "3b910865ed766ca8b310ee8c2a8d33ae49d0c1df19ff8b100e6318dfa615df5c",
+   "bytes": 112730,
+   "lines": 2112,
+   "repairs": [],
+   "ops": [
+    "PUT 24.=25:"
+   ]
+  },
+  {
+   "seq": 72,
+   "label": "S813V3QualificationSilver10:2106@2026-10-28T22:20:19.284Z",
+   "tool": "edit-patch",
+   "pre_tag": "FC34",
+   "expected_pre_tag": "FC34",
+   "pre_ok": true,
+   "tag": "3B8B",
+   "expected_result_tag": "3B8B",
+   "tag_ok": true,
+   "sha": "3069db306749a753408250f2f509d6a59adbd8fc984e2fb79bae990575400d54",
+   "bytes": 112755,
+   "lines": 2112,
+   "repairs": [],
+   "ops": [
+    "PUT 697.=697:",
+    "PUT 953.=953:",
+    "PUT 2090.=2090:"
+   ]
+  },
+  {
+   "seq": 73,
+   "label": "S813V3QualificationSilver10:2154@2026-10-28T22:26:28.103Z",
+   "tool": "edit-patch",
+   "pre_tag": "3B8B",
+   "expected_pre_tag": "3B8B",
+   "pre_ok": true,
+   "tag": "DF61",
+   "expected_result_tag": "DF61",
+   "tag_ok": true,
+   "sha": "de33a38a97090e482b85f88503beeb43e8290681e3e8ee856300091a86aae90e",
+   "bytes": 112755,
+   "lines": 2112,
+   "repairs": [],
+   "ops": [
+    "PUT 24.=25:",
+    "PUT 50.=50:"
+   ]
+  },
+  {
+   "seq": 74,
+   "label": "S813V3QualificationSilver10:2202@2026-10-28T22:29:40.453Z",
+   "tool": "edit-patch",
+   "pre_tag": "DF61",
+   "expected_pre_tag": "DF61",
+   "pre_ok": true,
+   "tag": "FF12",
+   "expected_result_tag": "FF12",
+   "tag_ok": true,
+   "sha": "93f0d22490df8abf2f7d83f5b2b4212d25bade3dd2f44c11edbe7a1082706ee2",
+   "bytes": 112755,
+   "lines": 2112,
+   "repairs": [],
+   "ops": [
+    "PUT 24.=25:",
+    "PUT 50.=50:"
+   ]
+  },
+  {
+   "seq": 75,
+   "label": "S813V3QualificationSilver10:2342@2026-10-28T22:40:17.060Z",
+   "tool": "edit-patch",
+   "pre_tag": "FF12",
+   "expected_pre_tag": "FF12",
+   "pre_ok": true,
+   "tag": "2F28",
+   "expected_result_tag": "2F28",
+   "tag_ok": true,
+   "sha": "2fd3dd997dcd68b94350f59a4d1256d081813f4190dd940f6cef599055409602",
+   "bytes": 112845,
+   "lines": 2114,
+   "repairs": [],
+   "ops": [
+    "PUT 24.=25:",
+    "PUT 50.=50:",
+    "PUT >113:"
+   ]
+  },
+  {
+   "seq": 76,
+   "label": "S813V3QualificationSilver10:2351@2026-10-28T22:41:03.266Z",
+   "tool": "edit-patch",
+   "pre_tag": "2F28",
+   "expected_pre_tag": "2F28",
+   "pre_ok": true,
+   "tag": "3D7F",
+   "expected_result_tag": "3D7F",
+   "tag_ok": true,
+   "sha": "a0e951d84704dba1967041a7223402180c0b4db458ba75fa2c7c82421f38f51b",
+   "bytes": 112926,
+   "lines": 2115,
+   "repairs": [],
+   "ops": [
+    "PUT >55:"
+   ]
+  },
+  {
+   "seq": 77,
+   "label": "S813V3QualificationSilver10:2357@2026-10-28T22:41:25.818Z",
+   "tool": "edit-patch",
+   "pre_tag": "3D7F",
+   "expected_pre_tag": "3D7F",
+   "pre_ok": true,
+   "tag": "458E",
+   "expected_result_tag": "458E",
+   "tag_ok": true,
+   "sha": "ea52aa8bf6062c80dbe58f2f26fe376baab3ff9c6b8d848c968d4ed9d02c80aa",
+   "bytes": 117521,
+   "lines": 2215,
+   "repairs": [],
+   "ops": [
+    "PUT >949:"
+   ]
+  },
+  {
+   "seq": 79,
+   "label": "S813V3QualificationSilver10:2366@2026-10-28T22:41:45.567Z",
+   "tool": "edit-patch",
+   "pre_tag": "458E",
+   "expected_pre_tag": "458E",
+   "pre_ok": true,
+   "tag": "81F9",
+   "expected_result_tag": "81F9",
+   "tag_ok": true,
+   "sha": "ce4c6ede57b97b780bb0ed9f8bc5de5cd1747c083e0a325219fdff5d58f77d6a",
+   "bytes": 117761,
+   "lines": 2219,
+   "repairs": [],
+   "ops": [
+    "PUT >508:",
+    "PUT >534:",
+    "PUT >547:",
+    "PUT >575:"
+   ]
+  },
+  {
+   "seq": 80,
+   "label": "S813V3QualificationSilver10:2372@2026-10-28T22:42:03.910Z",
+   "tool": "edit-patch",
+   "pre_tag": "81F9",
+   "expected_pre_tag": "81F9",
+   "pre_ok": true,
+   "tag": "99CE",
+   "expected_result_tag": "99CE",
+   "tag_ok": true,
+   "sha": "d5219eb7713136a0c211068475eb03286452d674819353254b37b464e78dbaff",
+   "bytes": 118881,
+   "lines": 2240,
+   "repairs": [],
+   "ops": [
+    "PUT >826:"
+   ]
+  },
+  {
+   "seq": 82,
+   "label": "S813V3QualificationSilver10:2381@2026-10-28T22:42:23.524Z",
+   "tool": "edit-patch",
+   "pre_tag": "99CE",
+   "expected_pre_tag": "99CE",
+   "pre_ok": true,
+   "tag": "2A77",
+   "expected_result_tag": "2A77",
+   "tag_ok": true,
+   "sha": "0711700116687e1af441a6655e4739c415742f3d5ab80e5ea8fbe27f9240ebd2",
+   "bytes": 119103,
+   "lines": 2243,
+   "repairs": [],
+   "ops": [
+    "PUT >906:"
+   ]
+  },
+  {
+   "seq": 83,
+   "label": "S813V3QualificationSilver10:2387@2026-10-28T22:42:39.353Z",
+   "tool": "edit-patch",
+   "pre_tag": "2A77",
+   "expected_pre_tag": "2A77",
+   "pre_ok": true,
+   "tag": "1C5B",
+   "expected_result_tag": "1C5B",
+   "tag_ok": true,
+   "sha": "783e734da364f3ab4150ce6db5b387764f1becec2f01e22fa87d5b1cb93d3b10",
+   "bytes": 120268,
+   "lines": 2258,
+   "repairs": [],
+   "ops": [
+    "PUT >949:",
+    "PUT >950:"
+   ]
+  },
+  {
+   "seq": 84,
+   "label": "S813V3QualificationSilver10:2396@2026-10-28T22:43:00.283Z",
+   "tool": "edit-patch",
+   "pre_tag": "1C5B",
+   "expected_pre_tag": "1C5B",
+   "pre_ok": true,
+   "tag": "6995",
+   "expected_result_tag": "6995",
+   "tag_ok": true,
+   "sha": "2d83ca79a16ac7ea36650c57ab2d41c3ca8173ff77e88ba408c41873a634365b",
+   "bytes": 121136,
+   "lines": 2272,
+   "repairs": [],
+   "ops": [
+    "PUT >1108:",
+    "PUT >1165:"
+   ]
+  },
+  {
+   "seq": 85,
+   "label": "S813V3QualificationSilver10:2402@2026-10-28T22:43:11.505Z",
+   "tool": "edit-patch",
+   "pre_tag": "6995",
+   "expected_pre_tag": "6995",
+   "pre_ok": true,
+   "tag": "6707",
+   "expected_result_tag": "6707",
+   "tag_ok": true,
+   "sha": "47ba49113adf51b001f9d904c64e2861b4eb2c7dbd2ea43257ba493b734d1c53",
+   "bytes": 122232,
+   "lines": 2288,
+   "repairs": [],
+   "ops": [
+    "PUT >1214:",
+    "PUT >1256:"
+   ]
+  },
+  {
+   "seq": 86,
+   "label": "S813V3QualificationSilver10:2415@2026-10-28T22:43:37.963Z",
+   "tool": "edit-patch",
+   "pre_tag": "6707",
+   "expected_pre_tag": "6707",
+   "pre_ok": true,
+   "tag": "EE34",
+   "expected_result_tag": "EE34",
+   "tag_ok": true,
+   "sha": "7c5ae2bab9a00270f9163e48922f6f8846113060e07fc4d0857a4dc5b8bf06d8",
+   "bytes": 124431,
+   "lines": 2328,
+   "repairs": [
+    [
+     "PUT 1423.=1430:",
+     "dropped 1 leading echo row(s)"
+    ]
+   ],
+   "ops": [
+    "PUT 1331.=1331:",
+    "PUT 1423.=1430:",
+    "PUT 1444.=1444:"
+   ]
+  },
+  {
+   "seq": 87,
+   "label": "S813V3QualificationSilver10:2434@2026-10-28T22:44:12.674Z",
+   "tool": "edit-patch",
+   "pre_tag": "EE34",
+   "expected_pre_tag": "EE34",
+   "pre_ok": true,
+   "tag": "496A",
+   "expected_result_tag": "496A",
+   "tag_ok": true,
+   "sha": "710c9a06751ccfe007ec13fcb8aa0bf5eecd3a46e1a03e05a0daed34b8869e5c",
+   "bytes": 124572,
+   "lines": 2328,
+   "repairs": [],
+   "ops": [
+    "PUT 509.=509:",
+    "PUT 827.=827:",
+    "PUT 1017.=1017:",
+    "PUT 1050.=1050:"
+   ]
+  },
+  {
+   "seq": 88,
+   "label": "S813V3QualificationSilver10:2477@2026-10-28T22:44:50.433Z",
+   "tool": "edit-patch",
+   "pre_tag": "496A",
+   "expected_pre_tag": "496A",
+   "pre_ok": true,
+   "tag": "7D43",
+   "expected_result_tag": "7D43",
+   "tag_ok": true,
+   "sha": "4814045438f0667d525da4447b613da327bdb7731736ace54e1b416beb3a0ef3",
+   "bytes": 124605,
+   "lines": 2328,
+   "repairs": [],
+   "ops": [
+    "PUT 1109.=1109:"
+   ]
+  },
+  {
+   "seq": 89,
+   "label": "S813V3QualificationSilver10:2511@2026-10-28T22:45:42.549Z",
+   "tool": "edit-patch",
+   "pre_tag": "7D43",
+   "expected_pre_tag": "7D43",
+   "pre_ok": true,
+   "tag": "8579",
+   "expected_result_tag": "8579",
+   "tag_ok": true,
+   "sha": "05ba2e052bea599db22fa74391bd80f62110d5512ec47eee6870d3ed508731bc",
+   "bytes": 124656,
+   "lines": 2329,
+   "repairs": [],
+   "ops": [
+    "PUT >1508:"
+   ]
+  },
+  {
+   "seq": 90,
+   "label": "S813V3QualificationSilver10:2538@2026-10-28T22:46:24.838Z",
+   "tool": "edit-patch",
+   "pre_tag": "8579",
+   "expected_pre_tag": "8579",
+   "pre_ok": true,
+   "tag": "5895",
+   "expected_result_tag": "5895",
+   "tag_ok": true,
+   "sha": "0570780c1f731d2820237ebd7f55f8fec143b53256511dc84344a6eaabe2ddc5",
+   "bytes": 124803,
+   "lines": 2331,
+   "repairs": [],
+   "ops": [
+    "PUT >1397:"
+   ]
+  },
+  {
+   "seq": 91,
+   "label": "S813V3QualificationSilver10:2544@2026-10-28T22:46:35.254Z",
+   "tool": "edit-patch",
+   "pre_tag": "5895",
+   "expected_pre_tag": "5895",
+   "pre_ok": true,
+   "tag": "2160",
+   "expected_result_tag": "2160",
+   "tag_ok": true,
+   "sha": "c4367a96787ba31aa2cdb56597a3c93c32667a669622f7276bb0a68e6cd7e1e9",
+   "bytes": 125160,
+   "lines": 2337,
+   "repairs": [],
+   "ops": [
+    "PUT >1570:"
+   ]
+  },
+  {
+   "seq": 92,
+   "label": "S813V3QualificationSilver10:2553@2026-10-28T22:46:54.534Z",
+   "tool": "edit-patch",
+   "pre_tag": "2160",
+   "expected_pre_tag": "2160",
+   "pre_ok": true,
+   "tag": "09ED",
+   "expected_result_tag": "09ED",
+   "tag_ok": true,
+   "sha": "2eed81da3f6031bf3df15e88d3633dcf3d8ff54a968ec4e6e0e6d2f4235fa9c3",
+   "bytes": 125118,
+   "lines": 2337,
+   "repairs": [],
+   "ops": [
+    "PUT 2026.=2026:",
+    "PUT 2200.=2200:"
+   ]
+  },
+  {
+   "seq": 93,
+   "label": "S813V3QualificationSilver10:2562@2026-10-28T22:47:13.591Z",
+   "tool": "edit-patch",
+   "pre_tag": "09ED",
+   "expected_pre_tag": "09ED",
+   "pre_ok": true,
+   "tag": "F2C8",
+   "expected_result_tag": "F2C8",
+   "tag_ok": true,
+   "sha": "708ea3f4a0f3ec6594c9242442694497cbc07dc4c6b2a9b3a2f5a74e2aafb8fd",
+   "bytes": 125856,
+   "lines": 2348,
+   "repairs": [],
+   "ops": [
+    "PUT >1453:"
+   ]
+  },
+  {
+   "seq": 94,
+   "label": "S813V3QualificationSilver10:2568@2026-10-28T22:47:22.645Z",
+   "tool": "edit-patch",
+   "pre_tag": "F2C8",
+   "expected_pre_tag": "F2C8",
+   "pre_ok": true,
+   "tag": "559E",
+   "expected_result_tag": "559E",
+   "tag_ok": true,
+   "sha": "1f068cf58b022509ab7d309796c85f4443be82057ee371642a37a35e6221e641",
+   "bytes": 126020,
+   "lines": 2350,
+   "repairs": [],
+   "ops": [
+    "PUT >1586:"
+   ]
+  },
+  {
+   "seq": 97,
+   "label": "S813V3QualificationSilver10:2580@2026-10-28T22:47:51.312Z",
+   "tool": "edit-patch",
+   "pre_tag": "559E",
+   "expected_pre_tag": "559E",
+   "pre_ok": true,
+   "tag": "AE61",
+   "expected_result_tag": "AE61",
+   "tag_ok": true,
+   "sha": "b3237c71d1f1bf24d0ebda6d472fe90fd778aa0e72225958f969b81f710fe6ec",
+   "bytes": 128998,
+   "lines": 2393,
+   "repairs": [],
+   "ops": [
+    "PUT <2092:"
+   ]
+  },
+  {
+   "seq": 98,
+   "label": "S813V3QualificationSilver10:2583@2026-10-28T22:47:55.846Z",
+   "tool": "edit-patch",
+   "pre_tag": "AE61",
+   "expected_pre_tag": "AE61",
+   "pre_ok": true,
+   "tag": "8E4D",
+   "expected_result_tag": "8E4D",
+   "tag_ok": true,
+   "sha": "c251f16e3f04dd01ebdf63327e671e8707135dea64d748ea5b8725c44948ce96",
+   "bytes": 129718,
+   "lines": 2404,
+   "repairs": [],
+   "ops": [
+    "PUT 2135.=2142:"
+   ]
+  },
+  {
+   "seq": 99,
+   "label": "S813V3QualificationSilver10:2614@2026-10-28T22:49:11.368Z",
+   "tool": "edit-patch",
+   "pre_tag": "8E4D",
+   "expected_pre_tag": "8E4D",
+   "pre_ok": true,
+   "tag": "EDE7",
+   "expected_result_tag": "EDE7",
+   "tag_ok": true,
+   "sha": "cd10ebc8ad3239a3e210335973ea180888f5563bfe30e036894e3154706373ee",
+   "bytes": 129778,
+   "lines": 2404,
+   "repairs": [],
+   "ops": [
+    "PUT 503.=505:",
+    "PUT 552.=552:",
+    "PUT 578.=578:"
+   ]
+  },
+  {
+   "seq": 100,
+   "label": "S813V3QualificationSilver10:2617@2026-10-28T22:49:14.951Z",
+   "tool": "edit-patch",
+   "pre_tag": "EDE7",
+   "expected_pre_tag": "EDE7",
+   "pre_ok": true,
+   "tag": "D559",
+   "expected_result_tag": "D559",
+   "tag_ok": true,
+   "sha": "2c7da9078b92ceb3880669ca9869fa64328cf2ad8ddd5d2614f141a33946bfad",
+   "bytes": 129756,
+   "lines": 2404,
+   "repairs": [],
+   "ops": [
+    "PUT 862.=862:",
+    "PUT 946.=946:"
+   ]
+  },
+  {
+   "seq": 101,
+   "label": "S813V3QualificationSilver10:2623@2026-10-28T22:49:25.049Z",
+   "tool": "edit-patch",
+   "pre_tag": "D559",
+   "expected_pre_tag": "D559",
+   "pre_ok": true,
+   "tag": "EE58",
+   "expected_result_tag": "EE58",
+   "tag_ok": true,
+   "sha": "aa8e15396e37faecbe237eb8dd4d3fc675ad7f9df0166dfa2def35744a8afeda",
+   "bytes": 129869,
+   "lines": 2404,
+   "repairs": [],
+   "ops": [
+    "PUT 1096.=1097:",
+    "PUT 1119.=1119:",
+    "PUT 1208.=1209:",
+    "PUT 1263.=1263:"
+   ]
+  },
+  {
+   "seq": 102,
+   "label": "S813V3QualificationSilver10:2629@2026-10-28T22:49:32.694Z",
+   "tool": "edit-patch",
+   "pre_tag": "EE58",
+   "expected_pre_tag": "EE58",
+   "pre_ok": true,
+   "tag": "B036",
+   "expected_result_tag": "B036",
+   "tag_ok": true,
+   "sha": "98cdd6ab0b3c6a4627f8bd52716bdffcdafcb2b0d56c714679f14d9afe3de7c7",
+   "bytes": 129881,
+   "lines": 2404,
+   "repairs": [],
+   "ops": [
+    "PUT 2212.=2212:",
+    "PUT 2324.=2324:",
+    "PUT 2350.=2350:",
+    "PUT 2352.=2352:"
+   ]
+  },
+  {
+   "seq": 103,
+   "label": "S813V3QualificationSilver10:2635@2026-10-28T22:49:55.637Z",
+   "tool": "edit-patch",
+   "pre_tag": "B036",
+   "expected_pre_tag": "B036",
+   "pre_ok": true,
+   "tag": "AD01",
+   "expected_result_tag": "AD01",
+   "tag_ok": true,
+   "sha": "a372f56d8e9c01da87caf40b35734233120e776bb0092bc0778f80ca91cd264b",
+   "bytes": 130164,
+   "lines": 2407,
+   "repairs": [],
+   "ops": [
+    "PUT >953:",
+    "PUT 954.=961:"
+   ]
+  },
+  {
+   "seq": 104,
+   "label": "S813V3QualificationSilver10:2641@2026-10-28T22:50:04.742Z",
+   "tool": "edit-patch",
+   "pre_tag": "AD01",
+   "expected_pre_tag": "AD01",
+   "pre_ok": true,
+   "tag": "CCF2",
+   "expected_result_tag": "CCF2",
+   "tag_ok": true,
+   "sha": "e4a15a5afd2e699ae6f72ec8fdaeeff3c6d7df586026ececf0e86754712f1d1a",
+   "bytes": 130208,
+   "lines": 2408,
+   "repairs": [],
+   "ops": [
+    "PUT 1058.=1058:"
+   ]
+  },
+  {
+   "seq": 105,
+   "label": "S813V3QualificationSilver10:2938@2026-10-28T23:16:05.073Z",
+   "tool": "edit-patch",
+   "pre_tag": "CCF2",
+   "expected_pre_tag": "CCF2",
+   "pre_ok": true,
+   "tag": "53A8",
+   "expected_result_tag": "53A8",
+   "tag_ok": true,
+   "sha": "4c038696879256a8cfbe071351b84fb94e2e3fb6016035ccd23c2b3e4342014f",
+   "bytes": 131402,
+   "lines": 2424,
+   "repairs": [],
+   "ops": [
+    "PUT >670:"
+   ]
+  },
+  {
+   "seq": 106,
+   "label": "S813V3QualificationSilver10:2947@2026-10-28T23:16:44.889Z",
+   "tool": "edit-patch",
+   "pre_tag": "53A8",
+   "expected_pre_tag": "53A8",
+   "pre_ok": true,
+   "tag": "6E76",
+   "expected_result_tag": "6E76",
+   "tag_ok": true,
+   "sha": "2d97255db50008ba01058cd32e1def5c9e0d184b90ac9cd9d346e971ab34df62",
+   "bytes": 131411,
+   "lines": 2424,
+   "repairs": [],
+   "ops": [
+    "PUT 24.=25:",
+    "PUT 50.=50:",
+    "PUT 851.=851:",
+    "PUT 1070.=1070:",
+    "PUT 1101.=1101:"
+   ]
+  },
+  {
+   "seq": 107,
+   "label": "S813V3QualificationSilver10:2950@2026-10-28T23:16:51.633Z",
+   "tool": "edit-patch",
+   "pre_tag": "6E76",
+   "expected_pre_tag": "6E76",
+   "pre_ok": true,
+   "tag": "8F3D",
+   "expected_result_tag": "8F3D",
+   "tag_ok": true,
+   "sha": "93e1b4539896bcb1487d7dcb5808f4b547eab9aae0b70e763fb0e022200de6d6",
+   "bytes": 131408,
+   "lines": 2424,
+   "repairs": [],
+   "ops": [
+    "PUT 24.=25:",
+    "PUT 50.=50:"
+   ]
+  },
+  {
+   "seq": 108,
+   "label": "S813V3QualificationSilver10:3195@2026-10-28T23:30:21.321Z",
+   "tool": "edit-patch",
+   "pre_tag": "8F3D",
+   "expected_pre_tag": "8F3D",
+   "pre_ok": true,
+   "tag": "8136",
+   "expected_result_tag": "8136",
+   "tag_ok": true,
+   "sha": "a92488301fb3f73668da3790270fb7648f6b2876c6a5c7259b6209386745c6e8",
+   "bytes": 132051,
+   "lines": 2434,
+   "repairs": [],
+   "ops": [
+    "PUT 25.=25:",
+    "PUT 50.=56:"
+   ]
+  },
+  {
+   "seq": 109,
+   "label": "S813V3QualificationSilver10:3201@2026-10-28T23:30:36.159Z",
+   "tool": "edit-patch",
+   "pre_tag": "8136",
+   "expected_pre_tag": "8136",
+   "pre_ok": true,
+   "tag": "08C1",
+   "expected_result_tag": "08C1",
+   "tag_ok": true,
+   "sha": "d94339233bd0ac8f0b419fd22ce4bedd27702eb932af917878397da042737f62",
+   "bytes": 133103,
+   "lines": 2456,
+   "repairs": [],
+   "ops": [
+    "PUT >1057:",
+    "PUT >1062:",
+    "PUT >1077:",
+    "PUT 1080.=1080:",
+    "PUT 1094.=1096:",
+    "PUT >1103:",
+    "PUT >1115:"
+   ]
+  },
+  {
+   "seq": 110,
+   "label": "S813V3QualificationSilver10:3207@2026-10-28T23:30:48.749Z",
+   "tool": "edit-patch",
+   "pre_tag": "08C1",
+   "expected_pre_tag": "08C1",
+   "pre_ok": true,
+   "tag": "734A",
+   "expected_result_tag": "734A",
+   "tag_ok": true,
+   "sha": "bb30f93e3787ef43add8681f244012d5e2bf60845300df4feba465bb7a84e340",
+   "bytes": 133282,
+   "lines": 2456,
+   "repairs": [],
+   "ops": [
+    "PUT 1065.=1090:"
+   ]
+  },
+  {
+   "seq": 111,
+   "label": "S813V3QualificationSilver10:3213@2026-10-28T23:31:04.632Z",
+   "tool": "edit-patch",
+   "pre_tag": "734A",
+   "expected_pre_tag": "734A",
+   "pre_ok": true,
+   "tag": "B6DA",
+   "expected_result_tag": "B6DA",
+   "tag_ok": true,
+   "sha": "edef63cd10cac148451a1d602a078cb04f413ddeff7c160e3cdb882a9c523c2d",
+   "bytes": 133910,
+   "lines": 2471,
+   "repairs": [],
+   "ops": [
+    "PUT >1144:"
+   ]
+  },
+  {
+   "seq": 113,
+   "label": "S813V3QualificationSilver10:3225@2026-10-28T23:31:26.747Z",
+   "tool": "edit-patch",
+   "pre_tag": "B6DA",
+   "expected_pre_tag": "B6DA",
+   "pre_ok": true,
+   "tag": "4C98",
+   "expected_result_tag": "4C98",
+   "tag_ok": true,
+   "sha": "870420364edb988f145e208bc59da4054dfe71cad169ebc5238d539c9ce8ea9d",
+   "bytes": 134062,
+   "lines": 2474,
+   "repairs": [],
+   "ops": [
+    "PUT 1176.=1176:",
+    "PUT >1239:",
+    "PUT <1266:"
+   ]
+  },
+  {
+   "seq": 114,
+   "label": "S813V3QualificationSilver10:3231@2026-10-28T23:31:40.139Z",
+   "tool": "edit-patch",
+   "pre_tag": "4C98",
+   "expected_pre_tag": "4C98",
+   "pre_ok": true,
+   "tag": "4DF7",
+   "expected_result_tag": "4DF7",
+   "tag_ok": true,
+   "sha": "6ee048860909d83b46f5cde8a0498d96643038cd7b948d13400008a85097f318",
+   "bytes": 134353,
+   "lines": 2478,
+   "repairs": [],
+   "ops": [
+    "PUT >1293:",
+    "PUT >1335:"
+   ]
+  },
+  {
+   "seq": 115,
+   "label": "S813V3QualificationSilver10:3240@2026-10-28T23:32:20.340Z",
+   "tool": "edit-patch",
+   "pre_tag": "4DF7",
+   "expected_pre_tag": "4DF7",
+   "pre_ok": true,
+   "tag": "AE54",
+   "expected_result_tag": "AE54",
+   "tag_ok": true,
+   "sha": "d59df0f9fa2f86e3f76497b2ca52bfefbce4284cbf1086333f7e48fa6b6ef41d",
+   "bytes": 135962,
+   "lines": 2514,
+   "repairs": [],
+   "ops": [
+    "PUT >1489:"
+   ]
+  },
+  {
+   "seq": 116,
+   "label": "S813V3QualificationSilver10:3255@2026-10-28T23:34:21.066Z",
+   "tool": "edit-patch",
+   "pre_tag": "AE54",
+   "expected_pre_tag": "AE54",
+   "pre_ok": true,
+   "tag": "4A57",
+   "expected_result_tag": "4A57",
+   "tag_ok": true,
+   "sha": "32d86aca4be98cdad633cbde64a5bce2925c6a7499a9bc4e78834fba94c25e5d",
+   "bytes": 152702,
+   "lines": 2868,
+   "repairs": [],
+   "ops": [
+    "PUT <1755:"
+   ]
+  },
+  {
+   "seq": 117,
+   "label": "S813V3QualificationSilver10:3261@2026-10-28T23:34:48.673Z",
+   "tool": "edit-patch",
+   "pre_tag": "4A57",
+   "expected_pre_tag": "4A57",
+   "pre_ok": true,
+   "tag": "B818",
+   "expected_result_tag": "B818",
+   "tag_ok": true,
+   "sha": "a8f822d2f8fa98877340180b0921de6a13aa533f4b43ac8d1e7f1bb21998c3b9",
+   "bytes": 153156,
+   "lines": 2876,
+   "repairs": [],
+   "ops": [
+    "PUT >2852:",
+    "PUT >2861:"
+   ]
+  },
+  {
+   "seq": 118,
+   "label": "S813V3QualificationSilver10:3267@2026-10-28T23:35:09.203Z",
+   "tool": "edit-patch",
+   "pre_tag": "B818",
+   "expected_pre_tag": "B818",
+   "pre_ok": true,
+   "tag": "36C8",
+   "expected_result_tag": "36C8",
+   "tag_ok": true,
+   "sha": "969a8363999686f1dfa1f6f0ca217964eae78c34ec263029de4346d781242e99",
+   "bytes": 153587,
+   "lines": 2887,
+   "repairs": [],
+   "ops": [
+    "PUT 1869.=1869:",
+    "PUT >2007:",
+    "PUT 2026.=2026:",
+    "PUT 2106.=2106:"
+   ]
+  },
+  {
+   "seq": 119,
+   "label": "S813V3QualificationSilver10:3270@2026-10-28T23:35:13.420Z",
+   "tool": "edit-patch",
+   "pre_tag": "36C8",
+   "expected_pre_tag": "36C8",
+   "pre_ok": true,
+   "tag": "9491",
+   "expected_result_tag": "9491",
+   "tag_ok": true,
+   "sha": "9af17aa8e7ba7432e7c62d482bf49d9edcb809bf791dce6ad4eedf1880e701c5",
+   "bytes": 153587,
+   "lines": 2887,
+   "repairs": [],
+   "ops": [
+    "PUT 2009.=2013:"
+   ]
+  },
+  {
+   "seq": 121,
+   "label": "S813V3QualificationSilver10:3282@2026-10-28T23:35:35.939Z",
+   "tool": "edit-patch",
+   "pre_tag": "9491",
+   "expected_pre_tag": "9491",
+   "pre_ok": true,
+   "tag": "E512",
+   "expected_result_tag": "E512",
+   "tag_ok": true,
+   "sha": "adc5b508939a536d4415eaf9afbec43a5fdfaeb3c63b6f67140560a7cf6c3a82",
+   "bytes": 153670,
+   "lines": 2889,
+   "repairs": [],
+   "ops": [
+    "PUT 1757.=1762:"
+   ]
+  },
+  {
+   "seq": 122,
+   "label": "S813V3QualificationSilver10:3291@2026-10-28T23:35:49.882Z",
+   "tool": "edit-patch",
+   "pre_tag": "E512",
+   "expected_pre_tag": "E512",
+   "pre_ok": true,
+   "tag": "280D",
+   "expected_result_tag": "280D",
+   "tag_ok": true,
+   "sha": "c7032060cd706c0452b764c7170c62ccbc24601ac1a09fc5b5641bd61ed6c5f9",
+   "bytes": 154011,
+   "lines": 2896,
+   "repairs": [],
+   "ops": [
+    "PUT >1796:",
+    "PUT >1813:"
+   ]
+  },
+  {
+   "seq": 123,
+   "label": "S813V3QualificationSilver10:3297@2026-10-28T23:36:00.480Z",
+   "tool": "edit-patch",
+   "pre_tag": "280D",
+   "expected_pre_tag": "280D",
+   "pre_ok": true,
+   "tag": "C61E",
+   "expected_result_tag": "C61E",
+   "tag_ok": true,
+   "sha": "39293804abab5ce56dfc9da4364bb7ba24f6747ad99c01cd79316d12c7be983e",
+   "bytes": 154162,
+   "lines": 2898,
+   "repairs": [],
+   "ops": [
+    "PUT 2044.=2049:"
+   ]
+  },
+  {
+   "seq": 124,
+   "label": "S813V3QualificationSilver10:3303@2026-10-28T23:36:17.903Z",
+   "tool": "edit-patch",
+   "pre_tag": "C61E",
+   "expected_pre_tag": "C61E",
+   "pre_ok": true,
+   "tag": "288B",
+   "expected_result_tag": "288B",
+   "tag_ok": true,
+   "sha": "edeb27924a1c03cf84592bfcc48f641cd9086210e8455ba3c745cb6f808198dc",
+   "bytes": 154216,
+   "lines": 2899,
+   "repairs": [],
+   "ops": [
+    "PUT 984.=984:"
+   ]
+  },
+  {
+   "seq": 126,
+   "label": "S813V3QualificationSilver10:3315@2026-10-28T23:36:59.200Z",
+   "tool": "edit-patch",
+   "pre_tag": "288B",
+   "expected_pre_tag": "288B",
+   "pre_ok": true,
+   "tag": "E7C0",
+   "expected_result_tag": "E7C0",
+   "tag_ok": true,
+   "sha": "a5deec89ffdf58d0f461344ccc83f014ed5fba94dc573f80b830abb3e16d7a4e",
+   "bytes": 154544,
+   "lines": 2903,
+   "repairs": [],
+   "ops": [
+    "PUT >1793:"
+   ]
+  },
+  {
+   "seq": 127,
+   "label": "S813V3QualificationSilver10:3321@2026-10-28T23:37:08.570Z",
+   "tool": "edit-patch",
+   "pre_tag": "E7C0",
+   "expected_pre_tag": "E7C0",
+   "pre_ok": true,
+   "tag": "4E74",
+   "expected_result_tag": "4E74",
+   "tag_ok": true,
+   "sha": "ec96e583ab8108becf3a16ce158ad26b04ed1b29d113e7eedfdb3d53e917d140",
+   "bytes": 154444,
+   "lines": 2901,
+   "repairs": [],
+   "ops": [
+    "PUT 1804.=1811:"
+   ]
+  },
+  {
+   "seq": 128,
+   "label": "S813V3QualificationSilver10:3327@2026-10-28T23:37:20.353Z",
+   "tool": "edit-patch",
+   "pre_tag": "4E74",
+   "expected_pre_tag": "4E74",
+   "pre_ok": true,
+   "tag": "D970",
+   "expected_result_tag": "D970",
+   "tag_ok": true,
+   "sha": "97a2148a3e1c17076d9ec5020d1feec6325fa7dff51eb1f3ac9ac2c245cac6a1",
+   "bytes": 154646,
+   "lines": 2905,
+   "repairs": [],
+   "ops": [
+    "PUT 2003.=2007:",
+    "PUT 2087.=2087:"
+   ]
+  },
+  {
+   "seq": 129,
+   "label": "S813V3QualificationSilver10:3333@2026-10-28T23:37:29.575Z",
+   "tool": "edit-patch",
+   "pre_tag": "D970",
+   "expected_pre_tag": "D970",
+   "pre_ok": true,
+   "tag": "5B90",
+   "expected_result_tag": "5B90",
+   "tag_ok": true,
+   "sha": "a8515bc33b5529200e2f1fab89205c706a6f8a2b44c0eb6522111bdc3e5419d3",
+   "bytes": 154573,
+   "lines": 2904,
+   "repairs": [],
+   "ops": [
+    "PUT 2003.=2007:"
+   ]
+  },
+  {
+   "seq": 131,
+   "label": "S813V3QualificationSilver10:3345@2026-10-28T23:38:06.137Z",
+   "tool": "edit-patch",
+   "pre_tag": "5B90",
+   "expected_pre_tag": "5B90",
+   "pre_ok": true,
+   "tag": "C7B2",
+   "expected_result_tag": "C7B2",
+   "tag_ok": true,
+   "sha": "ea6ee161a426b2679c28922c9bd3aa1bd47f44feca33f4d22135d7889be33800",
+   "bytes": 154771,
+   "lines": 2908,
+   "repairs": [],
+   "ops": [
+    "PUT >2120:",
+    "PUT 2128.=2134:"
+   ]
+  },
+  {
+   "seq": 132,
+   "label": "S813V3QualificationSilver10:3390@2026-10-28T23:42:54.299Z",
+   "tool": "edit-patch",
+   "pre_tag": "C7B2",
+   "expected_pre_tag": "C7B2",
+   "pre_ok": true,
+   "tag": "A5C5",
+   "expected_result_tag": "A5C5",
+   "tag_ok": true,
+   "sha": "caf2669ca36d5ae52e8ab30323120da06fe0399c2906e2bcb3701e4032beb138",
+   "bytes": 154989,
+   "lines": 2911,
+   "repairs": [],
+   "ops": [
+    "PUT >1838:",
+    "PUT >2890:"
+   ]
+  },
+  {
+   "seq": 133,
+   "label": "S813V3QualificationSilver10:3393@2026-10-28T23:42:59.800Z",
+   "tool": "edit-patch",
+   "pre_tag": "A5C5",
+   "expected_pre_tag": "A5C5",
+   "pre_ok": true,
+   "tag": "4888",
+   "expected_result_tag": "4888",
+   "tag_ok": true,
+   "sha": "5923b6a09e19918f6016a20ed8a0387ba4e39e8d4b4a1fce4d926841453aa369",
+   "bytes": 154989,
+   "lines": 2911,
+   "repairs": [],
+   "ops": [
+    "PUT 1838.=1841:"
+   ]
+  },
+  {
+   "seq": 134,
+   "label": "S813V3QualificationSilver10:3400@2026-10-28T23:43:50.483Z",
+   "tool": "edit-patch",
+   "pre_tag": "4888",
+   "expected_pre_tag": "4888",
+   "pre_ok": true,
+   "tag": "C7B2",
+   "expected_result_tag": "C7B2",
+   "tag_ok": true,
+   "sha": "ea6ee161a426b2679c28922c9bd3aa1bd47f44feca33f4d22135d7889be33800",
+   "bytes": 154771,
+   "lines": 2908,
+   "repairs": [],
+   "ops": [
+    "CUT 1840.=1841",
+    "CUT 2893.=2893"
+   ]
+  },
+  {
+   "seq": 135,
+   "label": "S813PrivacyFallbackSilver12:627@2026-10-29T00:27:20.288Z",
+   "tool": "edit-patch",
+   "pre_tag": "C7B2",
+   "expected_pre_tag": "C7B2",
+   "pre_ok": true,
+   "tag": "B3C9",
+   "expected_result_tag": "B3C9",
+   "tag_ok": true,
+   "sha": "1ea927ab1ee9fcd32bc85d6355f4418c7c68c6a3128179a6d4e160676c783c54",
+   "bytes": 154754,
+   "lines": 2908,
+   "repairs": [],
+   "ops": [
+    "PUT 23.=28:",
+    "PUT 52.=53:"
+   ]
+  },
+  {
+   "seq": 136,
+   "label": "S813PrivacyFallbackSilver12:722@2026-10-29T00:31:14.580Z",
+   "tool": "edit-patch",
+   "pre_tag": "B3C9",
+   "expected_pre_tag": "B3C9",
+   "pre_ok": true,
+   "tag": "B9E9",
+   "expected_result_tag": "B9E9",
+   "tag_ok": true,
+   "sha": "19fa4f436702182ee858c4f8a51fb0063b6f4de0f96407cae860e9edd857f8af",
+   "bytes": 155528,
+   "lines": 2928,
+   "repairs": [
+    [
+     "PUT 683.=695:",
+     "dropped 1 trailing echo row(s)"
+    ]
+   ],
+   "ops": [
+    "PUT >47:",
+    "PUT >682:",
+    "PUT 683.=695:"
+   ]
+  },
+  {
+   "seq": 138,
+   "label": "S813PrivacyFallbackSilver12:743@2026-10-29T00:31:57.312Z",
+   "tool": "edit-patch",
+   "pre_tag": "B9E9",
+   "expected_pre_tag": "B9E9",
+   "pre_ok": true,
+   "tag": "EB86",
+   "expected_result_tag": "EB86",
+   "tag_ok": true,
+   "sha": "d6b2e5bcfebcb8c7e82b5418a498eea6d4bcc0e604621adf44cfc7c088eff6c1",
+   "bytes": 155745,
+   "lines": 2931,
+   "repairs": [],
+   "ops": [
+    "PUT >69:",
+    "PUT 1115.=1116:",
+    "PUT 1125.=1125:"
+   ]
+  },
+  {
+   "seq": 139,
+   "label": "S813PrivacyFallbackSilver12:836@2026-10-29T00:39:03.037Z",
+   "tool": "edit-patch",
+   "pre_tag": "EB86",
+   "expected_pre_tag": "EB86",
+   "pre_ok": true,
+   "tag": "944C",
+   "expected_result_tag": "944C",
+   "tag_ok": true,
+   "sha": "843f34fc978614e3699f2d6655e361495935a441fc5e605be51d18513eab7fd3",
+   "bytes": 155747,
+   "lines": 2931,
+   "repairs": [],
+   "ops": [
+    "PUT 24.=25:",
+    "PUT 69.=69:"
+   ]
+  },
+  {
+   "seq": 140,
+   "label": "S813PrivacyFallbackSilver12:839@2026-10-29T00:39:06.697Z",
+   "tool": "edit-patch",
+   "pre_tag": "944C",
+   "expected_pre_tag": "944C",
+   "pre_ok": true,
+   "tag": "81EF",
+   "expected_result_tag": "81EF",
+   "tag_ok": true,
+   "sha": "74eeb519710931e95c450011ed16dcae2402524df8626093c484787a6919c80c",
+   "bytes": 155745,
+   "lines": 2931,
+   "repairs": [],
+   "ops": [
+    "PUT 24.=25:"
+   ]
+  },
+  {
+   "seq": 141,
+   "label": "S813PrivacyFallbackSilver12:1141@2026-10-29T00:58:23.528Z",
+   "tool": "edit-patch",
+   "pre_tag": "81EF",
+   "expected_pre_tag": "81EF",
+   "pre_ok": true,
+   "tag": "F9A4",
+   "expected_result_tag": "F9A4",
+   "tag_ok": true,
+   "sha": "0a33f13f0babded0b97741909b402fd5fc4b38061756ad5c701305d514e0ab2b",
+   "bytes": 156578,
+   "lines": 2946,
+   "repairs": [
+    [
+     "PUT 703.=718:",
+     "dropped 1 trailing echo row(s)"
+    ]
+   ],
+   "ops": [
+    "PUT >63:",
+    "PUT >702:",
+    "PUT 703.=718:"
+   ]
+  },
+  {
+   "seq": 142,
+   "label": "S813PrivacyFallbackSilver12:1242@2026-10-29T01:05:43.329Z",
+   "tool": "edit-patch",
+   "pre_tag": "F9A4",
+   "expected_pre_tag": "F9A4",
+   "pre_ok": true,
+   "tag": "0003",
+   "expected_result_tag": "0003",
+   "tag_ok": true,
+   "sha": "4ef1969afa8705f2441b2a8bed3160888097243e2a76b20945f2b25781396575",
+   "bytes": 158062,
+   "lines": 2971,
+   "repairs": [],
+   "ops": [
+    "PUT >70:"
+   ]
+  },
+  {
+   "seq": 143,
+   "label": "S813PrivacyFallbackSilver12:1248@2026-10-29T01:05:56.516Z",
+   "tool": "edit-patch",
+   "pre_tag": "0003",
+   "expected_pre_tag": "0003",
+   "pre_ok": true,
+   "tag": "EE27",
+   "expected_result_tag": "EE27",
+   "tag_ok": true,
+   "sha": "637cb7dd6b629cb1845e3365e943c079ea045f0abc11aaf8c54632ad9e211853",
+   "bytes": 158046,
+   "lines": 2971,
+   "repairs": [],
+   "ops": [
+    "PUT 81.=81:"
+   ]
+  },
+  {
+   "seq": 144,
+   "label": "S813PrivacyFallbackSilver12:1260@2026-10-29T01:06:18.676Z",
+   "tool": "edit-patch",
+   "pre_tag": "EE27",
+   "expected_pre_tag": "EE27",
+   "pre_ok": true,
+   "tag": "B7A7",
+   "expected_result_tag": "B7A7",
+   "tag_ok": true,
+   "sha": "f385644154e949c8e45f07bc2d89bdc01e6f0deffdf83acb9c4dea7f3b60cf39",
+   "bytes": 158593,
+   "lines": 2987,
+   "repairs": [],
+   "ops": [
+    "PUT >211:"
+   ]
+  },
+  {
+   "seq": 145,
+   "label": "S813PrivacyFallbackSilver12:1269@2026-10-29T01:06:57.996Z",
+   "tool": "edit-patch",
+   "pre_tag": "B7A7",
+   "expected_pre_tag": "B7A7",
+   "pre_ok": true,
+   "tag": "A3C5",
+   "expected_result_tag": "A3C5",
+   "tag_ok": true,
+   "sha": "658d839d6a26790e58961386e1695d1d8918ee94ed49a0d303ac2e7b2849856d",
+   "bytes": 164136,
+   "lines": 3081,
+   "repairs": [],
+   "ops": [
+    "PUT 1835.=1911:"
+   ]
+  },
+  {
+   "seq": 146,
+   "label": "S813PrivacyFallbackSilver12:1278@2026-10-29T01:07:25.764Z",
+   "tool": "edit-patch",
+   "pre_tag": "A3C5",
+   "expected_pre_tag": "A3C5",
+   "pre_ok": true,
+   "tag": "A176",
+   "expected_result_tag": "A176",
+   "tag_ok": true,
+   "sha": "c482dfa11c3388a1854be42d838643d23ee6cf2b1425e9617f86d0433011966d",
+   "bytes": 164809,
+   "lines": 3090,
+   "repairs": [
+    [
+     "PUT 2296.=2310:",
+     "dropped 1 trailing echo row(s)"
+    ]
+   ],
+   "ops": [
+    "PUT 2200.=2201:",
+    "PUT 2217.=2224:",
+    "PUT 2296.=2310:"
+   ]
+  },
+  {
+   "seq": 147,
+   "label": "S813PrivacyFallbackSilver12:1290@2026-10-29T01:07:50.177Z",
+   "tool": "edit-patch",
+   "pre_tag": "A176",
+   "expected_pre_tag": "A176",
+   "pre_ok": true,
+   "tag": "51AC",
+   "expected_result_tag": "51AC",
+   "tag_ok": true,
+   "sha": "0482af50d0752d37423efd0f52ff2541877c3b8f7d606b5828c1d2213ae2cc61",
+   "bytes": 164813,
+   "lines": 3090,
+   "repairs": [],
+   "ops": [
+    "PUT 2752.=2752:"
+   ]
+  },
+  {
+   "seq": 148,
+   "label": "S813PrivacyFallbackSilver12:1327@2026-10-29T01:09:16.824Z",
+   "tool": "edit-patch",
+   "pre_tag": "51AC",
+   "expected_pre_tag": "51AC",
+   "pre_ok": true,
+   "tag": "EDDB",
+   "expected_result_tag": "EDDB",
+   "tag_ok": true,
+   "sha": "2ae260b54dd5071b72da4c04aacaafbc118e689f2c754aa1bd9d9919a7def47a",
+   "bytes": 165629,
+   "lines": 3105,
+   "repairs": [],
+   "ops": [
+    "PUT >2199:"
+   ]
+  },
+  {
+   "seq": 149,
+   "label": "S813PrivacyFallbackSilver12:1336@2026-10-29T01:09:32.040Z",
+   "tool": "edit-patch",
+   "pre_tag": "EDDB",
+   "expected_pre_tag": "EDDB",
+   "pre_ok": true,
+   "tag": "F8F0",
+   "expected_result_tag": "F8F0",
+   "tag_ok": true,
+   "sha": "2f998780b561b8c4a49d257cf99c34a4921c9ed98a800a5409a418df1808217c",
+   "bytes": 165631,
+   "lines": 3105,
+   "repairs": [],
+   "ops": [
+    "PUT 24.=25:",
+    "PUT 101.=101:"
+   ]
+  },
+  {
+   "seq": 150,
+   "label": "S813PrivacyFallbackSilver12:1339@2026-10-29T01:09:37.064Z",
+   "tool": "edit-patch",
+   "pre_tag": "F8F0",
+   "expected_pre_tag": "F8F0",
+   "pre_ok": true,
+   "tag": "9DAB",
+   "expected_result_tag": "9DAB",
+   "tag_ok": true,
+   "sha": "1874e3c4b13ad52a6a0766477881d0e09df2b892a10e99dc7d917a3de311c804",
+   "bytes": 165629,
+   "lines": 3105,
+   "repairs": [],
+   "ops": [
+    "PUT 24.=25:"
+   ]
+  },
+  {
+   "seq": 151,
+   "label": "S813PrivacyFallbackSilver12:1740@2026-10-29T01:38:48.207Z",
+   "tool": "edit-patch",
+   "pre_tag": "9DAB",
+   "expected_pre_tag": "9DAB",
+   "pre_ok": true,
+   "tag": "3531",
+   "expected_result_tag": "3531",
+   "tag_ok": true,
+   "sha": "2162c6bc293deac48e2331a8b2d8e19dd21285d9929cb6cc754a4b44ee2e4db3",
+   "bytes": 165854,
+   "lines": 3108,
+   "repairs": [],
+   "ops": [
+    "PUT >77:"
+   ]
+  },
+  {
+   "seq": 152,
+   "label": "S813PrivacyFallbackSilver12:1888@2026-10-29T01:47:09.219Z",
+   "tool": "edit-patch",
+   "pre_tag": "3531",
+   "expected_pre_tag": "3531",
+   "pre_ok": true,
+   "tag": "77BF",
+   "expected_result_tag": "77BF",
+   "tag_ok": true,
+   "sha": "b184ac5164447ef5deb2cb99021baa7f99f344f5d13af5e585283bcd3ba67d63",
+   "bytes": 166268,
+   "lines": 3117,
+   "repairs": [],
+   "ops": [
+    "PUT 48.=63:"
+   ]
+  },
+  {
+   "seq": 153,
+   "label": "S813PrivacyFallbackSilver12:1894@2026-10-29T01:47:22.296Z",
+   "tool": "edit-patch",
+   "pre_tag": "77BF",
+   "expected_pre_tag": "77BF",
+   "pre_ok": true,
+   "tag": "958E",
+   "expected_result_tag": "958E",
+   "tag_ok": true,
+   "sha": "3086edd2dcb0eab67ad4eeb81c0ac96ae1a36b69f6af30e7f291f01c87729273",
+   "bytes": 166495,
+   "lines": 3122,
+   "repairs": [],
+   "ops": [
+    "PUT >107:"
+   ]
+  },
+  {
+   "seq": 154,
+   "label": "S813PrivacyFallbackSilver12:1903@2026-10-29T01:47:55.506Z",
+   "tool": "edit-patch",
+   "pre_tag": "958E",
+   "expected_pre_tag": "958E",
+   "pre_ok": true,
+   "tag": "9EEB",
+   "expected_result_tag": "9EEB",
+   "tag_ok": true,
+   "sha": "7b477b038cedc6d47f58a47cb063ff9f2d0bb49212f479b4476fcd91bf62a5e8",
+   "bytes": 169869,
+   "lines": 3178,
+   "repairs": [],
+   "ops": [
+    "PUT 769.=792:"
+   ]
+  },
+  {
+   "seq": 155,
+   "label": "S813PrivacyFallbackSilver12:1921@2026-10-29T01:49:17.761Z",
+   "tool": "edit-patch",
+   "pre_tag": "9EEB",
+   "expected_pre_tag": "9EEB",
+   "pre_ok": true,
+   "tag": "CDA6",
+   "expected_result_tag": "CDA6",
+   "tag_ok": true,
+   "sha": "91cff9aae51053b8c6099e044d152ab0d567f257d8a1d46ccdf9ebc0e5cd1d90",
+   "bytes": 170843,
+   "lines": 3200,
+   "repairs": [],
+   "ops": [
+    "PUT >112:"
+   ]
+  },
+  {
+   "seq": 157,
+   "label": "S813PrivacyFallbackSilver12:1930@2026-10-29T01:50:06.827Z",
+   "tool": "edit-patch",
+   "pre_tag": "CDA6",
+   "expected_pre_tag": "CDA6",
+   "pre_ok": true,
+   "tag": "3DB7",
+   "expected_result_tag": "3DB7",
+   "tag_ok": true,
+   "sha": "6caaed5bf5c2a0d600c5e169bc968b4166b0de6e47ce19fb929d1aca357bd015",
+   "bytes": 175664,
+   "lines": 3282,
+   "repairs": [],
+   "ops": [
+    "PUT 1930.=2100:"
+   ]
+  },
+  {
+   "seq": 158,
+   "label": "S813PrivacyFallbackSilver12:1939@2026-10-29T01:50:32.156Z",
+   "tool": "edit-patch",
+   "pre_tag": "3DB7",
+   "expected_pre_tag": "3DB7",
+   "pre_ok": true,
+   "tag": "74FD",
+   "expected_result_tag": "74FD",
+   "tag_ok": true,
+   "sha": "e2e236749a297b6d09e0d2078253696a393bf94077033c8084bdbf7e450ca4d3",
+   "bytes": 176284,
+   "lines": 3291,
+   "repairs": [],
+   "ops": [
+    "PUT 2385.=2387:",
+    "PUT 2409.=2420:",
+    "PUT 2492.=2498:"
+   ]
+  },
+  {
+   "seq": 159,
+   "label": "S813PrivacyFallbackSilver12:1945@2026-10-29T01:50:47.836Z",
+   "tool": "edit-patch",
+   "pre_tag": "74FD",
+   "expected_pre_tag": "74FD",
+   "pre_ok": true,
+   "tag": "78D0",
+   "expected_result_tag": "78D0",
+   "tag_ok": true,
+   "sha": "50b267ce4ca1775bb61f569f01c116e0720907f0ea0959729411a5859621f51b",
+   "bytes": 176300,
+   "lines": 3291,
+   "repairs": [],
+   "ops": [
+    "PUT 2953.=2953:",
+    "PUT 2955.=2955:"
+   ]
+  },
+  {
+   "seq": 160,
+   "label": "S813PrivacyFallbackSilver12:2149@2026-10-29T01:59:37.470Z",
+   "tool": "edit-patch",
+   "pre_tag": "78D0",
+   "expected_pre_tag": "78D0",
+   "pre_ok": true,
+   "tag": "3485",
+   "expected_result_tag": "3485",
+   "tag_ok": true,
+   "sha": "f4354836a6b6e010d731b01fb78e4e53f39494a4cf068752d68ed7632465b5cd",
+   "bytes": 176300,
+   "lines": 3291,
+   "repairs": [],
+   "ops": [
+    "PUT 24.=25:",
+    "PUT 140.=140:"
+   ]
+  },
+  {
+   "seq": 161,
+   "label": "S813PrivacyFallbackSilver12:2232@2026-10-29T02:06:52.853Z",
+   "tool": "edit-patch",
+   "pre_tag": "3485",
+   "expected_pre_tag": "3485",
+   "pre_ok": true,
+   "tag": "54DB",
+   "expected_result_tag": "7CD1",
+   "tag_ok": false,
+   "sha": "5f779aa1c48f2ef9242af1c737a1081b798595055a25688b6c0fe4c508f5e911",
+   "bytes": 176300,
+   "lines": 3291,
+   "repairs": [],
+   "ops": [
+    "PUT 24.=25:",
+    "PUT 140.=140:"
+   ]
+  },
+  {
+   "seq": 162,
+   "label": "S813PrivacyFallbackSilver12:2274@2026-10-29T02:10:54.990Z",
+   "tool": "edit-patch",
+   "pre_tag": "54DB",
+   "expected_pre_tag": "54DB",
+   "pre_ok": true,
+   "tag": "835B",
+   "expected_result_tag": "835B",
+   "tag_ok": true,
+   "sha": "4e08537283b2362bb2c65fde10e17819161a1c06d3d82d01cc5a2026b8bdc2ba",
+   "bytes": 176303,
+   "lines": 3291,
+   "repairs": [],
+   "ops": [
+    "PUT 262.=263:"
+   ]
+  },
+  {
+   "seq": 163,
+   "label": "S813PrivacyFallbackSilver12:2277@2026-10-29T02:11:03.047Z",
+   "tool": "edit-patch",
+   "pre_tag": "835B",
+   "expected_pre_tag": "835B",
+   "pre_ok": true,
+   "tag": "73FD",
+   "expected_result_tag": "69BA",
+   "tag_ok": false,
+   "sha": "21f710b28840a826c81e956b25d249c8e275dc815ad5df681db2ba2f5a955b62",
+   "bytes": 176303,
+   "lines": 3291,
+   "repairs": [],
+   "ops": [
+    "PUT 24.=25:",
+    "PUT 140.=140:"
+   ]
+  },
+  {
+   "seq": 164,
+   "label": "S813PrivacyFallbackSilver12:2304@2026-10-29T02:14:27.757Z",
+   "tool": "edit-patch",
+   "pre_tag": "73FD",
+   "expected_pre_tag": "73FD",
+   "pre_ok": true,
+   "tag": "E80A",
+   "expected_result_tag": "E80A",
+   "tag_ok": true,
+   "sha": "f52fba755526b4d289e2fba981245ef55ba09fc43d59bcc8aafc759fcca3dbd0",
+   "bytes": 176303,
+   "lines": 3291,
+   "repairs": [],
+   "ops": [
+    "PUT 260.=264:"
+   ]
+  },
+  {
+   "seq": 165,
+   "label": "S813PrivacyFallbackSilver12:2307@2026-10-29T02:14:33.288Z",
+   "tool": "edit-patch",
+   "pre_tag": "E80A",
+   "expected_pre_tag": "E80A",
+   "pre_ok": true,
+   "tag": "E2E4",
+   "expected_result_tag": "9E35",
+   "tag_ok": false,
+   "sha": "b9d0f654bd702d02bbc90a6b02280237b8afaabef4c1e8349e4a47a533b396fb",
+   "bytes": 176303,
+   "lines": 3291,
+   "repairs": [],
+   "ops": [
+    "PUT 24.=25:",
+    "PUT 140.=140:"
+   ]
+  },
+  {
+   "seq": 166,
+   "label": "S813PrivacyFallbackSilver12:2623@2026-10-29T02:35:38.438Z",
+   "tool": "edit-patch",
+   "pre_tag": "E2E4",
+   "expected_pre_tag": "E2E4",
+   "pre_ok": true,
+   "tag": "A67E",
+   "expected_result_tag": "A67E",
+   "tag_ok": true,
+   "sha": "8ddab1877432382cf231239b8b4b5ca5780af0d46b34f7bb7a05333f2510d0d3",
+   "bytes": 176971,
+   "lines": 3312,
+   "repairs": [],
+   "ops": [
+    "PUT >134:"
+   ]
+  },
+  {
+   "seq": 167,
+   "label": "S813PrivacyFallbackSilver12:2629@2026-10-29T02:36:00.098Z",
+   "tool": "edit-patch",
+   "pre_tag": "A67E",
+   "expected_pre_tag": "A67E",
+   "pre_ok": true,
+   "tag": "A706",
+   "expected_result_tag": "A706",
+   "tag_ok": true,
+   "sha": "d2d38155a3bdb0464c6f0e867987a17f590c92513a2c6efd16a20c4cb13db054",
+   "bytes": 177156,
+   "lines": 3315,
+   "repairs": [],
+   "ops": [
+    "PUT 280.=287:"
+   ]
+  },
+  {
+   "seq": 168,
+   "label": "S813PrivacyFallbackSilver12:2635@2026-10-29T02:36:19.374Z",
+   "tool": "edit-patch",
+   "pre_tag": "A706",
+   "expected_pre_tag": "A706",
+   "pre_ok": true,
+   "tag": "733D",
+   "expected_result_tag": "733D",
+   "tag_ok": true,
+   "sha": "de25ded3424d90d7bd11709f3ab090bb0c6ffadbcad561e19be126586532972a",
+   "bytes": 177432,
+   "lines": 3321,
+   "repairs": [],
+   "ops": [
+    "PUT >55:"
+   ]
+  },
+  {
+   "seq": 169,
+   "label": "S813PrivacyFallbackSilver12:2644@2026-10-29T02:36:49.399Z",
+   "tool": "edit-patch",
+   "pre_tag": "733D",
+   "expected_pre_tag": "733D",
+   "pre_ok": true,
+   "tag": "18EC",
+   "expected_result_tag": "18EC",
+   "tag_ok": true,
+   "sha": "d3b2a3e2afeea985d6a8a02fc5809df7af02ea2330c35d3a03342d5d1da3d613",
+   "bytes": 177939,
+   "lines": 3330,
+   "repairs": [],
+   "ops": [
+    "PUT 821.=841:"
+   ]
+  },
+  {
+   "seq": 170,
+   "label": "S813PrivacyFallbackSilver12:2650@2026-10-29T02:37:02.547Z",
+   "tool": "edit-patch",
+   "pre_tag": "18EC",
+   "expected_pre_tag": "18EC",
+   "pre_ok": true,
+   "tag": "3A2B",
+   "expected_result_tag": "3A2B",
+   "tag_ok": true,
+   "sha": "8d808870cddc44892cb29838970e78ad0cba1a5656e37f0a7e385e399a93da79",
+   "bytes": 178087,
+   "lines": 3332,
+   "repairs": [],
+   "ops": [
+    "PUT 859.=873:"
+   ]
+  },
+  {
+   "seq": 171,
+   "label": "S813PrivacyFallbackSilver12:2653@2026-10-29T02:37:17.841Z",
+   "tool": "edit-patch",
+   "pre_tag": "3A2B",
+   "expected_pre_tag": "3A2B",
+   "pre_ok": true,
+   "tag": "0497",
+   "expected_result_tag": "0497",
+   "tag_ok": true,
+   "sha": "a6377216300cc1f96a5b3d8a6b80baae444818742c5bf44f165740d34a7a3f41",
+   "bytes": 178620,
+   "lines": 3343,
+   "repairs": [],
+   "ops": [
+    "PUT >875:"
+   ]
+  },
+  {
+   "seq": 172,
+   "label": "S813PrivacyFallbackSilver12:2656@2026-10-29T02:37:26.288Z",
+   "tool": "edit-patch",
+   "pre_tag": "0497",
+   "expected_pre_tag": "0497",
+   "pre_ok": true,
+   "tag": "D4B2",
+   "expected_result_tag": "D4B2",
+   "tag_ok": true,
+   "sha": "baabbf97c398c510dd3bd90001547f24f557e468777776045fb6c9d500c91d85",
+   "bytes": 180231,
+   "lines": 3375,
+   "repairs": [],
+   "ops": [
+    "PUT >901:",
+    "PUT >918:"
+   ]
+  },
+  {
+   "seq": 173,
+   "label": "S813PrivacyFallbackSilver12:2665@2026-10-29T02:37:54.762Z",
+   "tool": "edit-patch",
+   "pre_tag": "D4B2",
+   "expected_pre_tag": "D4B2",
+   "pre_ok": true,
+   "tag": "5685",
+   "expected_result_tag": "5685",
+   "tag_ok": true,
+   "sha": "52f56121a18d55afdad9b69573b23ef64ceb54cd693db6ef476742384a610c70",
+   "bytes": 180613,
+   "lines": 3379,
+   "repairs": [],
+   "ops": [
+    "PUT 2083.=2092:"
+   ]
+  },
+  {
+   "seq": 174,
+   "label": "S813PrivacyFallbackSilver12:2671@2026-10-29T02:38:15.540Z",
+   "tool": "edit-patch",
+   "pre_tag": "5685",
+   "expected_pre_tag": "5685",
+   "pre_ok": true,
+   "tag": "DE9B",
+   "expected_result_tag": "DE9B",
+   "tag_ok": true,
+   "sha": "17d7020e887961dd468e2d11145edf7887dd426db73e8e1ca4355e30392743c1",
+   "bytes": 180784,
+   "lines": 3382,
+   "repairs": [],
+   "ops": [
+    "PUT <2097:"
+   ]
+  },
+  {
+   "seq": 175,
+   "label": "S813PrivacyFallbackSilver12:2677@2026-10-29T02:38:33.720Z",
+   "tool": "edit-patch",
+   "pre_tag": "DE9B",
+   "expected_pre_tag": "DE9B",
+   "pre_ok": true,
+   "tag": "E75B",
+   "expected_result_tag": "E75B",
+   "tag_ok": true,
+   "sha": "16ecec597f1eacd1c175181d84209580996a57c8353cf7a2db1b635294554e1c",
+   "bytes": 181005,
+   "lines": 3385,
+   "repairs": [],
+   "ops": [
+    "PUT 2107.=2124:"
+   ]
+  },
+  {
+   "seq": 176,
+   "label": "S813PrivacyFallbackSilver12:2683@2026-10-29T02:38:54.326Z",
+   "tool": "edit-patch",
+   "pre_tag": "E75B",
+   "expected_pre_tag": "E75B",
+   "pre_ok": true,
+   "tag": "6C65",
+   "expected_result_tag": "6C65",
+   "tag_ok": true,
+   "sha": "4407edb6ea210bfa0551c6a6be12ae4b00e8881681273d7e51cf98dc7443175e",
+   "bytes": 181117,
+   "lines": 3387,
+   "repairs": [],
+   "ops": [
+    "PUT 2130.=2142:"
+   ]
+  },
+  {
+   "seq": 177,
+   "label": "S813PrivacyFallbackSilver12:2689@2026-10-29T02:39:11.580Z",
+   "tool": "edit-patch",
+   "pre_tag": "6C65",
+   "expected_pre_tag": "6C65",
+   "pre_ok": true,
+   "tag": "7645",
+   "expected_result_tag": "7645",
+   "tag_ok": true,
+   "sha": "dba242a502673219be1137c64191deb284f61f74e1997607f8ae964dd02204ab",
+   "bytes": 181253,
+   "lines": 3389,
+   "repairs": [],
+   "ops": [
+    "PUT 2154.=2162:",
+    "PUT 2166.=2173:"
+   ]
+  },
+  {
+   "seq": 178,
+   "label": "S813PrivacyFallbackSilver12:2695@2026-10-29T02:39:27.529Z",
+   "tool": "edit-patch",
+   "pre_tag": "7645",
+   "expected_pre_tag": "7645",
+   "pre_ok": true,
+   "tag": "A59B",
+   "expected_result_tag": "A59B",
+   "tag_ok": true,
+   "sha": "932f3f3953681e7f7a8a4578007d5122fd1187d77824145f1203a7c8639a972e",
+   "bytes": 181719,
+   "lines": 3395,
+   "repairs": [],
+   "ops": [
+    "PUT 2194.=2219:"
+   ]
+  },
+  {
+   "seq": 179,
+   "label": "S813PrivacyFallbackSilver12:2704@2026-10-29T02:39:48.454Z",
+   "tool": "edit-patch",
+   "pre_tag": "A59B",
+   "expected_pre_tag": "A59B",
+   "pre_ok": true,
+   "tag": "6549",
+   "expected_result_tag": "6549",
+   "tag_ok": true,
+   "sha": "e822888b3e805505b48e32802512fcf5d5a8f80fb7316ebf5ce581f11bf155e5",
+   "bytes": 181792,
+   "lines": 3396,
+   "repairs": [],
+   "ops": [
+    "PUT >2248:"
+   ]
+  },
+  {
+   "seq": 180,
+   "label": "S813PrivacyFallbackSilver12:2710@2026-10-29T02:40:04.800Z",
+   "tool": "edit-patch",
+   "pre_tag": "6549",
+   "expected_pre_tag": "6549",
+   "pre_ok": true,
+   "tag": "8C1A",
+   "expected_result_tag": "8C1A",
+   "tag_ok": true,
+   "sha": "be08997a0fde0bd16275bcbe8a2d0d5138868675834bdd44e7d6f3c8c71fd632",
+   "bytes": 181893,
+   "lines": 3397,
+   "repairs": [],
+   "ops": [
+    "PUT 2494.=2494:"
+   ]
+  },
+  {
+   "seq": 181,
+   "label": "S813PrivacyFallbackSilver12:2730@2026-10-29T02:41:02.854Z",
+   "tool": "edit-patch",
+   "pre_tag": "8C1A",
+   "expected_pre_tag": "8C1A",
+   "pre_ok": true,
+   "tag": "7654",
+   "expected_result_tag": "7654",
+   "tag_ok": true,
+   "sha": "50220737ca411d33a9a40a12f3bbd0572276c5a419895f4ece958dd72217a0a5",
+   "bytes": 181909,
+   "lines": 3398,
+   "repairs": [],
+   "ops": [
+    "PUT >296:"
+   ]
+  },
+  {
+   "seq": 182,
+   "label": "S813PrivacyFallbackSilver12:2868@2026-10-29T02:45:56.624Z",
+   "tool": "edit-patch",
+   "pre_tag": "7654",
+   "expected_pre_tag": "7654",
+   "pre_ok": true,
+   "tag": "6B1C",
+   "expected_result_tag": "6B1C",
+   "tag_ok": true,
+   "sha": "6ec75871ec301297408d9055e02cfa4cf2361a82ff35c448b9a57224e1b3fb94",
+   "bytes": 182057,
+   "lines": 3400,
+   "repairs": [],
+   "ops": [
+    "CUT 2095.=2097",
+    "PUT 2147.=2150:"
+   ]
+  },
+  {
+   "seq": 183,
+   "label": "S813PrivacyFallbackSilver12:2874@2026-10-29T02:46:08.654Z",
+   "tool": "edit-patch",
+   "pre_tag": "6B1C",
+   "expected_pre_tag": "6B1C",
+   "pre_ok": true,
+   "tag": "786C",
+   "expected_result_tag": "786C",
+   "tag_ok": true,
+   "sha": "1a67316d9156fedbf2fb74379d88c9e83e98217aabe324e38e0eaa4d9d4e976d",
+   "bytes": 182437,
+   "lines": 3411,
+   "repairs": [],
+   "ops": [
+    "PUT 837.=851:"
+   ]
+  },
+  {
+   "seq": 184,
+   "label": "S813PrivacyFallbackSilver12:2901@2026-10-29T02:48:33.108Z",
+   "tool": "edit-patch",
+   "pre_tag": "786C",
+   "expected_pre_tag": "786C",
+   "pre_ok": true,
+   "tag": "AFC0",
+   "expected_result_tag": "AFC0",
+   "tag_ok": true,
+   "sha": "cef063070bd68c6954af57dff9eba166d4dea09c6e7bcac63e03e308fb77a935",
+   "bytes": 182443,
+   "lines": 3411,
+   "repairs": [],
+   "ops": [
+    "PUT 24.=25:",
+    "PUT 167.=167:"
+   ]
+  },
+  {
+   "seq": 185,
+   "label": "S813PrivacyFallbackSilver12:2913@2026-10-29T02:48:46.524Z",
+   "tool": "edit-patch",
+   "pre_tag": "AFC0",
+   "expected_pre_tag": "AFC0",
+   "pre_ok": true,
+   "tag": "AC93",
+   "expected_result_tag": "AC93",
+   "tag_ok": true,
+   "sha": "3ee91bcf293fdf3c4211eb344e96a65984afd8cfda777fbe0a5f96be88f72e6a",
+   "bytes": 182437,
+   "lines": 3411,
+   "repairs": [],
+   "ops": [
+    "PUT 24.=25:",
+    "PUT 167.=167:"
+   ]
+  },
+  {
+   "seq": 186,
+   "label": "S813PrivacyFallbackSilver12:2954@2026-10-29T02:52:50.330Z",
+   "tool": "edit-patch",
+   "pre_tag": "AC93",
+   "expected_pre_tag": "AC93",
+   "pre_ok": true,
+   "tag": "7016",
+   "expected_result_tag": "7016",
+   "tag_ok": true,
+   "sha": "23267b3de9aeb7c7b0454a1e1e932b2b17d45b1a58a11be4e240cee04d8b6f1f",
+   "bytes": 182538,
+   "lines": 3412,
+   "repairs": [],
+   "ops": [
+    "PUT >2094:"
+   ]
+  },
+  {
+   "seq": 196,
+   "label": "S813PrivacyFallbackSilver12:2991@2026-10-29T02:54:04.751Z",
+   "tool": "edit-patch",
+   "pre_tag": "7016",
+   "expected_pre_tag": "7016",
+   "pre_ok": true,
+   "tag": "E1FA",
+   "expected_result_tag": "E1FA",
+   "tag_ok": true,
+   "sha": "ad8089ba44cd06b9eabd17e20c7f4553da3f32f89af7d78c01f5226231d98899",
+   "bytes": 182595,
+   "lines": 3415,
+   "repairs": [],
+   "ops": [
+    "PUT 2095.=2095:"
+   ]
+  },
+  {
+   "seq": 197,
+   "label": "S813PrivacyFallbackSilver12:3012@2026-10-29T02:55:55.224Z",
+   "tool": "edit-patch",
+   "pre_tag": "E1FA",
+   "expected_pre_tag": "E1FA",
+   "pre_ok": true,
+   "tag": "AAF6",
+   "expected_result_tag": "AAF6",
+   "tag_ok": true,
+   "sha": "99dae1219e909f61e65de321d3a511a1fef34fa02583240a23f334240945a24e",
+   "bytes": 182595,
+   "lines": 3415,
+   "repairs": [],
+   "ops": [
+    "PUT 24.=25:",
+    "PUT 167.=167:"
+   ]
+  },
+  {
+   "seq": 198,
+   "label": "S813MetadataQualificationGold13:353@2026-10-29T03:37:28.343Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "3433",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "fa8c83f57a418cfe9f0f58a43f07831dbe310624617444bf6619cb14b64d6d49",
+   "bytes": 182595,
+   "lines": 3415
+  },
+  {
+   "seq": 199,
+   "label": "S813MetadataQualificationGold13:353@2026-10-29T03:37:28.343Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "6D90",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "3aee83581df78dac0ff47673a0325ef27e7f38f8978f971baf25df0eb696dfee",
+   "bytes": 182595,
+   "lines": 3415
+  },
+  {
+   "seq": 200,
+   "label": "S813MetadataQualificationGold13:358@2026-10-29T03:37:36.599Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "F17E",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "7d02658e23c28c26aaf60d0a0358e965df83f39c873dddc38f24e0741b7100c4",
+   "bytes": 183061,
+   "lines": 3425
+  },
+  {
+   "seq": 201,
+   "label": "S813MetadataQualificationGold13:361@2026-10-29T03:37:43.092Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "505B",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "017c0647f619914fe41ab62c8f93e45db5731b61ac2caec8f3c5d72d59a5751f",
+   "bytes": 183991,
+   "lines": 3447
+  },
+  {
+   "seq": 202,
+   "label": "S813MetadataQualificationGold13:364@2026-10-29T03:37:48.931Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "F1C6",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "b5d5077ce5b1de4879c3acfa7f06fe666787ff9c21eabcb4f503feeb50f22907",
+   "bytes": 185048,
+   "lines": 3472
+  },
+  {
+   "seq": 203,
+   "label": "S813MetadataQualificationGold13:367@2026-10-29T03:38:02.843Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "0F7F",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "de06946a58bcd62071933eb42d2c0ffd69eedac8a3adcd2a0d2c5a1f6e599295",
+   "bytes": 185050,
+   "lines": 3474
+  },
+  {
+   "seq": 204,
+   "label": "S813MetadataQualificationGold13:376@2026-10-29T03:38:20.972Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "E6D6",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "673c485f1c3e9e7146d51bff68f739f207711db93ee5bc313035d7334ceaa76e",
+   "bytes": 186693,
+   "lines": 3512
+  },
+  {
+   "seq": 205,
+   "label": "S813MetadataQualificationGold13:379@2026-10-29T03:38:25.866Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "1362",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "35dd9521c849826998de1c7445db4c56b1035c67d81a18eb88abc23b63cc7cdb",
+   "bytes": 187468,
+   "lines": 3530
+  },
+  {
+   "seq": 206,
+   "label": "S813MetadataQualificationGold13:385@2026-10-29T03:38:44.524Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "722F",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "08f59d40a0d9c218430c30a2a540f886d4443487ec31ed6f7fcd467b4731364e",
+   "bytes": 187736,
+   "lines": 3534
+  },
+  {
+   "seq": 207,
+   "label": "S813MetadataQualificationGold13:388@2026-10-29T03:38:50.681Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "9B3B",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "6e7f6bac0e808f812fd650ce55cb3a78c7531908d5515cd7bb5bc3b2b3aad5f3",
+   "bytes": 188367,
+   "lines": 3545
+  },
+  {
+   "seq": 208,
+   "label": "S813MetadataQualificationGold13:388@2026-10-29T03:38:50.681Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "BEEF",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "92ee552ad4bd6bf8661c6accd0e181752ac539ab697da340959166fdd3d38b4b",
+   "bytes": 188387,
+   "lines": 3545
+  },
+  {
+   "seq": 209,
+   "label": "S813MetadataQualificationGold13:393@2026-10-29T03:38:56.994Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "A2AE",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "b7465340b03bcab328cda1214722645db7cac320c4da59938c2ac10d35796b95",
+   "bytes": 188442,
+   "lines": 3546
+  },
+  {
+   "seq": 210,
+   "label": "S813MetadataQualificationGold13:393@2026-10-29T03:38:56.994Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "4D3A",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "b17e4d68b0912402dce4df00f8688bbaf662603c86f720ac66e04c8cb2e60fb1",
+   "bytes": 188481,
+   "lines": 3547
+  },
+  {
+   "seq": 211,
+   "label": "S813MetadataQualificationGold13:398@2026-10-29T03:39:01.411Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "D94D",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "47de60399accc0f0e1723113a1fd79226662455e01468deed857f03be0622a99",
+   "bytes": 188695,
+   "lines": 3551
+  },
+  {
+   "seq": 212,
+   "label": "S813MetadataQualificationGold13:398@2026-10-29T03:39:01.411Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "0243",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "b5cfc3b1604dc955a9c0040a011d4ca6fcd8066728e82a1bf48c821ff041f826",
+   "bytes": 188755,
+   "lines": 3552
+  },
+  {
+   "seq": 213,
+   "label": "S813MetadataQualificationGold13:403@2026-10-29T03:39:08.687Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "0310",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "95f5a1102e1c2287cf24de867a9c22dffe536125943e19e678d20df551137688",
+   "bytes": 189108,
+   "lines": 3559
+  },
+  {
+   "seq": 214,
+   "label": "S813MetadataQualificationGold13:403@2026-10-29T03:39:08.687Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "4FB8",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "62b75a8ba028d18a637e78181252052c788e8edafa6c642b4a052074cc263f5d",
+   "bytes": 189180,
+   "lines": 3560
+  },
+  {
+   "seq": 215,
+   "label": "S813MetadataQualificationGold13:423@2026-10-29T03:39:47.141Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "E258",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "29fb4e2923722d99ed5f5e6052abbb9920c48829239b3e866be5d5914a204885",
+   "bytes": 189210,
+   "lines": 3561
+  },
+  {
+   "seq": 216,
+   "label": "S813MetadataQualificationGold13:457@2026-10-29T03:42:02.666Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "31D7",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "e769c1dcd37adec8636f01f7bb32571c2c889a390024c083f1491f8ba35185c1",
+   "bytes": 189329,
+   "lines": 3566
+  },
+  {
+   "seq": 217,
+   "label": "S813MetadataQualificationGold13:556@2026-10-29T03:48:01.632Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "A0FD",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "e6c8fa24d9fe40e4c0e23a7109cacbf5ea97286c665a82b8726080562f806c15",
+   "bytes": 189329,
+   "lines": 3566
+  },
+  {
+   "seq": 218,
+   "label": "S813MetadataQualificationGold13:556@2026-10-29T03:48:01.632Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "72D6",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "1b2c242beac1b7ab62f8e57a706ee73efb32673d9de361ddd5c5c2a01341d29c",
+   "bytes": 189329,
+   "lines": 3566
+  },
+  {
+   "seq": 219,
+   "label": "S813ResumeGold16:403@2026-10-29T08:18:38.595Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "7424",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "d0481f6d4e2069140ceb8d8d7f22c7c32e2ff77f4497d9ad37810b95231e55cc",
+   "bytes": 189967,
+   "lines": 3574
+  },
+  {
+   "seq": 220,
+   "label": "S813ResumeGold16:417@2026-10-29T08:22:51.596Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "D925",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "82c91cb6399ab5baa837b90ea86b3232309c35d527d7b0f1ac775daefe4b5405",
+   "bytes": 191245,
+   "lines": 3605
+  },
+  {
+   "seq": 221,
+   "label": "S813ResumeGold16:427@2026-10-29T08:23:32.184Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "3A7D",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "c632086f1a3c5f18048ebf38abec910637ba4be8a16a1fc7981bc85b7cf49b35",
+   "bytes": 195013,
+   "lines": 3673
+  },
+  {
+   "seq": 222,
+   "label": "S813ResumeGold16:439@2026-10-29T08:23:49.644Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "8027",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "81dbecd5a6c8ec18600c207ddd541291f6871c61d378815b2d46005f337cb56e",
+   "bytes": 194833,
+   "lines": 3672
+  },
+  {
+   "seq": 223,
+   "label": "S813ResumeGold16:445@2026-10-29T08:23:57.770Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "BF0C",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "6860338bb334fab8e94f224958e015a42014dd43caf1c23ea87aa58056bf5605",
+   "bytes": 194901,
+   "lines": 3673
+  },
+  {
+   "seq": 224,
+   "label": "S813ResumeGold16:448@2026-10-29T08:24:01.554Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "6EC1",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "37a5405f311cdd78e43ac01f5771eb7bb82e60574621208276f7308c324f9a54",
+   "bytes": 194815,
+   "lines": 3673
+  },
+  {
+   "seq": 225,
+   "label": "S813ResumeGold16:451@2026-10-29T08:24:06.078Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "B5A9",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "13f1f78de79722b15469a272d385a42b9fe78a0b5448b59862bae9ceeb6b4929",
+   "bytes": 195246,
+   "lines": 3679
+  },
+  {
+   "seq": 226,
+   "label": "S813ResumeGold16:460@2026-10-29T08:24:20.001Z",
+   "tool": "edit-oldnew",
+   "occurrences": 2,
+   "tag": "4C44",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "56b17751f2810f9707f45288415769f93f2f47182e7a93c34d51b06f309d833a",
+   "bytes": 195378,
+   "lines": 3681
+  },
+  {
+   "seq": 227,
+   "label": "S813ResumeGold16:466@2026-10-29T08:24:28.376Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "382C",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "9af4e22e2d929caea52254f2bbc18a728273b3bbc0750e93652bc97904fa5ffb",
+   "bytes": 195432,
+   "lines": 3682
+  },
+  {
+   "seq": 228,
+   "label": "S813ResumeGold16:472@2026-10-29T08:24:41.314Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "B5BE",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "2307459e4d72c378cb3083ce9041b98125461b3ec156305a2cf26723cd6ae5b5",
+   "bytes": 195743,
+   "lines": 3688
+  },
+  {
+   "seq": 229,
+   "label": "S813ResumeGold16:484@2026-10-29T08:25:35.742Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "C400",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "47c348ba8855e6636c16c28a3eae22708296ca34ef58ea411bf4ffb6c6ebf696",
+   "bytes": 205988,
+   "lines": 3888
+  },
+  {
+   "seq": 230,
+   "label": "S813ResumeGold16:490@2026-10-29T08:25:49.106Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "1D34",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "8fcb7c6885b34634a1872e0c8024a62d5f731a159a8aa6a70bfc2a592a20d304",
+   "bytes": 206251,
+   "lines": 3894
+  },
+  {
+   "seq": 231,
+   "label": "S813ResumeGold16:585@2026-10-29T08:30:51.901Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "58CC",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "87e0d61e9e81736bc69f2f0fa650dc970a736e8a367ff3542b6b073b0e6e75f6",
+   "bytes": 206849,
+   "lines": 3903
+  },
+  {
+   "seq": 232,
+   "label": "S813ResumeGold16:588@2026-10-29T08:31:02.476Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "9E61",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "88acda1f074a8e67d53133b53537911073d744ca4263d2792728b797a6e91416",
+   "bytes": 206849,
+   "lines": 3903
+  },
+  {
+   "seq": 233,
+   "label": "S813ResumeGold16:591@2026-10-29T08:31:08.161Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "CAE7",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "f8b6160e5fcc0bccdea94b6e4f996200660f7a99e730b7dbe8f1aef71086c39a",
+   "bytes": 206849,
+   "lines": 3903
+  },
+  {
+   "seq": 234,
+   "label": "S813ResumeGold16:708@2026-10-29T08:40:38.994Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "374E",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "a2df915ff31c25f3768bd5b2a39eb22ec0540e6b1258cd11fca1918efddec7a6",
+   "bytes": 206849,
+   "lines": 3903
+  },
+  {
+   "seq": 235,
+   "label": "S813ResumeGold16:708@2026-10-29T08:40:38.994Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "DE36",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "03508fe5a85de89998447f311666c50fde38c3f8d4f23495ac2ca8fb81fce095",
+   "bytes": 206849,
+   "lines": 3903
+  },
+  {
+   "seq": 236,
+   "label": "S813ResumeGold16:737@2026-10-29T08:45:39.759Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "EF9A",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "b7f72748dddc6d039cb05a7d9e4416ddcb93fd8a2c15394e6819ae57a12cf076",
+   "bytes": 207565,
+   "lines": 3921
+  },
+  {
+   "seq": 238,
+   "label": "S813ResumeGold16:746@2026-10-29T08:45:56.368Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "4C0D",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "334b200141ce609962d4db63cbb4e31dc4232ce168abe32b1435396ef52141a9",
+   "bytes": 207717,
+   "lines": 3923
+  },
+  {
+   "seq": 239,
+   "label": "S813ResumeGold16:749@2026-10-29T08:46:05.195Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "8F67",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "8c50b9cdbcd8ee42ae5ec12f134974914781cd636825568f19ed9529439b6307",
+   "bytes": 207717,
+   "lines": 3923
+  },
+  {
+   "seq": 240,
+   "label": "S813ResumeGold16:755@2026-10-29T08:46:14.531Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "D1A9",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "02851994993bf3a1dbf74ab4fbe14fa2092053e79bb262e0712ee797ceb7b692",
+   "bytes": 207887,
+   "lines": 3925
+  },
+  {
+   "seq": 241,
+   "label": "S813ResumeGold16:758@2026-10-29T08:46:22.029Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "6FE7",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "91078144c3b3c52829bc89fce004da06e09ab6fca90dac113bf505c9912282d5",
+   "bytes": 208601,
+   "lines": 3936
+  },
+  {
+   "seq": 242,
+   "label": "S813ResumeGold16:761@2026-10-29T08:46:28.004Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "478F",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "67a31343f304815be758ffb3e086eaf6742c57f13014c1c578a30c59d9d64053",
+   "bytes": 208566,
+   "lines": 3935
+  },
+  {
+   "seq": 243,
+   "label": "S813ResumeGold16:788@2026-10-29T08:47:27.127Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "2F96",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "8558022ee6685ed0c8862def467328c7028823deedb89268bb3b9d1c8ab354eb",
+   "bytes": 208566,
+   "lines": 3935
+  },
+  {
+   "seq": 244,
+   "label": "S813ResumeGold16:788@2026-10-29T08:47:27.127Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "8E2E",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "e77e0ed7998e26cb5f53c42189e9da5078faa58d6cbe9663c9e4ff022d5406e8",
+   "bytes": 208566,
+   "lines": 3935
+  },
+  {
+   "seq": 245,
+   "label": "S813ResumeGold16:1103@2026-10-29T09:18:10.500Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "6A3B",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "630ac77385a50c9fea43da4214d9fa2e557b437dfaa44a7c93e4d811406613bd",
+   "bytes": 208566,
+   "lines": 3935
+  },
+  {
+   "seq": 246,
+   "label": "S813ResumeGold16:1103@2026-10-29T09:18:10.500Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "DD96",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "d4c80957d66c0ec4fa5c945767af865fde8ce2a93e3e2faa0e0e4d0efd3d0a25",
+   "bytes": 208600,
+   "lines": 3935
+  },
+  {
+   "seq": 247,
+   "label": "S813ResumeGold16:1103@2026-10-29T09:18:10.500Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "4844",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "c88df26653dac0b1fef41a0bdc6579e9311fc2020f7c556896f20dd24777bb92",
+   "bytes": 208634,
+   "lines": 3935
+  },
+  {
+   "seq": 248,
+   "label": "S813ResumeGold16:1103@2026-10-29T09:18:10.500Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "D6C8",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "f4dadece4fa43b1814f873f9e91812f0e031b22f110f5bee75b9af78e959bf33",
+   "bytes": 208668,
+   "lines": 3935
+  },
+  {
+   "seq": 249,
+   "label": "S813ResumeGold16:1103@2026-10-29T09:18:10.500Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "156D",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "68c9de6087600f1ecb2b3c6cb520475b4a671a3ea7898d8ff3cdc2b5bd0fba33",
+   "bytes": 208702,
+   "lines": 3935
+  },
+  {
+   "seq": 250,
+   "label": "S813ResumeGold16:1166@2026-10-29T09:20:18.095Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "A4F4",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "6bd390d137c2e4686ac4c52ee6c7651e7a3a7471547693d01dc9bf3ca43318f7",
+   "bytes": 209105,
+   "lines": 3940
+  },
+  {
+   "seq": 251,
+   "label": "S813ResumeGold16:1172@2026-10-29T09:20:33.231Z",
+   "tool": "edit-oldnew",
+   "occurrences": 3,
+   "tag": "3649",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "2ba27b0f09cbf58e634db33fe1379a91f5cd686d2fb94b6ab1621f8fee89f832",
+   "bytes": 209054,
+   "lines": 3940
+  },
+  {
+   "seq": 252,
+   "label": "S813ResumeGold16:1175@2026-10-29T09:20:39.905Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "3EA9",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "5ef23300f8cf7ec4c3388db3c7406f85e75a271eb8f2c783fdde441cb5f6bf12",
+   "bytes": 209232,
+   "lines": 3942
+  },
+  {
+   "seq": 253,
+   "label": "S813ResumeGold16:1175@2026-10-29T09:20:39.905Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "FB60",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "b7530f485975f8c6e1288dc29478c40ef8c59f36129b77b10b1338fc3af7273d",
+   "bytes": 209304,
+   "lines": 3943
+  },
+  {
+   "seq": 254,
+   "label": "S813ResumeGold16:1210@2026-10-29T09:25:22.201Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "C2F0",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "d67afebeb0a8fd35401c495ce991825f192b7663d5191548ea82aee66e32f9f0",
+   "bytes": 209304,
+   "lines": 3943
+  },
+  {
+   "seq": 255,
+   "label": "S813ResumeGold16:1210@2026-10-29T09:25:22.201Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "2B8D",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "1cb6bff5e1a502f489d7db950219d910febf65312a1fc008c3281a0d5dfa6584",
+   "bytes": 209304,
+   "lines": 3943
+  },
+  {
+   "seq": 256,
+   "label": "S813ResumeGold16:1254@2026-10-29T09:30:33.826Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "097A",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "f42aa23a204d3b6e395ed1c8f97c389ef1d780a6a9c87adeecfe9dda4880370e",
+   "bytes": 209358,
+   "lines": 3944
+  },
+  {
+   "seq": 257,
+   "label": "S813ResumeGold16:1496@2026-10-29T09:37:46.993Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "2B8D",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "1cb6bff5e1a502f489d7db950219d910febf65312a1fc008c3281a0d5dfa6584",
+   "bytes": 209304,
+   "lines": 3943
+  },
+  {
+   "seq": 258,
+   "label": "S813ResumeGold16:1805@2026-10-29T09:58:24.348Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "2B0E",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "35c56bc8bf7e1f9890b38f9e95209abf32a3ba18c628313ee729abe7d08728ae",
+   "bytes": 209753,
+   "lines": 3948
+  },
+  {
+   "seq": 259,
+   "label": "S813ResumeGold16:1805@2026-10-29T09:58:24.348Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "7CF3",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "ca8ffd87c8c96fa9bf306abcb6836e2c0d232211e4024db36d4095f0c5032d48",
+   "bytes": 210140,
+   "lines": 3954
+  },
+  {
+   "seq": 260,
+   "label": "S813ResumeGold16:1867@2026-10-29T09:59:44.398Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "EC5C",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "7994513533b4c6a20fb20b6eee187a4ecaf5db506213b16c73c760e7cb356133",
+   "bytes": 210309,
+   "lines": 3956
+  },
+  {
+   "seq": 261,
+   "label": "S813ResumeGold16:1879@2026-10-29T09:59:58.834Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "01E5",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "16dedd44cf49edd20286fe4a5af79094ccb178044e3a2bdd0810c0dd9bffdd4c",
+   "bytes": 210376,
+   "lines": 3957
+  },
+  {
+   "seq": 262,
+   "label": "S813ResumeGold16:1882@2026-10-29T10:00:04.262Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "D964",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "b6bb7d667e7a21e09f141f110b8b7efe23f074ccfcdbb8f2ffec33f8edf38250",
+   "bytes": 210540,
+   "lines": 3961
+  },
+  {
+   "seq": 263,
+   "label": "S813ResumeGold16:1888@2026-10-29T10:00:14.907Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "F376",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "5b67f8c799c4493370799e36bb0fdf891ebd11355374dfcadb362a5aaa49faf1",
+   "bytes": 211622,
+   "lines": 3979
+  },
+  {
+   "seq": 264,
+   "label": "S813ResumeGold16:1894@2026-10-29T10:00:26.550Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "FD9E",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "037578d13ee0b4568e455938908c25711d5e56e4ca7196163eb29ad416650df8",
+   "bytes": 212385,
+   "lines": 3993
+  },
+  {
+   "seq": 265,
+   "label": "S813ResumeGold16:1894@2026-10-29T10:00:26.550Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "9577",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "7df20c7e1c6f234c6cf44584c01c551be55611f420440cd3c2e685b836868e84",
+   "bytes": 212477,
+   "lines": 3994
+  },
+  {
+   "seq": 266,
+   "label": "S813ResumeGold16:1899@2026-10-29T10:00:32.426Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "D06D",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "8243f006086b65bb1407e7363e1adae3f90ea8b7f38da2cce584d5e6e5e1a977",
+   "bytes": 212804,
+   "lines": 3998
+  },
+  {
+   "seq": 267,
+   "label": "S813ResumeGold16:1899@2026-10-29T10:00:32.426Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "4D10",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "b2475b10755fe03543482faf364f4bb20c60de2208a2b41075953679e1d99ba3",
+   "bytes": 212975,
+   "lines": 4001
+  },
+  {
+   "seq": 268,
+   "label": "S813ResumeGold16:1914@2026-10-29T10:00:58.117Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "2E66",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "0a2e4d4a9ac63d78b569a63b002ee0255d49df3b1c5f0a6539f4528904a2c299",
+   "bytes": 213590,
+   "lines": 4014
+  },
+  {
+   "seq": 269,
+   "label": "S813ResumeGold16:1914@2026-10-29T10:00:58.117Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "D194",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "b32e21cec5fffe830fa85c848fcdc124e6ecfcf6fc4e260ed184b087fcc130ad",
+   "bytes": 213589,
+   "lines": 4013
+  },
+  {
+   "seq": 270,
+   "label": "S813ResumeGold16:1920@2026-10-29T10:01:07.761Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "99B6",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "9977c4d8a1f91cf54b97602ebaa5620685659876051a5c5416dd65d439e1ef4f",
+   "bytes": 213722,
+   "lines": 4016
+  },
+  {
+   "seq": 271,
+   "label": "S813ResumeGold16:1926@2026-10-29T10:01:16.607Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "9913",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "2419e50c3f80d1c74212714f01c8d37d3bffd97c7bdc3f8659c870e81766261c",
+   "bytes": 213791,
+   "lines": 4017
+  },
+  {
+   "seq": 272,
+   "label": "S813ResumeGold16:1932@2026-10-29T10:01:26.046Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "43D2",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "3dcfdce18651e2135b1d7e32c1d02fcfc210f438c99852890fcd7cad663e5640",
+   "bytes": 214361,
+   "lines": 4030
+  },
+  {
+   "seq": 273,
+   "label": "S813ResumeGold16:1938@2026-10-29T10:01:33.740Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "EF4F",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "17f825d1e3f2b03a217adca625f0888ab0352b3961286fee002d2113cca2472e",
+   "bytes": 214763,
+   "lines": 4035
+  },
+  {
+   "seq": 274,
+   "label": "S813ResumeGold16:1968@2026-10-29T10:02:18.264Z",
+   "tool": "edit-oldnew",
+   "occurrences": 1,
+   "tag": "7023",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "75a520ebbdf5861ef54a8900cc7cd7f105adba13a710c9277c9bf5fbf7bf6d85",
+   "bytes": 214853,
+   "lines": 4036
+  },
+  {
+   "seq": 275,
+   "label": "S813ResumeGold16:1980@2026-10-29T10:02:51.704Z",
+   "tool": "write",
+   "tag": "C42C",
+   "expected_result_tag": null,
+   "tag_ok": null,
+   "sha": "0752d56c65adf8458469ca2af9650e2db8087a42e8592c46a5a03719330d3237",
+   "bytes": 14307,
+   "lines": 275
+  }
+ ],
+ "failures": [
+  [
+   161,
+   "patch post-tag mismatch"
+  ],
+  [
+   163,
+   "patch post-tag mismatch"
+  ],
+  [
+   165,
+   "patch post-tag mismatch"
+  ]
+ ],
+ "freeze25_provenance": [
+  {
+   "seq": 255,
+   "label": "S813ResumeGold16:1210@2026-10-29T09:25:22.201Z",
+   "sha": "1cb6bff5e1a502f489d7db950219d910febf65312a1fc008c3281a0d5dfa6584",
+   "tag": "2B8D",
+   "bytes": 209304,
+   "lines": 3943
+  },
+  {
+   "seq": 257,
+   "label": "S813ResumeGold16:1496@2026-10-29T09:37:46.993Z",
+   "sha": "1cb6bff5e1a502f489d7db950219d910febf65312a1fc008c3281a0d5dfa6584",
+   "tag": "2B8D",
+   "bytes": 209304,
+   "lines": 3943
+  }
+ ],
+ "preoverwrite_provenance": {
+  "seq": 274,
+  "sha": "75a520ebbdf5861ef54a8900cc7cd7f105adba13a710c9277c9bf5fbf7bf6d85",
+  "tag": "7023",
+  "bytes": 214853,
+  "lines": 4036,
+  "overwriting_op": "S813ResumeGold16:1980@2026-10-29T10:02:51.704Z",
+  "overwriting_bytes": 14307,
+  "overwriting_sha": "0752d56c65adf8458469ca2af9650e2db8087a42e8592c46a5a03719330d3237"
+ }
+}

@@ -1,0 +1,3 @@
+--------- beginning of main
+10-25 03:42:23.752 17781 20773 I BankDraftClassification: intake classification draft=7 scheduled question=939aa90ee4c3
+10-25 03:42:23.788 17781 20773 I BankDraftClassification: intake classification draft=7 outcome=FAILED

@@ -1,0 +1,143 @@
+{
+  "task_id": "S8.13",
+  "attempt_id": "S8.13-assisted-retained-a82",
+  "snapshot_id": "S8.13-assisted-retained-a82-freeze-82",
+  "freeze_sha256": "24f9b6518a3e75ce84a8e57fbdef1cad6657da48abfb790e0ac595d1dc263b8c",
+  "no_fail_fast": true,
+  "scripted_proof": false,
+  "exhaustive_mode": "retained_first_pass_continuation",
+  "retained_origin_manifest_sha256": "e55329ba21749e3a19bf89d7612f2ca77615e1c7d778fc0a1c47fb19263858ab",
+  "retained_origin_attempt_id": "S8.13-assisted-a74",
+  "retained_slots": 24,
+  "measured_slots": 48,
+  "total_slots": 72,
+  "app_apk_sha256": "588f881a8bf6517a6cfc0c14b4eeab1e3c46c857618e74caa50afa81c68d8c4f",
+  "test_apk_sha256": "046b8179be943c3ab50505b86e414cf45e28ec6a25132925a1bc18b4a229c066",
+  "fixture_sha256": "dc0c42ba8ebc9742ada922ccba6831dcc4baa047efdeb098af23ccdf7dc9f868",
+  "scoring_sha256": "1e023975ff9d03f0f6d51b834fad23bcde17cb5368f18db730f1b30b3fa676e7",
+  "entry_count": 24,
+  "total_bytes": 1248365,
+  "files": [
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/host/retained-plan.json",
+      "bytes": 5899,
+      "sha256": "ade0e231d244f95b23ae92b911f87349d568a4d75d5cd89f2cddb4d8704092a1"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/host/s813_build_manifest.py",
+      "bytes": 3640,
+      "sha256": "2ac6e08a121c75ec78174fb1117f5092053b2d29f1da6391cb3dbe5d7e005465"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/selfcheck.json",
+      "bytes": 23205,
+      "sha256": "e5d3d2d2206942903bb2a34426a1c2d94d8410af1d231fb24c7d9112fe238740"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/snapshot-82/build.json",
+      "bytes": 36531,
+      "sha256": "a43485a08939aab1ca44231a19896a1014bcad35e870265612f161cb02662423"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/snapshot-82/case-mapping.json",
+      "bytes": 47197,
+      "sha256": "2b8479deb347bb1a96f396a3f5d7c175a27463d5c1b495c07757b9b59a77fcc8"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/snapshot-82/device-preflight/capture-proof/a8-laya-01/case.json",
+      "bytes": 913,
+      "sha256": "4a9b9f0f299b5643e1c524d7709fd030cf147c0ebc02b661cf219e31c4c3b399"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/snapshot-82/device-preflight/capture-proof/a8-laya-01/effects.json",
+      "bytes": 648,
+      "sha256": "70eddc91d9129646450214d4972c7145a5e70cb2949643f532bb91d2625cabca"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/snapshot-82/device-preflight/capture-proof/a8-laya-01/exchanges.jsonl",
+      "bytes": 1788,
+      "sha256": "d9802692f3577d0d92499a879d0957b7dd88ee412479cd60571ed7e6bccbefda"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/snapshot-82/device-preflight/capture-proof/a8-laya-01/turns.jsonl",
+      "bytes": 357,
+      "sha256": "caef1c93e74ba356a581e0e0a8a3b64582735cdf4c270fbd034d7d1c1752acd9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/snapshot-82/device-preflight/capture-proof/a8-link-02/case.json",
+      "bytes": 913,
+      "sha256": "256c25cf12538f6099083a37854679ea461ba24f80fb252f6f411b052931bf02"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/snapshot-82/device-preflight/capture-proof/a8-link-02/effects.json",
+      "bytes": 776,
+      "sha256": "922032a2cf9cc12a3db6730eac0f9524810b6d44bee2710656f13c2577979700"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/snapshot-82/device-preflight/capture-proof/a8-link-02/exchanges.jsonl",
+      "bytes": 1788,
+      "sha256": "6cd01a765c170d54dc94ddf99c52945fc579e4d27dbc5448aabe818e3aa42328"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/snapshot-82/device-preflight/capture-proof/a8-link-02/turns.jsonl",
+      "bytes": 357,
+      "sha256": "a7627291446f897b825f49de3a00ddb7616be15e9a41b0db0244d1e7a8f21071"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/snapshot-82/device-preflight/capture-proof/session.json",
+      "bytes": 774,
+      "sha256": "7ae3f0ffa249191e8ff668ef94c2d3596b3c3a6894e3b81ac3b07f3da399f3d6"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/snapshot-82/device-preflight/debug-proof/summary.json",
+      "bytes": 1530,
+      "sha256": "69ec284c44a04e482505981b59a0047eee5fd97798dc43638278de0de96142c2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/snapshot-82/device-preflight/domain-preflight.json",
+      "bytes": 137225,
+      "sha256": "6faac84e17d92cfdc89589839d69535ec38e7d56698dcba63c47eaf5e0bb0812"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/snapshot-82/device-preflight/identity-smoke/summary.json",
+      "bytes": 4614,
+      "sha256": "c32d50db9a2767285bd5cdbd84a6f7d2544a5c682bc142c967330f54f9c4e789"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/snapshot-82/device-preflight/laya-smoke.json",
+      "bytes": 43283,
+      "sha256": "6cc00694f1e78f7c28b2b987a94631d88b6f54cea6086dd1078888e6434fefe7"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/snapshot-82/device-preflight-host.json",
+      "bytes": 20286,
+      "sha256": "5dc1c9683e0fb196e3b37b831553238d46adc33f29602b0d05039924888e16f4"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/snapshot-82/freeze.json",
+      "bytes": 279173,
+      "sha256": "24f9b6518a3e75ce84a8e57fbdef1cad6657da48abfb790e0ac595d1dc263b8c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/snapshot-82/path-identity-preflight.json",
+      "bytes": 8403,
+      "sha256": "3fe96490d01e80bbea554f57f47e6afc721619779056515b31c1c0e740a61a58"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/snapshot-82/preflight-static.json",
+      "bytes": 46632,
+      "sha256": "0a4b9dd9fb4fa849a830b191a5e72b315b993d57c023d1383c8134305378fe8c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-retained-a82/snapshot-82/retained-origin-manifest.json",
+      "bytes": 124063,
+      "sha256": "544c58926e7a45dd204d3c02a6f428167a5400f1615c567491de7208178de061"
+    },
+    {
+      "path": "artifacts/sprint-8/test-only/S8.13-assisted-retained-a82/S8.13-assisted-retained-a82-freeze-82/preflight-privacy-smoke/safe-response-location-smoke.json",
+      "bytes": 458370,
+      "sha256": "9ac7a871dfca98f40a069dbbdf7e30e023e1a05d9522c8d6f71698bb2ca95061",
+      "bound_sha256": "9ac7a871dfca98f40a069dbbdf7e30e023e1a05d9522c8d6f71698bb2ca95061"
+    }
+  ]
+}

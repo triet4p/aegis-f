@@ -1,0 +1,17 @@
+{
+  "task_id": "S8.13",
+  "attempt_id": "S8.13-replan-a1",
+  "profile": "gemma-4-26b-a4b-it-ai-studio",
+  "pass": 2,
+  "source_evidence": "pass-2/live-run.json and all 24 per-case JSON records and provider-attempt sidecars",
+  "run_started_at": "2026-10-27T16:34:01.268234Z",
+  "run_finished_at": "2026-10-27T16:47:48.194376Z",
+  "expected_cases": 24,
+  "recorded_cases": 24,
+  "run_classification": "complete suite case loop; full AndroidJUnitRunner status unobserved",
+  "preserves_original_host_failure": true,
+  "host_failure": "S8.13 host script raised UnboundLocalError for run_stderr after collecting the app-local evidence; therefore no pass-2.host.json/stdout/exit code was written.",
+  "impact": "The test completed its 24-case loop and wrote live-run.json plus each case and request sidecar. This addendum does not convert provider errors or incomplete workflow outcomes into passes and does not claim the runner's AndroidJUnit final status.",
+  "qualification_status": "excluded from current candidate set by owner; no Gemma capability or qualification claim",
+  "no_replay_or_overwrite": true
+}

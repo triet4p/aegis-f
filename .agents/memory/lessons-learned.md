@@ -368,3 +368,13 @@ and allow only the exact validated external report rather than opening a blanket
 **Root cause:** The runtime treated every classification clarification as a failed or unavailable model request.
 **Fix / workaround:** Reuse `isBlockedForSuggestionSafety` to distinguish the pre-inference refusal, return the existing `clarifying`/`await_user` manual-review envelope, and reserve `MODEL_UNAVAILABLE` for actual inference failures.
 **Watch out for:** `NeedsClarification.reason` is human-readable; do not branch on its complete prose or weaken the safety classifier to force a prediction.
+
+## [2026-11-02] Bundled link skill had no expected-version entry
+
+**Symptom:** `WorkflowSkillCatalog.load` validates each bundled skill with `EXPECTED_VERSIONS.getValue(id)`, but the current catalog map had no `LINK_EVENT_DRAFT` entry even though the bundled catalog contains `link-event-draft/3`; loading that catalog would fail before a workflow can start.
+
+**Root cause:** The map retained the link-skill version history only in comments and omitted the actual key/value alongside the other skill versions.
+
+**Fix / workaround:** Add `WorkflowSkillId.LINK_EVENT_DRAFT to 3` to the expected-version map so the loader enforces the bundled link skill's current version.
+
+**Watch out for:** When adding or versioning any skill asset, update the runtime's expected-version map for every `WorkflowSkillId`; the loader uses `getValue`, not a permissive fallback.

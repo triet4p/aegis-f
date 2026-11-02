@@ -1,0 +1,35 @@
+{
+  "kind": "queue",
+  "label": "queue-order-probe",
+  "package": "io.github.triet4p.aegisf.s78current",
+  "apk_sha256": "05fa7f7d4bc4cea60613918759f449e013371cff40ddbed8eb3c1efa36e0d387",
+  "apk_bytes": 88893017,
+  "actions": [
+    {
+      "t": 6.663,
+      "kind": "tap",
+      "label": "nav Review",
+      "driver_s": 1.27
+    },
+    {
+      "t": 16.254,
+      "kind": "tap",
+      "label": "order Oldest first",
+      "driver_s": 1.263
+    },
+    {
+      "t": 25.257,
+      "kind": "tap",
+      "label": "order Needs attention",
+      "driver_s": 1.26
+    }
+  ],
+  "waits": [],
+  "wall_seconds": 19.854,
+  "driver_seconds": 3.793,
+  "inference_waits_seconds": 0,
+  "tap_count": 3,
+  "swipe_count": 0,
+  "text_entries": [],
+  "note_results": []
+}

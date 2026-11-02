@@ -1,0 +1,537 @@
+--------- beginning of main
+11-01 14:32:11.538  1757  1998 I Scheduler: idleTimerCallback timer change to TimerState: Expired
+11-01 14:32:11.586 31858 31858 I adbd    : adbd service requested 'shell,v2,TERM=dumb,raw:am instrument -w -r -e class io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest -e S813_ATTEMPT_ID S8.13-assisted-lifetime-a65 -e S813_BATCH_ID S8.13-v3-interface-qualification-batch-21 -e S813_SNAPSHOT_ID S8.13-assisted-lifetime-a65-freeze-65 -e S813_PROFILE candidate-b -e S813_PASS reproduction -e S813_CASE_IDS a8-clarify-01,a8-nomatch-01 -e S813_RUN_NAME assisted-lifetime-smoke-old-1 -e S813_MAX_OUTPUT_TOKENS 384000 -e S813_SCRIPTED_PROVIDER aegis-s813-scripted-provider/v1 -e S813_ASSISTED_CONTRACT aegis-s813-assisted-continuation/v1 -e S813_ASSISTED_FEEDBACK_TIMEOUT_MS 180000 -e S813_DEBUG_ROOT /data/user/0/io.github.triet4p.aegisf.s813evidence/files/S8.13-assisted-lifetime-a65/debug/S8.13-assisted-lifetime-a65-freeze-65/assisted-lifetime-smoke-old-1 -e S813_FIXTURE_SHA256 dc0c42ba8ebc9742ada922ccba6831dcc4baa047efdeb098af23ccdf7dc9f868 io.github.triet4p.aegisf.s813evidence.test/androidx.test.runner.AndroidJUnitRunner'
+11-01 14:32:11.594  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387459247687672, lux = 12, raw_adc=35, raw_2=771
+11-01 14:32:11.599 31858 31858 I adbd    : adbd service requested 'shell,v2,TERM=dumb,raw:run-as io.github.triet4p.aegisf.s813evidence ls files/S8.13-assisted-lifetime-a65/S8.13-assisted-lifetime-a65-freeze-65/candidate-b/assisted-lifetime-smoke-old-1/assisted/ready'
+11-01 14:32:11.609  1757  1998 I Scheduler: idleTimerCallback timer change to TimerState: Reset
+11-01 14:32:11.617  1757  1757 I Scheduler: applyPolicy: scored layer size: 0
+11-01 14:32:11.647  1686  1849 D vendor.honor.hardware.aoservice@1.0-service: [AO_SVC] (reopen_timer_handler:50):enter reopen handler
+11-01 14:32:11.704  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387459357672984, lux = 12, raw_adc=36, raw_2=771
+11-01 14:32:11.742  1739  3507 D AudioPolicyService: getUidState(10285) cacheIter->second.first, return cacheIter->second.second(3)
+11-01 14:32:11.743  1739  3507 D AudioPolicyService: getUidState(10140) cacheIter->second.first, return cacheIter->second.second(3)
+--------- beginning of system
+11-01 14:32:11.747  2350  5242 I ActivityManager: Killing 6509:com.google.android.googlequicksearchbox:search/u0a143 (adj 975): empty #17
+11-01 14:32:11.753  2350  5242 I ActivityManager: Killing 7102:com.google.android.syncadapters.calendar/u0a144 (adj 985): empty #18
+11-01 14:32:11.755  2350  5242 I HwActivityTaskManagerServiceEx: [activity restore] killed reason [com.google.android.syncadapters.calendar] empty #18 process name com.google.android.syncadapters.calendar uid 10144
+11-01 14:32:11.756  8876  8876 I app_process: HwCustType is 0
+11-01 14:32:11.756  8876  8876 E app_process: open file error
+11-01 14:32:11.756  8876  8876 I app_process: no cota live update cust policy found
+11-01 14:32:11.756  8876  8876 I app_process: GetCfgDirRealPolicyValue: custPolicyDirs: /system/magic/base:/system/magic/oversea:/system/magic/oversea_honor:/system/magic/lite:/vendor/etc:/odm/etc:/odm/hn_odm/ALT-L32:/product_h/etc:/product_h/region_comm/oversea:/preas/oversea:/product_h/hn_oem/ALT-L32:/preload/ALT-L32/def/spcseas:/cust/global:/cust/def/spcseas:/version/cust/def/spcseas:/product_h/special_cust/ALT-L32/def/spcseas:/version/special_cust/ALT-L32/def/spcseas:/cust/cotalite:/cust/ecota
+11-01 14:32:11.756  8876  8876 I ITouchService: itouch SetDropFrameList() parse agp config file
+11-01 14:32:11.757  8876  8876 D ITouchService: itouch in SetDropFrameList() pElement->Attribute(name)=com.tencent.tmgp.sgame pElement->Attribute(value)=1
+11-01 14:32:11.757  2350  3219 I CollectDataProc: [activity restore]  com.google.android.syncadapters.calendar [killed reason] empty
+11-01 14:32:11.757  8876  8876 D ITouchService: itouch in SetDropFrameList() pElement->Attribute(name)=com.levelinfinite.sgameGlobal pElement->Attribute(value)=1
+11-01 14:32:11.757  8876  8876 D ITouchService: itouch in SetDropFrameList() pElement->Attribute(name)=com.levelinfinite.sgameGlobal.midaspay pElement->Attribute(value)=1
+11-01 14:32:11.757  8876  8876 D ITouchService: itouch in SetDropFrameList() pElement->Attribute(name)=com.tencent.tmgp.pubgmhd pElement->Attribute(value)=1
+11-01 14:32:11.757  8876  8876 D ITouchService: itouch in SetDropFrameList() pElement->Attribute(name)=com.tencent.tmgp.cf pElement->Attribute(value)=1
+11-01 14:32:11.757  8876  8876 D ITouchService: itouch in SetDropFrameList() pElement->Attribute(name)=com.tencent.tmgp.speedmobile pElement->Attribute(value)=1
+11-01 14:32:11.757  8876  8876 D ITouchService: itouch in SetDropFrameList() pElement->Attribute(name)=com.tencent.ig pElement->Attribute(value)=1
+11-01 14:32:11.757  8876  8876 D ITouchService: itouch in SetDropFrameList() pElement->Attribute(name)=com.mobile.legends pElement->Attribute(value)=1
+11-01 14:32:11.757  8876  8876 D ITouchService: itouch in SetDropFrameList() pElement->Attribute(name)=com.garena.game.fctw pElement->Attribute(value)=1
+11-01 14:32:11.757  8876  8876 D ITouchService: itouch in SetDropFrameList() pElement->Attribute(name)=com.ngame.allstar.eu pElement->Attribute(value)=1
+11-01 14:32:11.759  2350  2949 I libprocessgroup: Successfully killed process cgroup uid 10143 pid 6509 in 5ms
+11-01 14:32:11.761  8876  8876 E app_process: open libged_kpi.so failed
+11-01 14:32:11.761  3933  4236 I AppManager: removeProcessDependency pid:6509
+11-01 14:32:11.766  8876  8876 W app_process: type=1400 audit(0.0:736949): avc:  denied  { search } for  name="effect" dev="dm-43" ino=6035462 scontext=u:r:shell:s0 tcontext=u:object_r:displayengine_product_file:s0 tclass=dir permissive=0
+11-01 14:32:11.766  8876  8876 W app_process: type=1400 audit(0.0:736950): avc:  denied  { search } for  name="effect" dev="dm-43" ino=6035462 scontext=u:r:shell:s0 tcontext=u:object_r:displayengine_product_file:s0 tclass=dir permissive=0
+11-01 14:32:11.770  8876  8876 W app_process: type=1400 audit(0.0:736951): avc:  denied  { search } for  name="effect" dev="dm-43" ino=6035462 scontext=u:r:shell:s0 tcontext=u:object_r:displayengine_product_file:s0 tclass=dir permissive=0
+11-01 14:32:11.770  8876  8876 W app_process: type=1400 audit(0.0:736952): avc:  denied  { search } for  name="effect" dev="dm-43" ino=6035462 scontext=u:r:shell:s0 tcontext=u:object_r:displayengine_product_file:s0 tclass=dir permissive=0
+11-01 14:32:11.770  8876  8876 I app_process: HnEffectXmlParser constructor
+11-01 14:32:11.770  8876  8876 E app_process: GetFullPath not found for xmlfile
+11-01 14:32:11.770  8876  8876 E app_process: load xml(xmlfile= SR_control.xml ) failed
+11-01 14:32:11.770  8876  8876 E HnAVStageEnhancements: paraElement is nullptr
+11-01 14:32:11.770  8876  8876 I app_process: HnEffectXmlParser destructor
+11-01 14:32:11.770  8876  8876 E HnAVStageEnhancements: parse config.xml failed
+11-01 14:32:11.773  8876  8876 I app_process: HnEffectXmlParser constructor
+11-01 14:32:11.773  8876  8876 E app_process: GetFullPath not found for xmlfile
+11-01 14:32:11.773  8876  8876 E app_process: load xml(xmlfile= SR_control.xml ) failed
+11-01 14:32:11.773  8876  8876 E HnAVStageEnhancements: paraElement is nullptr
+11-01 14:32:11.773  8876  8876 I app_process: HnEffectXmlParser destructor
+11-01 14:32:11.773  8876  8876 E HnAVStageEnhancements: parse config.xml failed
+11-01 14:32:11.775  1739  3507 D AudioPolicyService: getUidState(10285) cacheIter->second.first, return cacheIter->second.second(10)
+11-01 14:32:11.775  1739  3507 D AudioPolicyService: getUidState(10140) cacheIter->second.first, return cacheIter->second.second(10)
+11-01 14:32:11.776  8876  8876 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+11-01 14:32:11.776  3933  4236 I AppManager: removeProcessDependency pid:7102
+11-01 14:32:11.786  8876  8876 I app_process: MMAP_TRYLOCK is supported in uffd errno:2 addr:0x7e8978d000 size:4096
+11-01 14:32:11.789  8876  8876 I AndroidRuntime: Using default boot image
+11-01 14:32:11.789  8876  8876 I AndroidRuntime: Leaving lock profiling enabled
+11-01 14:32:11.793  8876  8876 I app_process: Core platform API enforcement reporting only by runtime option
+11-01 14:32:11.794  8876  8876 I app_process: Using generational CollectorTypeCMC GC.
+11-01 14:32:11.796  7925  8340 I AMLog[695c92857b]: StatsHandlerThread progressiveStepCalculation: progressiveIndex=3 power2=8 progressiveStep=40000
+11-01 14:32:11.811  2350  4836 I ActivityManager: Dying app: ProcessRecord{cfec61f 7102:com.google.android.syncadapters.calendar/u0a144}, pid: 7102, isNeedClearup: true, isFromBinderDied:true
+11-01 14:32:11.812  2350  3510 W HwAudioServiceEx: SoundEffectState bundle get reserved is invalid
+11-01 14:32:11.813  2350  2877 I SWAP_SCENE: Entering notifySceneData notifySceneData. EventType:PROCESS_DIED para:com.google.android.syncadapters.calendar
+11-01 14:32:11.813  1567  1567 I Zygote  : Process 7102 exited due to signal 9 (Killed)
+11-01 14:32:11.820  2350  5245 D HwActivityManagerServiceEx: getPackageNameForPid callingAppId: 1000
+11-01 14:32:11.820  2350  5397 I ActivityManager: Dying app: ProcessRecord{efba474 6509:com.google.android.googlequicksearchbox:search/u0a143}, pid: 6509, isNeedClearup: true, isFromBinderDied:true
+11-01 14:32:11.821  2350  2877 D DisplayManagerService: Drop pending events for gone uid 10144
+11-01 14:32:11.822  2350  2908 I HwPowerManagerService: appdie release wakelock, pid = 7102, uid = 10144
+11-01 14:32:11.822  2350  2908 I HwPowerManagerService: appdie release wakelock, pid = 6509, uid = 10143
+11-01 14:32:11.821  4561 17482 E HsmCoreServiceImpl: onTransact in code is: 102
+11-01 14:32:11.822  4561 17482 I MediaProcessHandler: processOp opType: 1, uid: 10144, pid: 7102
+11-01 14:32:11.822  4561 17482 W MediaProcessHandler: only the process it self can do this operation: 10144, 1000, 7102, 3770
+11-01 14:32:11.822  4561 17482 I MediaProcessHandler: executedCallBack opType: 1 mMediaStatusObservers.size=0
+11-01 14:32:11.823  4561 16428 D Booster_AwareMonitor: [handleUidGone] uid:10144 packageName:com.google.android.calendar.uid.shared:10144
+11-01 14:32:11.824  4561  4904 I Booster_OllieObserver: notify registrants event: EVENT_ACTIVITY_STATE_CHANGED, new ActivityInfo: uid = 10144, packageName = com.google.android.calendar.uid.shared:10144, procState = 19
+11-01 14:32:11.824  2350  3761 D HwActivityManagerServiceEx: getPackageNameForPid callingAppId: 1000
+11-01 14:32:11.824  4561  4904 I NsaPowerConsumptionMonitor: onActivityStateChanged: mIsSpeedTesting:false isTopActivity:true isSpeedTestApk:false
+11-01 14:32:11.824  4561  4904 I UidCloseNrStateMachine: UidGone uid:10144, pkgName:com.google.android.calendar.uid.shared:10144
+11-01 14:32:11.824  2350  4836 D HwActivityManagerServiceEx: getPackageNameForPid callingAppId: 1000
+11-01 14:32:11.825  2350  4581 I SWAP_AppModel: SWAP-APP_DIED_active:pkg:com.google.android.syncadapters.calendar uid:10144 liveApp:5
+11-01 14:32:11.825  2350  4581 I SWAP_SCENE: This app was killed: com.google.android.syncadapters.calendar
+11-01 14:32:11.825  1739 30562 D AudioPolicyService: getUidState(10144) !cacheIter->second.first, return PROCESS_STATE_UNKNOWN
+11-01 14:32:11.825  2350  3510 W HwAudioServiceEx: SoundEffectState bundle get reserved is invalid
+11-01 14:32:11.825  4561  4897 E NetworkQoe: notifyUidActivityStateChange:info is null
+11-01 14:32:11.826  4561  4897 D Booster_SelfCureManager: handleMessage: msg.what: 38
+11-01 14:32:11.826  4561  4897 I HwPacketFilterBypass: handleActivityUidStateChanged uid:10144 -1 foreground:false
+11-01 14:32:11.826  2350  3483 D ConnectivityService: releasing NetworkRequest [ REQUEST id=23990, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10143 RequestorUid: 10143 RequestorPkg: com.google.android.googlequicksearchbox UnderlyingNetworks: Null] ] (release request)
+11-01 14:32:11.826  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387459467715797, lux = 12, raw_adc=38, raw_2=771
+11-01 14:32:11.827  4561  4897 D SmartDualCardConfig: getAppType,pkgName=com.google.android.calendar,appType=5
+11-01 14:32:11.827  4561  4897 E SmartDualCardConfig: isAppInBlackList false,items==null
+11-01 14:32:11.827  4561  4897 I SmartDualCardConfig: isAppInWhiteList false,uid=10144
+11-01 14:32:11.827  4561  4897 I LowLatencyMode: handleApkInBackground packageName: com.google.android.calendar.uid.shared:10144, foregroundWhiteListApkSet: []
+11-01 14:32:11.827  4561  4897 D SmartDualCardConfig: getAppType,pkgName=com.google.android.calendar.uid.shared:10144,appType=-1
+11-01 14:32:11.828  4561  4897 D SmartDualCardConfig: getAppType,pkgName=com.google.android.calendar.uid.shared:10144,appType=-1
+11-01 14:32:11.828  4561  4897 E SmartDualCardConfig: isAppInBlackList false,items==null
+11-01 14:32:11.828  4561  4897 I SmartDualCardSM: onUidStateUpdate,uid=10144,appName=com.google.android.calendar.uid.shared:10144,state=BACKGROUND
+11-01 14:32:11.828  1567  1567 I Zygote  : Process 6509 exited due to signal 9 (Killed)
+11-01 14:32:11.828 30236 30236 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.auth.aang.events.services.START dat=chimera-action:/... cmp=com.google.android.gms/.chimera.PersistentApiService }
+11-01 14:32:11.828  4561  4897 D SmartDualCardConfig: getAppType,pkgName=com.google.android.calendar.uid.shared:10144,appType=-1
+11-01 14:32:11.828  4561  4897 I SmartDualCardSM: updateAppState mAppState=1
+11-01 14:32:11.828  4561  4897 I SmartDualCardSM: IdleState:got msg.what=EVENT_APP_MOVE_BACKGROUND
+11-01 14:32:11.828  4561  4897 I SmartDualCardSM: startAppBackgroundTimer
+11-01 14:32:11.829  2350  2949 W Process : Unable to open /proc/7102/status
+11-01 14:32:11.817  3933  4508 E AwareLog: Stub: processProcessDied has not been overridden!
+11-01 14:32:11.829  2350  2949 I libprocessgroup: Successfully killed process cgroup uid 10144 pid 7102 in 0ms
+11-01 14:32:11.837  4561  5145 I Hicom_Monitor: notifyAppDied: uid = 10144
+11-01 14:32:11.837  4561  5145 I UctpAppMonitor: handleAppDied: pkgName is com.google.android.syncadapters.calendar mIsNeedToOpen is false
+11-01 14:32:11.838  2350  2877 I SWAP_SCENE: Entering notifySceneData notifySceneData. EventType:PROCESS_DIED para:com.google.android.googlequicksearchbox
+11-01 14:32:11.840  3933  4508 E AwareLog: Stub: processProcessDied has not been overridden!
+11-01 14:32:11.841  4561 16428 E HsmCoreServiceImpl: onTransact in code is: 102
+11-01 14:32:11.841  4561 16428 I MediaProcessHandler: processOp opType: 1, uid: 10143, pid: 6509
+11-01 14:32:11.841  4561 16428 W MediaProcessHandler: only the process it self can do this operation: 10143, 1000, 6509, 3770
+11-01 14:32:11.841  4561 16428 I MediaProcessHandler: executedCallBack opType: 1 mMediaStatusObservers.size=0
+11-01 14:32:11.841  2350  3781 D HwActivityManagerServiceEx: getPackageNameForPid callingAppId: 1000
+11-01 14:32:11.842  2350  4836 D HwActivityManagerServiceEx: getPackageNameForPid callingAppId: 1000
+11-01 14:32:11.843  2350  4836 D HwActivityManagerServiceEx: getPackageNameForPid callingAppId: 1000
+11-01 14:32:11.845  2350  5465 I HiView.HiEvent: Flatten done:1002
+11-01 14:32:11.845  2350  5465 I hievent_jni: Write to dev len:355
+11-01 14:32:11.845  2350  5465 I hievent_jni: hievent_writer_write finish
+11-01 14:32:11.892  8876  8876 D nativeloader: InitDefaultPublicLibraries for_preload=1: libandroid.so:libaaudio.so:libamidi.so:libbinder_ndk.so:libc.so:libcamera2ndk.so:libdl.so:libEGL.so:libGLESv1_CM.so:libGLESv2.so:libGLESv3.so:libicu.so:libicui18n.so:libicuuc.so:libjnigraphics.so:liblog.so:libmediandk.so:libm.so:libnativehelper.so:libnativewindow.so:libOpenMAXAL.so:libOpenSLES.so:libRS.so:libstdc++.so:libsync.so:libvulkan.so:libwebviewchromium_plat_support.so:libz.so
+11-01 14:32:11.905  8876  8876 D nativeloader: Load libicu_jni.so using APEX ns com_android_art for caller /apex/com.android.art/javalib/core-oj.jar: ok
+11-01 14:32:11.905  8876  8876 D app_process: Time zone APEX ICU file found: /apex/com.android.tzdata/etc/icu/icu_tzdata.dat
+11-01 14:32:11.906  8876  8876 D app_process: I18n APEX ICU file found: /apex/com.android.i18n/etc/icu/icudt72l.dat
+11-01 14:32:11.906  8876  8876 D nativeloader: Load libjavacore.so using APEX ns com_android_art for caller /apex/com.android.art/javalib/core-oj.jar: ok
+11-01 14:32:11.907  8876  8876 D nativeloader: Load libopenjdk.so using APEX ns com_android_art for caller /apex/com.android.art/javalib/core-oj.jar: ok
+11-01 14:32:11.909  8876  8876 I app_process: Priority-to-niceness mapping: 19, 16, 13, 10, 0, -2, -4, -5, -6, -8
+11-01 14:32:11.910  1757  1998 I Scheduler: idleTimerCallback timer change to TimerState: Expired
+11-01 14:32:11.916  8876  8876 V HwFrameworkFactory: successes to get AllImpl object and return....
+11-01 14:32:11.916  8876  8876 I HwPartBasicPlatformFactory: add android.common.HwPartBasicPlatformFactoryImpl to memory.
+11-01 14:32:11.921  8876  8876 I HWSERVICES: hwnative_get_component_register:libdrmbitmap,JNI
+11-01 14:32:11.924  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387459577753036, lux = 13, raw_adc=39, raw_2=771
+11-01 14:32:11.930  8876  8876 E Zygote  : register_com_android_internal_os_Zygote num = 0
+11-01 14:32:11.931  8876  8876 I POWER_LOG: power log dlsym ok
+11-01 14:32:11.931  8876  8876 E PowerLogWrite: initialize fail, ret: -13, err: Permission denied
+11-01 14:32:11.933  8876  8876 W libc    : Access denied finding property "ro.config.vol_steps"
+11-01 14:32:11.930  8876  8876 W main    : type=1400 audit(0.0:736953): avc:  denied  { read } for  name="u:object_r:honor_audio_public_read_prop:s0" dev="tmpfs" ino=433 scontext=u:r:shell:s0 tcontext=u:object_r:honor_audio_public_read_prop:s0 tclass=file permissive=0
+11-01 14:32:11.952  8876  8876 W libc    : Access denied finding property "ro.product.name_for_attestation"
+11-01 14:32:11.952  8876  8876 W libc    : Access denied finding property "ro.product.device_for_attestation"
+11-01 14:32:11.952  8876  8876 W libc    : Access denied finding property "ro.product.manufacturer_for_attestation"
+11-01 14:32:11.952  8876  8876 W libc    : Access denied finding property "ro.product.brand_for_attestation"
+11-01 14:32:11.952  8876  8876 W libc    : Access denied finding property "ro.product.model_for_attestation"
+11-01 14:32:11.954  8876  8876 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+11-01 14:32:11.954  8876  8876 D AndroidRuntime: Calling main entry com.android.commands.am.Am
+11-01 14:32:11.960  8876  8876 I GtaPackageNameUtil: open config file fail
+11-01 14:32:11.960  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.960  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.960  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.960  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.960  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.960  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.960  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.960  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.960  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.960  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.960  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.960  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.960  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.960  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.960  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.960  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.960  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.960  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.960  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.960  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.961  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.962  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.963  8876  8876 I GtaPackageNameUtil: warning not define gta name in transform list
+11-01 14:32:11.965  8876  8876 D UiAutomationConnection: Created on user UserHandle{0}
+11-01 14:32:11.967  2350  3781 I ActivityManager: startInstrumentation() callingPid:8876, callingUid:2000
+11-01 14:32:11.968  2350  3781 I ActivityManager: Force stopping io.github.triet4p.aegisf.s813evidence appid=10398 user=0: start instr
+11-01 14:32:11.970  2350  3781 D HwWindowManagerServiceEx: recompute display mode
+11-01 14:32:11.971  2350  2880 V ActivityTaskManager: Activity idle: null
+11-01 14:32:11.971  2350  2880 D HwWindowManagerServiceEx: recompute display mode
+11-01 14:32:11.972  2350  3781 D CompatibilityChangeReporter: Compat change id reported: 135634846; UID 10398; state: DISABLED
+11-01 14:32:11.972  2350  3781 D CompatibilityChangeReporter: Compat change id reported: 177438394; UID 10398; state: DISABLED
+11-01 14:32:11.972  2350  3781 D CompatibilityChangeReporter: Compat change id reported: 135772972; UID 10398; state: DISABLED
+11-01 14:32:11.972  2350  3781 D CompatibilityChangeReporter: Compat change id reported: 135754954; UID 10398; state: ENABLED
+11-01 14:32:11.973  2350  2931 D CompatibilityChangeReporter: Compat change id reported: 143937733; UID 10398; state: ENABLED
+11-01 14:32:11.973  1757  1998 I Scheduler: idleTimerCallback timer change to TimerState: Reset
+11-01 14:32:11.974  2350  3219 E AwareLog: mtm.AwareAppFreezeMng: Unknown EventID: 15001
+11-01 14:32:11.975  1567  1567 I app_process64: PreZygoteFork(): stray_non_movable_objects_.size() = 12
+11-01 14:32:11.977  1739 30562 D AudioPolicyService: getUidState(10398) !cacheIter->second.first, return PROCESS_STATE_UNKNOWN
+11-01 14:32:11.978  1739 30562 D AudioPolicyService: getUidState(10398) !cacheIter->second.first, return PROCESS_STATE_UNKNOWN
+11-01 14:32:11.978  2350  3162 D CompatibilityChangeReporter: Compat change id reported: 265195908; UID 10398; state: ENABLED
+11-01 14:32:11.984  1757  1757 I Scheduler: applyPolicy: scored layer size: 0
+11-01 14:32:11.984  1567  1567 D Zygote  : Forked child process 8891
+11-01 14:32:11.986  2350  2931 I ActivityManager: Start proc 8891:io.github.triet4p.aegisf.s813evidence/u0a398 for added application io.github.triet4p.aegisf.s813evidence
+11-01 14:32:11.987  2350  2931 I SWAP_SCENE: Entering notifySceneData notifySceneData. EventType:PROCESS_CREATE para:io.github.triet4p.aegisf.s813evidence
+11-01 14:32:11.987  2350  2931 I HwActivityManagerServiceEx: notifyProcessStatusChange::pkg:io.github.triet4p.aegisf.s813evidence pid:8891 uid:10398
+11-01 14:32:11.987  2350  4581 I SWAP_SCENE: Entering appColdCheck cold! appName:io.github.triet4p.aegisf.s813evidence
+11-01 14:32:11.990  2350  4581 I SWAP_GkiKernelInterface: mkdir for io.github.triet4p.aegisf.s813evidence success
+11-01 14:32:11.990  2350  4581 I SWAP_SCENE: Entering appColdCheck cold! Mkdir. appName:io.github.triet4p.aegisf.s813evidence
+11-01 14:32:11.998  8891  8891 I sf.s813evidence: Late-enabling -Xcheck:jni
+11-01 14:32:12.023  8891  8891 I sf.s813evidence: Using generational CollectorTypeCMC GC.
+11-01 14:32:12.030 31858 31863 I adbd    : jdwp connection from 8891
+11-01 14:32:12.034  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387459687689078, lux = 12, raw_adc=36, raw_2=771
+11-01 14:32:12.036  8891  8891 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+11-01 14:32:12.044  8891  8891 D ActivityThread: Attach thread to application
+11-01 14:32:12.049  2350  3781 D HwWindowManagerServiceEx: recompute display mode
+11-01 14:32:12.051  1739 30562 D AudioPolicyService: getUidState(10398) !cacheIter->second.first, return PROCESS_STATE_UNKNOWN
+11-01 14:32:12.052  8891  8906 V HnExtFrameworkFactory: successes to get AllImpl object and return....
+11-01 14:32:12.053  1739 30562 D AudioPolicyService: getUidState(10398) cacheIter->second.first, return cacheIter->second.second(-1)
+11-01 14:32:12.054  2350  4581 I SWAP_GkiKernelInterface: addToProcs:io.github.triet4p.aegisf.s813evidence pid:8891
+11-01 14:32:12.080  8891  8891 I ActivityThread: Relaunch all activities: onCoreSettingsChange
+11-01 14:32:12.081  8891  8891 D CompatibilityChangeReporter: Compat change id reported: 171979766; UID 10398; state: ENABLED
+11-01 14:32:12.083  8891  8891 D CompatibilityChangeReporter: Compat change id reported: 242716250; UID 10398; state: ENABLED
+11-01 14:32:12.083  2350  3781 E WindowManager: Process Permission error! uid:10398
+11-01 14:32:12.083  2350  3781 E WindowManager: check permission error, current package is io.github.triet4p.aegisf.s813evidence , it is not systemApp, callers is com.hihonor.android.view.IHwWindowManager$Stub.onTransact:1227 android.os.Binder.execTransactInternal:1366 android.os.Binder.execTransact:1310 <bottom of call stack> <bottom of call stack> <bottom of call stack> <bottom of call stack> <bottom of call stack> <bottom of call stack> <bottom of call stack> 
+11-01 14:32:12.084  8891  8891 I Typeface: setSystemFontMap SharedMemory
+11-01 14:32:12.086  8891  8907 I ActivityThread: Init compatible state: true
+11-01 14:32:12.092  8891  8891 I Typeface: setSystemFontMap Typaface
+11-01 14:32:12.109  8891  8891 I ResourcesManager: applyConfigurationToResources: smallestScreenWidthDp = 360mMaxBounds = Rect(0, 0 - 720, 1610)
+11-01 14:32:12.111  2350  3781 D CompatibilityChangeReporter: Compat change id reported: 170503758; UID 10398; state: ENABLED
+11-01 14:32:12.118  8891  8891 W ActivityThread: Package uses different ABI(s) than its instrumentation: package[io.github.triet4p.aegisf.s813evidence]: arm64-v8a, null instrumentation[io.github.triet4p.aegisf.s813evidence.test]: null, null
+11-01 14:32:12.124  8891  8891 D nativeloader: Configuring clns-4 for other apk /system_ext/framework/androidx.window.extensions.jar. target_sdk_version=37, uses_libraries=ALL, library_path=/data/app/~~0qTuP2TMKy2eksBUFXlPaA==/io.github.triet4p.aegisf.s813evidence.test-gKDeuL6jvjdxjZ5pEsT4Cw==/lib/arm64:/data/app/~~F3Q-wefbxVW3XGxzwET_Rg==/io.github.triet4p.aegisf.s813evidence-YvGd8B840s9K4oFbrNcPkQ==/lib/arm64:/data/app/~~0qTuP2TMKy2eksBUFXlPaA==/io.github.triet4p.aegisf.s813evidence.test-gKDeuL6jvjdxjZ5pEsT4Cw==/base.apk!/lib/arm64-v8a:/data/app/~~F3Q-wefbxVW3XGxzwET_Rg==/io.github.triet4p.aegisf.s813evidence-YvGd8B840s9K4oFbrNcPkQ==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/io.github.triet4p.aegisf.s813evidence
+11-01 14:32:12.124  8891  8891 D nativeloader: Extending system_exposed_libraries: libautotune.honor.so:libteec.honor.so:libiGraphicsCore.honor.so:libautotune.honor.so:libmediaalgoclient.honor.so:libIsfClient.honor.so:libteec_system.honor.so
+11-01 14:32:12.128  8891  8891 D nativeloader: Configuring clns-5 for other apk /system_ext/framework/androidx.window.sidecar.jar. target_sdk_version=37, uses_libraries=ALL, library_path=/data/app/~~0qTuP2TMKy2eksBUFXlPaA==/io.github.triet4p.aegisf.s813evidence.test-gKDeuL6jvjdxjZ5pEsT4Cw==/lib/arm64:/data/app/~~F3Q-wefbxVW3XGxzwET_Rg==/io.github.triet4p.aegisf.s813evidence-YvGd8B840s9K4oFbrNcPkQ==/lib/arm64:/data/app/~~0qTuP2TMKy2eksBUFXlPaA==/io.github.triet4p.aegisf.s813evidence.test-gKDeuL6jvjdxjZ5pEsT4Cw==/base.apk!/lib/arm64-v8a:/data/app/~~F3Q-wefbxVW3XGxzwET_Rg==/io.github.triet4p.aegisf.s813evidence-YvGd8B840s9K4oFbrNcPkQ==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/io.github.triet4p.aegisf.s813evidence
+11-01 14:32:12.128  8891  8891 D nativeloader: Extending system_exposed_libraries: libautotune.honor.so:libteec.honor.so:libiGraphicsCore.honor.so:libautotune.honor.so:libmediaalgoclient.honor.so:libIsfClient.honor.so:libteec_system.honor.so
+11-01 14:32:12.144  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387459797612828, lux = 12, raw_adc=34, raw_2=771
+11-01 14:32:12.148  1686  1849 D vendor.honor.hardware.aoservice@1.0-service: [AO_SVC] (reopen_timer_handler:50):enter reopen handler
+11-01 14:32:12.254  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387459907751109, lux = 12, raw_adc=36, raw_2=771
+11-01 14:32:12.273  1757  1998 I Scheduler: idleTimerCallback timer change to TimerState: Expired
+11-01 14:32:12.312  2350  3510 I HwAudioServiceEx: HwAudioHandlerEx receive unknown msg
+11-01 14:32:12.320  2350  3510 I HwAudioServiceEx: HwAudioHandlerEx receive unknown msg
+11-01 14:32:12.364  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387460017703192, lux = 12, raw_adc=36, raw_2=771
+11-01 14:32:12.474  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387460127726838, lux = 13, raw_adc=39, raw_2=771
+11-01 14:32:12.570  8891  8891 D nativeloader: Configuring clns-6 for other apk /data/app/~~0qTuP2TMKy2eksBUFXlPaA==/io.github.triet4p.aegisf.s813evidence.test-gKDeuL6jvjdxjZ5pEsT4Cw==/base.apk:/data/app/~~F3Q-wefbxVW3XGxzwET_Rg==/io.github.triet4p.aegisf.s813evidence-YvGd8B840s9K4oFbrNcPkQ==/base.apk. target_sdk_version=37, uses_libraries=, library_path=/data/app/~~0qTuP2TMKy2eksBUFXlPaA==/io.github.triet4p.aegisf.s813evidence.test-gKDeuL6jvjdxjZ5pEsT4Cw==/lib/arm64:/data/app/~~F3Q-wefbxVW3XGxzwET_Rg==/io.github.triet4p.aegisf.s813evidence-YvGd8B840s9K4oFbrNcPkQ==/lib/arm64:/data/app/~~0qTuP2TMKy2eksBUFXlPaA==/io.github.triet4p.aegisf.s813evidence.test-gKDeuL6jvjdxjZ5pEsT4Cw==/base.apk!/lib/arm64-v8a:/data/app/~~F3Q-wefbxVW3XGxzwET_Rg==/io.github.triet4p.aegisf.s813evidence-YvGd8B840s9K4oFbrNcPkQ==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/io.github.triet4p.aegisf.s813evidence
+11-01 14:32:12.577  8891  8907 W HwCust  : CUST VERSION = false, use class = class android.app.HwCustApplicationPackageManagerImpl
+11-01 14:32:12.578  8891  8891 D nativeloader: Load libframework-connectivity-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity.jar: ok
+11-01 14:32:12.580  8891  8891 V GraphicsEnvironment: Currently set values for:
+11-01 14:32:12.580  8891  8891 V GraphicsEnvironment:   angle_gl_driver_selection_pkgs=[]
+11-01 14:32:12.580  8891  8891 V GraphicsEnvironment:   angle_gl_driver_selection_values=[]
+11-01 14:32:12.581  8891  8891 V GraphicsEnvironment: ANGLE GameManagerService for io.github.triet4p.aegisf.s813evidence: false
+11-01 14:32:12.581  8891  8891 V GraphicsEnvironment: io.github.triet4p.aegisf.s813evidence is not listed in per-application setting
+11-01 14:32:12.581  8891  8891 V GraphicsEnvironment: Neither updatable production driver nor prerelease driver is supported.
+11-01 14:32:12.581  8891  8907 I HwApiCacheMangerEx: apicache path=/storage/emulated/0 state=mounted key=io.github.triet4p.aegisf.s813evidence#0#256
+11-01 14:32:12.582  8891  8907 I HwApiCacheMangerEx: need clear apicache,because volumes changed,oldCnt=0 newCnt=1
+11-01 14:32:12.584  8891  8907 I HwApiCacheMangerEx: apicache path=/storage/emulated/0 state=mounted key=io.github.triet4p.aegisf.s813evidence#0#0
+11-01 14:32:12.584  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387460237734599, lux = 13, raw_adc=39, raw_2=771
+11-01 14:32:12.585  8891  8907 I HwApiCacheMangerEx: need clear apicache,because volumes changed,oldCnt=1 newCnt=1
+11-01 14:32:12.649  1686  1849 D vendor.honor.hardware.aoservice@1.0-service: [AO_SVC] (reopen_timer_handler:50):enter reopen handler
+11-01 14:32:12.694  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387460347772099, lux = 12, raw_adc=38, raw_2=771
+11-01 14:32:12.697 31858 31858 I adbd    : adbd service requested 'shell,v2,TERM=dumb,raw:run-as io.github.triet4p.aegisf.s813evidence ls files/S8.13-assisted-lifetime-a65/S8.13-assisted-lifetime-a65-freeze-65/candidate-b/assisted-lifetime-smoke-old-1/assisted/ready'
+11-01 14:32:12.716 31881 31882 E bms_file: file /sys/class/power_supply/bk_battery/status is invalid
+11-01 14:32:12.717 31881 31882 E bms_file: file /sys/class/hw_power/charger/direct_charger/direct_charge_succ is invalid
+11-01 14:32:12.717 31881 31882 E bms_file: file /sys/class/hw_power/charger/direct_charger_hsc/direct_charge_succ is invalid
+11-01 14:32:12.718 31881 31882 E bms_file: file /sys/class/hw_power/charger/direct_charger/direct_charge_succ is invalid
+11-01 14:32:12.718 31881 31882 E bms_file: file /sys/class/hw_power/charger/direct_charger_hsc/direct_charge_succ is invalid
+11-01 14:32:12.719 31881 31882 E bms_file: file sys/class/hw_power/adsp_dts is invalid
+11-01 14:32:12.720 31881 31882 E bms_file: file /sys/class/backlight/panel1-backlight/brightness is invalid
+11-01 14:32:12.752 31881 31882 E bms_file: file /sys/class/hw_power/charger/direct_charger/direct_charge_succ is invalid
+11-01 14:32:12.753 31881 31882 E bms_file: file /sys/class/hw_power/charger/direct_charger_hsc/direct_charge_succ is invalid
+11-01 14:32:12.754 31881 31882 E bms_file: file /sys/class/hw_power/charger/direct_charger/direct_charge_succ is invalid
+11-01 14:32:12.755 31881 31882 E bms_file: file /sys/class/hw_power/charger/direct_charger_hsc/direct_charge_succ is invalid
+11-01 14:32:12.755 31881 31882 E bms_file: file /sys/class/hw_power/charger/direct_charger/direct_charge_succ is invalid
+11-01 14:32:12.756 31881 31882 E bms_file: file /sys/class/hw_power/charger/direct_charger_hsc/direct_charge_succ is invalid
+11-01 14:32:12.757 31881 31882 E bms_file: file /sys/class/hw_power/charger/charge_data/iin_thermal is invalid
+11-01 14:32:12.779 31881 31882 I bms_behavior: monitor interval count 442
+11-01 14:32:12.805  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387460457729026, lux = 12, raw_adc=37, raw_2=771
+11-01 14:32:12.829  2350  4581 I SWAP_GkiKernelInterface: del dir for com.google.android.syncadapters.calendar success
+11-01 14:32:12.914  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387460567776630, lux = 12, raw_adc=35, raw_2=771
+11-01 14:32:13.017  8891  8891 I AndroidJUnitRunner: newApplication io.github.triet4p.aegisf.AegisApplication
+11-01 14:32:13.024  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387460677787515, lux = 12, raw_adc=34, raw_2=771
+11-01 14:32:13.027  8891  8905 W FlutterAnimationAdvance: FlutterAnimationAdvance getInstance()
+11-01 14:32:13.030  8891  8907 I AwareBitmapCacher: init processName:io.github.triet4p.aegisf.s813evidence pid=8891 uid=10398
+11-01 14:32:13.033  8891  8912 E AwareLog: AtomicFileUtils: readFileLines file not exist: AtomicFile[/data/user/0/io.github.triet4p.aegisf.s813evidence/files/hw_cached_resid.list]
+11-01 14:32:13.043  8891  8891 E [FASProxy:]: failed to open /proc/fas/ioctl, errno=2, No such file or directory
+11-01 14:32:13.048  1757  2207 I VSyncReactor: startPeriodTransitionInternal newPeriod:16666666
+11-01 14:32:13.051  8891  8891 I AndroidJUnitRunner: onCreate Bundle[mParcelledData.dataSize=1804]
+11-01 14:32:13.051  8891  8891 D AndroidJUnitRunner: Use the raw file system for managing file I/O.
+11-01 14:32:13.051  1757  1946 I VSyncReactor: addHwVsyncTimestamp periodConfirmed. hwcVsyncPeriod:16666666
+11-01 14:32:13.066  8891  8891 V TestEventClient: No service name argument was given (testDiscoveryService, testRunEventService or orchestratorService)
+11-01 14:32:13.066  8891  8915 D AndroidJUnitRunner: onStart is called.
+11-01 14:32:13.072  8891  8891 I SystemFonts: loadHwSystemFonts, isNightMode true, fontWeightScale is 117
+11-01 14:32:13.073  8891  8891 I HwTypeface: update default font
+11-01 14:32:13.074  1757  1998 I Scheduler: idleTimerCallback timer change to TimerState: Reset
+11-01 14:32:13.076  8891  8891 I ActivityThread: finishPreloaded preloadStatus 0
+11-01 14:32:13.076  2350  3781 I ActivityManager: Flag disabled. Ignoring finishAttachApplication from uid: 10398. pid: 8891
+11-01 14:32:13.087  1757  1757 I Scheduler: applyPolicy: scored layer size: 0
+11-01 14:32:13.087  4561  4882 D Booster_TelephonyState: updateLteSignalStrengthFromProp[0], lteRsrp:-92 lteRsrq:-9 lteSinr:18
+11-01 14:32:13.094  2350  3781 D CompatibilityChangeReporter: Compat change id reported: 161145287; UID 10398; state: ENABLED
+11-01 14:32:13.096  8891  8915 I InstrConnection: Could not send broadcast or register receiver (isolatedProcess?)
+11-01 14:32:13.134  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387460787705953, lux = 12, raw_adc=35, raw_2=771
+11-01 14:32:13.149  1686  1849 D vendor.honor.hardware.aoservice@1.0-service: [AO_SVC] (reopen_timer_handler:50):enter reopen handler
+11-01 14:32:13.150  8891  8915 I TestRunner: run started: 1 tests
+11-01 14:32:13.151  8891  8915 I TestRunner: started: runFrozenDevAndHeldoutSuites(io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest)
+11-01 14:32:13.152  8876  8890 V HnExtFrameworkFactory: successes to get AllImpl object and return....
+11-01 14:32:13.226  4561  4882 D Booster_TelephonyMonitor: onDataActivity[0], direction = 3
+11-01 14:32:13.226  3690  3690 D NetworkController.MobileSignalController(0_1): mSimSubId:1 onDataActivity: direction=3
+11-01 14:32:13.227  4561  4904 I Booster_OllieObserver: notify registrants event: EVENT_DATA_ACTIVITY_CHANGED
+11-01 14:32:13.244  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387460897678557, lux = 12, raw_adc=35, raw_2=771
+11-01 14:32:13.354  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387461007744234, lux = 12, raw_adc=34, raw_2=771
+11-01 14:32:13.366  8891  8917 D iMonitor: create: 942010008
+11-01 14:32:13.369  8891  8917 I iMonitor: send: 942010008
+11-01 14:32:13.464  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387461117688713, lux = 12, raw_adc=34, raw_2=771
+11-01 14:32:13.542  1757  1998 I Scheduler: idleTimerCallback timer change to TimerState: Expired
+11-01 14:32:13.574  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387461227567307, lux = 12, raw_adc=33, raw_2=771
+11-01 14:32:13.650  1686  1849 D vendor.honor.hardware.aoservice@1.0-service: [AO_SVC] (reopen_timer_handler:50):enter reopen handler
+11-01 14:32:13.684  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387461337723088, lux = 12, raw_adc=33, raw_2=771
+11-01 14:32:13.686  8891  8920 D CompatibilityChangeReporter: Compat change id reported: 247079863; UID 10398; state: ENABLED
+11-01 14:32:13.795  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387461447588401, lux = 12, raw_adc=35, raw_2=771
+11-01 14:32:13.799 31858 31858 I adbd    : adbd service requested 'shell,v2,TERM=dumb,raw:run-as io.github.triet4p.aegisf.s813evidence ls files/S8.13-assisted-lifetime-a65/S8.13-assisted-lifetime-a65-freeze-65/candidate-b/assisted-lifetime-smoke-old-1/assisted/ready'
+11-01 14:32:13.904  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387461557716995, lux = 12, raw_adc=36, raw_2=771
+11-01 14:32:13.905 31858 31858 I adbd    : adbd service requested 'exec:run-as 'io.github.triet4p.aegisf.s813evidence' 'cat' 'files/S8.13-assisted-lifetime-a65/S8.13-assisted-lifetime-a65-freeze-65/candidate-b/assisted-lifetime-smoke-old-1/assisted/ready/a8-clarify-01.json''
+11-01 14:32:13.978  1757  1998 I Scheduler: idleTimerCallback timer change to TimerState: Reset
+11-01 14:32:13.989  1757  1757 I Scheduler: applyPolicy: scored layer size: 0
+11-01 14:32:14.014  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387461667772880, lux = 12, raw_adc=38, raw_2=771
+11-01 14:32:14.014 31858 31858 I adbd    : adbd service requested 'shell,v2,TERM=dumb,raw:run-as io.github.triet4p.aegisf.s813evidence sh -c 'cat > files/S8.13-assisted-lifetime-a65/S8.13-assisted-lifetime-a65-freeze-65/candidate-b/assisted-lifetime-smoke-old-1/assisted/decision/a8-clarify-01.json.tmp && mv files/S8.13-assisted-lifetime-a65/S8.13-assisted-lifetime-a65-freeze-65/candidate-b/assisted-lifetime-smoke-old-1/assisted/decision/a8-clarify-01.json.tmp files/S8.13-assisted-lifetime-a65/S8.13-assisted-lifetime-a65-freeze-65/candidate-b/assisted-lifetime-smoke-old-1/assisted/decision/a8-clarify-01.json''
+11-01 14:32:14.065  2350  3183 D ActivityManager: freezing 7837 com.hihonor.dsdscardmanager
+11-01 14:32:14.124  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387461777632828, lux = 12, raw_adc=39, raw_2=771
+11-01 14:32:14.151  1686  1849 D vendor.honor.hardware.aoservice@1.0-service: [AO_SVC] (reopen_timer_handler:50):enter reopen handler
+11-01 14:32:14.235  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387461887726370, lux = 13, raw_adc=39, raw_2=771
+11-01 14:32:14.234  3933  3933 I PacketsControl: not 3G net type. do nothing.
+11-01 14:32:14.234  4561  4882 D Booster_TelephonyMonitor: onDataActivity[0], direction = 0
+11-01 14:32:14.236  4561  4904 I Booster_OllieObserver: notify registrants event: EVENT_DATA_ACTIVITY_CHANGED
+11-01 14:32:14.236  3690  3690 D NetworkController.MobileSignalController(0_1): mSimSubId:1 onDataActivity: direction=0
+11-01 14:32:14.297  8891  8915 E TestRunner: failed: runFrozenDevAndHeldoutSuites(io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest)
+11-01 14:32:14.299  8891  8915 E TestRunner: ----- begin exception -----
+11-01 14:32:14.299  8891  8915 E TestRunner: kotlinx.coroutines.JobCancellationException: Job was cancelled; job=SupervisorJobImpl{Cancelled}@6dd3a08
+11-01 14:32:14.300  8891  8915 E TestRunner: ----- end exception -----
+11-01 14:32:14.305  8891  8915 I TestRunner: finished: runFrozenDevAndHeldoutSuites(io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest)
+11-01 14:32:14.315  8891  8915 I TestRunner: run finished: 1 tests, 1 failed, 0 ignored
+11-01 14:32:14.334  2350  3781 I ActivityManager: Force stopping io.github.triet4p.aegisf.s813evidence appid=10398 user=0: finished inst
+11-01 14:32:14.335  2350  3781 E ActivityManager: Unable to freeze binder for 8891: -11
+11-01 14:32:14.337  8876  8876 I app_process: System.exit called, status: 0
+11-01 14:32:14.337  8876  8876 I AndroidRuntime: VM exiting with result code 0.
+11-01 14:32:14.339  2350  2877 D DisplayManagerService: Drop pending events for gone uid 10398
+11-01 14:32:14.342  1739 30562 D AudioPolicyService: getUidState(10398) cacheIter->second.first, return cacheIter->second.second(4)
+11-01 14:32:14.342  4561 17482 D Booster_AwareMonitor: [handleUidGone] uid:10398 packageName:io.github.triet4p.aegisf.s813evidence
+11-01 14:32:14.343  1739 30562 D AudioPolicyService: getUidState(10398) !cacheIter->second.first, return PROCESS_STATE_UNKNOWN
+11-01 14:32:14.343  4561  4904 I Booster_OllieObserver: notify registrants event: EVENT_ACTIVITY_STATE_CHANGED, new ActivityInfo: uid = 10398, packageName = io.github.triet4p.aegisf.s813evidence, procState = 19
+11-01 14:32:14.343  2350  3781 I ActivityManager: Killing 8891:io.github.triet4p.aegisf.s813evidence/u0a398 (adj 0): stop io.github.triet4p.aegisf.s813evidence due to finished inst
+11-01 14:32:14.344  2350  3781 I HwActivityTaskManagerServiceEx: [activity restore] killed reason [io.github.triet4p.aegisf.s813evidence] stop io.github.triet4p.aegisf.s813evidence due to finished inst process name io.github.triet4p.aegisf.s813evidence uid 10398
+11-01 14:32:14.344  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387461997737463, lux = 13, raw_adc=40, raw_2=771
+11-01 14:32:14.345  2350  3219 I CollectDataProc: [activity restore]  io.github.triet4p.aegisf.s813evidence [killed reason] ignore
+11-01 14:32:14.346  4561  4904 I NsaPowerConsumptionMonitor: onActivityStateChanged: mIsSpeedTesting:false isTopActivity:true isSpeedTestApk:false
+11-01 14:32:14.347  4561  4904 I UidCloseNrStateMachine: UidGone uid:10398, pkgName:io.github.triet4p.aegisf.s813evidence
+11-01 14:32:14.348  2350  2877 I SWAP_SCENE: Entering notifySceneData notifySceneData. EventType:PROCESS_DIED para:io.github.triet4p.aegisf.s813evidence
+11-01 14:32:14.348  2350  2908 I HwPowerManagerService: appdie release wakelock, pid = 8891, uid = 10398
+11-01 14:32:14.349  2350  3510 W HwAudioServiceEx: SoundEffectState bundle get reserved is invalid
+11-01 14:32:14.349  2350  4581 I SWAP_AppModel: SWAP-APP_DIED_active:pkg:io.github.triet4p.aegisf.s813evidence uid:10398 liveApp:5
+11-01 14:32:14.350  2350  4581 I SWAP_SCENE: This app was killed: io.github.triet4p.aegisf.s813evidence
+11-01 14:32:14.352  2350  5465 I HiView.HiEvent: Flatten done:1002
+11-01 14:32:14.352  2350  5465 I hievent_jni: Write to dev len:354
+11-01 14:32:14.352  2350  5465 I hievent_jni: hievent_writer_write finish
+11-01 14:32:14.352  3933  4508 E AwareLog: Stub: processProcessDied has not been overridden!
+11-01 14:32:14.353  2350  2416 D HwActivityManagerServiceEx: getPackageNameForPid callingAppId: 1000
+11-01 14:32:14.353  2350  2949 I libprocessgroup: Successfully killed process cgroup uid 10398 pid 8891 in 5ms
+11-01 14:32:14.354  2350  5397 D HwActivityManagerServiceEx: getPackageNameForPid callingAppId: 1000
+11-01 14:32:14.354  2350  2416 D HwActivityManagerServiceEx: getPackageNameForPid callingAppId: 1000
+11-01 14:32:14.357  4561 17482 E HsmCoreServiceImpl: onTransact in code is: 102
+11-01 14:32:14.357  4561 17482 I MediaProcessHandler: processOp opType: 1, uid: 10398, pid: 8891
+11-01 14:32:14.357  4561 17482 W MediaProcessHandler: only the process it self can do this operation: 10398, 1000, 8891, 3770
+11-01 14:32:14.357  4561 17482 I MediaProcessHandler: executedCallBack opType: 1 mMediaStatusObservers.size=0
+11-01 14:32:14.359  4561  4897 E NetworkQoe: notifyUidActivityStateChange:info is null
+11-01 14:32:14.359  4561  4897 D Booster_SelfCureManager: handleMessage: msg.what: 38
+11-01 14:32:14.359  4561  4897 I HwPacketFilterBypass: handleActivityUidStateChanged uid:10398 -1 foreground:false
+11-01 14:32:14.360  4561  4897 D SmartDualCardConfig: getAppType,pkgName=io.github.triet4p.aegisf.s813evidence,appType=-1
+11-01 14:32:14.361  4561  4897 E SmartDualCardConfig: isAppInBlackList false,items==null
+11-01 14:32:14.361  4561  4897 I SmartDualCardConfig: isAppInWhiteList false,uid=10398
+11-01 14:32:14.361  4561  4897 I LowLatencyMode: handleApkInBackground packageName: io.github.triet4p.aegisf.s813evidence, foregroundWhiteListApkSet: []
+11-01 14:32:14.362  4561  4897 D SmartDualCardConfig: getAppType,pkgName=io.github.triet4p.aegisf.s813evidence,appType=-1
+11-01 14:32:14.363  2350  3781 W ProcessStats: Tracking association SourceState{bcdccbd com.hihonor.id:core/10057 BTop #826876} whose proc state 2 is better than process ProcessState{113e825 com.hihonor.id:persistent/10057 pkg=com.hihonor.id} proc state 5 (66 skipped)
+11-01 14:32:14.363  4561  4897 D SmartDualCardConfig: getAppType,pkgName=io.github.triet4p.aegisf.s813evidence,appType=-1
+11-01 14:32:14.363  4561  4897 E SmartDualCardConfig: isAppInBlackList false,items==null
+11-01 14:32:14.364  4561  4897 I SmartDualCardSM: onUidStateUpdate,uid=10398,appName=io.github.triet4p.aegisf.s813evidence,state=BACKGROUND
+11-01 14:32:14.364  4561  4897 D SmartDualCardConfig: getAppType,pkgName=io.github.triet4p.aegisf.s813evidence,appType=-1
+11-01 14:32:14.365  2350  3781 D HwWindowManagerServiceEx: recompute display mode
+11-01 14:32:14.365  4561  4897 I SmartDualCardSM: updateAppState mAppState=1
+11-01 14:32:14.365  4561  4897 I SmartDualCardSM: IdleState:got msg.what=EVENT_APP_MOVE_BACKGROUND
+11-01 14:32:14.365  4561  4897 I SmartDualCardSM: startAppBackgroundTimer
+11-01 14:32:14.366  2350  2880 V ActivityTaskManager: Activity idle: null
+11-01 14:32:14.366  2350  2880 D HwWindowManagerServiceEx: recompute display mode
+11-01 14:32:14.367  4561  5145 I Hicom_Monitor: notifyAppDied: uid = 10398
+11-01 14:32:14.367  4561  5145 I UctpAppMonitor: handleAppDied: pkgName is io.github.triet4p.aegisf.s813evidence mIsNeedToOpen is false
+11-01 14:32:14.413 31858 31858 I adbd    : Remote process closed the socket (on MSG_PEEK)
+11-01 14:32:14.413  2350  3781 V ActivityManager: Got obituary of 8891:io.github.triet4p.aegisf.s813evidence
+11-01 14:32:14.414  1567  1567 I Zygote  : Process 8891 exited due to signal 9 (Killed)
+11-01 14:32:14.454  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387462107771265, lux = 13, raw_adc=40, raw_2=771
+11-01 14:32:14.563  1757  1998 I Scheduler: idleTimerCallback timer change to TimerState: Expired
+11-01 14:32:14.564  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387462217685953, lux = 13, raw_adc=39, raw_2=771
+11-01 14:32:14.596  1757  1998 I Scheduler: idleTimerCallback timer change to TimerState: Reset
+11-01 14:32:14.607  1757  1757 I Scheduler: applyPolicy: scored layer size: 0
+11-01 14:32:14.652  1686  1849 D vendor.honor.hardware.aoservice@1.0-service: [AO_SVC] (reopen_timer_handler:50):enter reopen handler
+11-01 14:32:14.675  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387462327738765, lux = 12, raw_adc=37, raw_2=771
+11-01 14:32:14.784  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387462437711526, lux = 12, raw_adc=37, raw_2=771
+11-01 14:32:14.850  2350  3510 I HwAudioServiceEx: HwAudioHandlerEx receive unknown msg
+11-01 14:32:14.894  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387462547636578, lux = 12, raw_adc=35, raw_2=771
+11-01 14:32:14.897  1757  1998 I Scheduler: idleTimerCallback timer change to TimerState: Expired
+11-01 14:32:14.923  4561  4904 I Booster_OllieObserver: notify registrants event: EVENT_DOLLIE_DATA_SPEED_NOTIFIER
+11-01 14:32:15.004  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387462657679390, lux = 12, raw_adc=32, raw_2=771
+11-01 14:32:15.063  1678  1730 I android.hardware.thermal@2.0-service.qti-v2: thermal_sample_event: TZ:25 temp:34022
+11-01 14:32:15.064  1678  1730 I android.hardware.thermal@2.0-service.qti-v2: thermal_sample_event: TZ:26 temp:33860
+11-01 14:32:15.064  1678  1730 I android.hardware.thermal@2.0-service.qti-v2: thermal_sample_event: TZ:27 temp:33535
+11-01 14:32:15.081  1757  1998 I Scheduler: idleTimerCallback timer change to TimerState: Reset
+11-01 14:32:15.090  4561  4882 D Booster_TelephonyState: updateLteSignalStrengthFromProp[0], lteRsrp:-92 lteRsrq:-9 lteSinr:18
+11-01 14:32:15.092  1757  1757 I Scheduler: applyPolicy: scored layer size: 0
+11-01 14:32:15.114  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387462767674495, lux = 8, raw_adc=31, raw_2=771
+11-01 14:32:15.153  1686  1849 D vendor.honor.hardware.aoservice@1.0-service: [AO_SVC] (reopen_timer_handler:50):enter reopen handler
+11-01 14:32:15.211 31858 31858 I adbd    : adbd service requested 'shell,v2,TERM=dumb,raw:run-as io.github.triet4p.aegisf.s813evidence ls files/S8.13-assisted-lifetime-a65/S8.13-assisted-lifetime-a65-freeze-65/candidate-b/assisted-lifetime-smoke-old-1/assisted/ready'
+11-01 14:32:15.224  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387462877668922, lux = 11, raw_adc=31, raw_2=771
+11-01 14:32:15.325 31858 31858 I adbd    : adbd service requested 'shell,v2,TERM=dumb:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'threadtime''
+11-01 14:32:15.329  2350  2885 I AppEyeFwkBlock: do monitor
+11-01 14:32:15.334  1677 30315 I sensors-hal: handle_sns_std_sensor_event:275, ambient_light_event: ts=387462987652776, lux = 8, raw_adc=28, raw_2=771
+11-01 14:32:15.355  2350  4581 I SWAP_GkiKernelInterface: del dir for io.github.triet4p.aegisf.s813evidence success
+11-01 14:32:15.381  1757  1998 I Scheduler: idleTimerCallback timer change to TimerState: Expired

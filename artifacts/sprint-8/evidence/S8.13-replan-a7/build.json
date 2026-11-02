@@ -1,0 +1,17 @@
+{
+  "task_id": "S8.13",
+  "attempt_id": "S8.13-replan-a7",
+  "batch_id": "S8.13-runtime-fixture-v3-batch-03",
+  "built_at": "2026-10-28T07:18:18.748852+00:00",
+  "command": "cmd /c gradlew.bat --no-daemon --max-workers=1 --quiet :app:assembleDebug :app:assembleDebugAndroidTest -PS813_ANDROID_TARGET_PACKAGE=io.github.triet4p.aegisf.s813evidence --console=plain",
+  "result": "BUILD SUCCESSFUL",
+  "app_package": "io.github.triet4p.aegisf.s813evidence",
+  "test_package": "io.github.triet4p.aegisf.s813evidence.test",
+  "test_target_package": "io.github.triet4p.aegisf.s813evidence",
+  "test_runner": "androidx.test.runner.AndroidJUnitRunner",
+  "app_apk_sha256": "c01a77f00ca95d551fb10e2ffa2cab12a7a2afcbd30109ca10323c49056d1b8c",
+  "test_apk_sha256": "319aa060de3d897e799991e2d11234f16e35b580c9ba48a27716a78f07cb04a2",
+  "warnings": [
+    "Warning: SDK processing. This version only understands SDK XML versions up to 3 but an SDK XML file of version 4 was encountered. This can happen if you use versions of Android Studio and the command-line tools that were released at different times."
+  ]
+}

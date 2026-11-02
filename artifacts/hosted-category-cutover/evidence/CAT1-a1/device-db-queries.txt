@@ -1,0 +1,35 @@
+Device: AAAJBB4930914141, package io.github.triet4p.aegisf
+Source: `adb exec-out run-as io.github.triet4p.aegisf cat databases/aegis-ledger.db`
+Raw database copies were deleted from the artifact tree after these bounded, non-sensitive queries.
+
+PRAGMA user_version;                        -> 16
+SELECT count(*) FROM sqlite_master WHERE type='table' AND name='classification_work';
+                                            -> 0 (table removed by migration 15->16)
+SELECT count(*) FROM classification_snapshots;
+                                            -> 1 (historical provenance retained read-only)
+SELECT id, reviewCategoryId, reviewRevision, reviewStatus FROM pending_bank_drafts ORDER BY id;
+                                            -> (1,1,1,PENDING), (2,2,1,PENDING),
+                                               (3,null,0,PENDING), (4,null,0,PENDING),
+                                               (5,null,0,PENDING), (6,null,0,PENDING)
+SELECT count(*), coalesce(sum(amountVnd),0) FROM transactions;
+                                            -> (0,0)
+SELECT id, name, archived FROM categories ORDER BY id;
+                                            -> (1,Foods,0), (2,Transport,0)
+SELECT id, captureId, revision FROM note_events ORDER BY id;
+                                            -> (1,1,0), (2,4,1), (3,7,0), (4,8,2)
+SELECT id, eventId, draftId, state, revision FROM context_links ORDER BY id;
+                                            -> (1,2,1,ACCEPTED,1)  # owner event 2 <-> draft 1 preserved
+
+run-101422f1263960851b28dd9d1ba27545 (Foods)
+  state -> SUCCEEDED, stopReason -> none
+  observe -> offered category_choices [Foods, Transport], selected_category null
+  update_draft_review -> outcome=ok, effect=applied, verified=true,
+    selected_category={id:1,name:Foods}, review_status=PENDING, review_only=true
+run-03f1f9fe6e6a50250303404f076caff7 (Transport)
+  state -> SUCCEEDED, stopReason -> none
+  observe -> offered category_choices [Foods, Transport]
+  update_draft_review -> outcome=ok, effect=applied, verified=true,
+    selected_category={id:2,name:Transport}, review_status=PENDING, review_only=true
+run-326981730c8c6b1edb0aecb1ab062606 (extra observe-only retry)
+  state -> RUNNING after the app was force-stopped for the final APK install
+  observe -> draft already selected_category={id:2,name:Transport}; no mutation result

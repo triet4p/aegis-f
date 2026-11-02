@@ -1,0 +1,26 @@
+Raw device logcat excerpt (verbatim lines; device clock UTC+7). Captured read-only via `adb -s AAAJBB4930914141 logcat -d -v time` after the pass-1 abort. Not reordered or synthesised.
+
+11-01 13:59:49.591 D/ActivityThread( 4954): Attach thread to application
+11-01 14:02:59.667 I/adbd    (31858): adbd service requested 'shell,v2,TERM=dumb,raw:run-as io.github.triet4p.aegisf.s813evidence sh -c 'cat > files/S8.13-assisted-a63/S8.13-assisted-a63-freeze-63/candidate-b/pass-1/assisted/decision/a8-link-02.json.tmp && mv files/S8.13-assisted-a63/S8.13-assisted-a63-freeze-63/candidate-b/pass-1/assisted/decision/a8-link-02.json.tmp files/S8.13-assisted-a63/S8.13-assisted-a63-freeze-63/candidate-b/pass-1/assisted/decision/a8-link-02.json''
+11-01 14:03:00.857 I/adbd    (31858): adbd service requested 'shell,v2,TERM=dumb,raw:run-as io.github.triet4p.aegisf.s813evidence ls files/S8.13-assisted-a63/S8.13-assisted-a63-freeze-63/candidate-b/pass-1/assisted/ready'
+11-01 14:03:01.916 E/TestRunner( 4954): failed: runFrozenDevAndHeldoutSuites(io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest)
+11-01 14:03:01.919 E/TestRunner( 4954): ----- begin exception -----
+11-01 14:03:01.919 E/TestRunner( 4954): kotlinx.coroutines.JobCancellationException: Job was cancelled; job=SupervisorJobImpl{Cancelled}@96f262c
+11-01 14:03:01.919 E/TestRunner( 4954): ----- end exception -----
+11-01 14:03:01.925 I/TestRunner( 4954): finished: runFrozenDevAndHeldoutSuites(io.github.triet4p.aegisf.agent.S813QualificationInstrumentedTest)
+11-01 14:03:01.936 I/TestRunner( 4954): run finished: 1 tests, 1 failed, 0 ignored
+11-01 14:03:01.955 I/ActivityManager( 2350): Force stopping io.github.triet4p.aegisf.s813evidence appid=10398 user=0: finished inst
+11-01 14:03:01.956 E/ActivityManager( 2350): Unable to freeze binder for 4954: -11
+11-01 14:03:01.969 I/ActivityManager( 2350): Killing 4954:io.github.triet4p.aegisf.s813evidence/u0a398 (adj 0): stop io.github.triet4p.aegisf.s813evidence due to finished inst
+11-01 14:03:02.034 V/ActivityManager( 2350): Got obituary of 4954:io.github.triet4p.aegisf.s813evidence
+11-01 14:03:02.982 I/SWAP_GkiKernelInterface( 2350): del dir for io.github.triet4p.aegisf.s813evidence success
+11-01 14:03:03.077 I/adbd    (31858): adbd service requested 'shell,v2,TERM=dumb,raw:run-as io.github.triet4p.aegisf.s813evidence test -e files/S8.13-assisted-a63/S8.13-assisted-a63-freeze-63/candidate-b/pass-1'
+11-01 14:03:03.172 I/adbd    (31858): adbd service requested 'exec:run-as 'io.github.triet4p.aegisf.s813evidence' 'tar' '-cf' '-' 'files/S8.13-assisted-a63/S8.13-assisted-a63-freeze-63/candidate-b/pass-1''
+11-01 14:03:03.353 I/adbd    (31858): adbd service requested 'shell,v2,TERM=dumb,raw:run-as io.github.triet4p.aegisf.s813evidence test -e files/S8.13-assisted-a63/debug/S8.13-assisted-a63-freeze-63/pass-1'
+11-01 14:03:03.459 I/adbd    (31858): adbd service requested 'exec:run-as 'io.github.triet4p.aegisf.s813evidence' 'tar' '-cf' '-' 'files/S8.13-assisted-a63/debug/S8.13-assisted-a63-freeze-63/pass-1''
+
+Post-abort device-state verification (run-as, read-only, after the host collection):
+- files/S8.13-assisted-a63 still exists with S8.13-assisted-a63-freeze-63/ and debug/ (mtimes 13:57-13:59).
+- files/S8.13-assisted-a63/S8.13-assisted-a63-freeze-63/candidate-b/pass-1 exists; 6 top-level files plus the assisted/ tree.
+- No live-run.json was written by the aborted batch (device_run_validation_error = missing_live_run).
+- The SWAP_GkiKernelInterface line is an OS cache-cleanup event; the run directory was verified retained afterwards.

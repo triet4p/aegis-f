@@ -313,3 +313,23 @@ local safety gate and manual envelope. Do not reintroduce a local OTP/security-w
 reference filter or compatibility shim. Keep unrelated empty-input, event provenance,
 context-size and model-budget rules, and preserve hosted outbound masking and explicit
 financial confirmation.
+
+## [2026-11-02] Bind hosted English translation to complete current Laya context
+
+**Decision:** Offer English translation only as an optional `classify_draft` pair of the opaque complete-current-context reference and faithful translated text, and persist input kind plus one-way source/input identities while retaining the ordinary stored-source path.
+
+**Alternatives considered:** Accept arbitrary replacement text; require exactly one accepted event link; translate only the draft description; or add a general-purpose translation tool that could return unbound prose.
+
+**Reason:** The pinned local checkpoint is English-only, but Laya's effective input includes the draft description and every active linked reading. Omitting a linked reading or appending its original non-English text would misstate the current input. Binding the translation to all active draft/link/event/capture revisions and preserving every masked token keeps it within authorized evidence without turning the translated text into owner-authored data or suggesting a category.
+
+**Consequences:** Translation callers must observe the current draft and translate the complete displayed source context. A source or revision change invalidates the translation; local Laya receives only the translated English text, while stored snapshots retain hashes and provenance rather than derived text. The source-text path remains usable offline and no candidate, weight or threshold is changed.
+
+## [2026-11-02] Replace local Laya classification with hosted workflow category selection
+
+**Decision:** Remove Laya from the active application and make existing-category selection part of the hosted agent's normal reasoning and workflow proposals, without a separate local classification inference or translation hop.
+
+**Alternatives considered:** Retain the English translation bridge to Laya; replace Laya with a larger on-device multilingual model.
+
+**Reason:** The owner explicitly chose to use the already-required hosted model for contextual category selection after the real linked bread-note trials still produced NO_FIT with English translation. A larger on-device model adds phone runtime requirements without the desired workflow simplification.
+
+**Consequences:** Supersedes the active Laya and translation architecture above, without rewriting historical evidence. Remove obsolete runtime, provisioning, classification tools and model-specific UI/contracts in a clean cutover; preserve existing owner data and historical qualification results. Supply the hosted model with current category choices and validate its proposed existing category locally, including scope and revision. Category assignment remains review state, not authorization to Confirm a ledger transaction. Hosted masking, complete token reminders, tool/public-response guards and full local session traces remain required.

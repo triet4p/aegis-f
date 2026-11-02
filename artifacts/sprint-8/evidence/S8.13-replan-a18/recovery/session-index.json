@@ -1,0 +1,65 @@
+{
+ "S813V3QualificationSilver10": {
+  "count": 135,
+  "first": 629,
+  "last": 3400,
+  "first_ts": "2026-10-28T21:09:28.039Z",
+  "last_ts": "2026-10-28T23:43:50.483Z",
+  "failed": 15,
+  "calls": [
+   [
+    629,
+    "write",
+    "call_ca4a50c06a914776abe056ba44620afd|fc_0c911cd4243ff001016ae263fd7c70819181570f1821baac3a"
+   ]
+  ]
+ },
+ "S813PrivacyFallbackSilver12": {
+  "count": 63,
+  "first": 627,
+  "last": 3012,
+  "first_ts": "2026-10-29T00:27:20.288Z",
+  "last_ts": "2026-10-29T02:55:55.224Z",
+  "failed": 11,
+  "calls": []
+ },
+ "S813MetadataQualificationGold13": {
+  "count": 21,
+  "first": 353,
+  "last": 556,
+  "first_ts": "2026-10-29T03:37:28.343Z",
+  "last_ts": "2026-10-29T03:48:01.632Z",
+  "failed": 0,
+  "calls": []
+ },
+ "S813ResumeGold16": {
+  "count": 57,
+  "first": 403,
+  "last": 1980,
+  "first_ts": "2026-10-29T08:18:38.595Z",
+  "last_ts": "2026-10-29T10:02:51.704Z",
+  "failed": 1,
+  "calls": [
+   [
+    1210,
+    "edit",
+    "call_01_7bDsnMajQqFcfJVgOpyU4137|1ca3dcd1-54f9-39e5-b55a-70e367e5ef02"
+   ],
+   [
+    1210,
+    "edit",
+    "call_02_euMjYxXEuEMuBBer32R62053|9db0bacf-6597-33b4-bdac-2b3c5c904603"
+   ],
+   [
+    1496,
+    "edit",
+    "call_00_3XjB6Ae9g7VElhNIsPvM1668|7deaa31d-4d49-30c7-811f-3fe6be00320f"
+   ],
+   [
+    1980,
+    "write",
+    "call_00_ET_4QRb3D9RPwpUtzqhMb936205|780c29f4-35a1-364a-a7cb-c28b225ae243"
+   ]
+  ]
+ }
+}

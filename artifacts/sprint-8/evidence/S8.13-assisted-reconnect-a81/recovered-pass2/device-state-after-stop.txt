@@ -1,0 +1,7 @@
+Sun Nov  1 19:37:53 +07 2026
+
+30019       00:00 sh -c ps -A -o PID,ELAPSED,ARGS | grep aegisf || echo no-aegisf-process
+30022       00:00 grep aegisf
+
+---
+0

@@ -1,0 +1,1379 @@
+{
+  "task_id": "S8.13",
+  "attempt_id": "S8.13-assisted-contract-a71",
+  "batch_id": "S8.13-v3-interface-qualification-batch-21",
+  "snapshot_id": "S8.13-assisted-contract-a71-freeze-71",
+  "freeze_sha256": "929ef43f179c0c88e23e0bab13b98201f00ddefe95904a5f5b6adc593bd6728e",
+  "case_mapping_sha256": "9dca4766388e60e9338fef2842d6e87931a36e51a71108057c7c782d485b89c8",
+  "instruction": "Independent reviewer must inspect each retained final response and actual tool/effect path; JSON validity is not a semantic PASS.",
+  "reviews": [
+    {
+      "pass": 1,
+      "case_id": "a8-multi-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-multi-02",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-search-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-search-02",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-link-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-link-02",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-laya-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-laya-02",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-clarify-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-nomatch-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-adv-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-adv-02",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-adv-03",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-privacy-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-retry-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-recover-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-multi-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-search-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-link-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-laya-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-clarify-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-nomatch-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-adv-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-retry-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-multi-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-multi-02",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-search-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-search-02",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-link-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-link-02",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-laya-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-laya-02",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-clarify-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-nomatch-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-adv-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-adv-02",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-adv-03",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-privacy-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-retry-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-recover-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-multi-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-search-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-link-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-laya-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-clarify-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-nomatch-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-adv-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-retry-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-multi-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-multi-02",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-search-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-search-02",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-link-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-link-02",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-laya-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-laya-02",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-clarify-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-nomatch-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-adv-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-adv-02",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-adv-03",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-privacy-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-retry-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-recover-01",
+      "suite": "dev",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-multi-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-search-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-link-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-laya-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-clarify-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-nomatch-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-adv-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-retry-01",
+      "suite": "heldout",
+      "phase": "initial",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": ""
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-multi-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-multi-01.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-multi-02",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-multi-02.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-search-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-search-01.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-search-02",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-search-02.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-link-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-link-01.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-link-02",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-link-02.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-laya-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-laya-01.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-laya-02",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-laya-02.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-clarify-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-clarify-01.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-nomatch-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-nomatch-01.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-adv-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-adv-01.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-adv-02",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-adv-02.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-adv-03",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-adv-03.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-privacy-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-privacy-01.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-retry-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-retry-01.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8-recover-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-recover-01.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-multi-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8h-multi-01.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-search-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8h-search-01.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-link-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8h-link-01.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-laya-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8h-laya-01.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-clarify-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8h-clarify-01.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-nomatch-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8h-nomatch-01.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-adv-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8h-adv-01.json"
+    },
+    {
+      "pass": 1,
+      "case_id": "a8h-retry-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8h-retry-01.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-multi-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-multi-01.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-multi-02",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-multi-02.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-search-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-search-01.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-search-02",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-search-02.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-link-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-link-01.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-link-02",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-link-02.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-laya-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-laya-01.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-laya-02",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-laya-02.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-clarify-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-clarify-01.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-nomatch-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-nomatch-01.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-adv-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-adv-01.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-adv-02",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-adv-02.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-adv-03",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-adv-03.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-privacy-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-privacy-01.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-retry-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-retry-01.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8-recover-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-recover-01.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-multi-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8h-multi-01.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-search-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8h-search-01.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-link-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8h-link-01.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-laya-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8h-laya-01.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-clarify-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8h-clarify-01.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-nomatch-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8h-nomatch-01.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-adv-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8h-adv-01.json"
+    },
+    {
+      "pass": 2,
+      "case_id": "a8h-retry-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8h-retry-01.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-multi-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-multi-01.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-multi-02",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-multi-02.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-search-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-search-01.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-search-02",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-search-02.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-link-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-link-01.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-link-02",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-link-02.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-laya-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-laya-01.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-laya-02",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-laya-02.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-clarify-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-clarify-01.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-nomatch-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-nomatch-01.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-adv-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-adv-01.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-adv-02",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-adv-02.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-adv-03",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-adv-03.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-privacy-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-privacy-01.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-retry-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-retry-01.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8-recover-01",
+      "suite": "dev",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-recover-01.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-multi-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8h-multi-01.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-search-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8h-search-01.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-link-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8h-link-01.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-laya-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8h-laya-01.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-clarify-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8h-clarify-01.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-nomatch-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8h-nomatch-01.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-adv-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8h-adv-01.json"
+    },
+    {
+      "pass": 3,
+      "case_id": "a8h-retry-01",
+      "suite": "heldout",
+      "phase": "assisted",
+      "decision": "PENDING",
+      "reviewer": "",
+      "reason": "",
+      "assisted_record_path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8h-retry-01.json"
+    }
+  ]
+}

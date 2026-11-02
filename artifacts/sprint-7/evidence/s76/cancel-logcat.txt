@@ -1,0 +1,5 @@
+--------- beginning of main
+10-25 04:01:09.732 20852 28177 I BankDraftClassification: intake classification draft=5 scheduled question=be8afc933487
+10-25 04:01:10.160 20852 20852 I BankDraftClassification: classification cancelled by user: draft=5
+10-25 04:01:10.761 20852 28450 I BankDraftClassification: intake classification draft=5 scheduled question=be8afc933487
+10-25 04:01:21.841 20852 20852 I BankDraftClassification: classification cancelled by user: draft=5

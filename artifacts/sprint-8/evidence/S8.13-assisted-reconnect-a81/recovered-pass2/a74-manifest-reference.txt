@@ -1,0 +1,2 @@
+b41fee32fc96b731e2e7a65faad2d146787637029c00dc3c01cfba25c10d3f65  artifacts/sprint-8/evidence/S8.13-assisted-a74/manifest.json
+82154

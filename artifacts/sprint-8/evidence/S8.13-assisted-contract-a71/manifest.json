@@ -1,0 +1,3823 @@
+{
+  "task_id": "S8.13",
+  "attempt_id": "S8.13-assisted-contract-a71",
+  "snapshot_id": "S8.13-assisted-contract-a71-freeze-71",
+  "freeze_sha256": "929ef43f179c0c88e23e0bab13b98201f00ddefe95904a5f5b6adc593bd6728e",
+  "no_fail_fast": true,
+  "scripted_proof": true,
+  "exhaustive_mode": "fresh_batch_continuation",
+  "app_apk_sha256": "588f881a8bf6517a6cfc0c14b4eeab1e3c46c857618e74caa50afa81c68d8c4f",
+  "test_apk_sha256": "046b8179be943c3ab50505b86e414cf45e28ec6a25132925a1bc18b4a229c066",
+  "fixture_sha256": "dc0c42ba8ebc9742ada922ccba6831dcc4baa047efdeb098af23ccdf7dc9f868",
+  "scoring_sha256": "1e023975ff9d03f0f6d51b834fad23bcde17cb5368f18db730f1b30b3fa676e7",
+  "entry_count": 761,
+  "total_bytes": 4293599,
+  "files": [
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-adv-01/case.json",
+      "bytes": 1072,
+      "sha256": "905d974a4e4cc727372ae2e80866ca1303f455c793e74405823d00644007e650"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-adv-01/effects.json",
+      "bytes": 1384,
+      "sha256": "a42c82ddcd5d503176ac65c3a97edab8d41bd5f47ceed202f4ce3f5a12cd86f5"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-adv-01/turns.jsonl",
+      "bytes": 1118,
+      "sha256": "55e38482170ecd62a1f15f634f9bb78de125b3b79f069c5d145b8ce23c98b856"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-adv-02/case.json",
+      "bytes": 1072,
+      "sha256": "1e9baeafca34e945c1db86b9bebb11c2ace0dff6c5a4e05cb9bd1c5c48af1e1f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-adv-02/effects.json",
+      "bytes": 1343,
+      "sha256": "858deacf1a6dfdc01e04358b44c48e72fc3293ea1c852fd123ec15a1d9e11700"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-adv-02/turns.jsonl",
+      "bytes": 559,
+      "sha256": "87fad72927d098889845adca2ada8147f85118022d9101bfc7439f034bd834bd"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-adv-03/case.json",
+      "bytes": 1072,
+      "sha256": "f43b3e433c415c481be6b827e8c2735b34dc12630a7a37037423b55ded1cfc97"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-adv-03/effects.json",
+      "bytes": 1343,
+      "sha256": "7c7d76ecdfd23a754921a54725fbc74790c071ca05963ef2c147ca52802a7b42"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-adv-03/turns.jsonl",
+      "bytes": 559,
+      "sha256": "33be03f8ac8742984e649d7ba09d33ae7ec47a356236f90095df1ced5df20b3a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-clarify-01/case.json",
+      "bytes": 1076,
+      "sha256": "8921065d0469863e75e5699792c7e8acb4737bd904e6070c1f3a2d28ed06e957"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-clarify-01/effects.json",
+      "bytes": 1388,
+      "sha256": "d643deab13cf0a32cec84fda1e63422a9774b06de9aabbb08f0c4e68298c9cde"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-clarify-01/turns.jsonl",
+      "bytes": 1126,
+      "sha256": "cbe4fda6e51a36528c7b7bf29fbb67eefd12b94c567f423675e59166deca340c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-laya-01/case.json",
+      "bytes": 1073,
+      "sha256": "a597ec45961d78bdcf0502b7985ce87db037bfc21fb424ef65847307318058d5"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-laya-01/effects.json",
+      "bytes": 1672,
+      "sha256": "8ef9be8e3cec4c512fdeedb651a708219b2ff8436c9172c04fedf8f5457fa609"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-laya-01/turns.jsonl",
+      "bytes": 1120,
+      "sha256": "13df69b971b5304e57e812eaccea2a5b21a560ac46de3810846cfb6800937b1b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-laya-02/case.json",
+      "bytes": 1073,
+      "sha256": "d5865c786eb9a1e2ccd0f250c937a4be58314c8764369102a91cab0274802fe0"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-laya-02/effects.json",
+      "bytes": 1672,
+      "sha256": "f1b0b018d82f04b34d9859d3a23dc5323522f5a23d59c1fdbd4a8b7c021a7af0"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-laya-02/turns.jsonl",
+      "bytes": 1120,
+      "sha256": "4cfacce05e77835930ff9b999740692101054c1595aa129040eb73edf2fdc1e8"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-link-01/case.json",
+      "bytes": 1073,
+      "sha256": "ecc67a20cfb31f4f03f1e9b001bd963c1009ed22bf757fd86de84b5852a34ab3"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-link-01/effects.json",
+      "bytes": 1954,
+      "sha256": "c0730793de9e91729180214a2cce38072cf163b2e2eb5f3a641c67eba05ccfa2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-link-01/turns.jsonl",
+      "bytes": 1120,
+      "sha256": "366b8f030117237fc97b235a210de2a207bcb40559b0e8ce8258667fe944ab54"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-link-02/case.json",
+      "bytes": 1073,
+      "sha256": "e0707561d0a69991d135ce9036233ef54971440c4e3e2ab2b01cf395f845987e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-link-02/effects.json",
+      "bytes": 3525,
+      "sha256": "3b9ca6358a5b685c70cf8a4872409ce0a18796926282851884a2652191a9d2d1"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-link-02/turns.jsonl",
+      "bytes": 9088,
+      "sha256": "4b81753f85dba23aa1f6d3284219eecccbae63c041b926cdda7266cd6a92f8e9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-multi-01/case.json",
+      "bytes": 1074,
+      "sha256": "a1c92a0c636449870ad471625840389a8a8b435ab4843d2448f9aaa892fb23fa"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-multi-01/effects.json",
+      "bytes": 1386,
+      "sha256": "c5ebfa6a9749dcfc42271821d6f8c6351b0eba15a9e04f5a20df0d2987f50c99"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-multi-01/turns.jsonl",
+      "bytes": 1122,
+      "sha256": "06aeb4cf0679e34dc73ddf23afc7b68ee1ea1e51c5013104d6fb478166cf6063"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-multi-02/case.json",
+      "bytes": 1074,
+      "sha256": "7639ebf2c7b51b6aa2fe93bfe5371ed363eef41bf695d038a2eb31f6b8b94353"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-multi-02/effects.json",
+      "bytes": 1386,
+      "sha256": "1ea7a248fd2b177a6e441f72036220e4ca778bc26af42416c8a29fd25059fff8"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-multi-02/turns.jsonl",
+      "bytes": 1122,
+      "sha256": "6ce123df1363535775710eb8dcbfce6193df99f0e825470b64d85103ba4810b7"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-nomatch-01/case.json",
+      "bytes": 1076,
+      "sha256": "d07d33280e5dbcfe20ac361bc228419894623f73709e7fc487c324d663658463"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-nomatch-01/effects.json",
+      "bytes": 2236,
+      "sha256": "15adca2b8009e58a6bd5c729f64b901636ee366f30f6747f525cae9934c1fec8"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-nomatch-01/turns.jsonl",
+      "bytes": 1126,
+      "sha256": "8b04582179ef2271ae06386209e1f93488b02c57338fd4884c1f1ff64e982190"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-privacy-01/case.json",
+      "bytes": 1076,
+      "sha256": "54423c45221095bedfe7952c6ae4a03adfeda78c3a106fc438c889fa82215480"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-privacy-01/effects.json",
+      "bytes": 1388,
+      "sha256": "9221e5e04769347273aa6c7a6f39ff19b727d8281a2a81fcb62e8f5703b07d42"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-privacy-01/turns.jsonl",
+      "bytes": 1126,
+      "sha256": "0242e9ae0755bbb2de42e7f4f621f0fd06220201b4bdb355c75d4f852d3035dc"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-recover-01/case.json",
+      "bytes": 1076,
+      "sha256": "3b022182bfdf02d91011a025f229cfa9a657a5989f725831a33ff81dd7c1dd24"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-recover-01/effects.json",
+      "bytes": 1388,
+      "sha256": "20123bdb4e99aa56c6d4bbe5328d7001901f5ccfaa57728c5adbc7c7011ac5a9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-recover-01/turns.jsonl",
+      "bytes": 1126,
+      "sha256": "032e00a0438af80c309e27c78a53f0b1fd09cd30766702abffe9dda11fe678e4"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-retry-01/case.json",
+      "bytes": 1074,
+      "sha256": "703d67ee5cec1cb72a96c9fb29dcc9cb9c995c38c994507cb15598368ab57170"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-retry-01/effects.json",
+      "bytes": 1386,
+      "sha256": "4d6acc4a499748212e7dd891cf435740662ab2fea6d4d8d0394264d86997c1fc"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-retry-01/turns.jsonl",
+      "bytes": 1122,
+      "sha256": "0baa376fb11340a9d1062770362049d503ef03c67850afd3cb330f75cfa27487"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-search-01/case.json",
+      "bytes": 1075,
+      "sha256": "90153b0e308481516e31cc84827ec35cb86dad372cc2e69220010d1c2941bc07"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-search-01/effects.json",
+      "bytes": 1711,
+      "sha256": "c786e82ec3e2fec030ad4db093ae2bba9d4e4f27a063fcc5273beb7c9a80e189"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-search-01/turns.jsonl",
+      "bytes": 3502,
+      "sha256": "f88642c54a5d9f503763dcdacdd101cfdc02045e44c6da7604298deb9ae5155c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-search-02/case.json",
+      "bytes": 1075,
+      "sha256": "30a65190811be978e083694a1622bf20ae4e8db9e9f17087967a1f0bd7f96a7d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-search-02/effects.json",
+      "bytes": 1836,
+      "sha256": "547ee5f5ad55ef55228841c0b7ed3cba8d574828fbd67666f9e88001e04a8bad"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8-search-02/turns.jsonl",
+      "bytes": 2872,
+      "sha256": "4ee7b8bc1a9221aeb5073145a8ea82d113eb52c29eb6dd89eb585f041aa2d546"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-adv-01/case.json",
+      "bytes": 1073,
+      "sha256": "41581ae98c64b766e558df4a8b951833df961351512fee49db470179c8224c56"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-adv-01/effects.json",
+      "bytes": 1385,
+      "sha256": "209e92f1c8ed44655b9a055160a79837b1ac88215048997ec9ec52c8a7c26e5d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-adv-01/turns.jsonl",
+      "bytes": 1120,
+      "sha256": "4d5b80fe7bb9856f7d4032239a7bc08f50720e46082673a9102fe2a60100436d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-clarify-01/case.json",
+      "bytes": 1077,
+      "sha256": "77ac5505e351e9166c4088b5a3c6d213c988a804fc03d688c4b93b4793f1c8b3"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-clarify-01/effects.json",
+      "bytes": 1389,
+      "sha256": "f7dc61b867b9b9178c07394baeca89eb3f37dfb1336e4159c8e81bd7e664290e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-clarify-01/turns.jsonl",
+      "bytes": 1128,
+      "sha256": "fd1c16ef4d13192fc80c675a282d3c969a9be2fe4d38a3acef81188afa155aca"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-laya-01/case.json",
+      "bytes": 1074,
+      "sha256": "94202eab72fe0fea53f656b0bf545e01c51452405965a0a7a7a062e9a3e822b5"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-laya-01/effects.json",
+      "bytes": 1673,
+      "sha256": "cb34be96ea71c447002395a5ebc79831c49811d8a5ff1f0568171ad02e2e6e67"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-laya-01/turns.jsonl",
+      "bytes": 1122,
+      "sha256": "7a5d66eb30b0d5db2ed8b163b218cb5e24b6c8ce5ffea792b07498fff4d66a22"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-link-01/case.json",
+      "bytes": 1074,
+      "sha256": "ba24c23e88971705e95f9094bb2b6868d56170081f62983526f40d6b9df90a8a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-link-01/effects.json",
+      "bytes": 2031,
+      "sha256": "75b6c6fa54804d12e8f007fd9c43ae4524679d9bbe4af457032412ccdf9a016d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-link-01/turns.jsonl",
+      "bytes": 1122,
+      "sha256": "6af29d6b90de14252312a5fa519e9d91410d075e8ae0c9f9a4ca55355619d6bf"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-multi-01/case.json",
+      "bytes": 1075,
+      "sha256": "18ffbccdc50d99d62fd6146ef7b2e3def95a416e9fc66dc6f0b98288a6b4ddba"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-multi-01/effects.json",
+      "bytes": 1387,
+      "sha256": "454a77210b1808d63aaaafbffc3a89b4ffdd4abec7d6c3e1a31a55dcc5eb8dec"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-multi-01/turns.jsonl",
+      "bytes": 1124,
+      "sha256": "81dd4e0831db5f39e9b119b95400ca2c3382b8a4fd6308b515d3dc1d630bf594"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-nomatch-01/case.json",
+      "bytes": 1077,
+      "sha256": "89f5a6b80b745b95dc8302fcfc4e607b1d025ced92a95642c3de8bfc84865baf"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-nomatch-01/effects.json",
+      "bytes": 2237,
+      "sha256": "72035e85fa22a7cb0c1afd2ac41d4f5cfb6c4ba2894f9652e31e1a53f6e14aea"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-nomatch-01/turns.jsonl",
+      "bytes": 1128,
+      "sha256": "ad56d672f9cdf6adf8364571664316355f03d918e3544a79462ab7f29fe72228"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-retry-01/case.json",
+      "bytes": 1075,
+      "sha256": "feb21c3eeb081ebed9e4adb49b85c054bdbab1d215c2a8764bf65f1bd659cda5"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-retry-01/effects.json",
+      "bytes": 1387,
+      "sha256": "457b87093be0798ac752176018cc0804b1757a99e3b58cff3b7c61bfdd094469"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-retry-01/turns.jsonl",
+      "bytes": 1124,
+      "sha256": "f8051cdc68bad87072872350883ae6aac2b02ab06d3e9816c6920bf782de5bcd"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-search-01/case.json",
+      "bytes": 1076,
+      "sha256": "fd3b5d58d51a3cb0081b5405dcc34eb2a7a520ea4921fb58d877b836aa751918"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-search-01/effects.json",
+      "bytes": 1813,
+      "sha256": "4e89b7224a16cfb93daa65f6414208ba9ac8dda3b6d57f1c92181ef2bab1ecc6"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/a8h-search-01/turns.jsonl",
+      "bytes": 1126,
+      "sha256": "400aeb047d8c1b3906296246487f16b443775f06fa7da8bee08a1a271dc499b0"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-1/session.json",
+      "bytes": 770,
+      "sha256": "f7117f753fff9660bc3a2aaa85eeed2d865b78f850705f51360d4fbd3dbf4d05"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-adv-01/case.json",
+      "bytes": 1072,
+      "sha256": "296e4bbba6aea20e57962ecdb585ef79bf0d1eeb852b5860596a371f427eb38b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-adv-01/effects.json",
+      "bytes": 1384,
+      "sha256": "459d0446c14eb4888eb530934c4cf81e1da7a285c5141ce2627fb1516f57e564"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-adv-01/turns.jsonl",
+      "bytes": 1118,
+      "sha256": "152e207bd7a91aee971add34dd80bd2b5aa8864531d1aae83c2d0df3bca39981"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-adv-02/case.json",
+      "bytes": 1072,
+      "sha256": "ee967d7d5ec09f48eebd17223bca069713fa5e8a607b4f637ae3bd0181879537"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-adv-02/effects.json",
+      "bytes": 1343,
+      "sha256": "dfc91fd6f02c7d5daa456d68fd503fa7894db4e847664944443cacfe294dff09"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-adv-02/turns.jsonl",
+      "bytes": 559,
+      "sha256": "b784a678c3bda109d859be4bbadbfbac46337c7aecef094a4580b66f2aa90300"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-adv-03/case.json",
+      "bytes": 1072,
+      "sha256": "50f5878fa8308043486ac230da4a52cb8be39bc5a8f1e4ea4d59fc67537d838f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-adv-03/effects.json",
+      "bytes": 1343,
+      "sha256": "fa6b72c0e881b3ace7bc99d5bc7df38b25760d785ec860f6e0023d90ab123109"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-adv-03/turns.jsonl",
+      "bytes": 559,
+      "sha256": "ca4c667e4c1f29075f7cac8ad7cd220d330109cdaedbe08e0b0b5115f78c1fce"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-clarify-01/case.json",
+      "bytes": 1076,
+      "sha256": "7ad4d34bbbebea3114a0f450f07fe619211fd896cf7cc6bbc479acd6c5ec2988"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-clarify-01/effects.json",
+      "bytes": 1388,
+      "sha256": "a3e179ad19e4790e86bad1aa2e314134e89dad61107960cf29bb75d40f80b0eb"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-clarify-01/turns.jsonl",
+      "bytes": 1126,
+      "sha256": "aef8aa3d091bd878326cd8ba12fed4e4b2fa93c13687dbfb7744b90b012a1d3d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-laya-01/case.json",
+      "bytes": 1073,
+      "sha256": "46406a1c1188a39cdf3f1a52ee34c7299570c8dcbad6afb83d9ac6f988eb4d92"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-laya-01/effects.json",
+      "bytes": 1672,
+      "sha256": "e6b00bf242060795792478dabae6d20378459305670fe95c58eb949ed33270af"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-laya-01/turns.jsonl",
+      "bytes": 1120,
+      "sha256": "c8e3b50ed7d43b01044036c1fe3c62a11c82d07c52dd126a5da3173d57fc8166"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-laya-02/case.json",
+      "bytes": 1073,
+      "sha256": "674d080c4c2ff2ec335b62060a4142701bb0682911dad61d502908e53163ee62"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-laya-02/effects.json",
+      "bytes": 1672,
+      "sha256": "09949724ac1ec874ed64aa6dc01a0387ea0fe954a8c3ed35ce637fc112e2588f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-laya-02/turns.jsonl",
+      "bytes": 1120,
+      "sha256": "241ed4548fd4ede7529b2e4a53ade55cfa15f53fb06c655b9e386fd7d3a6b704"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-link-01/case.json",
+      "bytes": 1073,
+      "sha256": "b2efcec7a8096131108ffc2fcf556c9aa25cbcdc59042128ba835a5255b094c2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-link-01/effects.json",
+      "bytes": 1954,
+      "sha256": "8f4bb17d1b8c6de7b5ecf2a358dfe0c8f13b956404200d1b537426965dc1d97a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-link-01/turns.jsonl",
+      "bytes": 1120,
+      "sha256": "e12738d9e0c76d1c75cd54d55732158dc0ab1727ec1fad6466057ee7b8eb0307"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-link-02/case.json",
+      "bytes": 1073,
+      "sha256": "b0c6d38b240c7031ebaea0eade1131ef8bd5f6666de6876ee7c9040f73b1d980"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-link-02/effects.json",
+      "bytes": 3525,
+      "sha256": "3104502f784e0788d4c00d36d018b740cd9e59b74396ec715ec7512e6aa595c6"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-link-02/turns.jsonl",
+      "bytes": 9088,
+      "sha256": "e891ab0a8cd8f8abb90627124ca46249a59deff1f47f0beafc0935af949bb3f6"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-multi-01/case.json",
+      "bytes": 1074,
+      "sha256": "6eff1b7cd9ec5c46303952422cc213a72323ef89dd2cfb2d1a14c25fb2450049"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-multi-01/effects.json",
+      "bytes": 1386,
+      "sha256": "a12deb4e8cfb9fa90497299416794b3f9717cd991fdd4579daad01c718f1a77f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-multi-01/turns.jsonl",
+      "bytes": 1122,
+      "sha256": "8018d652fac957f66414a4b486a3ffa1a57070ed115dc2d0b1e00bfa0e504c61"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-multi-02/case.json",
+      "bytes": 1074,
+      "sha256": "0b7a1f7d7a5d3bab773df90ca0aec0a8831f1f2b48a78b27e74ef8ebb871fe71"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-multi-02/effects.json",
+      "bytes": 1386,
+      "sha256": "d9563839b94ff0400197952bf27158b2c4310f7dc2ab810b0ed523872e08c25f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-multi-02/turns.jsonl",
+      "bytes": 1122,
+      "sha256": "eb9c0702b27fbfcddfd5fc5b578b4b8b23cf82e3b646a20ebb4cc8d5e9beea4d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-nomatch-01/case.json",
+      "bytes": 1076,
+      "sha256": "0c46b2d40ac64176a3f310e354e29f781fbf62d430314109b039bb3afad22d1f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-nomatch-01/effects.json",
+      "bytes": 2236,
+      "sha256": "15c5d3c82cbdaf55740d97c76ef08d9b41af9e6501bb0ea52f5ee6512cbe7145"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-nomatch-01/turns.jsonl",
+      "bytes": 1126,
+      "sha256": "d845c333ee650efc992fed18b4e43a39d7adce2ea6194e732cc1aa93fcda37eb"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-privacy-01/case.json",
+      "bytes": 1076,
+      "sha256": "30b3fc2164c64dbe7f46f03daf54701ac1b2061cce502c4a308de1c44fa17158"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-privacy-01/effects.json",
+      "bytes": 1388,
+      "sha256": "91005c86eec1e4d9cfa85edbd8f3ea82865d5712382a5251a60386af5ae73de0"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-privacy-01/turns.jsonl",
+      "bytes": 1126,
+      "sha256": "0e0d2ba3e7da9803fa0c000beafb86d8d380e457f70b78d0182992cf74327e06"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-recover-01/case.json",
+      "bytes": 1076,
+      "sha256": "1da322c41feccbd0c23dd43cf6e2e5bf57f0340985e98e14f791b3f0f6bc9bb2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-recover-01/effects.json",
+      "bytes": 1388,
+      "sha256": "5b8a9f650ad1e16bb349e591bec888f0861d5c282203e816c08abe0baa8be5f5"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-recover-01/turns.jsonl",
+      "bytes": 1126,
+      "sha256": "5b770ff48aae53c6fafff20dba4a98220caebe5cc63f9b4bff404538be2fa07a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-retry-01/case.json",
+      "bytes": 1074,
+      "sha256": "3ceb9ebd35d9159a7976f0d76b7ed54bf3c4cc05d7f3296de5ddd79407356336"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-retry-01/effects.json",
+      "bytes": 1386,
+      "sha256": "22981bc84e710a264df55ee9834044e056e87fac4fa8d30157ffe7115bda509a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-retry-01/turns.jsonl",
+      "bytes": 1122,
+      "sha256": "917757a09ae45b6acd4a6ebbd520de8c9df6013e99047bc00f0febeeaa6d4cb4"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-search-01/case.json",
+      "bytes": 1075,
+      "sha256": "0c077f15091c80dd638ba794e17a7c89a846eae77b3eeda7a99101309525fa18"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-search-01/effects.json",
+      "bytes": 1711,
+      "sha256": "f074e6801b3475eda05bd1aaedc9498b6b6b985c2f748a7eb4585dbc068e8af9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-search-01/turns.jsonl",
+      "bytes": 3502,
+      "sha256": "11479159ebaa3743ee9faa19bb951239da354c6e2a388fa034392c648808a5e0"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-search-02/case.json",
+      "bytes": 1075,
+      "sha256": "b5099cd3d31b1c24e8b1fb0c32f29d73aaffcfe3f12611fb3e313fd509f17795"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-search-02/effects.json",
+      "bytes": 1836,
+      "sha256": "9dedecd37d7ca3e9f859683e84ea4641469d20d10aeb75205ae7d61286ebf034"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8-search-02/turns.jsonl",
+      "bytes": 2872,
+      "sha256": "63dce7bc2c9442f7bb236b6610f8f0f3a418d3c468847b63bc30ba94d2e9c90a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-adv-01/case.json",
+      "bytes": 1073,
+      "sha256": "9860f415a7fa9d164b0484a0ea1013af8f0ee9cde2654a0fd8c2eeed544ebe82"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-adv-01/effects.json",
+      "bytes": 1385,
+      "sha256": "25df8d013fdaecd20b21b72a299f912a7f9ad08a16d790d06b660bd9fd870dbf"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-adv-01/turns.jsonl",
+      "bytes": 1120,
+      "sha256": "7124ce994813ac66809a1a3a108d21c7af12ba3e1b0e04251ae8a11510651b11"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-clarify-01/case.json",
+      "bytes": 1077,
+      "sha256": "75a228f94d30dc0d551ab1bf83498b3857f1980b74d3d0d9c9ba49c1491687e5"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-clarify-01/effects.json",
+      "bytes": 1389,
+      "sha256": "dd33d2b9ff608b433883272add8116c62c7b99acfb90fe710ba577b9423fae61"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-clarify-01/turns.jsonl",
+      "bytes": 1128,
+      "sha256": "523877c139b9ec7a663a95e23225f60b51b2ff6a43124668ff3afa442fa48987"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-laya-01/case.json",
+      "bytes": 1074,
+      "sha256": "82b2e9f823cd0472c26961a66f63e9f085f6fb3af6082662821e7c2732356f95"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-laya-01/effects.json",
+      "bytes": 1673,
+      "sha256": "719bc185c268839e9f1c66518d713989549cc3cc23a544a056e15f60938de071"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-laya-01/turns.jsonl",
+      "bytes": 1122,
+      "sha256": "4573f50ef81bf8abc1d14716137207d35fb05011ba17fc89817de6c3965d36f0"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-link-01/case.json",
+      "bytes": 1074,
+      "sha256": "62720f3396b35d57734bf250a41fae2492297134035e5c4c071ab3e2b186b448"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-link-01/effects.json",
+      "bytes": 2031,
+      "sha256": "165281cfc5bbf1f86568cb5c69a1c42b817476b9bdd27b97b5f7b42edf671bca"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-link-01/turns.jsonl",
+      "bytes": 1122,
+      "sha256": "d027ee67d3bc8ddcc001dd6deb3ab57ec8449fbc9c074664e5a2a75b2074d5b0"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-multi-01/case.json",
+      "bytes": 1075,
+      "sha256": "0ae1c9130ded5fb46c9346c0a959d2b6d219af5431a0f23caa08f0002d4cd517"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-multi-01/effects.json",
+      "bytes": 1387,
+      "sha256": "9396cca9f0c1771699974ca0d04a78c909c7e468c79bc66b28f1c1a901d7b169"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-multi-01/turns.jsonl",
+      "bytes": 1124,
+      "sha256": "dc891acc1a1e958f6f5a63180d9d7d5bbc0553ca519c1b76ed99d85ac96efe7e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-nomatch-01/case.json",
+      "bytes": 1077,
+      "sha256": "b4c30ad9d3af233ab4dd700c19af627b62c2197b7f72b3e1c0e2881a8b4a2654"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-nomatch-01/effects.json",
+      "bytes": 2237,
+      "sha256": "202b97c5523c3bb78dfceda9b41b5a4480d1b91686321fd80f8cd5d6a1d73486"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-nomatch-01/turns.jsonl",
+      "bytes": 1128,
+      "sha256": "e7de3f79e94be5356896e1523fabfb40dedc2b548b79bc67ac906800b2aaa0e9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-retry-01/case.json",
+      "bytes": 1075,
+      "sha256": "e3616f7c27d9788f615c6d11273d349b16545bedee396539a89152b56b8bbd4b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-retry-01/effects.json",
+      "bytes": 1387,
+      "sha256": "2abb4b97f9cfdb299c6243a214d1ff30ab06a904a9ae9a6a9b369a0587b64910"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-retry-01/turns.jsonl",
+      "bytes": 1124,
+      "sha256": "90ad99f31063a116fde4960ac81fabe6b2b0e3e7ce3e25a3070889232f0aad1c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-search-01/case.json",
+      "bytes": 1076,
+      "sha256": "2c5ce7c0bd64608892b2fa593820c818f9e3be6b5231a9c26b01330948314bc3"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-search-01/effects.json",
+      "bytes": 1813,
+      "sha256": "c80cfbbde46c83eaa3ae7ef201d8442e32a3acb25d90bd2a76dee0a4f8f8927a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/a8h-search-01/turns.jsonl",
+      "bytes": 1126,
+      "sha256": "d7d87a30a74fbbd647077eeec4c06090b5f0d65c56aa72093bc594b05ee3dc75"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-2/session.json",
+      "bytes": 770,
+      "sha256": "04ccafd6de43ef872908763ca3d9980f66dd820aab3598de67547b3ea1703879"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-adv-01/case.json",
+      "bytes": 1072,
+      "sha256": "7bd333e672c9db36f48d48c1929e831aad9e7bbcef3c7abe8a924559ffafede1"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-adv-01/effects.json",
+      "bytes": 1384,
+      "sha256": "6962ac8484625b261afa5b86c5aea0251c8e57634a84d280837d3642f3fbf414"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-adv-01/turns.jsonl",
+      "bytes": 1118,
+      "sha256": "0afdccc4ece33c97c9ca33c1d2dc9b95effe82cec224eb933ed3cc1c3a2b2ff7"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-adv-02/case.json",
+      "bytes": 1072,
+      "sha256": "07cf38956c06eef6e940aca9a66d8eaa9925d02045e8724e98c1ebbfa80fdacc"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-adv-02/effects.json",
+      "bytes": 1343,
+      "sha256": "731346ca03d6a4d64fd3ff1f1ca4add8c674dbb5cf89b61dec677c1fa23f8e09"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-adv-02/turns.jsonl",
+      "bytes": 559,
+      "sha256": "9ae3610f4510bc684186efe8527ff27b68765c6a5748f1f855c496e90c80914c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-adv-03/case.json",
+      "bytes": 1072,
+      "sha256": "a8670e9a00357e1e25545572a41ae67d03e98f829ef0c9b07d224a46a14a5fb5"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-adv-03/effects.json",
+      "bytes": 1343,
+      "sha256": "f34504b2da8fc91de7b3a6d708189aafb68f007ec951d08c353d814e77db1e8c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-adv-03/turns.jsonl",
+      "bytes": 559,
+      "sha256": "d4ced08c41cc5dd522c032c3d1f60e8f7e4480983f127e2291e0aa03b8dbb323"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-clarify-01/case.json",
+      "bytes": 1076,
+      "sha256": "80549e8e6c1222004c09b4b061054c45851ddf907f3b288ccf2483e60d42bb51"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-clarify-01/effects.json",
+      "bytes": 1388,
+      "sha256": "3f08272727ac067bcb0fc67663469a924b43425060f269dfbf705ae1a4093501"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-clarify-01/turns.jsonl",
+      "bytes": 1126,
+      "sha256": "05a0e2ca2465de9216cef4813ddfd961a5e5d9dc0a87f6529914dd7690f7f554"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-laya-01/case.json",
+      "bytes": 1073,
+      "sha256": "3a27e91d71d76f84b48f93e48595a744ae359ad02f7f01503cccfe4d3dc6ecfb"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-laya-01/effects.json",
+      "bytes": 1672,
+      "sha256": "f822c13d1fdd0d722c4b6b072196a45ee5241293d6156cd454616463fed98b79"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-laya-01/turns.jsonl",
+      "bytes": 1120,
+      "sha256": "e3aa691c7d7d6e2511e117377b082aa3e49dca71df58b1ac2fe8294c2f2d4c60"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-laya-02/case.json",
+      "bytes": 1073,
+      "sha256": "bade42a6e98615bd75847789ddf408d4472a78b2da2cc09d121e0903b786207b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-laya-02/effects.json",
+      "bytes": 1672,
+      "sha256": "236c1233839e5b346f73bf34bc57c803cb497418c8f1d96ab28321c9147082df"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-laya-02/turns.jsonl",
+      "bytes": 1120,
+      "sha256": "78e68f9dc7a5f5f3676054c4bc088b38a73ae663b2177264c9e56db947199b3c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-link-01/case.json",
+      "bytes": 1073,
+      "sha256": "defe85904875c07aeb72c238397698f02d9c3ee36fcc5b7de7093bf902fa2a85"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-link-01/effects.json",
+      "bytes": 1954,
+      "sha256": "38c9aaa4b57fe9a340d3005b90f29b60e3b3c45318d94fd03378d913a05161e5"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-link-01/turns.jsonl",
+      "bytes": 1120,
+      "sha256": "3962848f1480cb622b47faf55638881ae54dd59aff9ffacea5cab06ee19efc3c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-link-02/case.json",
+      "bytes": 1073,
+      "sha256": "dc88c18c7b058f35ecf3602787e3ff6fcfc65898e9fe817df64afcef51e59b80"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-link-02/effects.json",
+      "bytes": 3525,
+      "sha256": "aaeb01d5bcd55b5e488a9933a938faf23b8134059f06686562cbd07c68d270f2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-link-02/turns.jsonl",
+      "bytes": 9088,
+      "sha256": "d5ae40361023942c96c28ffd9c416a677dc09cdecc2e30fe781fbc8ea4c78655"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-multi-01/case.json",
+      "bytes": 1074,
+      "sha256": "ff00b9f533f12a2f3b42e82bfa4092d00fd368cb67a2c5ddb56f5ec8a046e996"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-multi-01/effects.json",
+      "bytes": 1386,
+      "sha256": "98475e0ab2b28195a6116f7cd2b3c5b6463c84eaefb7fcadf7d36a4a3132c7da"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-multi-01/turns.jsonl",
+      "bytes": 1122,
+      "sha256": "4941df6c3378804b8ad71eb73b950d8bb98b4499021fa256ea04e735410a501f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-multi-02/case.json",
+      "bytes": 1074,
+      "sha256": "b75b539fd652d282fcc2963878965feff57bca834bbf139ad37adb248ec8ddca"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-multi-02/effects.json",
+      "bytes": 1386,
+      "sha256": "ada72f793c8393bbee6d053a317eade0e2272744f01773abcd36aa237f2e4bd8"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-multi-02/turns.jsonl",
+      "bytes": 1122,
+      "sha256": "fe39f3d7618f22e353e057faf77d78fdc896b2eafbcfba4a510f3817c782f458"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-nomatch-01/case.json",
+      "bytes": 1076,
+      "sha256": "b2984ca85b2b45364ac68811d002dc527c647b58a690e3ef9ede611d41592e14"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-nomatch-01/effects.json",
+      "bytes": 2236,
+      "sha256": "e83bbdc050325a5f35f290dd058bcf67d107d4608de05fce623124be9b8359a9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-nomatch-01/turns.jsonl",
+      "bytes": 1126,
+      "sha256": "2a1cabe5246fbf4e3110852a7412c539925af1e495f3af7a1c06f644b355518a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-privacy-01/case.json",
+      "bytes": 1076,
+      "sha256": "90471a90af239a5fc507990987a1127bfa5863b5f94b07e7b42ee777c685fd95"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-privacy-01/effects.json",
+      "bytes": 1388,
+      "sha256": "9bfff39512118fb62895759c52c9f8d4a03f0b70203deeac43575dd070997220"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-privacy-01/turns.jsonl",
+      "bytes": 1126,
+      "sha256": "156de1eab63be10b281b973fbfc1c7071bf1957940578c82b336bd8c8251206d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-recover-01/case.json",
+      "bytes": 1076,
+      "sha256": "e0fafb2c05efbccb29031610b7c1893d2eca5bc1e39c44fd2c6c9f3f7f0b3461"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-recover-01/effects.json",
+      "bytes": 1388,
+      "sha256": "edec25a877f0e072c0cf01d5ceac701b42114d45cee186428916b12cf851e79b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-recover-01/turns.jsonl",
+      "bytes": 1126,
+      "sha256": "136915f1879122e0eaa689fd3b60f312367539626d135fa6e9377273642181ae"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-retry-01/case.json",
+      "bytes": 1074,
+      "sha256": "8903c11f86f0242b6461c5600f09366015d14645450867af461849a1131375e9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-retry-01/effects.json",
+      "bytes": 1386,
+      "sha256": "48a449992442b42a1f75589b17faf20fde675cba31f49c82210e4025e3e6495b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-retry-01/turns.jsonl",
+      "bytes": 1122,
+      "sha256": "1c734a65177601605504aaea1bc215f4de9d45084d7cab2d57bf72d3a9ca2abd"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-search-01/case.json",
+      "bytes": 1075,
+      "sha256": "be1c5617579c470cb6fadf391f01e0fcca7321cb793f4ce405051978f7521b2a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-search-01/effects.json",
+      "bytes": 1711,
+      "sha256": "3009b21d7821168043ab87651fc494aefe114a542c68bd087f66439d013b74c0"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-search-01/turns.jsonl",
+      "bytes": 3502,
+      "sha256": "e13eb86e6a46d8cef5628e66bc36092373fccd202fdbe94df13d70ff80b2b7c0"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-search-02/case.json",
+      "bytes": 1075,
+      "sha256": "eff85b28c13c3c632834bd5e97107b1a44453408b8c2f600c2c1b3f6c2cc2550"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-search-02/effects.json",
+      "bytes": 1836,
+      "sha256": "fddd4f72d9fa8473be46fa1155b43e138ed871215ca4d7db5bffc089193f6a57"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8-search-02/turns.jsonl",
+      "bytes": 2872,
+      "sha256": "25c5f22b26135ff404edd297613a5246a6af46aab2fe8cfdbf7548e13e65d223"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-adv-01/case.json",
+      "bytes": 1073,
+      "sha256": "571d1e897a6f3f63d8bb239711ab693b4afc558f9bb408fe0707f4b1e417f486"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-adv-01/effects.json",
+      "bytes": 1385,
+      "sha256": "7d021d48d9c8e09216ba2581ba4c3d71912bc6dbd75effdce2afd386b9663aa7"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-adv-01/turns.jsonl",
+      "bytes": 1120,
+      "sha256": "a9aeb9041ca304da3012f9f54802268ef9fdea81ad31de71fa90f1a2343af076"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-clarify-01/case.json",
+      "bytes": 1077,
+      "sha256": "468f30a2f64e6d2ab2bae24cff0358c4e50afc09ea43364da0155064fd2cbea8"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-clarify-01/effects.json",
+      "bytes": 1389,
+      "sha256": "8b3bdc1f40170f2f03da497e1ac59e31a36fa24804ac21b3b7219950b6506ca2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-clarify-01/turns.jsonl",
+      "bytes": 1128,
+      "sha256": "f56e78ab6b694b134ed8d132c7784480b98a12bd285cc48d1bf556e0856f1720"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-laya-01/case.json",
+      "bytes": 1074,
+      "sha256": "e4620c26701e8f3dc8343404ad69598fe426522f28bc580cc4ecc637669c61da"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-laya-01/effects.json",
+      "bytes": 1673,
+      "sha256": "ce4d13c1b73532be7c8f88664ec6dbb068e1d406f68a193db9a6a16cb641262e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-laya-01/turns.jsonl",
+      "bytes": 1122,
+      "sha256": "ccdbb5020f1289c6db453209b28f0807af3b286a769ab10ea28df1dbf2aa5430"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-link-01/case.json",
+      "bytes": 1074,
+      "sha256": "c838dcdf7339e29253b769990ce0b8e3d94f9bb035db68962d9775b1f1bd730e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-link-01/effects.json",
+      "bytes": 2031,
+      "sha256": "835b6ebde5e0a5aa6b6950131cfe464e737593229aa25af830210be82a92aaa1"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-link-01/turns.jsonl",
+      "bytes": 1122,
+      "sha256": "fe096636e14c9563f434d520cb2579294a0753298906c8e317ac7f7bfb9ae0e6"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-multi-01/case.json",
+      "bytes": 1075,
+      "sha256": "7ae8ba0912c5dfbf95eb3f59f7043fc475c5e41113c32220f4145f4e1c1d0ecf"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-multi-01/effects.json",
+      "bytes": 1387,
+      "sha256": "ac0d29ff6f0291bf68ec9fcff70aaff8e539f19c78cd9cd033412a82b0527f78"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-multi-01/turns.jsonl",
+      "bytes": 1124,
+      "sha256": "898563ba0e1d26e10c97ce3dc85aaec08cac6b82f9056e360bc793292d82a803"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-nomatch-01/case.json",
+      "bytes": 1077,
+      "sha256": "fa8e0aa2ff1b3a13f7cd82ef328b39cbbb11a6148432a1583e886fa68f1ff6b7"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-nomatch-01/effects.json",
+      "bytes": 2237,
+      "sha256": "ec79ab9a068f595805a39aeab64be0b474c2c344bdf40244a7410fa68062043c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-nomatch-01/turns.jsonl",
+      "bytes": 1128,
+      "sha256": "d674641d5a3aed45d779a4653b76522bc34d052f6581b51fb3e6aa534d2482c4"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-retry-01/case.json",
+      "bytes": 1075,
+      "sha256": "80931ecd4ba2166f5adb6e9662355550d6923035facdc52e1e55103d4b61cb19"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-retry-01/effects.json",
+      "bytes": 1387,
+      "sha256": "0121dba070eb062f0ac7dadfea984ec50fd1e6d7ad2294c43b77384e723da831"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-retry-01/turns.jsonl",
+      "bytes": 1124,
+      "sha256": "ab75a0ab44593562f534233b83b0bcfcad3f0c6266f7f4dfbf4815a81d150b8a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-search-01/case.json",
+      "bytes": 1076,
+      "sha256": "f7546347f67a25e1cbe174b330047000860d9483ce261da033b1133ca6e8a76a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-search-01/effects.json",
+      "bytes": 1813,
+      "sha256": "d2bec5da1a0f82ef5ab4b6204d72c1f624aad40a0b912c9e1590aea44716b366"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/a8h-search-01/turns.jsonl",
+      "bytes": 1126,
+      "sha256": "0c4239632cf4ae9a28194573e372f4ec6d7807ad519b54010d6bf35d88032dc9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/debug/S8.13-assisted-contract-a71-freeze-71/pass-3/session.json",
+      "bytes": 770,
+      "sha256": "6be062c21541e7e9ef2535f83813fff1a755a218b550920c3f984fb54ac47cff"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/host/coordinator-audit-pass-1.jsonl",
+      "bytes": 13950,
+      "sha256": "4b03a441ce1dc5f92d08c9df4433fc45446279b4457f407d278e6674a8380364"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/host/coordinator-audit-pass-2.jsonl",
+      "bytes": 6975,
+      "sha256": "2287874e1bdb07193fd177ed80efda866c5d94ce9ab056d7ee9422bd3fbf22cb"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/host/coordinator-audit-pass-3.jsonl",
+      "bytes": 6975,
+      "sha256": "632e4f43cf1b029f7a50d81d919cc75293ac25590b98911c0580bef19d01fd8f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/host/proof-checks.json",
+      "bytes": 7591,
+      "sha256": "9b835705355b1a34d33e1a5e1fac5c373d1ffe2f018d0be2e2895f85b46a6a52"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/host/proof-messages.json",
+      "bytes": 418,
+      "sha256": "4759379274c377c53f653cd5a0529b1a6ce5036a1b0fa79de1dd4c9af6831f72"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/host/proof-plan.json",
+      "bytes": 8550,
+      "sha256": "ec2e95ccc1836fedf86eeb9dc42310ea2075562d6cfd36d162b1354c52315d93"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/host/s813_build_manifest.py",
+      "bytes": 2993,
+      "sha256": "82ff8dc1aad64645b80c0a6fecc0e4504836afd416e97878d4bd4c4af59b8139"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/host/s813_proof_checks.py",
+      "bytes": 6955,
+      "sha256": "bb179914f763f4372c971046a511d598b7ea4979f0c55cccb4d23ae7b64f5278"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/host/s813_proof_coordinator.py",
+      "bytes": 5488,
+      "sha256": "08011b415a2d5d3891de3fead69a24ca6fef4c4ea658139223e950fdb906985f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/index.json",
+      "bytes": 84936,
+      "sha256": "27aac5344e15452007af10669998d8bf6b86f43e0de92aaf4b748c60bc98df59"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-adv-01.json",
+      "bytes": 6198,
+      "sha256": "6c3bcddb83bcf88de26e408393782980a885de02880a53e70bf0b1bb4ed8fb86"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-adv-01.provider-attempts.json",
+      "bytes": 157,
+      "sha256": "4e90e19b82a4e301adf062aeceef9305e318377ccd342c0159e4502d3f84746f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-adv-02.json",
+      "bytes": 6177,
+      "sha256": "cb4176f90df0bbe205cc10dec3072dca793721ed897822e15d318d5af7da8632"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-adv-02.provider-attempts.json",
+      "bytes": 157,
+      "sha256": "0d5bebc9e7c440c372810218e163fec3faedb33b10c4b3fcf953d248f0843355"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-adv-03.json",
+      "bytes": 6188,
+      "sha256": "af756968fc8f7c3527cee11a4cfa364eb37c6e76b5ff74d0ba38c3b9b1bec791"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-adv-03.provider-attempts.json",
+      "bytes": 157,
+      "sha256": "06f37655e13922c15af0fcd2d932c627dc2eda031af8e10511d4857a80169478"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-clarify-01.json",
+      "bytes": 6406,
+      "sha256": "efa2b07ba3350829d224c98b51f30f2a67ca2dd79b03e78826659737adcecb66"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-clarify-01.provider-attempts.json",
+      "bytes": 161,
+      "sha256": "be475d0fd020da56fbee1ed013fd3c5181456616b8ecd2b5a09f8d547530dd5a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-laya-01.json",
+      "bytes": 8135,
+      "sha256": "ca4d2b765bbb2746eeccb0e8e6003b2ebdd8ea6c49ee403f0417941af873c3ff"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-laya-01.provider-attempts.json",
+      "bytes": 158,
+      "sha256": "8469774b288374aa68280221f14efb89a0653cce39e3b69e200f3e281197fa48"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-laya-02.json",
+      "bytes": 7982,
+      "sha256": "1e093daf0aadee76ba6d69a1aa9b90d00f95ba5833927d9cc9a1be72eceb7be1"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-laya-02.provider-attempts.json",
+      "bytes": 158,
+      "sha256": "dc8febc3c2ce9a37a9b93877093a30815f98b527ae4eca593592cdf2774d7b53"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-link-01.json",
+      "bytes": 6768,
+      "sha256": "dadee093a3e659ea379f66d0f8b48b7b412416ea73d7b1a2f0eca4045fce5e93"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-link-01.provider-attempts.json",
+      "bytes": 158,
+      "sha256": "b4503aa8b0774dbc6e30a2086191769f2eaeccf670e46fc9cc616a880230f25d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-link-02.json",
+      "bytes": 12543,
+      "sha256": "9a6c01df91e0b2db4500555fa9f6522eb51bd19d4e009c9ad90cabe52d90a5fc"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-link-02.provider-attempts.json",
+      "bytes": 158,
+      "sha256": "3cd9ac1a34e3a24cf1ddc048c7e7357bdb6cc75d6ed5dc4e1319bbddfeb09192"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-multi-01.json",
+      "bytes": 6153,
+      "sha256": "8c27a67d8cef68dc9343577743a2e698ce6d474b2e51fc9c4a154d96d58fbd3b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-multi-01.provider-attempts.json",
+      "bytes": 159,
+      "sha256": "060b6ea1fec3fd7815aae9b5a1bcc42c9545b5c71e0a8e233aa65f07a162ecf6"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-multi-02.json",
+      "bytes": 6509,
+      "sha256": "f6eeb2fc6968df0c3fe4a119434a7cce2f3e1ff512c46852577e96fc0aad5ab2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-multi-02.provider-attempts.json",
+      "bytes": 159,
+      "sha256": "f262527632c812828c490b0edfc8cd3dc5f36a13ddde2391f693e5fe8109f877"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-nomatch-01.json",
+      "bytes": 7006,
+      "sha256": "521ff2d2d5cef29fd3fb3721683f320d927dad2048b7074ffee7be7c4c7e051d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-nomatch-01.provider-attempts.json",
+      "bytes": 161,
+      "sha256": "c47014aa8919d9da25866d6078560f522b24221b454e180b5f1848681cd09ffe"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-privacy-01.json",
+      "bytes": 6481,
+      "sha256": "d7f78c7e602e4f2d3da73017041c7fdcc4b40645f8d2e50317112fe7588f558c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-privacy-01.provider-attempts.json",
+      "bytes": 161,
+      "sha256": "f4618ccaf2b379b128d328b2975a1467eda099d7a5b59dbc8a6196788290cede"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-recover-01.json",
+      "bytes": 6644,
+      "sha256": "6a4e1668104680fdc2304f470bfeb1712c05cf303b4bf263f1c7c109078e934c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-recover-01.provider-attempts.json",
+      "bytes": 161,
+      "sha256": "22c8f66b70281eebcc68e2a20286d8486ff872112307eeca6b92ab1db825f06c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-retry-01.json",
+      "bytes": 6563,
+      "sha256": "2313df4570200a6feb31869054835a17b142c3c754b54767d0fc02b646dcc8d2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-retry-01.provider-attempts.json",
+      "bytes": 159,
+      "sha256": "e3fa2cce68c4ac046073cb3f00e4748d6e6b7a525d7b28f8f6a56458a51aed5f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-search-01.json",
+      "bytes": 9679,
+      "sha256": "8b47d2a93ad29ff49468f7f206d5366a65ac09ee4543c01cd3c32224a5f1dcb7"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-search-01.provider-attempts.json",
+      "bytes": 160,
+      "sha256": "2fa21cdeb514099f4e7b216aceafb094f3b855c0f8b3f923ace5f82957f44190"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-search-02.json",
+      "bytes": 6308,
+      "sha256": "8a1fb444e54fb7880f4f1d80681f1a727b325d1676d5b3ceae1fe047fa871f5d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8-search-02.provider-attempts.json",
+      "bytes": 160,
+      "sha256": "64f814131ddff18f601471f25603c9997873a41619d9ca00c7cfa2d475ce9cb6"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8h-adv-01.json",
+      "bytes": 6186,
+      "sha256": "31df836d9416893b6b473f6ace55944c13c267a52da3f394e26f386d8304403d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8h-adv-01.provider-attempts.json",
+      "bytes": 158,
+      "sha256": "670acb72316dbdc735f9237c1c37855aaa11caae3a0981f497e270254d4cadce"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8h-clarify-01.json",
+      "bytes": 6463,
+      "sha256": "dadef1fd7d788dc002e1f058851058537edcbf123bc686fc49d26561a4566433"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8h-clarify-01.provider-attempts.json",
+      "bytes": 162,
+      "sha256": "7be5db0c31ea31e3dde14f90a986d0d127f009c2d587315826dfa987a38bd38f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8h-laya-01.json",
+      "bytes": 8144,
+      "sha256": "798bc12256db867802f2986d651f6abe7de512d05dd4182840e692a75d9fc3f1"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8h-laya-01.provider-attempts.json",
+      "bytes": 159,
+      "sha256": "600e0f39df40a40e4a708f488e96e9a8082e5f955049c1bb6091bf4eec4e77bf"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8h-link-01.json",
+      "bytes": 7129,
+      "sha256": "f733191a836841e8a2d4a971d7c55f6dff6e357c38e3e16e219b075390bf514b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8h-link-01.provider-attempts.json",
+      "bytes": 159,
+      "sha256": "abddc5484181ae3472dfeaf22c99727f8eeae0d89de2e60fe29f38e710495708"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8h-multi-01.json",
+      "bytes": 6144,
+      "sha256": "b03ce075f810290e4391061c48f656ffe3818fc930ec2f5336765dbb15efe694"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8h-multi-01.provider-attempts.json",
+      "bytes": 160,
+      "sha256": "774b2888d6b4edd590d3f5d30e63b88b5ce8c6c03cd079451d4ffe9daa1e5f16"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8h-nomatch-01.json",
+      "bytes": 6993,
+      "sha256": "39f30f33c39bc87b47fd5787b0a46acd900a52e20e9a8a0f78cd6c037e59926b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8h-nomatch-01.provider-attempts.json",
+      "bytes": 162,
+      "sha256": "449d0973f9b6770dafb9815bd7c783713ca0acb424acebe47290afbcbb67b3d8"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8h-retry-01.json",
+      "bytes": 6579,
+      "sha256": "36d60232049787cad9795cd5804232d48ca9cda957f1528a7c34989a41622bfe"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8h-retry-01.provider-attempts.json",
+      "bytes": 160,
+      "sha256": "aa389e81662958e39e5747918c55c95bb1291484393cdbb1e0be8925da04f900"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8h-search-01.json",
+      "bytes": 6510,
+      "sha256": "4a619457ced40beef8e579b5dfc09fd2d03e21ab37b3dd7203632d8455ddc20b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/requests/a8h-search-01.provider-attempts.json",
+      "bytes": 161,
+      "sha256": "55638a45843cae958f9448daa29919067f73033037f5b2488978f047713c5703"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/responses/a8-adv-01.json",
+      "bytes": 856,
+      "sha256": "8e32e5de17685057e3c322307e81a45d2a663bf0a7688119ad8c5b3c9449d9ff"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/responses/a8-clarify-01.json",
+      "bytes": 860,
+      "sha256": "9d38f19e8c70fab0f8950953f6ecd191efef09b9c7b0ff80faefe2c2ea9a3410"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/responses/a8-laya-01.json",
+      "bytes": 857,
+      "sha256": "587ff178e5bf2f9f75036cdfb0a1de702b129ce82ba99e1244cbb2856ed6860f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/responses/a8-laya-02.json",
+      "bytes": 857,
+      "sha256": "66dd0082aa6a878d1ebea76d9f9401dc09fe082a95e56673969638f3df4fff5b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/responses/a8-link-01.json",
+      "bytes": 857,
+      "sha256": "1da1f44046151aa70470dcf081ccdafdb009dcf4c1ed1b48b58758ee98657025"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/responses/a8-link-02.json",
+      "bytes": 908,
+      "sha256": "4b687faacc7f6087728664757ad33eaa1853243ce376ce12f0ee49004d9de82c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/responses/a8-multi-01.json",
+      "bytes": 858,
+      "sha256": "ec4e07b55107f175fa68cac766141deb715b97631076a6f284a6efcdf82ea99d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/responses/a8-multi-02.json",
+      "bytes": 858,
+      "sha256": "013433e3a8dedbef110bd2b839eb2ca694684f74d76a4c2e94737c1ae73a862a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/responses/a8-nomatch-01.json",
+      "bytes": 860,
+      "sha256": "473289114a2f2ca31307eb247bc460d901fedd66bffb1fbfdd727a7308b20958"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/responses/a8-privacy-01.json",
+      "bytes": 860,
+      "sha256": "eb551bd0e3692900826c990f7ad8563eeeef9a0cde460b5ca096144aec4cdd70"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/responses/a8-recover-01.json",
+      "bytes": 860,
+      "sha256": "1d38baa12db180086dceb630682d9653ced5774f43f76cf6b23b530fcc7f908b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/responses/a8-retry-01.json",
+      "bytes": 858,
+      "sha256": "8d5df7dea610c0334bef8981a152d1e3c920613c7cb677764b47110194ba9d8c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/responses/a8-search-02.json",
+      "bytes": 917,
+      "sha256": "bf2ecb67469a0894572e1b6a4f90cf4d3fce8470d2a73f22d28fe46f40d55f83"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/responses/a8h-adv-01.json",
+      "bytes": 857,
+      "sha256": "19adb4f8d225fd6f0027adb3c6dfac96ba52e73f8b833ade3c186524ebfd732b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/responses/a8h-clarify-01.json",
+      "bytes": 861,
+      "sha256": "dc8ff3a26a88b992a12be71dbd322a63357fb8dcf13a8e2c9e075cd03d6f2c4e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/responses/a8h-laya-01.json",
+      "bytes": 858,
+      "sha256": "e3ce66638cf7e83fed43f0a653ea733a8be80ec1c91f107a47e88221d31892cb"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/responses/a8h-link-01.json",
+      "bytes": 858,
+      "sha256": "20dca888ec5928ab9e54c679849cdde7590bce08748fc85cd10d8a7ef1bde182"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/responses/a8h-multi-01.json",
+      "bytes": 859,
+      "sha256": "2f917c486d4d6883606ac0be8ab6abe313a66c4f9717bb6f2ff353f1f9f98686"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/responses/a8h-nomatch-01.json",
+      "bytes": 861,
+      "sha256": "be204e475b0601848e5e609428fbe0d08063af341c13e627cbc877052298055b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/responses/a8h-retry-01.json",
+      "bytes": 859,
+      "sha256": "f39073f4038d78812a8bca777f48d92afc12e7bffba6634e2e7cbc5a35764341"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-1/responses/a8h-search-01.json",
+      "bytes": 860,
+      "sha256": "f077e9df5f9f74c08655b62268987e3dc603b01f55a17c3249afcd412953ba22"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/index.json",
+      "bytes": 84936,
+      "sha256": "d438f48c8559a5541a8a51a0e14d4ee362a31237391c446f1c6b9710d2f7929c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-adv-01.json",
+      "bytes": 6198,
+      "sha256": "ce74d8c3731081b4e218061efc55483fd54438b0ff965730abdf395a1e66a88b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-adv-01.provider-attempts.json",
+      "bytes": 157,
+      "sha256": "cbcd52a8de26613b0f5c610af5aa863a43b39a9c98aaef0c30bb23438c63eed5"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-adv-02.json",
+      "bytes": 6177,
+      "sha256": "38c78beef500c9eb14822260c76da4ced450398345d00f1a14067c981c1fa83d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-adv-02.provider-attempts.json",
+      "bytes": 157,
+      "sha256": "b74816f30a11b580fe417c8323f548005049e2e022ccf26ebb1a09dd11f68161"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-adv-03.json",
+      "bytes": 6187,
+      "sha256": "bbcc94774343a70a0f8148dfafab369b7e30a42a477a7272928fb36a5c92c8b2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-adv-03.provider-attempts.json",
+      "bytes": 157,
+      "sha256": "20ceae9aec9a500112b2211957667a6d62502919dec677f49c046f8ff8daf52d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-clarify-01.json",
+      "bytes": 6406,
+      "sha256": "d027fbeebeb0c7824d98656a69e219967eb312879a245e26e3336f2ca78b216b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-clarify-01.provider-attempts.json",
+      "bytes": 161,
+      "sha256": "bdbab1a0888acdb8a678edfe16015e363019bb616032a4331b8674bbad648071"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-laya-01.json",
+      "bytes": 8135,
+      "sha256": "ead4d30a6bc6855ee23dcd953c18f99fa895be220ce09c6afd32952d7c1147ac"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-laya-01.provider-attempts.json",
+      "bytes": 158,
+      "sha256": "ae0b4e5164b2f245d4d544dded1a233d6a708651dbff8ac80b852ca269cd8278"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-laya-02.json",
+      "bytes": 7982,
+      "sha256": "95bd6d9304aff6d841e991c3aa8b1f6c80b883ec259efbefa10f0e07c4a4e611"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-laya-02.provider-attempts.json",
+      "bytes": 158,
+      "sha256": "5eb17265d78bc4247dd2524c23396b5592b403921c93719f0cb6b427c2d7e803"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-link-01.json",
+      "bytes": 6768,
+      "sha256": "2a07f2dda603a9ee126cca63da830a64e7225964c6d7c94eeb6ad1724c0c233f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-link-01.provider-attempts.json",
+      "bytes": 158,
+      "sha256": "96aa405547db34c4ed916bd918fa1d09db2727f781bb772d63110c6b6b07239d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-link-02.json",
+      "bytes": 12543,
+      "sha256": "6fdeb3b6450b1feb6f39425757e1ba5a7394b109c642017effc233122a3699f4"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-link-02.provider-attempts.json",
+      "bytes": 158,
+      "sha256": "c7242cc2a2211eb07cf25066b91eef47399cc60d592fb9ab31eb05d079b55893"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-multi-01.json",
+      "bytes": 6153,
+      "sha256": "28aa0ab153b4e762afbce9ed67622b31af645cac107cf811a1f5070e301c533c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-multi-01.provider-attempts.json",
+      "bytes": 159,
+      "sha256": "37e2454584efdd084ffba112c39a501e1956aa0482e276e105c2ad2382d24920"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-multi-02.json",
+      "bytes": 6509,
+      "sha256": "782fa0be6b6459252260cf135b831522a237c460bcb0732694cc6a8bb70370a2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-multi-02.provider-attempts.json",
+      "bytes": 159,
+      "sha256": "a18f7b1a7b9f685d5771f146a7c577b590a4f592afec657a2d9ceab52347c13e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-nomatch-01.json",
+      "bytes": 7006,
+      "sha256": "370cea6884cbeb3acfa9d98b5b1a499bf41f128e65b908f6ffd48fe7933faeff"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-nomatch-01.provider-attempts.json",
+      "bytes": 161,
+      "sha256": "8104f214ac089475bdc21b19ee11471843855859d7d8e82258a162268d2151bd"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-privacy-01.json",
+      "bytes": 6480,
+      "sha256": "70c50c6991ad01b7cd2cbd063462dddf620e7568570cf6540c3990c30a40143c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-privacy-01.provider-attempts.json",
+      "bytes": 161,
+      "sha256": "cccdafdc66b276270827d7a240819891146782ee7b70e4f4c763988675a02343"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-recover-01.json",
+      "bytes": 6644,
+      "sha256": "3e36eeb47e0c98210f0252c9285abfac8be7c07365a709b3ae9b7424a783f5fd"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-recover-01.provider-attempts.json",
+      "bytes": 161,
+      "sha256": "e8adb4f5e4229b4f28d2416e8cd7f37b37d516895a721b349775fd3fec7cc3cf"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-retry-01.json",
+      "bytes": 6563,
+      "sha256": "a7e17ddb2452960bdd54375a8aace16e706f229c844608d09a267eba0e28ea5d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-retry-01.provider-attempts.json",
+      "bytes": 159,
+      "sha256": "784abffb438e78b55328873bf3e74090c2f38ed93d9f0d243e779eba80c7aee2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-search-01.json",
+      "bytes": 9679,
+      "sha256": "4673f167e4fee1def2e8ac53ab726b0b4ca7943f906801e79cc850bcf344306b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-search-01.provider-attempts.json",
+      "bytes": 160,
+      "sha256": "7e49128f788a4b368c30e93977c736031b5484db48d9d20d9271128f1d35122a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-search-02.json",
+      "bytes": 6308,
+      "sha256": "95eba803450c108ac68501d0574264f1ccc592820313d107b3b2302a4b56597d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8-search-02.provider-attempts.json",
+      "bytes": 160,
+      "sha256": "2907fb2a18856cf59504f03d1e772c654fbc5c922e467e2688b1ca86afaee524"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8h-adv-01.json",
+      "bytes": 6187,
+      "sha256": "b0f6d764b03b6ff0db9c2d23f0cf650c479ef24455689b550ee692d55a859312"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8h-adv-01.provider-attempts.json",
+      "bytes": 158,
+      "sha256": "55d0759ec87d737fa2f1af12c0d3d09d3952f1f1d040564d0ee23e01b16d572e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8h-clarify-01.json",
+      "bytes": 6463,
+      "sha256": "a97ba6161cea6a5c381baffabd8f48416af3e05567d520a1712d2b72a7089dfa"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8h-clarify-01.provider-attempts.json",
+      "bytes": 162,
+      "sha256": "822b0e3d0c95c9fed5f703d31dae15dfd0e8cc479e5f11eb6d7e700baeae0fae"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8h-laya-01.json",
+      "bytes": 8144,
+      "sha256": "21980ca2b4d7ad8bbad4548ba2051b7ec8fb2ba716c8fe9e58c0c1ec05fb653a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8h-laya-01.provider-attempts.json",
+      "bytes": 159,
+      "sha256": "449d3b82db095df23c52b5232298c926adaffdcda77536ec714b5cdb7f860fcf"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8h-link-01.json",
+      "bytes": 7129,
+      "sha256": "c0dfde3c2bbf1e906b13716c352f01274de48c3aed092f88cc3cd6ccebaecc66"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8h-link-01.provider-attempts.json",
+      "bytes": 159,
+      "sha256": "8b5a42a92f88bd6e6fdc10926b4f4dbc0a65799023525cb51d592f8d084cc876"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8h-multi-01.json",
+      "bytes": 6144,
+      "sha256": "9cecf06867e57304ee29dffd8080ebea2eeca7bd415130cb4fda7b80b6b8896a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8h-multi-01.provider-attempts.json",
+      "bytes": 160,
+      "sha256": "220e52cbb367b29928440ebbec01edbbf1809c9f510eafb7d68c80bc0bf74ef3"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8h-nomatch-01.json",
+      "bytes": 6993,
+      "sha256": "6bf63dcb23053529a17c1063731f472eda6d8d9f0af648341067fda3d29a682b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8h-nomatch-01.provider-attempts.json",
+      "bytes": 162,
+      "sha256": "d2ec701cc7e5725165e7c880a7c8bbf5749c5282535df005060878be7dcca6e3"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8h-retry-01.json",
+      "bytes": 6579,
+      "sha256": "ca0093f947f5872d7732f88702a418c68f7e3a07aa5d0464ded7006336e99c42"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8h-retry-01.provider-attempts.json",
+      "bytes": 160,
+      "sha256": "ce692b8596002f0b637d1920f374ba8b88d9b1d9657aad2d06ee97c52078300e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8h-search-01.json",
+      "bytes": 6510,
+      "sha256": "59219d8b2c02daff40924c670146add5e90bcbd3f6e0748dec2f46e409df41b7"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/requests/a8h-search-01.provider-attempts.json",
+      "bytes": 161,
+      "sha256": "8017a759c0df9f993fcf4bb440ab60f1c7f23a75b8bd6a87377beeb6ebabe256"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/responses/a8-adv-01.json",
+      "bytes": 856,
+      "sha256": "bbbf67242ebd09cf041101cb1db2af5f558983a7ddaa67fda7f66603deb8e053"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/responses/a8-clarify-01.json",
+      "bytes": 860,
+      "sha256": "820657b9c9fe893fb00d0c4e77405246e6fb8ce55b137ee028cfa86d81fad90c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/responses/a8-laya-01.json",
+      "bytes": 857,
+      "sha256": "05703c9d3dae8d4df4c1b277e0ee513c050ef2f160e03245d9a2fc0345fb0521"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/responses/a8-laya-02.json",
+      "bytes": 857,
+      "sha256": "d44393c78e2c991819f167aae0f1886a6db2695015ba294453cad656fcee1b94"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/responses/a8-link-01.json",
+      "bytes": 857,
+      "sha256": "8920930e3b76522f30181ad1a91a87e675d826a0c4a3bec07293832d25263356"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/responses/a8-link-02.json",
+      "bytes": 908,
+      "sha256": "ead420e431546e9246ba1f05d9e85f3f2d266f164d1518f9033bdb99658c3d2a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/responses/a8-multi-01.json",
+      "bytes": 858,
+      "sha256": "a20b1c0ce508e8639f14d963a25b9a4478aece737e31e2f5b63e72265c9fc134"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/responses/a8-multi-02.json",
+      "bytes": 858,
+      "sha256": "53b4cd8203bc8411e0afc6779f1d5bfcfbe4a6328f7b42a60b947259c0bc40d4"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/responses/a8-nomatch-01.json",
+      "bytes": 860,
+      "sha256": "325c342f93224e99c7242ff3ac807abdd5e88d17e065a7c1a9bac2877f47d5bd"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/responses/a8-privacy-01.json",
+      "bytes": 860,
+      "sha256": "11526c91a48baf433563165b45e3d97acb2a4afddab57f2339feeb3f1d3c99fe"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/responses/a8-recover-01.json",
+      "bytes": 860,
+      "sha256": "8255605d6941958c5ae9dc369cdd09d207cdc9fc9875cf95e8f1001b986a144d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/responses/a8-retry-01.json",
+      "bytes": 858,
+      "sha256": "b022b7663157ef4e347dfdd77aeb0a54fcec2ff9c4e8592f743b54eb17668a05"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/responses/a8-search-02.json",
+      "bytes": 917,
+      "sha256": "bf459c58526fa77b88c86359220e715fd72f2004297050b90fe9a2c907862252"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/responses/a8h-adv-01.json",
+      "bytes": 857,
+      "sha256": "ef1cbde3b6dda7ba14db248ffb298c8cde8e61a8ee1ca58d5870ea95182d9a09"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/responses/a8h-clarify-01.json",
+      "bytes": 861,
+      "sha256": "db1c1ab2000753f5c6d94399fcf16ace44b0eee4a380f8f476782551c665bd59"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/responses/a8h-laya-01.json",
+      "bytes": 858,
+      "sha256": "85c17f7613257bba8ab69e2fa2f7ba84e333627871266584a58fbae903e904ba"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/responses/a8h-link-01.json",
+      "bytes": 858,
+      "sha256": "b68b787b34cac6dc7b1b49156149ce87a14913303b32ef36959adaab1b73ae27"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/responses/a8h-multi-01.json",
+      "bytes": 859,
+      "sha256": "5aa095276d38d5595b10eab5080734e58af0195f7a1f6f8190810a4ad9769267"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/responses/a8h-nomatch-01.json",
+      "bytes": 861,
+      "sha256": "c256094c1e38acde6a173a237e420f6536e012f7ec4335a99cf6845f7e5563af"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/responses/a8h-retry-01.json",
+      "bytes": 859,
+      "sha256": "97b195367bd3ea99f573ee162d1a1e04c13f75be3a3de21731d3112f0f1e13fe"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-2/responses/a8h-search-01.json",
+      "bytes": 860,
+      "sha256": "4048e3370c6eacf24abae9a39677ec3cbfeb393a22e8c1397d35b95fdfe24bf8"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/index.json",
+      "bytes": 84936,
+      "sha256": "247288a905df431f09656e30238a944b67ccc91181a713e96ce3a162979af551"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-adv-01.json",
+      "bytes": 6198,
+      "sha256": "632cb005baae7e0845127c3fb961def08c817bae2ba694a4d3f848693febdb90"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-adv-01.provider-attempts.json",
+      "bytes": 157,
+      "sha256": "e91eca96cfdb46bbb5d07860a4842a3bca42f8752871e5e1cb2a52019f5b2ae9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-adv-02.json",
+      "bytes": 6177,
+      "sha256": "b7c5d16a681acef6c5c21444d15baabc31d7863a0c9c102f63278fef79176e57"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-adv-02.provider-attempts.json",
+      "bytes": 157,
+      "sha256": "28355284b2e472f0814c7f604dd65ecf4098570085ee9648943e7d24a1b90e1b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-adv-03.json",
+      "bytes": 6188,
+      "sha256": "68465137fcb55948665c0f131e86dde5286a5785339ad8d4da1267f0937fe004"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-adv-03.provider-attempts.json",
+      "bytes": 157,
+      "sha256": "5e1166c8808570144aefe319b3d9879b5d4550a5c1e65904918799289a2f8ca4"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-clarify-01.json",
+      "bytes": 6406,
+      "sha256": "2527f429c609c2bf3f25b70ff8cd92c37991886bb47afde46b4947ce94ff04c0"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-clarify-01.provider-attempts.json",
+      "bytes": 161,
+      "sha256": "4484dc14f9b323e6abdebbefc961fb3a79b02cba84d4ecca2982b45c6938373e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-laya-01.json",
+      "bytes": 8135,
+      "sha256": "1dcb516386c8aa974ea593daaa09295bd4be5b9884f0d9570d49d129cdaf8cd8"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-laya-01.provider-attempts.json",
+      "bytes": 158,
+      "sha256": "55f539d688cc82f6b8367cd1a8382434e03272a96c8d6d7ddb3a567caa039253"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-laya-02.json",
+      "bytes": 7982,
+      "sha256": "ef52475110dfdeb94915ef59a9b9e185aacfad54929d814e283f1999821573bd"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-laya-02.provider-attempts.json",
+      "bytes": 158,
+      "sha256": "0e5ef9858287f81b0623ec89ebf72e814ad505d809d235b8b63d9dc8a2c2e026"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-link-01.json",
+      "bytes": 6768,
+      "sha256": "9676c834aacba4fc8045d7def9b64052622e5ad0fcb710ff876a1ea7baf0f287"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-link-01.provider-attempts.json",
+      "bytes": 158,
+      "sha256": "ccd86035f450f3cd080e4929cd0f6d20a82c3f619efbbae82c343b46c97b08d1"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-link-02.json",
+      "bytes": 12543,
+      "sha256": "d572f3a2c0959cf77734beabb470bc7d9b4c5350b2f9134d49bb94320faa4abc"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-link-02.provider-attempts.json",
+      "bytes": 158,
+      "sha256": "91fa829e68f0fd7c5e915d7dd0d9b67685b9abf28b80a6faea3cc163eb8b5fd2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-multi-01.json",
+      "bytes": 6153,
+      "sha256": "2dc04b85af3bd4b33eff458ba5aa32c8c2cd708e5ac56107242165a8240fe6ad"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-multi-01.provider-attempts.json",
+      "bytes": 159,
+      "sha256": "4164616c15bb3a4bd1d9cf82b79601ee3a96a81c9afec561fe1dff761613da32"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-multi-02.json",
+      "bytes": 6509,
+      "sha256": "7700adf851d72741bf17f74d45a4cccb864a1b1c577627c7a5ca1b552bbb191f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-multi-02.provider-attempts.json",
+      "bytes": 159,
+      "sha256": "b21da3c1b3f67d02d8e9ac7ae06870dcd8273647e9bdca193aa464fae0a9eb4e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-nomatch-01.json",
+      "bytes": 7006,
+      "sha256": "c47fb77601bf79a82dd83ee8e33befb7328a80fa8612351ba82276984bf291ca"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-nomatch-01.provider-attempts.json",
+      "bytes": 161,
+      "sha256": "713be39bc90e432095189bc195f30d2d1a882659d46da2b9badd9a634d97e6d9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-privacy-01.json",
+      "bytes": 6480,
+      "sha256": "9feeced34e16a8b28edaadccac3eed4e71781170cbeccde651d304e0723fab7a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-privacy-01.provider-attempts.json",
+      "bytes": 161,
+      "sha256": "09c7cdb0d9d57111a7e05697930bbce5e47008089b3956e8fabfd95d53acb3bf"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-recover-01.json",
+      "bytes": 6644,
+      "sha256": "6f3806ff959194f536cc72d289fe72b6c7b6e6ec4fece5cbfc57ce20a02f8ae3"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-recover-01.provider-attempts.json",
+      "bytes": 161,
+      "sha256": "dd1d0900943c717c7b2e9e5628bd437f4eb5e6d9f5eac291de10762db3c4f9c3"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-retry-01.json",
+      "bytes": 6563,
+      "sha256": "4f8868a7cbbeb31ed31809f91ee9c4297968d51443a9a95752edb4229cf76bbf"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-retry-01.provider-attempts.json",
+      "bytes": 159,
+      "sha256": "e529af422dc1cd8d8c5b0ad685d19c26c11ee0e80150570f4e0f3dbe84a2bdb2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-search-01.json",
+      "bytes": 9679,
+      "sha256": "01992fc48ac4103bd5c93a2844f60c209f2fa6dcab235dd9464ca169c56c10db"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-search-01.provider-attempts.json",
+      "bytes": 160,
+      "sha256": "0bafcdacb6e7e4c395cd883264b8fb797a0ef3a9b06816b69aff469d1742de25"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-search-02.json",
+      "bytes": 6307,
+      "sha256": "281e64362811b2b8ab8d374f63e0ca2186826bad770bef5b677efbba3eadabc3"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8-search-02.provider-attempts.json",
+      "bytes": 160,
+      "sha256": "d7da3eba43077d7ea0788f56816f99d5932644883b1bd5c72f184e51da53ec12"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8h-adv-01.json",
+      "bytes": 6187,
+      "sha256": "3e6a75bcbb3d260dd6236e5cd6acf269d4374dfbdae7c34a6e9df07fb9a77507"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8h-adv-01.provider-attempts.json",
+      "bytes": 158,
+      "sha256": "590252f3161826e7fc036c004960d0243f02f28f772aca8aafad81d2d71fa1f2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8h-clarify-01.json",
+      "bytes": 6463,
+      "sha256": "08dfb1c396e5555d2c4748f8040e043b6460a924825f97a09ce0d1023f6479f6"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8h-clarify-01.provider-attempts.json",
+      "bytes": 162,
+      "sha256": "b7ccc2a4605a9a8ba3844749be111aad73e0b87f379f9f29388c26ef939a5ccd"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8h-laya-01.json",
+      "bytes": 8145,
+      "sha256": "41d7e18dfade484735dfed2fc0df4a49039c1843cb8cdf0a94a8a5d59de1c168"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8h-laya-01.provider-attempts.json",
+      "bytes": 159,
+      "sha256": "a8ca86c7448ae8e5ab2b51f34434c79d76e9342165b1db5d2c9acda9ef5c0d9b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8h-link-01.json",
+      "bytes": 7129,
+      "sha256": "f4f018319f2d7778dc09ca33b0deb2f6e32d6d478a9f203fd65d3c83650b4c63"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8h-link-01.provider-attempts.json",
+      "bytes": 159,
+      "sha256": "0451d8da1350902800f103559c4d6d9d28098019701ebff72bd7f32eb46adde9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8h-multi-01.json",
+      "bytes": 6144,
+      "sha256": "e747668a3309fce43fe79fe8dc7af73a91bce6652e846a0eeda38bced94aeddf"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8h-multi-01.provider-attempts.json",
+      "bytes": 160,
+      "sha256": "51774cba6950a7bd9cdd58b505eadf1af9f059dfe31b056eeb0c9105ffe4ed95"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8h-nomatch-01.json",
+      "bytes": 6993,
+      "sha256": "a56737f23aad088f74d06d63056ed3c0819a8947239c65d69b34976e335b72e0"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8h-nomatch-01.provider-attempts.json",
+      "bytes": 162,
+      "sha256": "c2b582df9a48119fa1fa2186c07a01c9700c993d12fba5ede50dc262e617f949"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8h-retry-01.json",
+      "bytes": 6579,
+      "sha256": "13c3621ff0b1fadd676793ad47f1a2cef5e7f47d954317a7e981612afbc7ee80"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8h-retry-01.provider-attempts.json",
+      "bytes": 160,
+      "sha256": "e25f18dd681e6df7301e08f6dfea9b0a1ffba54f7e0bddd24493a4e14e12009b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8h-search-01.json",
+      "bytes": 6510,
+      "sha256": "77e9d1966f5c2b35c0d4838c7f0352a860953721a2aa9ed9aac7897b75a95804"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/requests/a8h-search-01.provider-attempts.json",
+      "bytes": 161,
+      "sha256": "6ebdc1794f210a17693bebc49b9dfb700ad1ce99a93e30e1f84b714e2b64a4c6"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/responses/a8-adv-01.json",
+      "bytes": 856,
+      "sha256": "786f73a7c28bc829ca51db87274d35ffa574951f3be52eebf6557f83617f2167"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/responses/a8-clarify-01.json",
+      "bytes": 860,
+      "sha256": "95f19a8e8935a42e33e5778c369674c6c10be53f91b3c73b98511cd2b86240c4"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/responses/a8-laya-01.json",
+      "bytes": 857,
+      "sha256": "0b0c556918966aa25b5f3f887fdaf2c477b84eff5bfe81272d48ff26f12d96eb"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/responses/a8-laya-02.json",
+      "bytes": 857,
+      "sha256": "441cb92adb48d31950e74d8af00b5de30561645c180f50d1dc328af9cc245e19"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/responses/a8-link-01.json",
+      "bytes": 857,
+      "sha256": "ff69a39043c26751d2667717d8c33b778f2878fc2a2e6f5774084114ea4550b9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/responses/a8-link-02.json",
+      "bytes": 908,
+      "sha256": "852f4113c1efe86e33e77790592da2ca3011b1c8e409022e9147cabb341d9f29"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/responses/a8-multi-01.json",
+      "bytes": 858,
+      "sha256": "7e6d2c1e38934d7293045bc510c8949c86e8edfddeb84e2adf5746f6340b17aa"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/responses/a8-multi-02.json",
+      "bytes": 858,
+      "sha256": "9a9e73bdc6085e1f9f365cfb72f9e786585fb52ad65b3e392ed772e863aa0726"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/responses/a8-nomatch-01.json",
+      "bytes": 860,
+      "sha256": "f06fae5e5380516cd9d44f281e956f6b02390c8f0f4846f278a6918177fe2809"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/responses/a8-privacy-01.json",
+      "bytes": 860,
+      "sha256": "d9de49d1b4c72637a986da36adb8ea6c67fd863c79b59a10dd7e6470d3815a1c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/responses/a8-recover-01.json",
+      "bytes": 860,
+      "sha256": "cf11e00bb5b8df9b22912dd49b14f6dbce68e605fd226aa5cfc8aa4285ae756f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/responses/a8-retry-01.json",
+      "bytes": 858,
+      "sha256": "00a2fb58849dacd76fd2167cf900818bd67eda152e25fc3cf24e5af5196953de"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/responses/a8-search-02.json",
+      "bytes": 917,
+      "sha256": "cf9e537faf1c22a9233e61283dc9e09ee5704faf0f6ecd86bcee46e200959643"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/responses/a8h-adv-01.json",
+      "bytes": 857,
+      "sha256": "7f01bccca997b07b2c8f69c80c185848f754ea738a3120721a947c0f70111b46"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/responses/a8h-clarify-01.json",
+      "bytes": 861,
+      "sha256": "2e2112c92e62abf5ac8971432894ec462cc41e23c09c3f0b8d8d56f87b8ba559"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/responses/a8h-laya-01.json",
+      "bytes": 858,
+      "sha256": "0e4b9673fd9e59e5e2dc8b114cc96d755f4a4f453310af2f1ea5ea2c3ec0ba2e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/responses/a8h-link-01.json",
+      "bytes": 858,
+      "sha256": "1bee8cde00d47574e24915b6b062263633c90abde0d1dadb6b2412eeec750fc5"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/responses/a8h-multi-01.json",
+      "bytes": 859,
+      "sha256": "8bf3a27dfdfb8356d848a2f1e27f09b0ec2d63a90a139340e2847bdfa12b07d3"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/responses/a8h-nomatch-01.json",
+      "bytes": 861,
+      "sha256": "6352685519b32fa7e2b86fe5b17299fd6f319188d7a07b2fc5357a685b1672f9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/responses/a8h-retry-01.json",
+      "bytes": 859,
+      "sha256": "e21f4294db6bbc8ccc338f9ef5329cc01a3b4ef171e5e2cdd200ef99c54b1e15"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/assisted-feedback/pass-3/responses/a8h-search-01.json",
+      "bytes": 860,
+      "sha256": "352e37ca4abc93ff98d2cffb2bde5129e0d358e3f1e903e30295dc2cd09c1c42"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/build.json",
+      "bytes": 36531,
+      "sha256": "4d19e9a12377d65f91cdf15c7742095c2436913613108a7d132bd7a16b2bb2fe"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8-adv-01.json",
+      "bytes": 2616,
+      "sha256": "2db22fa3ca57a6bfc4192f42ab2f6f1888004a019343c9a775b90d3aef1b48f5"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8-adv-02.json",
+      "bytes": 2816,
+      "sha256": "0104754d8551f3a5b156cf7e395290dd7b631e8d49863aee33ec0faf0499e678"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8-adv-03.json",
+      "bytes": 2816,
+      "sha256": "ca60d86cbb730516e029386383c3793c221ecbc8bbaad754e070b37e595aa5cb"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8-clarify-01.json",
+      "bytes": 2628,
+      "sha256": "47406c989cc4b44d62093950537eaa61dfafe4bbc250e878a7de9dbe2564466b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8-laya-01.json",
+      "bytes": 4088,
+      "sha256": "8fdd1a31e73579aab7d4436fb3844d59d75bf1c74896ad98f0eef3786b3b06d4"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8-laya-02.json",
+      "bytes": 4067,
+      "sha256": "83c24b1e02b4f29e60b326d63f20d59bb775591d5fa71b2a2127a330f61f528f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8-link-01.json",
+      "bytes": 3202,
+      "sha256": "62295e9ae339b3d20c8b82a7ecad9970b7118a2c086aae550d8f451335472961"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8-link-02.json",
+      "bytes": 8522,
+      "sha256": "31c074fa2aa3cdf4e678fad61cf535b639a2d2d5d04869d13a3c5ab2b9ead6d4"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8-multi-01.json",
+      "bytes": 2622,
+      "sha256": "263002b4a4653c54efae9e577e8e402132cfe04e15e572e553847d1e9a8c2af1"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8-multi-02.json",
+      "bytes": 2633,
+      "sha256": "078f06d50523c2197874519b00064a8feabeb20396eb2e31101ad42de44d5f50"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8-nomatch-01.json",
+      "bytes": 3480,
+      "sha256": "12b50dab3eacd7207bdaf065fab57c2bf7f36ca0553363c9f97374a4cf7a2757"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8-privacy-01.json",
+      "bytes": 2870,
+      "sha256": "68d37cc016f9ae82efbb5edf6e10fe6a4af5e98fcee5dff357de4efa1c616ce7"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8-recover-01.json",
+      "bytes": 2628,
+      "sha256": "f6816129127c9832afde9f197340f1adb2747e29fd2e5d1d5d453dc66e19968a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8-retry-01.json",
+      "bytes": 2622,
+      "sha256": "8c9eb058e6cd8642bd90304adbeffcee8931734648081bc6c361baad1a375d0d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8-search-01.json",
+      "bytes": 6146,
+      "sha256": "e54080232ffea8c298531c7c54bc93204f85c3e601708d02c18dbcf6d9e4c37c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8-search-02.json",
+      "bytes": 2824,
+      "sha256": "a712f1dba0d551a5fe9d63834b6d547e6c44712662ed9c5e147e2633d6f252f3"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8h-adv-01.json",
+      "bytes": 2618,
+      "sha256": "82432307a5e6483f4bf525923df2461f74c3f2f23329ff6bdea646747590cd19"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8h-clarify-01.json",
+      "bytes": 2631,
+      "sha256": "9710aa407fa07207e025bd02ec696b6336125f5fd32ea3826c5bca0dbc87b94e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8h-laya-01.json",
+      "bytes": 4090,
+      "sha256": "fb927e505313523a985e08a86b66d412d1eabaaf3e8c8dccf52a66deab4024bb"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8h-link-01.json",
+      "bytes": 3292,
+      "sha256": "a91019755fd92a4e5defd0beb44c3e6cd3cc3a306c1edad2651f17cc7eac93e4"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8h-multi-01.json",
+      "bytes": 2625,
+      "sha256": "17432b38aaabd860eeb0635a3e8446abad51a3601a57ad2643f8738cee8546dc"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8h-nomatch-01.json",
+      "bytes": 3483,
+      "sha256": "0f0eb56dff0725ab455559e9922bd79e7986f14bac52dbd2b0763d6853449e46"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8h-retry-01.json",
+      "bytes": 2625,
+      "sha256": "e6de6250e02aed6131e0c157685970ad48ab36122c78bc312256de2f400f28f8"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/a8h-search-01.json",
+      "bytes": 3010,
+      "sha256": "37a4a765b42e29ece80ef548f52518429f574f391d6f44519f001041da6b7970"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-adv-01.json",
+      "bytes": 4823,
+      "sha256": "8768f509f975ecd5bf26a6699e129b71f78bc0f31742e07c4cc39bd651cb67f3"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-adv-02.json",
+      "bytes": 1041,
+      "sha256": "8af97fa7e11bba1269af90be2c79429477d1c490dc8760e7820126ffbca92aba"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-adv-03.json",
+      "bytes": 1041,
+      "sha256": "010985aca433f63fe1de9a68de34b429956b45f011ab69d3d03b6bd9d7a30e85"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-clarify-01.json",
+      "bytes": 4835,
+      "sha256": "de668421e9d0e9616d1476604190f3f0f3d65082d053e49900867d6bf73ea3f8"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-laya-01.json",
+      "bytes": 6353,
+      "sha256": "5e78c23fa7754d5c9c5ce93e001e1294e9fc85fde24fa6f87b7ee0007aa0d62f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-laya-02.json",
+      "bytes": 6271,
+      "sha256": "ef96405aa667539685f5700e31dd8bdebc4ecb3aa16a8b276e021f98b014079a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-link-01.json",
+      "bytes": 5457,
+      "sha256": "c5713a396b78b4a1ccbbdb67f1b54410328837d277510356537aa5713d49e823"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-link-02.json",
+      "bytes": 11050,
+      "sha256": "67042c2ca3a8f0e4e9f637186a0b02871ab35e9bac187d130adfddfc010a46c2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-multi-01.json",
+      "bytes": 4829,
+      "sha256": "c005d6bd3f1874adb7b2e38d520c323adf8e7f55822375eafa3dfd23e7c77ed9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-multi-02.json",
+      "bytes": 4842,
+      "sha256": "f143bafe856945d859fa97f51182f74bce5c8fbc5a540a9b64ee376af3c5d9e1"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-nomatch-01.json",
+      "bytes": 5667,
+      "sha256": "9b7b054ffa1018c7b1a4d2c1e259530384d37beddfb6b62b8b7d942d790efd66"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-privacy-01.json",
+      "bytes": 5085,
+      "sha256": "c1d1b59eb7d81d869240a3e4888ffbf980aeeb761767d81b106734ba7e008eda"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-recover-01.json",
+      "bytes": 4835,
+      "sha256": "ff062083d3bd53962c73b9d8eff562f3be1fe1f33f1fedf56d91bf4723ea717a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-retry-01.json",
+      "bytes": 4829,
+      "sha256": "e35dd75b655f774a0d61c0915d98064e015ebb88a4e51de844a154361eeb4f7b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-search-01.json",
+      "bytes": 1044,
+      "sha256": "b72e84d0dd67abe8da424d951be12c20034e1587ec31e9c5d7e747e1a365c367"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8-search-02.json",
+      "bytes": 6957,
+      "sha256": "c8e84f6b7b88689dbe69a03a7b1fbad07430254885ef6a7e1467de8ae3f86efa"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8h-adv-01.json",
+      "bytes": 4826,
+      "sha256": "5e1b7ab04a2088cb679efc710657dc9461e78db9fbc3d33e2375f52ed1c6605b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8h-clarify-01.json",
+      "bytes": 4838,
+      "sha256": "bf8e090863a9733ad37a54efa1f6cd972c72beaa2f0c1478d6a770233b59ce04"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8h-laya-01.json",
+      "bytes": 6356,
+      "sha256": "d7edd67ea5587073e7f680fc3260867ae5aadade70adf16fc3cfe245ee7d99c8"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8h-link-01.json",
+      "bytes": 5559,
+      "sha256": "9d6909f02abcbe0aa8ae58caf883b3ebbd80c0893b4ad614ba416a40596ec836"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8h-multi-01.json",
+      "bytes": 4832,
+      "sha256": "6653aadf88f9555608ffdf9a8d299a1fe116a9378e331bb197f7e52b599aa55d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8h-nomatch-01.json",
+      "bytes": 5670,
+      "sha256": "3f6304f32fa44ccd0465e114263a7c25ba7b919edb9b4dcf7864742f2eb77179"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8h-retry-01.json",
+      "bytes": 4832,
+      "sha256": "cbcdb1088f7891b096ac030b22fdf74258a8ae04722b06fd0860dfb902c49c1e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/a8h-search-01.json",
+      "bytes": 5183,
+      "sha256": "00605d9ac2d4eddb13d2de65bd4e4cda78738019927576d943a26e4b8a5818dd"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8-adv-01.json",
+      "bytes": 833,
+      "sha256": "731fb2d2c5841c2aabc3e48309076678745a5fc3b165066ce14bd8eb563c2630"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8-adv-02.json",
+      "bytes": 328,
+      "sha256": "493225e99396b4d40083e219f8375edd5ec2292b881b0e44d596d6004e57e1fc"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8-adv-03.json",
+      "bytes": 328,
+      "sha256": "863f20792b9b89817bb15287163a7496d4e2c6bdb39479add6c36c6f61576579"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8-clarify-01.json",
+      "bytes": 837,
+      "sha256": "4c74061f35227f36bb8d7e17fd269a7858df358cdb720f26eb3283b34df1fc4a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8-laya-01.json",
+      "bytes": 834,
+      "sha256": "859a3ca5e9711eeb83b4f2105397d716e69e336e6fadc2b2ab0d1b5f8e23176a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8-laya-02.json",
+      "bytes": 834,
+      "sha256": "35805acc7fa645c15a4b9348a022cb3a9aa7ca981e3eb6f464dc03d5e09333a0"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8-link-01.json",
+      "bytes": 834,
+      "sha256": "5afd811662b5f695935744553072642826cca83dce873537fe20fc5b63591914"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8-link-02.json",
+      "bytes": 885,
+      "sha256": "9ea0a938375ab670c2f544c2297f6655b80d444bbdf0b1faea6c29f76184f53e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8-multi-01.json",
+      "bytes": 835,
+      "sha256": "e5265b8614c281535d297ddd0fda59ab9aaa4c053dcd3b73be4ed4f2634aa5b9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8-multi-02.json",
+      "bytes": 835,
+      "sha256": "ae6e1873ae51ff49600576c966a513fc821b9de4eabbb38c1463a04821115b3e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8-nomatch-01.json",
+      "bytes": 837,
+      "sha256": "8483d489e10247a982a2d2a44034d24d3154a87272e2efc5432b87e47a14d88c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8-privacy-01.json",
+      "bytes": 837,
+      "sha256": "a9cff15068f3cf69784d7eb6a13b84df4f516375a35c6375f7955714835495e5"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8-recover-01.json",
+      "bytes": 837,
+      "sha256": "093e5b3dd35d84186642c89509e0042ba7e1e978424efbc43ec274d2dacc5252"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8-retry-01.json",
+      "bytes": 835,
+      "sha256": "c286e5e1625ae6d3e82ecb54d147163c1e2974f4cb5e3557bb606d36e328c4a3"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8-search-01.json",
+      "bytes": 331,
+      "sha256": "f8fcfcfe9f281f285b1d121c51b6a969e5b8549aded75208ddc96d957429e11c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8-search-02.json",
+      "bytes": 894,
+      "sha256": "9f342d977273980ceae4c1dff72dd7d043e1a2ac9de4a6daf09020dd86781ac4"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8h-adv-01.json",
+      "bytes": 834,
+      "sha256": "dc5f7ad906d0f37fac9ce4c75bc7c118d2a08e0adf11b964bbc5a7396b7b0820"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8h-clarify-01.json",
+      "bytes": 838,
+      "sha256": "09357ed3783e1c500400f4130f459ff0bb6ef027d9c1225ac0134eb10adf007a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8h-laya-01.json",
+      "bytes": 835,
+      "sha256": "d2c421ba841eb895f097f731e7667721f9ad57b1d96043bc0a8c46ea71923353"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8h-link-01.json",
+      "bytes": 835,
+      "sha256": "83789f9c153858ed6496ceaf867205dfe19f88d5ef98cf326fede94583e8c2d1"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8h-multi-01.json",
+      "bytes": 836,
+      "sha256": "f43e46a4fbf767134028aa8e2c508628187faaf3e4f8a33139fbc5547985d961"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8h-nomatch-01.json",
+      "bytes": 838,
+      "sha256": "ae95fef0b5ad9025c49ead8b454349590dce2738741c568a1b47ba0d76ad5dc5"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8h-retry-01.json",
+      "bytes": 836,
+      "sha256": "8103df9a1c179375a2550e75c498f94ffdc278bcecfef00098ecd0a765591a92"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/decision/a8h-search-01.json",
+      "bytes": 837,
+      "sha256": "bf070df7aca11e28c91a848b663fa640104e0b00e40d868d873d030ac43cefe9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8-adv-01.json",
+      "bytes": 3175,
+      "sha256": "9250954b381babdce45898bc42ecafac3e03c8fcecdcf0a112bc94eb94da775c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8-adv-02.json",
+      "bytes": 3395,
+      "sha256": "7b1dbc50ab06a7512f6d605b24f28678a3e9d12241911d828ede98d81f5e5bfa"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8-adv-03.json",
+      "bytes": 3395,
+      "sha256": "d449664c6d10819254b08c3b8f953f1ac85f4688725b00782f34bcc26dcda619"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8-clarify-01.json",
+      "bytes": 3195,
+      "sha256": "abc0eeb013e672185dd6f544e8243ac81dcc6aa899e7ff0bc6d8d0988da71249"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8-laya-01.json",
+      "bytes": 4749,
+      "sha256": "7522858576a61228fe6408ed3839cc20e78593a156e2c746a5c24a4084386b8e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8-laya-02.json",
+      "bytes": 4724,
+      "sha256": "94fcd1e4918a9058f68d8730e0c5c9567fd00517bca7146689f6bb5ca8343923"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8-link-01.json",
+      "bytes": 3813,
+      "sha256": "32dc7d150e773f4a70bbc2d9fd50b97a7de578042d204962aebf0b01e5bd6749"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8-link-02.json",
+      "bytes": 9367,
+      "sha256": "644e6d37b76c1d1c4b4434c4e49071503e8b36d7ba6bc725c9300789ea2ca270"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8-multi-01.json",
+      "bytes": 3185,
+      "sha256": "31a00dc08ff901f6ba8f5c6dcdfe4f791bfb3e623122efcd2412e425243d3758"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8-multi-02.json",
+      "bytes": 3198,
+      "sha256": "c443eacb50f398fffbf92d3e5e2aa21e5ae73f59922414b6dda9c73e6bd11dc1"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8-nomatch-01.json",
+      "bytes": 4127,
+      "sha256": "71d6deee347c5dc78c0d85246d70ec688cf371eadbad1a49d1e546de88062dc9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8-privacy-01.json",
+      "bytes": 3445,
+      "sha256": "78bbe1fbd386fa1bf83cf51b14630e6c18bf995b5f89f130062bba4d0a68471a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8-recover-01.json",
+      "bytes": 3195,
+      "sha256": "225c8bff06e5e277aac0b2efe8a412a536f4a86098bf4032d5bb01f8e6b10938"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8-retry-01.json",
+      "bytes": 3185,
+      "sha256": "1496ae240077d2eb4a622094b6e7d5ed82f4ab5b3f8ce31046a2d7fb0ee5dd6a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8-search-01.json",
+      "bytes": 6839,
+      "sha256": "b675bb614d80cab9c4ece8dbe550a97260b087f91a2696f37d42eb10d171bc5d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8-search-02.json",
+      "bytes": 3407,
+      "sha256": "620e0a29d6282b0f40f22a8b42901a71de3f607274ab92912d1c0a74ba690107"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8h-adv-01.json",
+      "bytes": 3179,
+      "sha256": "2f16a8363c87ec919626986378c04018504e35fc30d6ce0cbfcdc7145ee26b1f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8h-clarify-01.json",
+      "bytes": 3200,
+      "sha256": "8ba1e0167f7f190e6ae51bfb2763b9433169656a75d6dc6187395c66f327b514"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8h-laya-01.json",
+      "bytes": 4753,
+      "sha256": "b95e15baa92045b61e73e70842da5f83923161029cd26f05c2dba2d846d4201d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8h-link-01.json",
+      "bytes": 3917,
+      "sha256": "e192b912da72e514ce162059312314ca02b3bdc4e618dab97ededc29a7d3a608"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8h-multi-01.json",
+      "bytes": 3190,
+      "sha256": "8ec202a24bfbe77585a5f3316532632afe41042915e7f3b7a4f454b6c661016a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8h-nomatch-01.json",
+      "bytes": 4132,
+      "sha256": "5cdde0a8a06db90cdcd051d1497a97227727f8f096685405988cce86948d501a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8h-retry-01.json",
+      "bytes": 3190,
+      "sha256": "35efc5799953b7bf2fd40efdb342a082e8b6ceb06c8e003e48acff4f7308ce38"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/assisted/ready/a8h-search-01.json",
+      "bytes": 3621,
+      "sha256": "71039f603b5b2069632d9030c9ed67a558f967c3213c1be2da115705ff78ddcc"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/live-run.json",
+      "bytes": 107326,
+      "sha256": "88a2b10bea449ef8f3bc74648e9ca23b7de96bb88458a8dc224542ff010b6bbb"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1/scripted-proof.json",
+      "bytes": 8213,
+      "sha256": "b7c31bd879aac5d5d9380bff2d1642fe58c6272a186465d6211c9a266be27367"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1.host.json",
+      "bytes": 64754,
+      "sha256": "8f47e9d900764e359d2c2bdc3afa101de0da783e7cd2ca6e47bb13f02e556744"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-1.path-identity.json",
+      "bytes": 3077,
+      "sha256": "ed74fce0fcafccab9036d2154a167cae18cd010e4f9d29f8f235ad048ddbaa18"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8-adv-01.json",
+      "bytes": 2616,
+      "sha256": "1faeffc90cc1a757dd06a907dd1a53f549f11a8483672a7f4ee7b9873d073f04"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8-adv-02.json",
+      "bytes": 2816,
+      "sha256": "e3d2273269748d5578ca25992aa3f015830ae88d189d74c085176964f44dab17"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8-adv-03.json",
+      "bytes": 2815,
+      "sha256": "a85c8dbb7a2113ff09aea44cbe41c49ffccbcd004b27007678b419809073de72"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8-clarify-01.json",
+      "bytes": 2628,
+      "sha256": "e39d4b18c013373cda9272c1f33bdcd8dce63e7de03f0aaa575546aaa78871ed"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8-laya-01.json",
+      "bytes": 4088,
+      "sha256": "1c3fe1bf9091807a8c05bec5e2679153b64b68565a1e53aa54d67f6bc991f091"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8-laya-02.json",
+      "bytes": 4067,
+      "sha256": "cee34d4f8dfc59bb6619e8c554de2301eec2dde3d1928c33ae6ddfc15fab278c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8-link-01.json",
+      "bytes": 3202,
+      "sha256": "a2dd681f1f18ca82cb23d42fc270aae65b1272f439a95cd02871d49b08e9509f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8-link-02.json",
+      "bytes": 8522,
+      "sha256": "970fea17eafe1a8d3ece8b7264fddd49eb01b1fe50b6760a63ee968f15df4333"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8-multi-01.json",
+      "bytes": 2622,
+      "sha256": "aba979a8b39b05a0a75f36433b2935a1dc40a121181b874b838b6792cd50a8f2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8-multi-02.json",
+      "bytes": 2633,
+      "sha256": "653b9291e36caa5009ff5a879f89ef2bf5616e7a30f4ebaa14707f6dbee30767"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8-nomatch-01.json",
+      "bytes": 3480,
+      "sha256": "3e81776bd6ed7ab7e12f7765a12865f704c44be8acca2f3b78146c98119187c2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8-privacy-01.json",
+      "bytes": 2869,
+      "sha256": "ead4fa9cec89376534ccd9563984d32bde549b062673e8becaa84c0f5f37fd0e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8-recover-01.json",
+      "bytes": 2628,
+      "sha256": "5c4d95980a3b302d5f64991015cb6a709ba8b345cb426722fadf6d07f548afc3"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8-retry-01.json",
+      "bytes": 2622,
+      "sha256": "1c839a7c9c57fae89919a633219fb95659e4aca81d019942a917708ddcce6d43"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8-search-01.json",
+      "bytes": 6146,
+      "sha256": "2109de7aea7d9db8d52a8863f57148ff2c65c9b02130f365d1ca71d75283131d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8-search-02.json",
+      "bytes": 2824,
+      "sha256": "0f6f1029e979ea5dc5a3a932896f43330f09d4b78e55ef22d6b3aff68123b473"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8h-adv-01.json",
+      "bytes": 2619,
+      "sha256": "0bd40b9ccaf7e2fb2c102a3d043d765fc8a260476c2c83c77b7ccee532aabd09"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8h-clarify-01.json",
+      "bytes": 2631,
+      "sha256": "35ba97cfbabca8a35f8042116904d5f1ad0965774b0460564ef1c356116b74c3"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8h-laya-01.json",
+      "bytes": 4090,
+      "sha256": "4351b2998e4405238977e12231489154c7deb44d428a72332c6f6e581467acc5"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8h-link-01.json",
+      "bytes": 3292,
+      "sha256": "fab7b809c205449502bb4f4980ba8fd441c9aaaa7f1ea1eeeaee793c514e57b3"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8h-multi-01.json",
+      "bytes": 2625,
+      "sha256": "f0124738fbe5f8372316d5f06778569cfae0c007f065bb5925ad7f79a8a6851f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8h-nomatch-01.json",
+      "bytes": 3483,
+      "sha256": "d3a671257c19763410c2b29d0187d69b7b53d8c66664e227c97f025758971b9a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8h-retry-01.json",
+      "bytes": 2625,
+      "sha256": "8958956160e458061b58c3ef1e9fe021078e9af0c3f013060796c219849556a8"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/a8h-search-01.json",
+      "bytes": 3010,
+      "sha256": "5d2e40ed844b67eaed2b0649b85c4849fea295efd61c0bdff41eda8fcce0e5ba"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-adv-01.json",
+      "bytes": 4823,
+      "sha256": "27d989a59dcd5a84660320fb85a2fd4de086ced7913bece4d7ec533e18e112b8"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-adv-02.json",
+      "bytes": 1041,
+      "sha256": "66816dbe13931ec5e6727f644a2b7105d817bfa82887570c13f70edae5f0581d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-adv-03.json",
+      "bytes": 1041,
+      "sha256": "bc59a2cc9b17ca92bbcbef448ad27776a9ccfa4495c88dfe6a6816e2cb32391b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-clarify-01.json",
+      "bytes": 4835,
+      "sha256": "d8f657a29d4b1e70ab584b138ba29de6405e67edb8ebc7b3073591b3338652fc"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-laya-01.json",
+      "bytes": 6353,
+      "sha256": "4a1d8e237f790fc36aef44c7c4663c014c45aed6486dcbc7ec24f9bc72ccbe43"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-laya-02.json",
+      "bytes": 6271,
+      "sha256": "b9db6e14fc16c8dffe7d743ebd4712f0b911a0ff616fa72a32cd6f0a8a321e49"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-link-01.json",
+      "bytes": 5457,
+      "sha256": "68fa47efdc317db0cb26f0669c1783bfd6cc4ce277d35ba16e6ef9dac53c3373"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-link-02.json",
+      "bytes": 11050,
+      "sha256": "5e7c055cdc935545a29e61f17946c00feb7dd46e6d454663748e537c85b6d8c6"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-multi-01.json",
+      "bytes": 4829,
+      "sha256": "694a8fdc174676b816389d02d69568962b4fc8111ea8a29bf831a3ac293c127e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-multi-02.json",
+      "bytes": 4842,
+      "sha256": "91d93e0aecdbf504a142144dfd04d75aeff90bdbe180c440af1fe299d92a71a4"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-nomatch-01.json",
+      "bytes": 5667,
+      "sha256": "2d772afb700a4f07048359081bfddd80d178c357f6bb24da3fb373870002a787"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-privacy-01.json",
+      "bytes": 5085,
+      "sha256": "3d28803f726d423780bc9ef12683af671dd8189aa9bae159f2b93bf14ed5fb59"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-recover-01.json",
+      "bytes": 4835,
+      "sha256": "6804b31cf81a8e779d46cc7931e7140e52389ecd176629091b3a20c2323d2bf5"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-retry-01.json",
+      "bytes": 4829,
+      "sha256": "74d88372d8e0accc88ec0e21f37fe1e6341681367dd32150671eccf03dcb47df"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-search-01.json",
+      "bytes": 1044,
+      "sha256": "313e6459480803ece4f144ec58c752627065d296060634a9dbbe7a5573dbcb10"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8-search-02.json",
+      "bytes": 6957,
+      "sha256": "9e8cf04e6cbd69b5173c48f3d26bfbb86a763a183acfe7afa7739b7fc648ce63"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8h-adv-01.json",
+      "bytes": 4826,
+      "sha256": "0e199c612734288583018be7a31ab52c419cb8c74fde59440d2fed5223f2c1e2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8h-clarify-01.json",
+      "bytes": 4838,
+      "sha256": "cc0d4f5de446e0b00b13b5b73041f8899dca83b59b9e247c250ba605d55be847"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8h-laya-01.json",
+      "bytes": 6356,
+      "sha256": "804a079b97c996b4f64d25f12285aaaef7a66f68931f93b77b4feea3b50bbf21"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8h-link-01.json",
+      "bytes": 5559,
+      "sha256": "3906965f02e3a7fb487161f494cbedac6c4bda7148a1728dd40038e5e5d59b35"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8h-multi-01.json",
+      "bytes": 4832,
+      "sha256": "843eb234204a51db263c2fb63f0a8fd064115177585c4d1be2701ecb0b8a7909"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8h-nomatch-01.json",
+      "bytes": 5670,
+      "sha256": "479be23d8c930f23f3485f6963b461b4b22bb303ddbbe1806a61604bf6e0fd22"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8h-retry-01.json",
+      "bytes": 4832,
+      "sha256": "615841d0a53dfc6abd1bf21182257ac2878d6b6ccff2c11d7b8a1e00e8bbac85"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/a8h-search-01.json",
+      "bytes": 5183,
+      "sha256": "5359dea525db1918ee535db95167e7cb6567283f84c1de2b27c12d2515b672ae"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8-adv-01.json",
+      "bytes": 833,
+      "sha256": "95e64294f53cb796ba807363748b83bd9d11d4919656eb232e459d86b5cf2dfe"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8-adv-02.json",
+      "bytes": 328,
+      "sha256": "287868e636269959f47b431cc0c6cec1f9ac1b6c4ec25b75a55f80a2be4b50b0"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8-adv-03.json",
+      "bytes": 328,
+      "sha256": "951bbec1e2dad7fb4fa4d6ddf37ce8c5b57a104d2cc488dcca31717ad3b9c632"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8-clarify-01.json",
+      "bytes": 837,
+      "sha256": "73bbb5caf1890d5e95348dcd82bbb4fde3375b2e2079031e13d4639cafdd4df1"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8-laya-01.json",
+      "bytes": 834,
+      "sha256": "597431e8804a2c87e5fb427b667d4dfe8714e7a40e45569598f99b48d738dd94"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8-laya-02.json",
+      "bytes": 834,
+      "sha256": "d6907ab57bff46020ef9fdb9738a5297d10b06249f67f75205c05a6a1f6b43ac"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8-link-01.json",
+      "bytes": 834,
+      "sha256": "c3576a32ea7b01503d10d4fbf382a076933366df6c29040367e444200dafef06"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8-link-02.json",
+      "bytes": 885,
+      "sha256": "c1ddf29469fe11b5270096384e2883cf5241bdfeb858d0decaff6175ec8c2e4b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8-multi-01.json",
+      "bytes": 835,
+      "sha256": "9352243138750043a3d4e66b452f359f5895d139ac46471cbe4a6b7db65769e4"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8-multi-02.json",
+      "bytes": 835,
+      "sha256": "5ee581ddc15132ace247a543e8f83c3de36245ffe1a4be9ba44694442437a517"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8-nomatch-01.json",
+      "bytes": 837,
+      "sha256": "9320ddf9080e1fd534f07e6e57a9ed305a0fbd6bf263289b66cb686817718f8d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8-privacy-01.json",
+      "bytes": 837,
+      "sha256": "36d2ddc9599ab6836c555aa1456ce7276791af361b2eee4c6c28af81166ae872"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8-recover-01.json",
+      "bytes": 837,
+      "sha256": "f69f9104971e0a96b3d208c5c435f84b01cd52615b7b5ce700cbab5f31e51155"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8-retry-01.json",
+      "bytes": 835,
+      "sha256": "a123215bac101e55b12a7be13363c09a7d2d49fc008dd05a05396505105d6eaf"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8-search-01.json",
+      "bytes": 331,
+      "sha256": "f881c1872c729cce12a554bb927cd99345051f8885b5e831575d4594a12f3495"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8-search-02.json",
+      "bytes": 894,
+      "sha256": "df58d0264d0fcdb1f381c0bd25dbee4899424ea1019f6fb5a89a4f07e2d781b6"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8h-adv-01.json",
+      "bytes": 834,
+      "sha256": "162ef8bfbddf8b28681c8cb4eb7a84b996e83c5988e26b4da54a30f55ccbc6d3"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8h-clarify-01.json",
+      "bytes": 838,
+      "sha256": "dfa97d3b060325ce6e9f71e1275ff496c0aaf9bbe5a4523d648827e4f02a6521"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8h-laya-01.json",
+      "bytes": 835,
+      "sha256": "c1f6555cc7329aef072aa751cfcc314bf26baaf61a9b1e463862fb8571820153"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8h-link-01.json",
+      "bytes": 835,
+      "sha256": "9d77f06657c3922c8a4632288b094822cdb630b8a9b2dd0f4e1b14bba21d617b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8h-multi-01.json",
+      "bytes": 836,
+      "sha256": "6cfbe0a4d532f747a82111a05b0793524b90adae99d8a92feeaeb6a25aca87fe"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8h-nomatch-01.json",
+      "bytes": 838,
+      "sha256": "b6465db4e39e6d75bb37c5eeaa6e1265861596ae7eb75916f8d3b281f4338a3a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8h-retry-01.json",
+      "bytes": 836,
+      "sha256": "919c1a1c97820c46e5c7b94c8d43b1bacdae4c3ed0319228998dd731a1917582"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/decision/a8h-search-01.json",
+      "bytes": 837,
+      "sha256": "fb655de054f35b41abe01c34082921f9c28a3624e38f4eb6489bba66d74a5eaf"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8-adv-01.json",
+      "bytes": 3175,
+      "sha256": "aa4af56aba6f75c342a613c80f0a0b4adca0c35e48b43119e86943f8ea361c5b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8-adv-02.json",
+      "bytes": 3395,
+      "sha256": "77ee3b07b35b26362e11ad4e88f143e9e92622b8ce274ec3b1eca8bb96d752d9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8-adv-03.json",
+      "bytes": 3394,
+      "sha256": "4c6de22448a1421d1ba454463da6a8bca4c19f4cc3e76f8ad990f20c1dbf3a21"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8-clarify-01.json",
+      "bytes": 3195,
+      "sha256": "ba62f1ba72ed42f71d5305c55cb57aa2e4e58e8703a18b06331da598b1ee44db"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8-laya-01.json",
+      "bytes": 4749,
+      "sha256": "94a12a87bd5ad43be916950baa56f3e6e04ea0709722627859d21ea48f241ffe"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8-laya-02.json",
+      "bytes": 4724,
+      "sha256": "20b7cba8dc90b8658fa133aea2b214159c50e51ffa87982f269e886dc9f3a873"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8-link-01.json",
+      "bytes": 3813,
+      "sha256": "067c07c6c9d1e0ba3551ba1f748ae06becc14134af429c6009d1eb452c92f89a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8-link-02.json",
+      "bytes": 9367,
+      "sha256": "7e787a58ffb0273cb7984f02edf4dff0b4a0b241dd9d53dddeaef8e8802cd63b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8-multi-01.json",
+      "bytes": 3185,
+      "sha256": "bb9a2acfba1a1e1ef8803e34971442827c3a94bde31117b9c5cb4af227beadc5"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8-multi-02.json",
+      "bytes": 3198,
+      "sha256": "84110a2a47c5da75d48a8e5fb2b78420ef3db7d3ccbbeb487914a543345522da"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8-nomatch-01.json",
+      "bytes": 4127,
+      "sha256": "3e7b6b9ae57f157ec375ff0f2af522321a55d77c2437207209cf33b4e32d8999"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8-privacy-01.json",
+      "bytes": 3444,
+      "sha256": "90577808269c6d1d1bfc1e713342249681d780f78a61d32495304f97dbecee59"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8-recover-01.json",
+      "bytes": 3195,
+      "sha256": "362368a301c7d889dce848fefa65d7ea37ef8440490176fc0fa76872403b7720"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8-retry-01.json",
+      "bytes": 3185,
+      "sha256": "faaa4d84ef6dae08a4ca494f8588e9d901640f5b6e962b43287903e4a9f2614c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8-search-01.json",
+      "bytes": 6839,
+      "sha256": "ace4e99c2e07c48cd0f083bf089f5c2caa1e283e2f3e501b446ae0d09946b5fa"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8-search-02.json",
+      "bytes": 3407,
+      "sha256": "cd92bdc7a2bed6da4d2615610ff3f29a6e9641d018b5d9174d994859c51545cd"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8h-adv-01.json",
+      "bytes": 3180,
+      "sha256": "1eee867ff8a4e4874465191204eb04b097f22e34c11345f259d432df46ab6020"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8h-clarify-01.json",
+      "bytes": 3200,
+      "sha256": "d739e48fc5c9510baa08b60635dad161338511c0738d37ed319bc42fed7ffb06"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8h-laya-01.json",
+      "bytes": 4753,
+      "sha256": "0fc69abc7cd14ff54a5d35f471cc124615024e0fffe26f3e28f5b5fd69efafc3"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8h-link-01.json",
+      "bytes": 3917,
+      "sha256": "44c9959a68ef4ecc78f41d740c500875e40898e9ef510c3e647346e425b422f0"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8h-multi-01.json",
+      "bytes": 3190,
+      "sha256": "325ea10de37b96c4b5f134f3070f69a342182bf4b0686cc9dfc3eb4639c0ec21"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8h-nomatch-01.json",
+      "bytes": 4132,
+      "sha256": "a19cc7ea915d64e3a646994502044d479e88cee6a7307a39d1263312a9ed9929"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8h-retry-01.json",
+      "bytes": 3190,
+      "sha256": "c224a49d6c736bf3c976afc69a9508a4e1669e71b618a6131cfae1c0b035dbbd"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/assisted/ready/a8h-search-01.json",
+      "bytes": 3621,
+      "sha256": "a8cf8117d76a0dcc48e0e1dc970ebc95c0ded3b8711d4b1638a617cc382dfaf5"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/live-run.json",
+      "bytes": 107325,
+      "sha256": "d6cd91aa1bec8c5dbbaa32ad894542793e3810357f2027041cb5d608b1e5420d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2/scripted-proof.json",
+      "bytes": 8213,
+      "sha256": "b7c31bd879aac5d5d9380bff2d1642fe58c6272a186465d6211c9a266be27367"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2.host.json",
+      "bytes": 64754,
+      "sha256": "fedfb4e28ce4a1df919ce8733ef689d24d6f858e936b7b6ea5096493e85c5d71"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-2.path-identity.json",
+      "bytes": 3077,
+      "sha256": "1203405e160f88f56d1f44691e5dd6c0b9dcf9b59f60f7742a572fc68d587b0c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8-adv-01.json",
+      "bytes": 2616,
+      "sha256": "79898b125d45440a3f27f78891c0f40178e2692438a16a4c798f31e9bb662222"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8-adv-02.json",
+      "bytes": 2816,
+      "sha256": "f4779e12d9d820e9126f597a309367028b15ebb6361e57603186a2c3e8aec01d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8-adv-03.json",
+      "bytes": 2816,
+      "sha256": "a811d00cc7a1f7da9e3c3910161239afd45e6a91dfd15d6b76a0f7a4dcac5126"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8-clarify-01.json",
+      "bytes": 2628,
+      "sha256": "dbf3fae19cf058e8e4a4372d9b389d684a27d2a442ce030fd38a3d7f4f6fcb2c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8-laya-01.json",
+      "bytes": 4088,
+      "sha256": "1f207ce8e0af2c66e77902f5bfd384e6905a8a426e3664c995581d9a02c39360"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8-laya-02.json",
+      "bytes": 4067,
+      "sha256": "8ac3427d174254df34fe9c474158a76b358b416542fde2907de3d96e570644f1"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8-link-01.json",
+      "bytes": 3202,
+      "sha256": "d4cdb75547961ba84bc6880c54ee4b5015559683554ea8c08e47171e4bf3c9d4"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8-link-02.json",
+      "bytes": 8522,
+      "sha256": "ca9ee797d42835c9d245b00667487593aa956928b2a7caae408e0cfe3f330c4f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8-multi-01.json",
+      "bytes": 2622,
+      "sha256": "14871659c082ff8bb1835ca9743f65bafbb6347f9e4d88d111ece8536b99c83b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8-multi-02.json",
+      "bytes": 2633,
+      "sha256": "dfc7a9f06957c022f7c46f82bdd53eff3e2feaad7064785028d2c25ac8939d41"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8-nomatch-01.json",
+      "bytes": 3480,
+      "sha256": "d3f7dbcd60dde865c195306f1c977f56f7d66693c1a6427e0ffbcd025b8272bb"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8-privacy-01.json",
+      "bytes": 2869,
+      "sha256": "35c4d97a27aa1bbb09d8c71fecddb5675ea886f2f065f62b0194263f1270c1db"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8-recover-01.json",
+      "bytes": 2628,
+      "sha256": "09e97399aac3aa6f29589accee9e74a26d382206519d577d5ba4238184f0ebc2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8-retry-01.json",
+      "bytes": 2622,
+      "sha256": "83c0282f6b041815140dfa9e9f9c043a77724d0a33d02c699490163e64512275"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8-search-01.json",
+      "bytes": 6146,
+      "sha256": "65c7082e115e47bf7eaf0d8a2305bb77b9d7c63111f9078ca8c3764b4dbe36aa"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8-search-02.json",
+      "bytes": 2823,
+      "sha256": "b120ca7b376a4a68e52feb6479e23ebaf57013ce4a47aaa6faab9575d6471005"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8h-adv-01.json",
+      "bytes": 2619,
+      "sha256": "52a7cb4ed1f154ee6e4c8faeae4785b21b90c0d5d8710947eb4bf8bb36f0ee1a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8h-clarify-01.json",
+      "bytes": 2631,
+      "sha256": "6c426d7b2237058444a5d6b0fa722c7b40c8eb5bb687435161d403df394cc62e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8h-laya-01.json",
+      "bytes": 4091,
+      "sha256": "4d83ccd8b2ad08b6f879107f8b29669a5021ba025786b9c3fd4463a66307887c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8h-link-01.json",
+      "bytes": 3292,
+      "sha256": "0bcc82b2dc10bf8629e2ba2dcd828cf45afef429a7a3d59f339a095850e85012"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8h-multi-01.json",
+      "bytes": 2625,
+      "sha256": "6860af489d64d6d1c5878a3b81abdd98d889f7f10327d8f63d9823f51145d93a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8h-nomatch-01.json",
+      "bytes": 3483,
+      "sha256": "13c193bb5a52d2528288fa3b6517a4eba688b4f1860405fe00762a6420ed06b2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8h-retry-01.json",
+      "bytes": 2625,
+      "sha256": "7f3913fada45d084d8789540efbfed569916797e0637bbdfc24d6465e66e3c3d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/a8h-search-01.json",
+      "bytes": 3010,
+      "sha256": "7713896f20c4d1f62f30741199c9f0ca8dd8484b2be08ea620301141559cd9b4"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-adv-01.json",
+      "bytes": 4823,
+      "sha256": "e11d7242b03fb769a87ae17b56b755e64dbda5706c1b8bc8c8aaaedbe939231f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-adv-02.json",
+      "bytes": 1041,
+      "sha256": "2351c417a4ce37f2c61bdb18126a1e3992fdf4078b50398a6be71b5c7498d820"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-adv-03.json",
+      "bytes": 1041,
+      "sha256": "2f4a1c5073d6bfbfa33494b8356729c9bc68b9f497b765a783c2ff700c0670be"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-clarify-01.json",
+      "bytes": 4835,
+      "sha256": "ad9818dcef59e2e3817deb89d5670fead1148c14e36f44ce103fc4f6b3072875"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-laya-01.json",
+      "bytes": 6353,
+      "sha256": "730dd292534f51f6f8e774398b588c26ab7725d9f47a7ad31cb04cf6f87a87c7"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-laya-02.json",
+      "bytes": 6271,
+      "sha256": "cef4d2407d0b8b08980a37876bb9238c698cfdd6b24318c7bfe283b029acc90a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-link-01.json",
+      "bytes": 5457,
+      "sha256": "1a321bebf69c7d92b25f047263c8a7205d3aeec61a366f1b1c2e59daba431040"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-link-02.json",
+      "bytes": 11050,
+      "sha256": "4ed25b62540e87fd7af088e083d2daa38461ce4cf4e8ab7050a5806f792176bc"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-multi-01.json",
+      "bytes": 4829,
+      "sha256": "359e16a8c73655df82939040df0bbd0f5260641c2833149fc4ea187978f11dd7"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-multi-02.json",
+      "bytes": 4842,
+      "sha256": "4581f7474a830663967b6c8a47b8673a77f9355f81f02eb70f66aab10b344521"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-nomatch-01.json",
+      "bytes": 5667,
+      "sha256": "3a2ede67bb545c88059bbbd272d323dcd36ce6b893f0d120c1aaf5ea54518131"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-privacy-01.json",
+      "bytes": 5085,
+      "sha256": "b56ed3a3722908f8bcf45d29b31660453aef4227c15740a6464114c37d9d2bc9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-recover-01.json",
+      "bytes": 4835,
+      "sha256": "b1a60b1998ccd883acdd2b970938f985e53febb5c451017511506fdf3ddeb747"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-retry-01.json",
+      "bytes": 4829,
+      "sha256": "6f267ae2d3873ca0835bbbcbafea70c0543fdd8e20cdeb90ac885a2b45f20612"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-search-01.json",
+      "bytes": 1044,
+      "sha256": "3877b8833049813210efc9cb6429cb7e144a934ccd3af139edb685f5f93fb9a1"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8-search-02.json",
+      "bytes": 6957,
+      "sha256": "43d59006cca6e4ab3b819c452d7eeb0f42a056c14a0744d48132782c5fcd6cda"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8h-adv-01.json",
+      "bytes": 4826,
+      "sha256": "fa2cedb86bf89e24fa87ec61c5a7e037cd7091dcff377a9fc4c92b7d497d72eb"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8h-clarify-01.json",
+      "bytes": 4838,
+      "sha256": "bde36a0c5daf9b33d3e206c648c923f1d070f220dbd75d75c38aaaf7a310566a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8h-laya-01.json",
+      "bytes": 6356,
+      "sha256": "9cfb033a93704067c4c9e150cdeddc0c9f6597c3c55ff05d5ea4cb14b90ab854"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8h-link-01.json",
+      "bytes": 5559,
+      "sha256": "eb1056d806455334e1e064e42f32db1d82fb8521ef31b2f38f58b02e8b081170"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8h-multi-01.json",
+      "bytes": 4832,
+      "sha256": "537050939578f6d7a1cb5008fc127b70dfaa34cf7b6b6a1a841de598f62cb999"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8h-nomatch-01.json",
+      "bytes": 5670,
+      "sha256": "2ed8b6ef6ff1820d6d585bccdec4d5f1e468bc9b964de2865f5a6fcc2cfc3000"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8h-retry-01.json",
+      "bytes": 4832,
+      "sha256": "5fe2bd1a54b6892a78ce6fe8e58f542609e13b95dfe1cbf838f8ac1138d6c0fc"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/a8h-search-01.json",
+      "bytes": 5183,
+      "sha256": "249148aae94981005a6f570318039998d1ba668387e98756ed3c442a1bddde29"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8-adv-01.json",
+      "bytes": 833,
+      "sha256": "afd6c1228518635caa8e23ce6ffcddaa010705ac48031c3671ea1aaa64d47620"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8-adv-02.json",
+      "bytes": 328,
+      "sha256": "472d8bd7d96e233d0901f08ec1301c70c097c77392b0828c757d25d76d472843"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8-adv-03.json",
+      "bytes": 328,
+      "sha256": "1596a6886039b32b298792ab4c54199f3e0c92e8815c5ccdba4f27eb40235751"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8-clarify-01.json",
+      "bytes": 837,
+      "sha256": "4497980beec6abe8a79bbbe264b9d9c53c4a6fc291a4ccb8b358c7cfed46a89c"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8-laya-01.json",
+      "bytes": 834,
+      "sha256": "259076ac9e7b333894dabe097cbf584529a390c745e79d791edabcdee0bffcfe"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8-laya-02.json",
+      "bytes": 834,
+      "sha256": "9d6bbe3a7f5c07d4f64e80324320c4a74023957db242b48ae35dc53240fc8cef"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8-link-01.json",
+      "bytes": 834,
+      "sha256": "6e7d41f98ba2717e4d6cc2cf6a186bb175cabc0368f6465c2147d0a902094dbc"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8-link-02.json",
+      "bytes": 885,
+      "sha256": "e13635e486350bd947a314a95975c5b4bf27f2928e32be805cca73d8ab499812"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8-multi-01.json",
+      "bytes": 835,
+      "sha256": "2321fc46b4fed82faed6758ba9121cbb89048d10fdcf62875cfebc3b853350dd"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8-multi-02.json",
+      "bytes": 835,
+      "sha256": "a8774c94c176da91bab454c19ba51b73b97768b7342e2c23e5f51b7688580e10"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8-nomatch-01.json",
+      "bytes": 837,
+      "sha256": "3aa2a85fc54f4ec24a5ce678148969592f8635e6537374950727f27e5c3e7274"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8-privacy-01.json",
+      "bytes": 837,
+      "sha256": "2e206a51c65ab420c8f96a499e4c40d072dccbdb54331dba3dae3a2648483947"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8-recover-01.json",
+      "bytes": 837,
+      "sha256": "99a12214072b317a8b47a2ac530ddaf9ea7dcff426b0783e02ff7784731b7159"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8-retry-01.json",
+      "bytes": 835,
+      "sha256": "a4d3586bea37f19c5589ab5dcf0b65a9ab916dc5cd4b4ef6dfb6028ea531e834"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8-search-01.json",
+      "bytes": 331,
+      "sha256": "bc86dd81890a80efaa2bd54526eb82b88fc297d7f3dd84eeaaa8506e332792fa"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8-search-02.json",
+      "bytes": 894,
+      "sha256": "3b378284228a5c4fc5c95abc80d7389ba7be2571ef4326a597cdd1fb232fb9fe"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8h-adv-01.json",
+      "bytes": 834,
+      "sha256": "a981bd4003b107811e12130225a72a108091ba15882ac7dab1ac1a4a947cc4c9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8h-clarify-01.json",
+      "bytes": 838,
+      "sha256": "7d1164cf2cbc47f03b3f74067a7eb0996bf30a44003ef526f24b0c594c969826"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8h-laya-01.json",
+      "bytes": 835,
+      "sha256": "17e3c6deec3cae7ac9443c4ab594c9891fe1c2c57b607ebce3b66676da3bf8b6"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8h-link-01.json",
+      "bytes": 835,
+      "sha256": "1f58f20bfdcd30e9b6a683a89f90e8bfa999942d7906731cf20278886ae55a6b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8h-multi-01.json",
+      "bytes": 836,
+      "sha256": "4939bdd8d192ba9a0981989d202b685a95d470b3e4ef2e82cb597787a371f5dc"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8h-nomatch-01.json",
+      "bytes": 838,
+      "sha256": "8caecfac27f796d6c15913f2bb821393afac5c70acce8e4fbf8895e06a1e8c98"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8h-retry-01.json",
+      "bytes": 836,
+      "sha256": "5922e6376b7a760fd88d1b4aac1c76bd3137f0504b859cd0a705ba0ae32e16d6"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/decision/a8h-search-01.json",
+      "bytes": 837,
+      "sha256": "d0d8295f1f4e20337f7ee5b91f700dcc5a3aa8b21ca8ce3bccf8ccc871334d5a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8-adv-01.json",
+      "bytes": 3175,
+      "sha256": "81f0dcfa3b30dcd444c6227ba4bff01540a8fd477ef0122c588d6d39f06a18af"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8-adv-02.json",
+      "bytes": 3395,
+      "sha256": "541de48b4ea480f631c764b492d09c07b044594aa5109a89c782aa1cbd55a4c3"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8-adv-03.json",
+      "bytes": 3395,
+      "sha256": "17d353c3a5033341a6e8bffc5ed7657fffb1b519527d130851f8489c93db8f74"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8-clarify-01.json",
+      "bytes": 3195,
+      "sha256": "43d6493fd302388b25f25b094866e15dab180ab28a0778817b0b4bda0cea911a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8-laya-01.json",
+      "bytes": 4749,
+      "sha256": "3994a53c58869c455025b07749612b5776ffe200b877bd0898b032076af5cdd5"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8-laya-02.json",
+      "bytes": 4724,
+      "sha256": "647ef817808c8c9264f8df68c0670c1246c5a1f636ff6486f9e47a101222a39f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8-link-01.json",
+      "bytes": 3813,
+      "sha256": "b10d975a8d12ade8e0cb6c5dee481f8f185178b80d0a06d7274a870b5eb28192"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8-link-02.json",
+      "bytes": 9367,
+      "sha256": "8f872ae6713671d5a20e21e20858ca9fb763df7831f868be0a7de8afb8b79758"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8-multi-01.json",
+      "bytes": 3185,
+      "sha256": "416c0f32093e9f98d1a52925d0d55a29e2dd75bb5ddcd809ef244f79c992367b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8-multi-02.json",
+      "bytes": 3198,
+      "sha256": "25a7347b8193e5d872dce35581be89d6d284da0aef550c868c0f0c5ccf99b771"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8-nomatch-01.json",
+      "bytes": 4127,
+      "sha256": "6332b4d5ba78df6e15936b25b8ad7f090db7f8b27dd79683bf944ce00a423f31"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8-privacy-01.json",
+      "bytes": 3444,
+      "sha256": "f2ecdce0cd1d143e8e4eb43cafde4002df4f8427cbee3bb5b070fe07c85cda97"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8-recover-01.json",
+      "bytes": 3195,
+      "sha256": "a9d53efb8a1863b8e9d3cca34db1eae081bd48012f16cf2690bb4e2bddd8f77a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8-retry-01.json",
+      "bytes": 3185,
+      "sha256": "780a3437bcc00b1a0186073149ce2d9cffda8a836b74fb5612bddf68716392b2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8-search-01.json",
+      "bytes": 6839,
+      "sha256": "a383696063f94461d73de856f949dd09882e495b1c4e90b8f7cb800775f77fde"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8-search-02.json",
+      "bytes": 3406,
+      "sha256": "6bf7fd268f3acf596aee74ed9ef133d43dc1cb9bef47bd611ec2ad87874a7168"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8h-adv-01.json",
+      "bytes": 3180,
+      "sha256": "7f560ad3e7913f0758875f56c17035f6c3029763d8fbe675962ecff91055d5e4"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8h-clarify-01.json",
+      "bytes": 3200,
+      "sha256": "89f76ca9f4c8387143257ea571f5de2e20024bb6ab6ec09d677fa93be067f2fd"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8h-laya-01.json",
+      "bytes": 4754,
+      "sha256": "1515c34c3e5425d610a434300c4603b0313c05157ed3a8234b1f4a106862f95f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8h-link-01.json",
+      "bytes": 3917,
+      "sha256": "e1220097f734e1beacd3d883ddc70686e6d3abf25f56278153d791d2de0a2388"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8h-multi-01.json",
+      "bytes": 3190,
+      "sha256": "5992f11022c18ab7c9f1ead4dd31381c6d67f89140cb28122d2a4e09ec4e77bc"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8h-nomatch-01.json",
+      "bytes": 4132,
+      "sha256": "5d80140c94642efd5be96a6f8146f6e48ea47168445d3944f4c56c801082bd3a"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8h-retry-01.json",
+      "bytes": 3190,
+      "sha256": "e286d124a7af3d1c6b4e98608486e5d2b2036b23c06d8b70c75592dd32c7bc25"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/assisted/ready/a8h-search-01.json",
+      "bytes": 3621,
+      "sha256": "55080a8685224f9263182ca1490a19e452f79397532d27fe71ebe867f0ff93ad"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/live-run.json",
+      "bytes": 107326,
+      "sha256": "366ece4f53dd5da1d0273beda535fd22989540928b08e880d2421f5d54b270d0"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3/scripted-proof.json",
+      "bytes": 8213,
+      "sha256": "b7c31bd879aac5d5d9380bff2d1642fe58c6272a186465d6211c9a266be27367"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3.host.json",
+      "bytes": 64754,
+      "sha256": "01d36c3164b6b04201ccf6c60b2448881808ba3f0e7865fdbca75b90639bf030"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/candidate-b/pass-3.path-identity.json",
+      "bytes": 3077,
+      "sha256": "dd1adfc4ee5fcffd7df04f4d35d1020fde20be4c318bd994c408a32da900b11d"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/case-mapping.json",
+      "bytes": 46266,
+      "sha256": "9dca4766388e60e9338fef2842d6e87931a36e51a71108057c7c782d485b89c8"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/device-preflight/capture-proof/a8-laya-01/case.json",
+      "bytes": 913,
+      "sha256": "a10fa7126e4605972b46029d4454445b600dc944f6a2cf492a03e89ce4aa1998"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/device-preflight/capture-proof/a8-laya-01/effects.json",
+      "bytes": 648,
+      "sha256": "ad1b5dc7912359e40a43bcdb659a1a95d7430b9b8fe316d3b67712a61ea0801b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/device-preflight/capture-proof/a8-laya-01/exchanges.jsonl",
+      "bytes": 1788,
+      "sha256": "b20ab87c3f086a1359fe3f902d587c63dee5e861562bc984d3ef3ff086301885"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/device-preflight/capture-proof/a8-laya-01/turns.jsonl",
+      "bytes": 357,
+      "sha256": "8c3761ebf7f4115f47a6c64db45d420ac4d67bbe4816d8dd5f32937772a5b7e1"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/device-preflight/capture-proof/a8-link-02/case.json",
+      "bytes": 913,
+      "sha256": "1b84c32eac3d6188b9edb452d79582ff1c69d9b3a14390380cbda37ff9bb6f8f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/device-preflight/capture-proof/a8-link-02/effects.json",
+      "bytes": 776,
+      "sha256": "d4ba31bb65bdf1bc6e3ce8c96bf258db64d427e399f7b6cad4ea6834a581508b"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/device-preflight/capture-proof/a8-link-02/exchanges.jsonl",
+      "bytes": 1788,
+      "sha256": "b2d812670a5aacd957d4c143312d2b0be0d4b35854247adfec1c244c7a2c10b9"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/device-preflight/capture-proof/a8-link-02/turns.jsonl",
+      "bytes": 357,
+      "sha256": "f8ae26a6869725e973bc592a40bfb052bc7f898d179d4d5828e473878ef25a61"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/device-preflight/capture-proof/session.json",
+      "bytes": 774,
+      "sha256": "07a754024b34ba6e13e1e5d831eed8d056e10a7baabfdf4b584ed70c5aa4f7b0"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/device-preflight/debug-proof/summary.json",
+      "bytes": 1530,
+      "sha256": "56dd8d89f2eb2efb5695499c1d1ac8921d4429b046b32c2ad1436c5641d6d501"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/device-preflight/domain-preflight.json",
+      "bytes": 137225,
+      "sha256": "d2eba212346a8488b5c4029a86f51bb250ca3de83b66059b1adb7429ef43d12e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/device-preflight/identity-smoke/summary.json",
+      "bytes": 4614,
+      "sha256": "8a799c61535ec278b84f2085963dafbd32f3ddfb01595b2b0e446001d8dc9c18"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/device-preflight/laya-smoke.json",
+      "bytes": 43283,
+      "sha256": "aec2d9099568e903a4f9bed8cfbf3085a439d029e73fbbd6d09461229b2b5f1f"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/device-preflight-host.json",
+      "bytes": 20286,
+      "sha256": "42469e350f57bd1342f9f7b00b96e4c31eb5b576b08d4406ffce90e63fa912a6"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/freeze.json",
+      "bytes": 64707,
+      "sha256": "929ef43f179c0c88e23e0bab13b98201f00ddefe95904a5f5b6adc593bd6728e"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/path-identity-preflight.json",
+      "bytes": 8403,
+      "sha256": "48b1a5266a2f2edee2aa02e1b6cf806d21ab8d2d63b3c501808b181aaf58e333"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/preflight-static.json",
+      "bytes": 45644,
+      "sha256": "66acc0f4f229282a794baa181bb860ab056f674892e546c539dad7d1781499b2"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/proof-72-reviewed.json",
+      "bytes": 673802,
+      "sha256": "9afb193b3a9f7b8644282a77213d05ed4159281c659a8ff7a71895690b855fc5"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/semantic-review-decisions.json",
+      "bytes": 3929,
+      "sha256": "1be72123e5c703944101f3eb3d6eeca741e9015a73180e87935350faed40c8d1"
+    },
+    {
+      "path": "artifacts/sprint-8/evidence/S8.13-assisted-contract-a71/snapshot-71/semantic-review-worksheet.json",
+      "bytes": 37315,
+      "sha256": "6ca5738739d8f16fb483dfcc7e625da9317f07df1f6b770413263c7dcb9b51a7"
+    },
+    {
+      "path": "artifacts/sprint-8/test-only/S8.13-assisted-contract-a71/S8.13-assisted-contract-a71-freeze-71/preflight-privacy-smoke/safe-response-location-smoke.json",
+      "bytes": 458370,
+      "sha256": "5e5fae8a755d0ae2aa5569bfabf8b554490e1f11284d2f7dc19fd058d801b821",
+      "bound_sha256": "5e5fae8a755d0ae2aa5569bfabf8b554490e1f11284d2f7dc19fd058d801b821"
+    }
+  ]
+}

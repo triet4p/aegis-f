@@ -1,0 +1,9 @@
+{
+  "contract": "aegis-s813-assisted-continuation/v1",
+  "attempt_id": "S8.13-assisted-lifetime-a65",
+  "snapshot_id": "S8.13-assisted-lifetime-a65-freeze-65",
+  "pass": "reproduction",
+  "case_id": "a8-clarify-01",
+  "first_record_sha256": "f2ce10b7f277844ff81e757ce7681d86d717a5a84eb3a582fd79d34151531102",
+  "decision": "pass_no_feedback"
+}
