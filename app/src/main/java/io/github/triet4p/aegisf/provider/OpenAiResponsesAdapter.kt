@@ -1,6 +1,7 @@
 package io.github.triet4p.aegisf.provider
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.collect
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
@@ -26,8 +27,12 @@ import java.io.IOException
 class OpenAiResponsesAdapter internal constructor(
     private val config: HostedProviderConfig,
     private val transport: HttpTransport,
+    private val streamTransport: HttpStreamTransport? = null,
 ) : HostedGenerationAdapter {
     override val protocol: HostedProtocol = HostedProtocol.OPENAI_RESPONSES
+
+    /** Streaming is available only when the production transport exposes the stream capability. */
+    override val streamingEnabled: Boolean get() = streamTransport != null
     /** Value-free identity from this adapter's validated config. */
     override fun providerIdentity(): HostedProviderIdentity = config.identity()
 
@@ -81,19 +86,7 @@ class OpenAiResponsesAdapter internal constructor(
         tools: List<HostedToolDeclaration>,
         responseGuard: HostedResponsePrivacyGuard?,
     ): HostedGenerationResult {
-        val state = conversation as? Conversation
-            ?: throw HostedConfigurationException("conversation belongs to another protocol")
-        if (state.protocol != protocol) {
-            throw HostedConfigurationException("conversation belongs to another protocol")
-        }
-        if (state.pending.isNotEmpty()) {
-            throw HostedConfigurationException(
-                "a turn cannot start while ${state.pending.size} tool result(s) are still pending",
-            )
-        }
-        if (tools.isNotEmpty() && !config.capabilities.supportsToolCalls) {
-            throw HostedConfigurationException("tools were offered but the model declares no tool support")
-        }
+        val state = requireGeneratable(conversation, tools)
         val request = buildRequest(state, tools)
         val response = try {
             transport.post(
@@ -152,6 +145,223 @@ class OpenAiResponsesAdapter internal constructor(
         } else {
             result
         }
+    }
+
+    override suspend fun streamGuarded(
+        conversation: HostedConversation,
+        tools: List<HostedToolDeclaration>,
+        responseGuard: HostedResponsePrivacyGuard,
+        onProgress: (HostedTurnProgress) -> Unit,
+    ): HostedGenerationResult {
+        val stream = streamTransport ?: return generateWithResponseGuard(conversation, tools, responseGuard)
+        val state = requireGeneratable(conversation, tools)
+        val request = buildRequest(state, tools).put("stream", true)
+        var started: HostedStreamFrame.Start? = null
+        var finalResponse: JSONObject? = null
+        var failure: HostedGenerationResult? = null
+        val calls = LinkedHashMap<String, ResponseCallAcc>()
+        try {
+            stream.postStream(
+                HostedHttpRequest(
+                    url = config.endpoint,
+                    headers = config.requestHeaders(),
+                    body = request.toString(),
+                ),
+            ).collect { frame ->
+                when (frame) {
+                    is HostedStreamFrame.Start -> started = frame
+                    is HostedStreamFrame.Event -> {
+                        if (failure != null) return@collect
+                        val payload = frame.event.data
+                        if (payload.isBlank()) return@collect
+                        val event = ProviderJson.strictObject(payload)
+                        if (event == null) {
+                            failure = HostedGenerationResult.ProviderFailure(
+                                HostedProviderFailure.InvalidResponse("stream event was not a JSON object"),
+                            )
+                            return@collect
+                        }
+                        val type = frame.event.event ?: ProviderJson.textOrNull(event, "type").orEmpty()
+                        when (type) {
+                            "response.output_item.added" -> {
+                                val item = event.optJSONObject("item") ?: return@collect
+                                if (ProviderJson.textOrNull(item, "type") != FUNCTION_CALL_ITEM) return@collect
+                                val key = ProviderJson.textOrNull(item, "id").orEmpty()
+                                    .ifBlank { ProviderJson.textOrNull(item, "call_id").orEmpty() }
+                                val name = ProviderJson.textOrNull(item, "name").orEmpty()
+                                val acc = calls.getOrPut(key) { ResponseCallAcc(name) }
+                                if (name.isNotBlank() && !acc.announced &&
+                                    tools.any { it.name == name }
+                                ) {
+                                    acc.announced = true
+                                    onProgress(HostedTurnProgress.ToolCallStarted(name))
+                                }
+                            }
+
+                            "response.function_call_arguments.delta" -> {
+                                val key = ProviderJson.textOrNull(event, "item_id").orEmpty()
+                                val acc = calls[key] ?: return@collect
+                                ProviderJson.textOrNull(event, "delta")?.let { acc.arguments.append(it) }
+                                reportResponseCallComplete(acc, tools, onProgress)
+                            }
+
+                            "response.function_call_arguments.done" -> {
+                                val key = ProviderJson.textOrNull(event, "item_id").orEmpty()
+                                val acc = calls[key] ?: return@collect
+                                ProviderJson.textOrNull(event, "arguments")?.takeIf { it.isNotEmpty() }?.let {
+                                    acc.arguments.setLength(0)
+                                    acc.arguments.append(it)
+                                }
+                                reportResponseCallComplete(acc, tools, onProgress)
+                            }
+
+                            "response.output_text.delta" -> {
+                                val delta = event.opt("delta")
+                                if (delta is String && delta.isNotEmpty()) {
+                                    onProgress(HostedTurnProgress.PublicText(delta))
+                                }
+                            }
+
+                            "response.completed", "response.incomplete", "response.failed" ->
+                                event.optJSONObject("response")?.let { finalResponse = it }
+
+                            "error" -> {
+                                val error = event.optJSONObject("error")
+                                failure = HostedGenerationResult.ProviderFailure(
+                                    HostedProviderFailure.ProviderState(
+                                        code = ProviderJson.textOrNull(error ?: JSONObject(), "code")
+                                            .orEmpty().ifBlank { "error" },
+                                        detail = ProviderJson.textOrNull(error ?: JSONObject(), "message")
+                                            ?.takeIf { it.isNotBlank() }
+                                            ?: ProviderFailures.detail(payload, config.authentication),
+                                    ),
+                                )
+                            }
+
+                            else -> Unit
+                        }
+                    }
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (tooLarge: HostedResponseTooLargeException) {
+            return HostedGenerationResult.ProviderFailure(
+                HostedProviderFailure.InvalidResponse(tooLarge.message),
+            )
+        } catch (thrown: java.io.IOException) {
+            return HostedGenerationResult.ProviderFailure(
+                HostedProviderFailure.Transport(thrown.message?.take(MAX_TRANSPORT_DETAIL)),
+            )
+        }
+        failure?.let { return it }
+        val start = started
+            ?: return HostedGenerationResult.ProviderFailure(
+                HostedProviderFailure.Transport("the stream did not deliver a response head"),
+            )
+        if (start.errorBody != null) {
+            return classifyStreamHead(start.status, start.errorBody, start.headers, responseGuard)
+        }
+        val body = finalResponse
+            ?.toString()
+            ?: return HostedGenerationResult.ProviderFailure(
+                HostedProviderFailure.InvalidResponse(
+                    "the streamed response ended before its terminal event",
+                ),
+            )
+        when (val scan = responseGuard.scan(body, start.status)) {
+            HostedResponsePrivacyResult.Accepted,
+            is HostedResponsePrivacyResult.AcceptedWithValidatedCounters,
+            is HostedResponsePrivacyResult.AcceptedWithValidatedMetadata -> Unit
+            is HostedResponsePrivacyResult.Refused ->
+                return HostedGenerationResult.ProviderFailure(
+                    HostedProviderFailure.PrivacyBlocked(scan.refusal),
+                )
+            is HostedResponsePrivacyResult.ProtocolError ->
+                return HostedGenerationResult.ProviderFailure(
+                    HostedProviderFailure.InvalidResponse(scan.reason.safeDetail()),
+                )
+        }
+        return try {
+            when (val parsed = parseTurn(body, state, tools)) {
+                is HostedGenerationResult.Turn -> HostedGenerationResult.Turn(
+                    parsed.turn.copy(assembledResponseBody = body),
+                )
+                else -> parsed
+            }
+        } catch (_: InvalidProviderUsageException) {
+            HostedGenerationResult.ProviderFailure(
+                HostedProviderFailure.InvalidResponse("invalid provider usage counter"),
+            )
+        }
+    }
+
+    private fun reportResponseCallComplete(
+        acc: ResponseCallAcc,
+        tools: List<HostedToolDeclaration>,
+        onProgress: (HostedTurnProgress) -> Unit,
+    ) {
+        if (acc.completed || acc.name.isBlank()) return
+        if (ProviderJson.strictObject(acc.arguments.toString()) == null) return
+        acc.completed = true
+        if (tools.any { it.name == acc.name }) {
+            onProgress(HostedTurnProgress.ToolCallCompleted(acc.name))
+        }
+    }
+
+    private fun classifyStreamHead(
+        status: Int,
+        body: String,
+        headers: Map<String, String>,
+        guard: HostedResponsePrivacyGuard,
+    ): HostedGenerationResult {
+        when (val scan = guard.scan(body, status)) {
+            HostedResponsePrivacyResult.Accepted,
+            is HostedResponsePrivacyResult.AcceptedWithValidatedCounters,
+            is HostedResponsePrivacyResult.AcceptedWithValidatedMetadata -> Unit
+            is HostedResponsePrivacyResult.Refused ->
+                return HostedGenerationResult.ProviderFailure(
+                    HostedProviderFailure.PrivacyBlocked(scan.refusal),
+                )
+            is HostedResponsePrivacyResult.ProtocolError ->
+                return HostedGenerationResult.ProviderFailure(
+                    HostedProviderFailure.InvalidResponse(scan.reason.safeDetail()),
+                )
+        }
+        return HostedGenerationResult.ProviderFailure(
+            ProviderFailures.classify(
+                status = status,
+                body = body,
+                headers = headers,
+                authentication = config.authentication,
+            ),
+        )
+    }
+
+    private class ResponseCallAcc(val name: String) {
+        val arguments = StringBuilder()
+        var announced = false
+        var completed = false
+    }
+
+    private fun requireGeneratable(
+        conversation: HostedConversation,
+        tools: List<HostedToolDeclaration>,
+    ): Conversation {
+        val state = conversation as? Conversation
+            ?: throw HostedConfigurationException("conversation belongs to another protocol")
+        if (state.protocol != protocol) {
+            throw HostedConfigurationException("conversation belongs to another protocol")
+        }
+        if (state.pending.isNotEmpty()) {
+            throw HostedConfigurationException(
+                "a turn cannot start while ${state.pending.size} tool result(s) are still pending",
+            )
+        }
+        if (tools.isNotEmpty() && !config.capabilities.supportsToolCalls) {
+            throw HostedConfigurationException("tools were offered but the model declares no tool support")
+        }
+        return state
     }
 
     override fun continueWithToolResults(
@@ -256,14 +466,14 @@ class OpenAiResponsesAdapter internal constructor(
             ?: return HostedGenerationResult.ProviderFailure(
                 HostedProviderFailure.InvalidResponse("response was not a JSON object"),
             )
-        val reportedModel = root.optString("model").ifBlank { null }
-        val status = root.optString("status")
+        val reportedModel = ProviderJson.textOrNull(root, "model").orEmpty().ifBlank { null }
+        val status = ProviderJson.textOrNull(root, "status").orEmpty()
         val error = root.optJSONObject("error")
         when (status) {
             "failed" -> return HostedGenerationResult.ProviderFailure(
                 HostedProviderFailure.ProviderState(
-                    code = error?.optString("code").orEmpty().ifBlank { "failed" },
-                    detail = error?.optString("message")?.takeIf { it.isNotBlank() }
+                    code = ProviderJson.textOrNull(error ?: JSONObject(), "code").orEmpty().ifBlank { "failed" },
+                    detail = ProviderJson.textOrNull(error ?: JSONObject(), "message")?.takeIf { it.isNotBlank() }
                         ?: ProviderFailures.detail(body, config.authentication),
                 ),
             )
@@ -301,26 +511,26 @@ class OpenAiResponsesAdapter internal constructor(
                 ?: return HostedGenerationResult.ProviderFailure(
                     HostedProviderFailure.InvalidResponse("output item was not an object"),
                 )
-            when (item.optString("type")) {
+            when (ProviderJson.textOrNull(item, "type").orEmpty()) {
                 "message" -> {
                     val content = item.opt("content")
                     if (content is JSONArray) {
                         for (partIndex in 0 until content.length()) {
                             val part = content.optJSONObject(partIndex) ?: continue
-                            if (part.optString("type") != "output_text") continue
-                            part.optString("text").takeIf { it.isNotEmpty() }?.let(textSegments::add)
+                            if (ProviderJson.textOrNull(part, "type") != "output_text") continue
+                            ProviderJson.textOrNull(part, "text")?.takeIf { it.isNotEmpty() }?.let(textSegments::add)
                         }
                     }
                 }
 
                 "function_call" -> {
-                    val callId = item.optString("call_id")
+                    val callId = ProviderJson.textOrNull(item, "call_id").orEmpty()
                     if (callId.isBlank()) {
                         return HostedGenerationResult.ProviderFailure(
                             HostedProviderFailure.InvalidResponse("function_call item carried no call_id"),
                         )
                     }
-                    val name = item.optString("name")
+                    val name = ProviderJson.textOrNull(item, "name").orEmpty()
                     if (name.isBlank()) {
                         return HostedGenerationResult.ProviderFailure(
                             HostedProviderFailure.InvalidResponse("function_call item carried no name"),
@@ -339,7 +549,7 @@ class OpenAiResponsesAdapter internal constructor(
                             name = name,
                             argumentsJson = arguments,
                             wireId = callId,
-                            forcedDisposition = if (item.optString("status") == "incomplete") {
+                            forcedDisposition = if (ProviderJson.textOrNull(item, "status") == "incomplete") {
                                 ToolCallDisposition.TRUNCATED_TURN
                             } else {
                                 null
@@ -358,7 +568,7 @@ class OpenAiResponsesAdapter internal constructor(
         }
         val text = textSegments.joinToString(separator = "\n").ifBlank { null }
         if (status == "incomplete") {
-            val reason = root.optJSONObject("incomplete_details")?.optString("reason").orEmpty()
+            val reason = ProviderJson.textOrNull(root.optJSONObject("incomplete_details") ?: JSONObject(), "reason").orEmpty()
             val finish = if (reason == "content_filter") {
                 HostedTurnFinish.ContentFiltered(reason)
             } else {
@@ -450,7 +660,7 @@ class OpenAiResponsesAdapter internal constructor(
     private fun scrubbedOutputItems(output: JSONArray): List<JSONObject> =
         (0 until output.length()).mapNotNull { index ->
             val copy = output.optJSONObject(index)?.deepCopy() ?: return@mapNotNull null
-            if (copy.optString("type") != "reasoning") return@mapNotNull copy
+            if (ProviderJson.textOrNull(copy, "type") != "reasoning") return@mapNotNull copy
             copy.put("summary", JSONArray())
             copy.remove("content")
             copy.remove("text")
@@ -464,5 +674,6 @@ class OpenAiResponsesAdapter internal constructor(
         const val AUTO_TOOL_CHOICE = "auto"
         const val EMPTY_ANSWER_REASON = "empty_answer"
         const val MAX_TRANSPORT_DETAIL = 200
+        const val FUNCTION_CALL_ITEM = "function_call"
     }
 }

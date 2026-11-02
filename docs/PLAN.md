@@ -2,9 +2,9 @@
 
 ## Product Goal
 
-An offline-first personal Android expense tracker that reduces the work of recording and reviewing spending. Users see their finances in a dashboard, capture context in a conversational quick-note surface, review bank drafts in an uncertainty-first queue, or enter transactions manually. AI prepares work; the user remains responsible for financial confirmation.
+An offline-capable personal Android expense tracker with opt-in hosted workflow agents. Ledger, dashboard, capture, bank intake, manual review and local Laya remain useful without network or generative models. Hosted LLMs coordinate bounded, privacy-filtered preparation; the user remains responsible for financial confirmation.
 
-**Current state:** Sprints 1–7 are complete and user-accepted. Sprint 7 was accepted by the owner's “Ổn r” after the verified final APK was installed over the normal phone app and launched successfully. S7.1–S7.8 independent evidence and separate Bronze checkpoints PASS, including the S7.3 retarget race correction (`b841406`), and [final differential PASS](../artifacts/sprint-7/reviews/S7-final-review-02.md); [closure](../artifacts/sprint-7/state/S7-closed-main.md). Sprint 8 is next, not started. Sprint 6 was accepted on 2026-10-24; replacement Sprint 5 on 2026-10-22. Sprint 4 Laya large-catalog retrieval/quality limits and Sprint 7's descriptive-fixture/host-only verification limits remain; automation does not establish calibrated accuracy. Earlier Sprint 5 model evaluation is partial, paused and unapproved; no model was adopted from those experiments. This roadmap replaces the old Sprint 5 SLM-Q&A / Sprint 6 release sequence. Sprint-specific role/checkpoint authority does not imply commit/push or routing authority for later work.
+**Current state:** Sprints 1–7 remain complete and user-accepted; [Sprint 7 closure](../artifacts/sprint-7/state/S7-closed-main.md) and [final differential PASS](../artifacts/sprint-7/reviews/S7-final-review-02.md) remain valid. Sprint 8 S8.1–S8.2 are complete. Local and three hosted baselines are preserved, including S8.3-cycle-1 round1 FAIL; they assess tested model-plus-harness configurations, not intrinsic model ceilings. Owner now replaces generative SLM delivery with hosted multi-provider LLMs, local masking and a domain-specific multi-turn harness with skills. [Replanned Sprint 8](sprint-plans/sprint-8.md) closes the baseline boundary without retroactive PASS, then implements and qualifies the complete agent. Existing Laya quality/calibration limitations remain; planning changes do not prove new behavior or grant implementation routing authority.
 
 ## Product Decision — 2026-10-19
 
@@ -14,9 +14,13 @@ The next investment is **workflow automation, not a financial chatbot**. Existin
 - Chat is a capture-and-action surface. Its agent uses bounded app tools to prepare reviewable changes; it is not a second ledger implementation.
 - Four main destinations: **Dashboard, Chat / Quick Capture, Review Notifications, Manual**. Category/model/backup settings are secondary destinations, not extra primary tabs.
 - Laya remains the category decision model. Generative models extract events and coordinate allowed tools; they do not replace Laya, invent financial records, or calculate ledger totals.
-- Multiple local model choices remain supported as a product direction. Do not force one model to win every task or ship a tier whose advertised capability has not been demonstrated. A lightweight instruct/naming option is not advertised as an agentic option.
+- Hosted generative models replace local generative SLM delivery. Users choose provider/protocol, endpoint, model and their own key; support Gemini API, OpenAI Chat Completions and Responses without silent substitution. Laya remains local. Only demonstrated model-plus-harness capabilities are advertised.
 - Agentic/tool-calling suitability takes priority in new generative-model research; multilingual understanding is optional and must be measured/disclosed. English UI remains the baseline. Bank text and user notes are not blocked by a language/vocabulary gate.
 - New-category creation remains manual and explicit. Generative name proposals are not a release dependency of this revised roadmap; existing category management is retained.
+
+## Architecture Revision — 2026-10-25
+
+Owner drops generative SLM delivery in favor of hosted LLMs plus a focused application harness. Skills encode familiar tool ordering, prerequisites, branches and verification; the harness supplies real tool results across turns, local masking, trusted scope, retry/recovery and history/cache policy. Local Laya remains the category model. Cost/free quotas are owner-reported planning context, not hard-coded guarantees. See [Sprint 8](sprint-plans/sprint-8.md) for task boundaries and acceptance; old experimental FAILs remain unchanged.
 
 ## The End-to-End Workflow
 
@@ -83,9 +87,9 @@ Tool descriptions must match implemented semantics and native model templates; a
 - Native Kotlin, Compose, Room/SQLite; existing working development path remains. Main owns planning; implementation workers inspect relevant sources before deciding exact symbol/table names.
 - VND stored as signed 64-bit whole-dong values; validate sums/overflow, no floating-point money. Explicit currency indicators and exact database arithmetic.
 - English-first UI. Preserve Vietnamese bank text and unrestricted user input; advertise optional multilingual model capability only when observed. Unsupported interpretation leads to editable capture/clarification, not a language eligibility block or fabricated result.
-- On-device processing and inference only. Deliberate model acquisition may use network; financial data does not leave the phone for inference. No cloud substitution if local agent models fail.
+- Hosted inference is opt-in and passes through mandatory local masking/minimization on every outbound context/history/tool-result path; reversible exact-value mappings stay local. This replaces the former on-device-generative-only constraint by owner decision on 2026-10-25. Disclose residual contextual exposure and selected endpoint; masking is not anonymity. Ledger, intake/manual workflows and Laya remain local/offline; no automatic cloud sync or raw financial upload.
 - Bank notification access is opt-in, not historical account reconciliation; current supported bank behavior must be retained. No credentials, SMS, root or accessibility scraping.
-- Inference is asynchronous and lifecycle-managed. Intake persists independently; no permanently hot set of Laya plus every generative tier. Bound context/output/work, expose progress/cancel and retain manual paths.
+- Inference is asynchronous and lifecycle-managed. A domain-specific multi-turn harness coordinates hosted LLMs, local Laya/masking, skills and scoped tools. Use adequate model-specific generation/reasoning budgets, bounded total turns/time/context and safe retries; persist effects for recovery, expose progress/cancel and retain manual paths. No local generative SLM runtime/download requirement.
 - Capture notes are intentionally saved financial business data, unlike transient conversational reasoning/prompts. Expose retention/deletion and backup scope; do not create a raw financial chat log by accident. Logs/diagnostics contain no financial bodies.
 - User categories remain unrestricted in database count with bounded model candidate retrieval, no silent truncation, safe archive/delete behavior and explicit unknown/no-fit outcome. Retain Sprint 4 quality/retrieval limitations until fresh evidence resolves them.
 
@@ -100,11 +104,13 @@ Tool descriptions must match implemented semantics and native model templates; a
 | [5 — Provenance and shared commands](sprint-plans/sprint-5.md) | Migrated context/event/link schema and shared UI/agent domain APIs | 1–4 | Complete and user-accepted on 2026-10-22. S5.1–S5.9 evidence PASS and Bronze checkpoints; [differential review PASS](../artifacts/sprint-5/workflow-replan/reviews/Sprint5-replan-d1.md). [Contract](sprint-5-workflow-contract.md), [migration/cutover](sprint-5-migration-and-caller-cutover.md), [end-to-end proof](../artifacts/sprint-5/workflow-replan/workers/S5.9-replan-a1.md) |
 | [6 — Four-screen daily workflow](sprint-plans/sprint-6.md) | Dashboard, persistent quick capture, review and manual without requiring SLM; simple/colorful/angular visual redesign | 5 | Complete and user-accepted on 2026-10-24; S6.1–S6.9 gates PASS, latest build installed preserving data; [final differential PASS](../artifacts/sprint-6/reviews/S6-final-review-03.md) |
 | [7 — Proactive Laya and smart review](sprint-plans/sprint-7.md) | Automatic memo/context classification and confidence-ranked review | 5–6 | Complete and user-accepted after normal phone update; all assigned technical gates PASS |
-| [8 — Agent model/runtime and tool boundary](sprint-plans/sprint-8.md) | Task-relevant offline model options and secure app-tool execution | 5–7 | Planned; research precedes device trials |
+| [8 — Hosted workflow agent harness](sprint-plans/sprint-8.md) | Three provider protocols, local masking, scoped tools, skills, durable multi-turn execution, caching and user-owned credentials; no generative SLM | 5–7 | Technical work complete through S8.14, latest `12f6832`; final differential PASS. Local Laya raw-input cutover independently accepted; hosted masking/financial authority unchanged. S8.13 owner PASS and original metrics preserved. Consolidated owner experience acceptance pending |
 | [9 — Note-to-draft orchestration](sprint-plans/sprint-9.md) | Multi-event extraction, safe matching and complete agentic capture flow | 8 | Planned |
 | [10 — Recovery and personal release](sprint-plans/sprint-10.md) | Versioned recovery, privacy, performance and signed daily-use delivery | 5–9 | Planned |
 
-Execution is 5 → 6 → 7 → 8 → 9 → 10. Sprint 7 provides useful AI automation even if agent research encounters a real model prerequisite. That prerequisite must be resolved before claiming Sprint 8/9 complete; it cannot be disguised as a scaffold or a silent cloud fallback. Sprints 6 and 7 deliver complete usable workflows, not placeholders for later agent implementation.
+Execution is 5 → 6 → 7 → 8 → 9 → 10. Sprints 6 and 7 remain complete usable workflows independently of hosted generation. Sprint 8 qualifies the whole model-plus-harness configuration with real effects; provider plumbing or parse success alone cannot establish an agent. Hosted architecture is now explicit, not a silent fallback; privacy and application authority remain mandatory.
+
+Owner-run production acceptance found incomplete masked-value handling, insufficient persistent traces and main-app readiness gaps. [Production trace and mask-token corrections](production-trace-mask-correction.md) are in progress; historical S8.13 acceptance is unchanged and does not establish actual-main release acceptance. Owner currently has the phone disconnected: implement and verify non-phone paths first, then validate on the main app after reconnection. Real UI streaming is requested if feasible.
 
 ## Milestones and Evidence
 
@@ -112,9 +118,9 @@ Execution is 5 → 6 → 7 → 8 → 9 → 10. Sprint 7 provides useful AI autom
 - [ ] M5: current populated database migrates without losing provenance, categories, draft/ledger identity or totals; UI commands and equivalent agent proposals obey the same business rules.
 - [ ] M6: four main screens are useful with models unavailable; manual capture/context attachment and dashboard drill-down work end-to-end.
 - [x] M7: bank memo/context automatically reaches Laya; real confidence changes queue priority without auto-confirming, losing drafts or starving older work.
-- [ ] M8: model selection is justified by workflow extraction/tool-use evidence and measured phone resources; invalid/unauthorized calls have no effects.
+- [ ] M8: user-configured hosted models complete the qualified multi-turn workflow through skills, mandatory local masking and scoped tools; retries/restart preserve effects, invalid calls have none, and local Laya/manual/intake remain usable without hosted inference.
 - [ ] M9: one multi-event note is correctly linked, classified and reviewed against notification arrivals in either order; ambiguous matches remain unresolved; corrections/undo/restart/retry are safe.
-- [ ] M10: backup/restore and same-key release upgrade preserve the expanded state; the full offline workflow is accepted on the physical phone.
+- [ ] M10: backup/restore and same-key release preserve expanded state without credentials, transient provider buffers or privacy mappings; the full supported hosted-agent workflow and offline local/manual fallback are accepted on the phone.
 
 Measure task completion, not just model scores: time/taps from capture to reviewed ledger, proportion of drafts needing description entry, wrong/ambiguous link rate, category overrides, queue review effort, model first-result latency and resource use. Compare against the same seeded manual workflow; do not claim product improvement from a benchmark score alone.
 
@@ -141,11 +147,11 @@ Prior release obligations move intact from old Sprint 6 into Sprint 10: versione
 
 ## Out of Scope
 
-Cloud inference/sync, bank APIs/account linking, SMS ingestion, OCR/voice, autonomous final ledger confirmation or deletion, arbitrary SQL, general-purpose device automation, shared accounts, multi-currency, Play Store/subscriptions and automatic fine-tuning. No generic financial-advice/chatbot requirement. Multilingual UI localization is not required; multilingual note interpretation is an optional measured capability.
+Cloud synchronization/automatic financial backup, bank APIs/account linking, SMS ingestion, OCR/voice, autonomous final ledger confirmation or deletion, arbitrary SQL, general-purpose device automation, shared accounts, multi-currency, Play Store/subscriptions and automatic fine-tuning. Generative SLM delivery is no longer in scope; local Laya is retained. Hosted inference is in scope only through explicit provider configuration and the local privacy boundary. No generic financial-advice/chatbot requirement. Multilingual UI localization is not required; multilingual note interpretation is an optional measured capability.
 
 ## Technical References
 
 - [Android CLI](https://developer.android.com/build/building-cmdline), [SDK manager](https://developer.android.com/tools/sdkmanager), [Gradle/JDK compatibility](https://docs.gradle.org/current/userguide/compatibility.html).
 - [Notification listener](https://developer.android.com/reference/android/service/notification/NotificationListenerService), [restricted settings](https://support.google.com/android/answer/12623953), [Android OTP redaction](https://developer.android.com/about/versions/15/behavior-changes-all#otp-redaction).
 - [Laya checkpoint family](https://huggingface.co/convaiinnovations/laya), [upstream source](https://github.com/NandhaKishorM/laya), [ONNX export](https://huggingface.co/receptron/laya-onnx).
-- Generative candidate names from the user are research leads, not verified support claims: `openbmb/MiniCPM-V-4.7-1B`, Gemma 4 E2B, and `prism-ml/Ternary-Bonsai-2` family including mentioned 9B/4B variants. Verify official identity/license, tool format, runtime support, packed size versus parameter compute and phone feasibility before adoption.
+- Historical local candidate leads and runtime artifacts remain in the preserved Sprint 8 research/trial records; they are not future product obligations. Hosted provider/model support, native tool protocols, budgets and cache behavior must be verified against the configured API, not inferred from historical benchmark scores.

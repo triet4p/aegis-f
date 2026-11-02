@@ -105,8 +105,8 @@ class WorkflowSkillCatalog private constructor(
     }
 
     companion object {
-        const val ASSET_NAME = "s8_agent_runtime_skills_v3.json"
-        const val SCHEMA = "aegis-f-s8-agent-runtime-skills/v3"
+        const val ASSET_NAME = "s8_agent_runtime_skills_v4.json"
+        const val SCHEMA = "aegis-f-s8-agent-runtime-skills/v4"
 
         private val EXPECTED_IDS = WorkflowSkillId.entries.associateBy(WorkflowSkillId::wireId)
         private val EXPECTED_VERSIONS = mapOf(
@@ -117,7 +117,14 @@ class WorkflowSkillCatalog private constructor(
             // Version 5 names the exact unresolved temporal component for a clarification: a stated
             // clock time that is not remembered is clarification time even when the date is also
             // ungrounded, and the summary keeps that meaning instead of restating it as a missing date.
-            WorkflowSkillId.EVENT_READING to 5,
+            // Version 6 states the masked-evidence invariant: a value select_source masks and returns
+            // (including a plainly written amount or an informal date/time) is passed by its alias,
+            // and a clarification is only for a genuinely absent or ambiguous fact.
+            // Version 7 records the owner-approved neutral identity: one opaque value alias with a
+            // lexical shape hint, role chosen by the tool argument and parsed locally; a numeric
+            // shape is not a type, and a price plus an account number in one sentence is not
+            // inherently ambiguous.
+            WorkflowSkillId.EVENT_READING to 7,
             WorkflowSkillId.DRAFT_SEARCH to 1,
             // Version 2 states that eligibility governs attachment only: an ambiguous pair may
             // still be recorded as one tentative proposal before the user is asked to choose.

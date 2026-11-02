@@ -6,6 +6,39 @@ and no release has been tagged or published. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+
+### Fixed
+- Masked values are no longer mistaken for missing values. A value the owner already wrote is
+  masked as one opaque token; the token's canonicalization still varies by field role (amount,
+  date, time, reference), but the token itself is role-free and the host validates it by the
+  argument it is passed to and rehydrates the validated structured field locally. The model
+  copies the visible token, compares through supported tools, and is never asked to re-enter a
+  number that is already in the note. A role mismatch is a field error repaired from
+  authoritative observations, and clarification remains for genuinely missing or conflicting
+  evidence. A value that reaches the masking layer before it saw it is folded into its existing
+  token, so the same value never changes identity between turns.
+- The chat keeps its active clarification and streamed answer when another bottom tab is shown:
+  the exchange belongs to the shell, not to the Chat destination subtree, and its job keeps
+  running. A capture card now refreshes as soon as a run stores an event, instead of showing a
+  stale "unresolved" projection. The UI also claims the run it admitted, so cancellation and
+  clarification resume act on the same durable run identity rather than a second, empty row.
+- Enabling a skill in Chat is an authorization, not a demand. The interactive run reports only
+  the effects the request actually produced and verifies each one; an unused capability no
+  longer fails the run, while a host-declared required outcome with no verified effect or
+  settlement still ends as incomplete. An already-interpreted note is verified as already
+  satisfied instead of being rewritten.
+### Added
+- Genuine streaming for the three supported provider protocols: incremental SSE frame parsing
+  (`HostedSseDecoder`), per-route `streamGuarded` in the Chat Completions, Responses and Gemini
+  adapters, incremental tool-call assembly that executes only complete validated calls, and
+  provider complete/error/cancel classification. Public answer text crosses an incremental
+  privacy gate before display (masked values, foreign/unknown tokens and unclosed token
+  delimiters are never shown while incomplete); private reasoning and tool arguments are never
+  displayed. The local production trace stores each stream chunk and the assembled canonical
+  response body, with interrupted/unavailable terminal states. Routes without an honest stream
+  report that fact and run the complete-body exchange instead of typing out the answer
+  afterwards.
+
 ### Added
 - Added a complete local production trace of each agent run. The app's own Room database now
   keeps the ordered run/attempt evidence: the exact provider request and response bodies

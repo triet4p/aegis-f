@@ -243,9 +243,9 @@ class AgentToolRuntimeTest {
         val foreignHandle = foreignRegistry.issue(
             AgentReference(
                 handle = foreignRegistry.nextHandle(),
-                kind = AgentReferenceKind.AMOUNT,
+                kind = AgentReferenceKind.VALUE,
                 scopeId = "another-session",
-                valueToken = "⟦AMT-forign-0001⟧",
+                valueToken = "⟦V-forign-0001⟧",
             ),
         )
         val foreign = record(runtime, source.getString("source_ref"), foreignHandle, anchor, "Lunch", "none")
@@ -594,8 +594,8 @@ class AgentToolRuntimeTest {
             userAnswer = "25000",
         )
         assertEquals("clarification", evidence.getString("kind"))
-        assertEquals("amount", evidence.getString("value_kind"))
-        assertFalse("the amount answer must mint a typed value", evidence.isNull("value_ref"))
+        assertEquals("numeric", evidence.getString("value_shape"))
+        assertFalse("the answer must mint a neutral value alias", evidence.isNull("value_ref"))
         val amountRef = evidence.getString("value_ref")
 
         val fresh = observeCapture(runtime, taxiId)
@@ -1075,8 +1075,9 @@ class AgentToolRuntimeTest {
         )
         val equalDate = valueRefs(equalSource, "date").single()
         val equalTimes = valueRefs(equalSource, "time")
-        assertEquals(2, equalTimes.size)
-        val endsAtStart = makeIntervalAnchor(equalRuntime, equalDate, equalTimes[0], equalDate, equalTimes[1])
+        // The same stated time is one value and therefore one alias.
+        assertEquals(1, equalTimes.size)
+        val endsAtStart = makeIntervalAnchor(equalRuntime, equalDate, equalTimes[0], equalDate, equalTimes[0])
         assertEquals("TEMPORAL_CONSTRAINT", endsAtStart.getJSONObject("error").getString("code"))
         assertEquals(
             "end_after_start",
@@ -1461,20 +1462,27 @@ class AgentToolRuntimeTest {
         "record-${sequence.incrementAndGet()}",
     ).envelope
 
-    private fun valueRef(source: JSONObject, kind: String): String {
-        val values = source.getJSONArray("values")
-        for (index in 0 until values.length()) {
-            val item = values.getJSONObject(index)
-            if (item.getString("kind") == kind) return item.getString("ref")
-        }
-        error("expected a $kind alias in the selected source")
-    }
+    /**
+     * The test model's semantic choice: the one neutral value alias whose value parses for the
+     * role, standing in for reading the sentence. The host itself parses whichever alias the
+     * model passes to the argument.
+     */
+    private fun valueRef(source: JSONObject, role: String): String =
+        valueRefs(source, role).single()
 
-    private fun valueRefs(source: JSONObject, kind: String): List<String> {
+    private fun valueRefs(source: JSONObject, role: String): List<String> {
         val values = source.getJSONArray("values")
         return (0 until values.length())
             .map { values.getJSONObject(it) }
-            .filter { it.getString("kind") == kind }
+            .filter { item ->
+                val token = item.getString("display")
+                when (role) {
+                    "amount" -> runCatching { boundary.vault.parseAmount(token) }.isSuccess
+                    "date" -> runCatching { boundary.vault.parseDate(token, 2026) }.isSuccess
+                    "time" -> runCatching { boundary.vault.parseTime(token) }.isSuccess
+                    else -> false
+                }
+            }
             .map { it.getString("ref") }
     }
 

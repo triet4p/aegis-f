@@ -68,6 +68,8 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class S811ContextCacheTest {
     private lateinit var database: LedgerDatabase
+    /** The most recently prepared fixture's vault, for parse-based value selection. */
+    private lateinit var activeVault: SensitiveVault
     private lateinit var commands: WorkflowCommandService
     private lateinit var queries: WorkflowQueryService
     private lateinit var declarations: List<HostedToolDeclaration>
@@ -163,8 +165,8 @@ class S811ContextCacheTest {
         val date = vault.maskText("2026-10-22").substringBefore(' ')
         val block = AgentContextManager.tokenInventoryBlock(vault.issuedTokens())
         assertTrue(block.contains(AgentContextManager.TOKEN_INVENTORY_VERSION))
-        assertTrue(block.contains("$amount kind=AMOUNT"))
-        assertTrue(block.contains("$date kind=DATE"))
+        assertTrue(block.contains("$amount shape=numeric"))
+        assertTrue(block.contains("$date shape=numeric"))
         assertTrue(block.contains("2 token(s)"))
         // No raw value, canonical form or rehydration hint is ever rendered.
         assertFalse(block.contains("25,000"))
@@ -759,6 +761,7 @@ class S811ContextCacheTest {
             setOf(draftId),
         )
         val boundary = MaskedPromptBoundary(SensitiveVault(scope.scopeId))
+        activeVault = boundary.vault
         val maskedSource = boundary.maskOutbound(source, MaskedPath.CONTEXT)
         return Fixture(captureId, draftId, scope, boundary, maskedSource)
     }
@@ -812,13 +815,21 @@ class S811ContextCacheTest {
     private fun previousEnvelope(adapter: ScriptedAdapter, turnsBack: Int): JSONObject =
         JSONObject(adapter.toolResultPayloads[adapter.toolResultPayloads.size - turnsBack].single())
 
-    private fun valueRef(source: JSONObject, kind: String): String {
+    /** The test model's semantic choice: the alias whose value parses for the role. */
+    private fun valueRef(source: JSONObject, role: String): String {
         val values = source.getJSONArray("values")
         for (index in 0 until values.length()) {
             val item = values.getJSONObject(index)
-            if (item.getString("kind") == kind) return item.getString("ref")
+            val token = item.getString("display")
+            val parses = when (role) {
+                "amount" -> runCatching { activeVault.parseAmount(token) }.isSuccess
+                "date" -> runCatching { activeVault.parseDate(token, 2026) }.isSuccess
+                "time" -> runCatching { activeVault.parseTime(token) }.isSuccess
+                else -> false
+            }
+            if (parses) return item.getString("ref")
         }
-        error("expected a $kind alias in the selected source")
+        error("expected a value usable as $role in the selected source")
     }
 
     private fun scripted(): MutableList<suspend () -> ScriptedTurn> = mutableListOf()

@@ -106,12 +106,23 @@ mutation verifies against freshly read state:
 
 An unresolved mutation failure prevents completion. A later verified `applied`/`no_change` dispatch
 may supersede an earlier repairable failure only for the same mutation target; unrelated successes
-do not erase it. Every remaining recorded mutation must verify against fresh state, and the
-requested intents must each have their verified effect (`INTERPRET_EVENTS` → a stored reading,
-`LINK_EVENT_TO_DRAFT` → an accepted link, `PREPARE_LAYA_REVIEW` → a stored classification or a
-truthful unavailable/manual state, `REPLAY_OPERATION` → a verified journal replay identity). A
-model text that claims an effect the application did not record therefore ends as `Incomplete`,
-not as success.
+do not erase it. Every remaining recorded mutation must verify against fresh state, and each
+**host-demanded** outcome must have its verified effect (`INTERPRET_EVENTS` → a stored reading or a
+verified already-interpreted settlement, `LINK_EVENT_TO_DRAFT` → an accepted link or a verified
+no-match, `PREPARE_LAYA_REVIEW` → a stored classification or a truthful unavailable/manual state,
+`REPLAY_OPERATION` → a verified journal replay identity). A model text that claims an effect the
+application did not record therefore ends as `Incomplete`, not as success.
+
+`WorkflowRunRequest.intents` is the capability allowlist: it selects the tools and skills the model
+may use, and the model applies whichever the user's request needs. `requiredIntents` (default:
+the same set, so qualification and scripted callers keep their contract) is the set of outcomes
+the trusted host explicitly demands; only those are checked for a verified effect or verified
+settlement at completion. An enabled but unused capability is authorized, never demanded. The
+interactive Chat passes its checked skills as the allowlist and an empty required set, because the
+checkboxes are labelled as allowed skills and the conversational request decides the work; the UI
+still reports only verified effects. A selected source whose event already carries an
+`INTERPRETED` reading at the observed revision settles as `already_interpreted` after a live
+re-read, so an already-satisfied goal never forces a redundant second reading.
 
 ## Privacy and authority
 

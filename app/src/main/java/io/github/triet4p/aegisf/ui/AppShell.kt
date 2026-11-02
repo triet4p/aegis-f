@@ -35,6 +35,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
@@ -161,6 +162,12 @@ internal fun AegisAppShell(
         )
     }
     val destinationState = rememberSaveableStateHolder()
+    // The Chat exchange is owned by the shell, not by the Chat destination subtree: a tab
+    // switch disposes that subtree, and a pending clarification or a streamed answer must not
+    // disappear with it. The scope outlives the destination too, so an in-flight run continues
+    // while another tab is showing.
+    val chatRunState = remember { ChatAgentRunState() }
+    val chatRunScope = rememberCoroutineScope()
     // One saveable state per Dashboard route, so the list behind a figure keeps its page
     // when a record is opened from it and the user comes back.
     val dashboardRouteState = rememberSaveableStateHolder()
@@ -294,6 +301,8 @@ internal fun AegisAppShell(
                         onRecordEvent = { eventId -> openTransactionEditor(eventId) },
                         createHostedWorkflowHost = createHostedWorkflowHost,
                         agentRunHistory = agentRunHistory,
+                        agentRunState = chatRunState,
+                        agentRunScope = chatRunScope,
                     )
 
                     PrimaryDestination.REVIEW -> ReviewDestination(
@@ -781,6 +790,8 @@ private fun ChatDestination(
     hostedProviderSettingsStore: HostedProviderSettingsStore,
     createHostedWorkflowHost: (WorkflowCallerScope.AgentSession, HostedProviderConfig) -> WorkflowRunHost,
     agentRunHistory: AgentRunHistory,
+    agentRunState: ChatAgentRunState,
+    agentRunScope: kotlinx.coroutines.CoroutineScope,
 ) {
     QuickCaptureScreen(
         queryService = queryService,
@@ -791,6 +802,8 @@ private fun ChatDestination(
         onOpenManual = onOpenManual,
         onRecordTransaction = onRecordTransaction,
         onRecordEvent = onRecordEvent,
+        agentRunState = agentRunState,
+        agentRunScope = agentRunScope,
     )
 }
 

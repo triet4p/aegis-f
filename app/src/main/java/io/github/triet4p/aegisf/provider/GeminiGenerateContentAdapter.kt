@@ -1,6 +1,7 @@
 package io.github.triet4p.aegisf.provider
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.collect
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
@@ -28,8 +29,23 @@ import java.io.IOException
 class GeminiGenerateContentAdapter internal constructor(
     private val config: HostedProviderConfig,
     private val transport: HttpTransport,
+    private val streamTransport: HttpStreamTransport? = null,
 ) : HostedGenerationAdapter {
     override val protocol: HostedProtocol = HostedProtocol.GEMINI_GENERATE_CONTENT
+
+    /**
+     * Gemini streams on its documented `:streamGenerateContent?alt=sse` route, which is derived
+     * only from an endpoint that is exactly the configured `:generateContent` route with no
+     * query string. Any other endpoint keeps the complete-body route and reports no streaming.
+     */
+    private val streamEndpoint: String? =
+        config.endpoint
+            .takeIf { it.endsWith(POST_SUFFIX) && '?' !in it }
+            ?.removeSuffix(POST_SUFFIX)
+            ?.plus(STREAM_SUFFIX)
+            ?.plus(STREAM_QUERY)
+
+    override val streamingEnabled: Boolean get() = streamTransport != null && streamEndpoint != null
 
     /** Value-free identity from this adapter's validated config. */
     override fun providerIdentity(): HostedProviderIdentity = config.identity()
@@ -92,19 +108,7 @@ class GeminiGenerateContentAdapter internal constructor(
         tools: List<HostedToolDeclaration>,
         responseGuard: HostedResponsePrivacyGuard?,
     ): HostedGenerationResult {
-        val state = conversation as? Conversation
-            ?: throw HostedConfigurationException("conversation belongs to another protocol")
-        if (state.protocol != protocol) {
-            throw HostedConfigurationException("conversation belongs to another protocol")
-        }
-        if (state.pending.isNotEmpty()) {
-            throw HostedConfigurationException(
-                "a turn cannot start while ${state.pending.size} tool result(s) are still pending",
-            )
-        }
-        if (tools.isNotEmpty() && !config.capabilities.supportsToolCalls) {
-            throw HostedConfigurationException("tools were offered but the model declares no tool support")
-        }
+        val state = requireGeneratable(conversation, tools)
         val request = buildRequest(state, tools)
         val response = try {
             transport.post(
@@ -163,6 +167,240 @@ class GeminiGenerateContentAdapter internal constructor(
         } else {
             result
         }
+    }
+
+    override suspend fun streamGuarded(
+        conversation: HostedConversation,
+        tools: List<HostedToolDeclaration>,
+        responseGuard: HostedResponsePrivacyGuard,
+        onProgress: (HostedTurnProgress) -> Unit,
+    ): HostedGenerationResult {
+        val stream = streamTransport
+        val endpoint = streamEndpoint
+        if (stream == null || endpoint == null) {
+            return generateWithResponseGuard(conversation, tools, responseGuard)
+        }
+        val state = requireGeneratable(conversation, tools)
+        val request = buildRequest(state, tools)
+        val parts = JSONArray()
+        var reportedModel: String? = null
+        var finishReason = ""
+        var usage: JSONObject? = null
+        var promptFeedback: JSONObject? = null
+        var started: HostedStreamFrame.Start? = null
+        var failure: HostedGenerationResult? = null
+        try {
+            stream.postStream(
+                HostedHttpRequest(
+                    url = endpoint.replace(HostedProviderConfig.MODEL_PLACEHOLDER, config.model),
+                    headers = config.requestHeaders(),
+                    body = request.toString(),
+                ),
+            ).collect { frame ->
+                when (frame) {
+                    is HostedStreamFrame.Start -> started = frame
+                    is HostedStreamFrame.Event -> {
+                        if (failure != null) return@collect
+                        val payload = frame.event.data
+                        if (payload.isBlank()) return@collect
+                        val chunk = ProviderJson.strictObject(payload)
+                        if (chunk == null) {
+                            failure = HostedGenerationResult.ProviderFailure(
+                                HostedProviderFailure.InvalidResponse("stream chunk was not a JSON object"),
+                            )
+                            return@collect
+                        }
+                        if (chunk.has("error") && !chunk.isNull("error")) {
+                            failure = HostedGenerationResult.ProviderFailure(
+                                HostedProviderFailure.ProviderState(
+                                    code = ProviderJson.textOrNull(
+                                        chunk.optJSONObject("error") ?: JSONObject(),
+                                        "status",
+                                    ).orEmpty().ifBlank { "error" },
+                                    detail = ProviderFailures.detail(payload, config.authentication),
+                                ),
+                            )
+                            return@collect
+                        }
+                        ProviderJson.textOrNull(chunk, "modelVersion")?.takeIf { it.isNotBlank() }?.let {
+                            reportedModel = it
+                        }
+                        chunk.optJSONObject("usageMetadata")?.let { usage = it }
+                        chunk.optJSONObject("promptFeedback")?.let { promptFeedback = it }
+                        val candidate = chunk.optJSONArray("candidates")?.optJSONObject(0)
+                            ?: return@collect
+                        ProviderJson.textOrNull(candidate, "finishReason")?.takeIf { it.isNotBlank() }?.let {
+                            finishReason = it
+                        }
+                        val chunkParts = candidate.optJSONObject("content")?.optJSONArray("parts")
+                            ?: return@collect
+                        for (index in 0 until chunkParts.length()) {
+                            val part = chunkParts.optJSONObject(index) ?: continue
+                            val thought = part.optBoolean("thought", false)
+                            val text = ProviderJson.textOrNull(part, "text")?.takeIf { it.isNotEmpty() }
+                            if (text != null) {
+                                appendStreamedTextPart(parts, part, text, thought)
+                                if (!thought) {
+                                    onProgress(HostedTurnProgress.PublicText(text))
+                                }
+                                continue
+                            }
+                            if (part.has("functionCall")) {
+                                parts.put(part.deepCopy())
+                                if (!thought) {
+                                    val name = ProviderJson.textOrNull(
+                                        part.optJSONObject("functionCall") ?: JSONObject(),
+                                        "name",
+                                    ).orEmpty()
+                                    if (tools.any { it.name == name }) {
+                                        onProgress(HostedTurnProgress.ToolCallStarted(name))
+                                        onProgress(HostedTurnProgress.ToolCallCompleted(name))
+                                    }
+                                }
+                                continue
+                            }
+                            parts.put(part.deepCopy())
+                        }
+                    }
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (tooLarge: HostedResponseTooLargeException) {
+            return HostedGenerationResult.ProviderFailure(
+                HostedProviderFailure.InvalidResponse(tooLarge.message),
+            )
+        } catch (thrown: java.io.IOException) {
+            return HostedGenerationResult.ProviderFailure(
+                HostedProviderFailure.Transport(thrown.message?.take(MAX_TRANSPORT_DETAIL)),
+            )
+        }
+        failure?.let { return it }
+        val start = started
+            ?: return HostedGenerationResult.ProviderFailure(
+                HostedProviderFailure.Transport("the stream did not deliver a response head"),
+            )
+        if (start.errorBody != null) {
+            return classifyStreamHead(start.status, start.errorBody, start.headers, responseGuard)
+        }
+        val assembled = JSONObject()
+        reportedModel?.let { assembled.put("modelVersion", it) }
+        promptFeedback?.let { assembled.put("promptFeedback", it) }
+        if (parts.length() > 0 || finishReason.isNotBlank()) {
+            assembled.put(
+                "candidates",
+                JSONArray().put(
+                    JSONObject()
+                        .put("content", JSONObject().put("role", "model").put("parts", parts))
+                        .put("finishReason", finishReason)
+                        .put("index", 0),
+                ),
+            )
+        } else {
+            assembled.put("candidates", JSONArray())
+        }
+        usage?.let { assembled.put("usageMetadata", it) }
+        val body = assembled.toString()
+        when (val scan = responseGuard.scan(body, start.status)) {
+            HostedResponsePrivacyResult.Accepted,
+            is HostedResponsePrivacyResult.AcceptedWithValidatedCounters,
+            is HostedResponsePrivacyResult.AcceptedWithValidatedMetadata -> Unit
+            is HostedResponsePrivacyResult.Refused ->
+                return HostedGenerationResult.ProviderFailure(
+                    HostedProviderFailure.PrivacyBlocked(scan.refusal),
+                )
+            is HostedResponsePrivacyResult.ProtocolError ->
+                return HostedGenerationResult.ProviderFailure(
+                    HostedProviderFailure.InvalidResponse(scan.reason.safeDetail()),
+                )
+        }
+        return try {
+            when (val parsed = parseTurn(body, state, tools)) {
+                is HostedGenerationResult.Turn -> HostedGenerationResult.Turn(
+                    parsed.turn.copy(assembledResponseBody = body),
+                )
+                else -> parsed
+            }
+        } catch (_: InvalidProviderUsageException) {
+            HostedGenerationResult.ProviderFailure(
+                HostedProviderFailure.InvalidResponse("invalid provider usage counter"),
+            )
+        }
+    }
+
+    /**
+     * Appends one streamed text part to the assembled model content.
+     *
+     * Consecutive plain text parts merge into one part, so the assembled body has the same shape
+     * as a complete-body answer. A thought-marked part or a part carrying opaque pairing state
+     * stays its own part, and no thought text ever reaches public progress.
+     */
+    private fun appendStreamedTextPart(
+        parts: JSONArray,
+        part: JSONObject,
+        text: String,
+        thought: Boolean,
+    ) {
+        val plain = part.keys().asSequence().toSet() == setOf("text")
+        if (!thought && plain) {
+            val last = parts.optJSONObject(parts.length() - 1)
+            if (last != null && last.keys().asSequence().toSet() == setOf("text") &&
+                !last.has("thought")
+            ) {
+                last.put("text", last.getString("text") + text)
+                return
+            }
+        }
+        parts.put(part.deepCopy())
+    }
+
+    private fun classifyStreamHead(
+        status: Int,
+        body: String,
+        headers: Map<String, String>,
+        guard: HostedResponsePrivacyGuard,
+    ): HostedGenerationResult {
+        when (val scan = guard.scan(body, status)) {
+            HostedResponsePrivacyResult.Accepted,
+            is HostedResponsePrivacyResult.AcceptedWithValidatedCounters,
+            is HostedResponsePrivacyResult.AcceptedWithValidatedMetadata -> Unit
+            is HostedResponsePrivacyResult.Refused ->
+                return HostedGenerationResult.ProviderFailure(
+                    HostedProviderFailure.PrivacyBlocked(scan.refusal),
+                )
+            is HostedResponsePrivacyResult.ProtocolError ->
+                return HostedGenerationResult.ProviderFailure(
+                    HostedProviderFailure.InvalidResponse(scan.reason.safeDetail()),
+                )
+        }
+        return HostedGenerationResult.ProviderFailure(
+            ProviderFailures.classify(
+                status = status,
+                body = body,
+                headers = headers,
+                authentication = config.authentication,
+            ),
+        )
+    }
+
+    private fun requireGeneratable(
+        conversation: HostedConversation,
+        tools: List<HostedToolDeclaration>,
+    ): Conversation {
+        val state = conversation as? Conversation
+            ?: throw HostedConfigurationException("conversation belongs to another protocol")
+        if (state.protocol != protocol) {
+            throw HostedConfigurationException("conversation belongs to another protocol")
+        }
+        if (state.pending.isNotEmpty()) {
+            throw HostedConfigurationException(
+                "a turn cannot start while ${state.pending.size} tool result(s) are still pending",
+            )
+        }
+        if (tools.isNotEmpty() && !config.capabilities.supportsToolCalls) {
+            throw HostedConfigurationException("tools were offered but the model declares no tool support")
+        }
+        return state
     }
 
     override fun continueWithToolResults(
@@ -275,8 +513,8 @@ class GeminiGenerateContentAdapter internal constructor(
                 HostedProviderFailure.InvalidResponse("response was not a JSON object"),
             )
         val promptFeedback = root.optJSONObject("promptFeedback")
-        val promptBlock = promptFeedback?.optString("blockReason").orEmpty()
-        val reportedModel = root.optString("modelVersion").ifBlank { null }
+        val promptBlock = ProviderJson.textOrNull(promptFeedback ?: JSONObject(), "blockReason").orEmpty()
+        val reportedModel = ProviderJson.textOrNull(root, "modelVersion").orEmpty().ifBlank { null }
         if (promptBlock.isNotBlank()) {
             return filteredTurn(reportedModel, promptBlock.lowercase(), state)
         }
@@ -284,7 +522,7 @@ class GeminiGenerateContentAdapter internal constructor(
             val error = root.optJSONObject("error")
             return HostedGenerationResult.ProviderFailure(
                 HostedProviderFailure.ProviderState(
-                    code = error?.optString("status").orEmpty().ifBlank { "error" },
+                    code = ProviderJson.textOrNull(error ?: JSONObject(), "status").orEmpty().ifBlank { "error" },
                     detail = ProviderFailures.detail(body, config.authentication),
                 ),
             )
@@ -302,7 +540,7 @@ class GeminiGenerateContentAdapter internal constructor(
             ?: return HostedGenerationResult.ProviderFailure(
                 HostedProviderFailure.InvalidResponse("candidate was not an object"),
             )
-        val finishReason = candidate.optString("finishReason")
+        val finishReason = ProviderJson.textOrNull(candidate, "finishReason").orEmpty()
         val content = candidate.optJSONObject("content")
         val parts = mutableListOf<JSONObject>()
         content?.optJSONArray("parts")?.let { array ->
@@ -312,7 +550,7 @@ class GeminiGenerateContentAdapter internal constructor(
         }
         val text = parts.mapNotNull { part ->
             if (part.optBoolean("thought", false)) return@mapNotNull null
-            part.optString("text").takeIf { it.isNotEmpty() }
+            ProviderJson.textOrNull(part, "text")?.takeIf { it.isNotEmpty() }
         }.joinToString(separator = "").ifBlank { null }
         val rawCalls = mutableListOf<RawToolCall>()
         var thoughtCallSeen = false
@@ -330,13 +568,13 @@ class GeminiGenerateContentAdapter internal constructor(
                 ?: return HostedGenerationResult.ProviderFailure(
                     HostedProviderFailure.InvalidResponse("functionCall part was not an object"),
                 )
-            val name = call.optString("name")
+            val name = ProviderJson.textOrNull(call, "name").orEmpty()
             if (name.isBlank()) {
                 return HostedGenerationResult.ProviderFailure(
                     HostedProviderFailure.InvalidResponse("functionCall part carried no tool name"),
                 )
             }
-            val wireId = call.optString("id").ifBlank { null }
+            val wireId = ProviderJson.textOrNull(call, "id").orEmpty().ifBlank { null }
             val arguments: String? = when (val rawArguments = call.opt("args")) {
                 null, JSONObject.NULL -> null
                 is JSONObject -> rawArguments.toString()
@@ -511,6 +749,9 @@ class GeminiGenerateContentAdapter internal constructor(
         const val AUTO_TOOL_MODE = "AUTO"
         const val EMPTY_ANSWER_REASON = "empty_answer"
         const val MAX_TRANSPORT_DETAIL = 200
+        const val POST_SUFFIX = ":generateContent"
+        const val STREAM_SUFFIX = ":streamGenerateContent"
+        const val STREAM_QUERY = "?alt=sse"
     }
 }
 

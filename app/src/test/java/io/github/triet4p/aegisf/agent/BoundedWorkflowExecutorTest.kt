@@ -73,6 +73,8 @@ class BoundedWorkflowExecutorTest {
     private lateinit var queries: WorkflowQueryService
     private lateinit var laya: LayaInferenceLifecycle
     private lateinit var declarations: List<HostedToolDeclaration>
+    /** The active fixture's vault, used to select a value alias by the role it parses for. */
+    private lateinit var vault: SensitiveVault
     private lateinit var skills: WorkflowSkillCatalog
     private val sequence = AtomicInteger()
 
@@ -222,11 +224,7 @@ class BoundedWorkflowExecutorTest {
             incomplete.privacyRefusal?.reason,
         )
         assertTrue(incomplete.privacyRefusal?.safeLocation?.startsWith("response_body") == true)
-        assertTrue(incomplete.privacyRefusal?.sensitiveKind == "AMOUNT" ||
-            incomplete.privacyRefusal?.sensitiveKind == "DATE" ||
-            incomplete.privacyRefusal?.sensitiveKind == "TIME" ||
-            incomplete.privacyRefusal?.sensitiveKind == "ACCOUNT" ||
-            incomplete.privacyRefusal?.sensitiveKind == "BANK")
+        assertEquals("numeric", incomplete.privacyRefusal?.sensitiveShape)
         assertEquals(3, adapter.generatedCount)
         assertEquals(2, adapter.toolResultPayloads.size)
         assertTrue(database.noteEventDao().findForCapture(fixture.captureId).isEmpty())
@@ -679,8 +677,8 @@ class BoundedWorkflowExecutorTest {
             script += {
                 val source = previousEnvelope(adapter, 1).getJSONObject("data")
                 toolTurn(call("make_time_anchor", JSONObject()
-                    .put("date_ref", valueRef(source, "date"))
-                    .put("time_ref", if (useTime) valueRef(source, "time") else JSONObject.NULL)
+                    .put("date_ref", valueRef(source, "date", fixture.boundary.vault))
+                    .put("time_ref", if (useTime) valueRef(source, "time", fixture.boundary.vault) else JSONObject.NULL)
                     .put("end_date_ref", JSONObject.NULL)
                     .put("end_time_ref", JSONObject.NULL)))
             }
@@ -689,7 +687,7 @@ class BoundedWorkflowExecutorTest {
                 toolTurn(call("record_event", JSONObject()
                     .put("source_ref", source.getString("source_ref"))
                     .put("summary", "Lunch")
-                    .put("amount_ref", valueRef(source, "amount"))
+                    .put("amount_ref", valueRef(source, "amount", fixture.boundary.vault))
                     .put("anchor_ref", lastEnvelope(adapter).getJSONObject("data").getString("anchor_ref"))
                     .put("merchant_ref", JSONObject.NULL)
                     .put("clarification", "none")))
@@ -986,7 +984,7 @@ class BoundedWorkflowExecutorTest {
             add {
                 ScriptedTurn(
                     finish = HostedTurnFinish.Complete,
-                    rawResponseForPrivacyScan = responseBodyWithAnswer("⟦AMT-othersession-0001⟧"),
+                    rawResponseForPrivacyScan = responseBodyWithAnswer("⟦V-othersession-0001⟧"),
                 )
             }
         })
@@ -1284,6 +1282,66 @@ class BoundedWorkflowExecutorTest {
     }
 
     @Test
+    fun `an enabled but unused capability is not a demanded effect`() = runBlocking {
+        val fixture = prepare()
+        val adapter = ScriptedAdapter(scripted().apply { add { complete("Nothing to do.") } })
+
+        val outcome = run(fixture, adapter, WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.INTERPRET_EVENTS, WorkflowIntent.REPLAY_OPERATION),
+            userRequest = "Look at my notes.",
+            requiredIntents = emptySet(),
+        ))
+
+        outcome as WorkflowRunOutcome.Completed
+        assertTrue(outcome.verifiedEffects.isEmpty())
+    }
+
+    @Test
+    fun `a host-required interpretation settles when the selected event is already interpreted`() = runBlocking {
+        val fixture = prepare()
+        seedEvent(fixture, "already-interpreted", amountVnd = 25_000, anchorDate = "2026-10-22")
+        lateinit var adapter: ScriptedAdapter
+        val script = scripted()
+        script += {
+            toolTurn(call("select_source", JSONObject()
+                .put("capture_ref", captureRef(adapter))
+                .put("quote", sourceText(adapter))
+                .put("occurrence", 1)))
+        }
+        script += { complete("The reading is already present.") }
+        adapter = ScriptedAdapter(script)
+
+        val outcome = run(fixture, adapter, WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
+            userRequest = "Interpret the note.",
+            requiredIntents = setOf(WorkflowIntent.INTERPRET_EVENTS),
+        ))
+
+        outcome as WorkflowRunOutcome.Completed
+        val settled = outcome.verifiedEffects
+            .filterIsInstance<WorkflowVerifiedEffect.NoEffect.AlreadyInterpreted>()
+            .single()
+        assertEquals(WorkflowIntent.INTERPRET_EVENTS, settled.intent)
+        assertEquals(0, settled.eventRevision)
+    }
+
+    @Test
+    fun `a host-required replay without a replay stays incomplete`() = runBlocking {
+        val fixture = prepare()
+        val adapter = ScriptedAdapter(scripted().apply { add { complete("Nothing to replay.") } })
+
+        val outcome = run(fixture, adapter, WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.REPLAY_OPERATION),
+            userRequest = "Replay the last operation.",
+            requiredIntents = setOf(WorkflowIntent.REPLAY_OPERATION),
+        ))
+
+        outcome as WorkflowRunOutcome.Incomplete
+        assertEquals(WorkflowRunStopReason.REQUIRED_EFFECT_MISSING, outcome.reason)
+        assertEquals("replay_operation", outcome.detail)
+    }
+
+    @Test
     fun `an unproved absence stays incomplete when the effect is required`() = runBlocking {
         val fixture = prepare()
         val adapter = ScriptedAdapter(scripted().apply { add { complete("Nothing to do.") } })
@@ -1420,6 +1478,7 @@ class BoundedWorkflowExecutorTest {
             setOf(draftId),
         )
         val boundary = MaskedPromptBoundary(SensitiveVault(scope.scopeId))
+        vault = boundary.vault
         val maskedSource = boundary.maskOutbound(source, MaskedPath.CONTEXT)
         return Fixture(captureId, draftId, scope, boundary, maskedSource, source)
     }
@@ -1472,13 +1531,25 @@ class BoundedWorkflowExecutorTest {
     private fun previousEnvelope(adapter: ScriptedAdapter, turnsBack: Int): JSONObject =
         JSONObject(adapter.toolResultPayloads[adapter.toolResultPayloads.size - turnsBack].single())
 
-    private fun valueRef(source: JSONObject, kind: String): String {
+    /** The test model's semantic choice: the alias whose value parses for the role. */
+    private fun valueRef(
+        source: JSONObject,
+        role: String,
+        vault: SensitiveVault = this.vault,
+    ): String {
         val values = source.getJSONArray("values")
         for (index in 0 until values.length()) {
             val item = values.getJSONObject(index)
-            if (item.getString("kind") == kind) return item.getString("ref")
+            val token = item.getString("display")
+            val parses = when (role) {
+                "amount" -> runCatching { vault.parseAmount(token) }.isSuccess
+                "date" -> runCatching { vault.parseDate(token, 2026) }.isSuccess
+                "time" -> runCatching { vault.parseTime(token) }.isSuccess
+                else -> false
+            }
+            if (parses) return item.getString("ref")
         }
-        error("expected a $kind alias in the selected source")
+        error("expected a value usable as $role in the selected source")
     }
 
     private fun clarificationValueRef(adapter: ScriptedAdapter): String {

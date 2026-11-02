@@ -389,11 +389,11 @@ class S813V3QualificationPreflightInstrumentedTest {
         fun summarizeSource(text: String): JSONObject {
             val vault = SensitiveVault("s813-provenance-${UUID.randomUUID()}")
             vault.maskText(text)
-            val kinds = vault.scanLeakKinds(text).map { it.name }.sorted()
+            val shapes = vault.scanLeakShapes(text).map { it.wire }.sorted()
             return JSONObject()
                 .put("source_characters", text.length)
-                .put("mapped_sensitive_kinds", JSONArray(kinds))
-                .put("account_mapping_present", "ACCOUNT" in kinds)
+                .put("mapped_value_shapes", JSONArray(shapes))
+                .put("numeric_mapping_present", "numeric" in shapes)
         }
 
         val sources = linkedMapOf(
@@ -594,14 +594,14 @@ class S813V3QualificationPreflightInstrumentedTest {
         val invalidJsonBody = """{"id":}"""
         val unsupportedRootBody = """["safe"]"""
         val deepJsonBody = """{"nested":${"[".repeat(65)}"safe"${"]".repeat(65)}}"""
-        val foreignTokenBody = """{"token":"⟦ACCT-OTHER1234-9999⟧"}"""
+        val foreignTokenBody = """{"token":"⟦V-OTHER1234-9999⟧"}"""
         val unknownTokenBody = """{"token":"⟦UNKNOWN-TOKEN⟧"}"""
         fun validUsagePaths(body: String, protocol: HostedProtocol, expected: Set<String>): Boolean {
             val matches = recognizedCounters(body, protocol)
             return matches.isNotEmpty() && matches.map { it.safeLocation }.toSet() == expected &&
                 matches.all {
                     it.nodeType == "NUMBER" && it.recognizedCounter && !it.knownOtherProtocol &&
-                        it.sensitiveKind == "ACCOUNT"
+                        it.sensitiveShape == "numeric"
                 }
         }
         val knownProtocolUsagePaths = listOf(
@@ -664,7 +664,7 @@ class S813V3QualificationPreflightInstrumentedTest {
                 .put("recognized_counters", JSONArray().also { rows ->
                     result.matches.forEach { match ->
                         rows.put(JSONObject()
-                            .put("sensitive_kind", match.sensitiveKind)
+                            .put("sensitive_shape", match.sensitiveShape)
                             .put("safe_location", match.safeLocation)
                             .put("node_type", match.nodeType)
                             .put("recognized_counter", match.recognizedCounter)
@@ -685,7 +685,7 @@ class S813V3QualificationPreflightInstrumentedTest {
                 .put("recognized_counters", JSONArray().also { rows ->
                     result.counters.forEach { match ->
                         rows.put(JSONObject()
-                            .put("sensitive_kind", match.sensitiveKind)
+                            .put("sensitive_shape", match.sensitiveShape)
                             .put("safe_location", match.safeLocation)
                             .put("node_type", match.nodeType)
                             .put("recognized_counter", match.recognizedCounter)
@@ -697,7 +697,7 @@ class S813V3QualificationPreflightInstrumentedTest {
                 .put("outcome", "Refused")
                 .put("refusal", JSONObject()
                     .put("reason", result.refusal.reason.name)
-                    .put("sensitive_kind", result.refusal.sensitiveKind ?: JSONObject.NULL)
+                    .put("sensitive_shape", result.refusal.sensitiveShape ?: JSONObject.NULL)
                     .put("safe_location", result.refusal.safeLocation)
                     .put("node_type", result.refusal.nodeType)
                     .put("recognized_counter", result.refusal.recognizedCounter)
@@ -753,7 +753,7 @@ class S813V3QualificationPreflightInstrumentedTest {
                 val fieldRows = JSONArray().also { rows ->
                     diagnostic?.fields?.forEach { field ->
                         rows.put(JSONObject()
-                            .put("kind", field.kind)
+                            .put("shape", field.shape)
                             .put("location", field.location)
                             .put("category", field.category)
                             .put("node_type", field.nodeType)
@@ -1184,7 +1184,7 @@ class S813V3QualificationPreflightInstrumentedTest {
         assertEquals("response_body.choices[].message.id", nestedMetadataRefusal.safeLocation)
         assertEquals("response_body.choices[].message.content", contentCollisionRefusal.safeLocation)
         assertEquals(HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH, decodedRefusal.reason)
-        assertEquals("ACCOUNT", decodedRefusal.sensitiveKind)
+        assertEquals("numeric", decodedRefusal.sensitiveShape)
         assertEquals("response_body.choices[].message.content", decodedRefusal.safeLocation)
         assertEquals(HostedResponsePrivacyRefusalReason.DUPLICATE_KEY, duplicateRefusal.reason)
         assertEquals(HostedResponsePrivacyRefusalReason.INVALID_JSON, invalidRefusal.reason)
@@ -1200,7 +1200,7 @@ class S813V3QualificationPreflightInstrumentedTest {
             knownOtherProtocol: Boolean = false,
         ) = JSONObject()
             .put("reason", reason)
-            .put("sensitive_kind", kind ?: JSONObject.NULL)
+            .put("sensitive_shape", kind ?: JSONObject.NULL)
             .put("safe_location", location)
             .put("node_type", nodeType)
             .put("recognized_counter", recognizedCounter)
@@ -1210,7 +1210,7 @@ class S813V3QualificationPreflightInstrumentedTest {
                 "decoded_sensitive_match",
                 refusalEvidence(
                     decodedRefusal.reason.name,
-                    decodedRefusal.sensitiveKind,
+                    decodedRefusal.sensitiveShape,
                     decodedRefusal.safeLocation,
                     decodedRefusal.nodeType,
                     decodedRefusal.recognizedCounter,
@@ -1220,7 +1220,7 @@ class S813V3QualificationPreflightInstrumentedTest {
                 "unknown_usage_counter",
                 refusalEvidence(
                     unknownUsageRefusal.reason.name,
-                    unknownUsageRefusal.sensitiveKind,
+                    unknownUsageRefusal.sensitiveShape,
                     unknownUsageRefusal.safeLocation,
                     unknownUsageRefusal.nodeType,
                     unknownUsageRefusal.recognizedCounter,
@@ -1230,7 +1230,7 @@ class S813V3QualificationPreflightInstrumentedTest {
                 "safe_usage_identifier",
                 refusalEvidence(
                     safeUsageIdentifierRefusal.reason.name,
-                    safeUsageIdentifierRefusal.sensitiveKind,
+                    safeUsageIdentifierRefusal.sensitiveShape,
                     safeUsageIdentifierRefusal.safeLocation,
                     safeUsageIdentifierRefusal.nodeType,
                     safeUsageIdentifierRefusal.recognizedCounter,
@@ -1241,7 +1241,7 @@ class S813V3QualificationPreflightInstrumentedTest {
                 "unsafe_usage_identifier",
                 refusalEvidence(
                     unsafeUsageIdentifierRefusal.reason.name,
-                    unsafeUsageIdentifierRefusal.sensitiveKind,
+                    unsafeUsageIdentifierRefusal.sensitiveShape,
                     unsafeUsageIdentifierRefusal.safeLocation,
                     unsafeUsageIdentifierRefusal.nodeType,
                     unsafeUsageIdentifierRefusal.recognizedCounter,
@@ -1252,7 +1252,7 @@ class S813V3QualificationPreflightInstrumentedTest {
                 "model_unknown_identifier",
                 refusalEvidence(
                     modelIdentifierRefusal.reason.name,
-                    modelIdentifierRefusal.sensitiveKind,
+                    modelIdentifierRefusal.sensitiveShape,
                     modelIdentifierRefusal.safeLocation,
                     modelIdentifierRefusal.nodeType,
                     modelIdentifierRefusal.recognizedCounter,
@@ -1263,7 +1263,7 @@ class S813V3QualificationPreflightInstrumentedTest {
                 "known_other_responses_usage",
                 refusalEvidence(
                     otherProtocolResponsesUsageRefusal.reason.name,
-                    otherProtocolResponsesUsageRefusal.sensitiveKind,
+                    otherProtocolResponsesUsageRefusal.sensitiveShape,
                     otherProtocolResponsesUsageRefusal.safeLocation,
                     otherProtocolResponsesUsageRefusal.nodeType,
                     otherProtocolResponsesUsageRefusal.recognizedCounter,
@@ -1274,7 +1274,7 @@ class S813V3QualificationPreflightInstrumentedTest {
                 "known_other_gemini_usage",
                 refusalEvidence(
                     otherProtocolGeminiUsageRefusal.reason.name,
-                    otherProtocolGeminiUsageRefusal.sensitiveKind,
+                    otherProtocolGeminiUsageRefusal.sensitiveShape,
                     otherProtocolGeminiUsageRefusal.safeLocation,
                     otherProtocolGeminiUsageRefusal.nodeType,
                     otherProtocolGeminiUsageRefusal.recognizedCounter,
@@ -1285,7 +1285,7 @@ class S813V3QualificationPreflightInstrumentedTest {
                 "sensitive_usage_key",
                 refusalEvidence(
                     sensitiveUsageKeyRefusal.reason.name,
-                    sensitiveUsageKeyRefusal.sensitiveKind,
+                    sensitiveUsageKeyRefusal.sensitiveShape,
                     sensitiveUsageKeyRefusal.safeLocation,
                     sensitiveUsageKeyRefusal.nodeType,
                     sensitiveUsageKeyRefusal.recognizedCounter,
@@ -1296,7 +1296,7 @@ class S813V3QualificationPreflightInstrumentedTest {
                 "duplicate_key",
                 refusalEvidence(
                     duplicateRefusal.reason.name,
-                    duplicateRefusal.sensitiveKind,
+                    duplicateRefusal.sensitiveShape,
                     duplicateRefusal.safeLocation,
                     duplicateRefusal.nodeType,
                     duplicateRefusal.recognizedCounter,
@@ -1306,7 +1306,7 @@ class S813V3QualificationPreflightInstrumentedTest {
                 "invalid_json",
                 refusalEvidence(
                     invalidRefusal.reason.name,
-                    invalidRefusal.sensitiveKind,
+                    invalidRefusal.sensitiveShape,
                     invalidRefusal.safeLocation,
                     invalidRefusal.nodeType,
                     invalidRefusal.recognizedCounter,
@@ -1316,7 +1316,7 @@ class S813V3QualificationPreflightInstrumentedTest {
                 "unsupported_root",
                 refusalEvidence(
                     unsupportedRootRefusal.reason.name,
-                    unsupportedRootRefusal.sensitiveKind,
+                    unsupportedRootRefusal.sensitiveShape,
                     unsupportedRootRefusal.safeLocation,
                     unsupportedRootRefusal.nodeType,
                     unsupportedRootRefusal.recognizedCounter,
@@ -1326,7 +1326,7 @@ class S813V3QualificationPreflightInstrumentedTest {
                 "depth_limit",
                 refusalEvidence(
                     depthRefusal.reason.name,
-                    depthRefusal.sensitiveKind,
+                    depthRefusal.sensitiveShape,
                     depthRefusal.safeLocation,
                     depthRefusal.nodeType,
                     depthRefusal.recognizedCounter,
@@ -1336,7 +1336,7 @@ class S813V3QualificationPreflightInstrumentedTest {
                 "token_invalid",
                 refusalEvidence(
                     tokenRefusal.reason.name,
-                    tokenRefusal.sensitiveKind,
+                    tokenRefusal.sensitiveShape,
                     tokenRefusal.safeLocation,
                     tokenRefusal.nodeType,
                     tokenRefusal.recognizedCounter,
@@ -1354,7 +1354,7 @@ class S813V3QualificationPreflightInstrumentedTest {
             .put("recognized_usage_counters", JSONArray().also { rows ->
                 validatedCounterMatches.forEach { match ->
                     rows.put(JSONObject()
-                        .put("sensitive_kind", match.sensitiveKind)
+                        .put("sensitive_shape", match.sensitiveShape)
                         .put("safe_location", match.safeLocation)
                         .put("node_type", match.nodeType)
                         .put("recognized_counter", match.recognizedCounter)
@@ -1369,7 +1369,7 @@ class S813V3QualificationPreflightInstrumentedTest {
             recognizedCounter: Boolean? = null,
             knownOtherProtocol: Boolean? = null,
         ): Boolean = diagnostics.fields.any {
-            it.kind == "ACCOUNT" && it.location == location && it.category == category &&
+            it.shape == "numeric" && it.location == location && it.category == category &&
                 (nodeType == null || it.nodeType == nodeType) &&
                 (recognizedCounter == null || it.recognizedCounter == recognizedCounter) &&
                 (knownOtherProtocol == null || it.knownOtherProtocol == knownOtherProtocol)
@@ -1441,13 +1441,13 @@ class S813V3QualificationPreflightInstrumentedTest {
             ),
         )
         fun safeSummary(diagnostics: SafeInboundResponseDiagnostics) = JSONObject()
-            .put("kinds", JSONArray(diagnostics.kinds))
+            .put("shapes", JSONArray(diagnostics.shapes))
             .put("locations", JSONArray(diagnostics.locations))
             .put("categories", JSONArray(diagnostics.categories))
             .put("fields", JSONArray().also { rows ->
                 diagnostics.fields.forEach { field ->
                     rows.put(JSONObject()
-                        .put("kind", field.kind)
+                        .put("shape", field.shape)
                         .put("location", field.location)
                         .put("category", field.category)
                         .put("node_type", field.nodeType)
@@ -1480,7 +1480,7 @@ class S813V3QualificationPreflightInstrumentedTest {
             .put("metadata_boundary", JSONObject()
                 .put("non_go_route_accounting", refusalEvidence(
                     nonGoAccountingRefusal.reason.name,
-                    nonGoAccountingRefusal.sensitiveKind,
+                    nonGoAccountingRefusal.sensitiveShape,
                     nonGoAccountingRefusal.safeLocation,
                     nonGoAccountingRefusal.nodeType,
                     nonGoAccountingRefusal.recognizedCounter,
@@ -1488,7 +1488,7 @@ class S813V3QualificationPreflightInstrumentedTest {
                 ))
                 .put("nested_metadata_lookalike", refusalEvidence(
                     nestedMetadataRefusal.reason.name,
-                    nestedMetadataRefusal.sensitiveKind,
+                    nestedMetadataRefusal.sensitiveShape,
                     nestedMetadataRefusal.safeLocation,
                     nestedMetadataRefusal.nodeType,
                     nestedMetadataRefusal.recognizedCounter,
@@ -1496,7 +1496,7 @@ class S813V3QualificationPreflightInstrumentedTest {
                 ))
                 .put("model_content_collision", refusalEvidence(
                     contentCollisionRefusal.reason.name,
-                    contentCollisionRefusal.sensitiveKind,
+                    contentCollisionRefusal.sensitiveShape,
                     contentCollisionRefusal.safeLocation,
                     contentCollisionRefusal.nodeType,
                     contentCollisionRefusal.recognizedCounter,
@@ -1616,7 +1616,7 @@ class S813V3QualificationPreflightInstrumentedTest {
                 .put("result", "PASS")
                 .put("hosted_provider_calls", 0)
                 .put("raw_response_payload_kind", "controlled_json_model_content")
-                .put("detected_sensitive_kinds", JSONArray(boundary.vault.scanLeakKinds(source).map { it.name }.sorted()))
+                .put("detected_value_shapes", JSONArray(boundary.vault.scanLeakShapes(source).map { it.wire }.sorted()))
                 .put("decoded_response_blocked", incomplete.reason == WorkflowRunStopReason.MASKING_BLOCKED)
                 .put("stop_reason", incomplete.reason.name)
                 .put("generated_turns", adapter.generatedTurns.size)

@@ -62,7 +62,7 @@ class S813DebugCaptureInstrumentedTest {
         val masked = vault.maskText("payment 28000 VND")
         val issued = Regex("⟦[^⟦⟧\\s]+⟧").find(masked)?.value
         requireNotNull(issued) { "the synthetic vault must mint one amount token" }
-        val forged = "⟦AMT-${vault.scopeTag}-9999⟧"
+        val forged = "⟦V-${vault.scopeTag}-9999⟧"
         val mutated = issued.dropLast(2) + (if (issued[issued.length - 2] == '7') "8" else "7") + "⟧"
         val capture = openCapture(root, listOf(sentinel))
         capture.startCase("debug-proof-01", listOf("observe", "select_source"), fixtureText, vault)

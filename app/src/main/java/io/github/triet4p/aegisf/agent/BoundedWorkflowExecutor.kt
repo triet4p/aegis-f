@@ -21,6 +21,7 @@ import io.github.triet4p.aegisf.provider.HostedToolCall
 import io.github.triet4p.aegisf.provider.HostedToolDeclaration
 import io.github.triet4p.aegisf.provider.HostedToolResult
 import io.github.triet4p.aegisf.provider.HostedTurnFinish
+import io.github.triet4p.aegisf.provider.HostedTurnProgress
 import kotlinx.coroutines.CancellationException
 import org.json.JSONArray
 import org.json.JSONObject
@@ -52,6 +53,26 @@ import org.json.JSONObject
  * The executor never writes ledger rows, confirms or dismisses a draft, deletes data, runs
  * SQL/shell, touches the filesystem or automates a device: those operations have no declared tool.
  */
+
+/**
+ * Live progress of one running turn for a UI that is already displaying it.
+ *
+ * A [PublicText] fragment has passed the masked gateway's incremental public gate: it contains
+ * no private reasoning, no value this session masked, no foreign/unknown token and no unclosed
+ * token delimiter. [ToolActivity] names a declared tool only; it never carries argument text or
+ * dispatch authority. [StreamingUnavailable] is the honest statement that this validated route
+ * has no incremental stream, so the UI must show run state instead of typed text.
+ */
+sealed interface WorkflowRunProgress {
+    data class PublicText(val text: String) : WorkflowRunProgress
+
+    data class ToolActivity(val name: String, val completed: Boolean) : WorkflowRunProgress
+
+    data class StreamingUnavailable(val reason: String) : WorkflowRunProgress
+}
+
+/** Receives [WorkflowRunProgress] on the executor's caller context; must not block. */
+typealias WorkflowRunProgressSink = (WorkflowRunProgress) -> Unit
 
 /** Deterministic run states; every transition is recorded in the run trace. */
 enum class WorkflowRunState {
@@ -241,10 +262,27 @@ data class WorkflowRunRequest(
     val userRequest: String,
     val limits: WorkflowRunLimits = WorkflowRunLimits(),
     val settlement: WorkflowSettlement = WorkflowSettlement.REQUIRED_EFFECT,
+    /**
+     * The outcomes the trusted host explicitly demands for completeness.
+     *
+     * [intents] is the capability allowlist: it selects the tools and skills the model may use,
+     * and the model decides from the user request which of them to apply. Only [requiredIntents]
+     * are checked for a verified effect (or a verified already-satisfied/no-effect settlement)
+     * at the end of the run; an enabled but unused capability is authorized, not demanded.
+     *
+     * The default keeps the previous contract for every caller that treats its intent list as
+     * the demanded work (qualification harness, tests): `requiredIntents == intents`. The
+     * interactive Chat passes an empty set because its checkboxes are labelled as allowed
+     * skills, and its user request is conversational rather than a declared effect list.
+     */
+    val requiredIntents: Set<WorkflowIntent> = intents,
 ) {
     init {
         require(intents.isNotEmpty()) { "At least one trusted workflow intent is required." }
         require(userRequest.isNotBlank()) { "A run needs a nonblank user request." }
+        require(requiredIntents.all { it in intents }) {
+            "A required outcome must be one of the allowed workflow intents."
+        }
     }
 }
 
@@ -351,6 +389,21 @@ sealed interface WorkflowVerifiedEffect {
             override val kindName: String get() = "policy_refusal"
             override fun toString(): String =
                 "No effect: refused as outside the declared catalog (${declaredTools.joinToString(",")})"
+        }
+
+        /**
+         * The selected occurrence already carries an INTERPRETED reading at the observed
+         * revision; the goal state was proved from live application state without writing a
+         * redundant second reading.
+         */
+        data class AlreadyInterpreted(
+            override val intent: WorkflowIntent,
+            val eventId: Long,
+            val eventRevision: Int,
+        ) : NoEffect {
+            override val kindName: String get() = "already_interpreted"
+            override fun toString(): String =
+                "No effect: event $eventId already has a verified reading at revision $eventRevision"
         }
     }
 }
@@ -485,6 +538,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         history: AgentRunHistory,
         attemptKey: String,
         maxOutputTokens: Int? = null,
+        progress: WorkflowRunProgressSink? = null,
         retryDelay: suspend (Long) -> Unit = { kotlinx.coroutines.delay(it) },
     ): WorkflowRunOutcome {
         val admitted = history.admitRun(host.scope, request, host.boundary, maxOutputTokens)
@@ -499,10 +553,68 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                 trace = listOf(WorkflowRunStep(WorkflowRunState.READY)),
             )
         }
+        return runAdmittedTracked(
+            admitted = admitted,
+            request = request,
+            history = history,
+            attemptKey = attemptKey,
+            maxOutputTokens = maxOutputTokens,
+            progress = progress,
+            retryDelay = retryDelay,
+        )
+    }
+
+    /**
+     * Runs a run the caller already admitted with [AgentRunHistory.admitRun].
+     *
+     * The UI admits first so it can show the run identity and offer cancellation/resume before
+     * the first provider turn. Admitting again inside the executor would create a second,
+     * never-claimed run row and leave the row the user is interacting with empty, so this
+     * overload claims and runs the caller's own admission instead.
+     */
+    suspend fun startTracked(
+        admitted: AdmittedRun,
+        request: WorkflowRunRequest,
+        history: AgentRunHistory,
+        maxOutputTokens: Int? = null,
+        progress: WorkflowRunProgressSink? = null,
+        retryDelay: suspend (Long) -> Unit = { kotlinx.coroutines.delay(it) },
+    ): WorkflowRunOutcome {
+        if (!history.claimForExecution(admitted.runId, admitted.attempt)) {
+            return WorkflowRunOutcome.Incomplete(
+                reason = WorkflowRunStopReason.TOOL_FAILURE,
+                detail = "another opener holds run ${admitted.runId}",
+                answer = null,
+                turns = 0,
+                toolCalls = 0,
+                trace = listOf(WorkflowRunStep(WorkflowRunState.READY)),
+            )
+        }
+        return runAdmittedTracked(
+            admitted = admitted,
+            request = request,
+            history = history,
+            attemptKey = admitted.attemptKey,
+            maxOutputTokens = maxOutputTokens,
+            progress = progress,
+            retryDelay = retryDelay,
+        )
+    }
+
+    private suspend fun runAdmittedTracked(
+        admitted: AdmittedRun,
+        request: WorkflowRunRequest,
+        history: AgentRunHistory,
+        attemptKey: String,
+        maxOutputTokens: Int?,
+        progress: WorkflowRunProgressSink?,
+        retryDelay: suspend (Long) -> Unit,
+    ): WorkflowRunOutcome {
+        val attempt = admitted.attempt
         // The run/attempt now exists durably: every provider exchange, tool call and outcome of
         // this attempt is recorded against it from here on.
         host.trace.bind(admitted.runId, host.scope.scopeId, attempt)
-        var outcome = startWithAttemptKey(request, attemptKey, maxOutputTokens)
+        var outcome = startWithAttemptKey(request, attemptKey, maxOutputTokens, progress)
         history.recordAttemptOutcome(admitted.runId, attempt, outcome, host.boundary)
         if (outcome is WorkflowRunOutcome.Incomplete &&
             outcome.reason == WorkflowRunStopReason.MASKING_BLOCKED
@@ -523,7 +635,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             val nowAttempt = history.reopenForRetry(host.scope, admitted.runId) ?: break
             host.trace.bind(admitted.runId, host.scope.scopeId, nowAttempt.attempt)
             retryDelay(io.github.triet4p.aegisf.data.CanonicalAgentRetryPolicy.retryDelayMillis(nowAttempt.attempt))
-            val retryOutcome = startWithAttemptKey(request, nowAttempt.attemptKey, maxOutputTokens)
+            val retryOutcome = startWithAttemptKey(request, nowAttempt.attemptKey, maxOutputTokens, progress)
             history.recordAttemptOutcome(admitted.runId, nowAttempt.attempt, retryOutcome, host.boundary)
             settledAttempt = nowAttempt.attempt
             outcome = retryOutcome
@@ -543,6 +655,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         request: WorkflowRunRequest,
         attemptKey: String,
         maxOutputTokens: Int? = null,
+        progress: WorkflowRunProgressSink? = null,
     ): WorkflowRunOutcome {
         val seedsByTool = mapOf(
             RECORD_EVENT to attemptKey + ":record",
@@ -550,7 +663,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             ATTACH_LINK to attemptKey + ":attach",
             CLASSIFY_DRAFT to attemptKey + ":classify",
         )
-        return startInternal(request, seedsByTool)
+        return startInternal(request, seedsByTool, progress)
     }
 
     /** Cancels one tracked run: stored effects stay stored; cancellation never claims rollback. */
@@ -567,6 +680,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         runId: String,
         continuation: WorkflowRunContinuation,
         userAnswer: String,
+        progress: WorkflowRunProgressSink? = null,
     ): WorkflowRunOutcome? {
         if (!continuation.belongsTo(identity)) {
             throw IllegalArgumentException("The continuation belongs to another executor.")
@@ -586,7 +700,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             userAnswer = userAnswer,
         )
         continuation.adoptFixedOperationSeeds(suspendedSeeds)
-        val outcome = resume(continuation, userAnswer)
+        val outcome = resume(continuation, userAnswer, progress)
         history.recordAttemptOutcome(runId, admitted.attempt, outcome, host.boundary)
         return outcome
     }
@@ -598,6 +712,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
     private suspend fun startInternal(
         request: WorkflowRunRequest,
         fixedSeeds: Map<String, String>,
+        progress: WorkflowRunProgressSink? = null,
     ): WorkflowRunOutcome {
         val trace = mutableListOf<WorkflowRunStep>()
         trace += WorkflowRunStep(WorkflowRunState.READY)
@@ -659,6 +774,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             registry = registry,
         )
         run.runtime = runtime
+        run.progress = progress
         run.fixedOperationSeeds.putAll(fixedSeeds)
         run.conversation = conversation
         run.contextCharacters = contextCharacters
@@ -678,6 +794,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
     suspend fun resume(
         continuation: WorkflowRunContinuation,
         userAnswer: String,
+        progress: WorkflowRunProgressSink? = null,
     ): WorkflowRunOutcome {
         if (!continuation.belongsTo(identity)) {
             throw IllegalArgumentException("The continuation belongs to another executor.")
@@ -688,6 +805,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         if (userAnswer.isBlank()) {
             throw IllegalArgumentException("A resumed run needs a nonblank user answer.")
         }
+        continuation.run.progress = progress
         val run = continuation.run
         val trace = run.trace
         val maskedAnswer = try {
@@ -798,6 +916,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
     suspend fun followUp(
         followUp: WorkflowRunFollowUp,
         userMessage: String,
+        progress: WorkflowRunProgressSink? = null,
     ): WorkflowRunOutcome {
         if (!followUp.belongsTo(identity)) {
             throw IllegalArgumentException("The follow-up belongs to another executor.")
@@ -808,6 +927,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         if (userMessage.isBlank()) {
             throw IllegalArgumentException("A follow-up needs a nonblank user message.")
         }
+        followUp.run.progress = progress
         val run = followUp.run
         followUp.consumed = true
         host.trace.followUpMessage(userMessage)
@@ -927,8 +1047,15 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                 transition(run.trace, WorkflowRunState.GENERATING, "compacted context, turn ${run.turns + 1}")
             }
             transition(run.trace, WorkflowRunState.GENERATING, "turn ${run.turns + 1}")
+            val progress = run.progress
             val generated = try {
-                host.gateway.generate(run.conversation, run.availableDeclarations)
+                if (progress == null) {
+                    host.gateway.generate(run.conversation, run.availableDeclarations)
+                } else {
+                    host.gateway.generateStreaming(run.conversation, run.availableDeclarations) { item ->
+                        progress(item.toWorkflowRunProgress())
+                    }
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: MaskingBlockedException) {
@@ -1001,6 +1128,10 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                 is HostedGenerationResult.Turn -> {
                     run.turns += 1
                     val turn = generated.turn
+                    // A streamed turn states the canonical body it was assembled into; the trace
+                    // keeps it beside the raw chunks. A complete-body turn leaves it null because
+                    // the transport already recorded the exact body.
+                    host.trace.providerAssembledResponse(turn.assembledResponseBody)
                     run.contextCharacters += turn.assistantText?.length ?: 0
                     when (val finish = turn.finish) {
                         HostedTurnFinish.Complete -> {
@@ -1479,7 +1610,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             }
         }
         val noEffects = verifyNoEffectSettlements(run, verified)
-        val missing = run.request.intents.filter { intent ->
+        val missing = run.request.requiredIntents.filter { intent ->
             when (intent) {
                 WorkflowIntent.INTERPRET_EVENTS ->
                     verified.none { it is WorkflowVerifiedEffect.EventReading } &&
@@ -1547,11 +1678,29 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         verified: List<WorkflowVerifiedEffect>,
     ): Map<WorkflowIntent, WorkflowVerifiedEffect.NoEffect> {
         val settled = LinkedHashMap<WorkflowIntent, WorkflowVerifiedEffect.NoEffect>()
-        if (run.dispatches.any { it.name in MUTATION_TOOLS }) return settled
         // A settlement is only ever reported for an intent that has no verified effect: the
         // evidence list must never contain both a mutation and a "no effect" for one intent.
         val satisfied = run.request.intents.filter { intent -> claimSatisfied(intent, verified) }.toSet()
         val claims = run.dispatches.mapNotNull { it.noEffectClaim }
+        // An already-satisfied interpretation is provable independently of any other mutation the
+        // run performed: the model selected the occurrence and the live event still carries the
+        // same INTERPRETED reading at the same revision. Nothing is written for it, and it is
+        // only considered when the host explicitly required that outcome.
+        if (WorkflowIntent.INTERPRET_EVENTS in run.request.requiredIntents &&
+            WorkflowIntent.INTERPRET_EVENTS !in satisfied
+        ) {
+            val already = claims.filterIsInstance<AgentNoEffectClaim.AlreadyInterpreted>()
+                .lastOrNull { run.runtime.verifyNoEffect(it) }
+            if (already != null) {
+                settled[WorkflowIntent.INTERPRET_EVENTS] =
+                    WorkflowVerifiedEffect.NoEffect.AlreadyInterpreted(
+                        intent = WorkflowIntent.INTERPRET_EVENTS,
+                        eventId = already.eventId,
+                        eventRevision = already.revision,
+                    )
+            }
+        }
+        if (run.dispatches.any { it.name in MUTATION_TOOLS }) return settled
         val scopes = claims.filterIsInstance<AgentNoEffectClaim.DraftScope>()
         val exhausted = scopes.lastOrNull { it.scopeExhausted }
         val sameFilter = exhausted?.let { last ->
@@ -1814,6 +1963,14 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
     private fun tokenInventory(): String =
         AgentContextManager.tokenInventoryBlock(host.boundary.vault.issuedTokens())
 
+    /** Maps a provider progress item onto the UI-facing progress vocabulary. */
+    private fun HostedTurnProgress.toWorkflowRunProgress(): WorkflowRunProgress = when (this) {
+        is HostedTurnProgress.PublicText -> WorkflowRunProgress.PublicText(text)
+        is HostedTurnProgress.ToolCallStarted -> WorkflowRunProgress.ToolActivity(name, completed = false)
+        is HostedTurnProgress.ToolCallCompleted -> WorkflowRunProgress.ToolActivity(name, completed = true)
+        is HostedTurnProgress.StreamingUnavailable -> WorkflowRunProgress.StreamingUnavailable(reason)
+    }
+
     // ---- Helpers -------------------------------------------------------------------------
 
     private fun transition(trace: MutableList<WorkflowRunStep>, state: WorkflowRunState, detail: String? = null) {
@@ -2017,6 +2174,8 @@ internal class ActiveRun(
 ) {
     lateinit var runtime: AgentToolRuntime
     lateinit var conversation: MaskedConversation
+    /** Optional live, already-guarded progress sink for a running UI; null for headless runs. */
+    var progress: WorkflowRunProgressSink? = null
     /** Turns spent in the current phase (initial attempt or assisted follow-up). */
     var turns: Int = 0
     /** Tool calls dispatched in the current phase. */

@@ -117,7 +117,9 @@ internal object HostedUsageContract {
     /**
      * The documented root fields of each protocol response that carry technical metadata rather
      * than content. Everything else at the root — and every nested `id`/`model`/`usage` field —
-     * stays inside the full decoded privacy scan.
+     * stays inside the full decoded privacy scan, except the explicitly listed provider-assigned
+     * tool-call identifiers below, which are validated by [isOpaqueProviderId] and never treated
+     * as content.
      */
     private val rootMetadataFields = mapOf(
         HostedProtocol.OPENAI_CHAT_COMPLETIONS to mapOf(
@@ -172,6 +174,30 @@ internal object HostedUsageContract {
     /** The metadata rule for a root field of the selected protocol, or null for content fields. */
     fun rootMetadataKind(protocol: HostedProtocol, name: String): HostedResponseMetadataKind? =
         rootMetadataFields[protocol]?.get(name)
+
+    /**
+     * The only nested fields whose value is a provider-assigned opaque identifier rather than
+     * content: the Chat Completions tool-call id the next tool result must echo, and the
+     * Responses function-call item id / call id. Each is documented by its protocol schema.
+     *
+     * This is a narrow, policy-owned exemption. It is not a general "looks like an identifier"
+     * allowance: a mapped sensitive value glued into ordinary content (`10000VND`, `10000k`,
+     * `acc12345678`) is still a leak, and a value that exactly equals a mapped surface is still
+     * refused even in one of these fields.
+     */
+    private val nestedProviderIdPaths = mapOf(
+        HostedProtocol.OPENAI_CHAT_COMPLETIONS to listOf(
+            listOf("choices", "[]", "message", "tool_calls", "[]", "id"),
+        ),
+        HostedProtocol.OPENAI_RESPONSES to listOf(
+            listOf("output", "[]", "id"),
+            listOf("output", "[]", "call_id"),
+        ),
+    )
+
+    /** Whether [path] is a documented nested provider-assigned identifier field. */
+    fun isNestedProviderIdPath(protocol: HostedProtocol, path: List<String>): Boolean =
+        nestedProviderIdPaths[protocol]?.any { it == path } == true
 
     /** Exact route match: the configured endpoint is the OpenCode Go Zen gateway for this protocol. */
     fun isGoAccountingRoute(protocol: HostedProtocol, endpoint: String): Boolean {

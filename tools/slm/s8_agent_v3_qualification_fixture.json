@@ -1,15 +1,15 @@
 {
   "schema": "aegis-f-s8-agent-v3-qualification-fixture/v1",
   "fixture_id": "S8.13-v3-interface-qualification-fixture-01",
-  "contract": "aegis-agent-interface/3",
+  "contract": "aegis-agent-interface/4",
   "runtime_projection_id": "S8.13-runtime-fixture-v3",
   "base_inputs": {
     "dev_suite": "tools/slm/s8_agent_dev.json",
     "heldout_suite": "tools/slm/s8_agent_heldout.json",
     "domain_fixture": "tools/slm/s8_agent_fixture.json",
     "approved_runtime_projection": "tools/slm/s8_agent_runtime_fixture_v3.json",
-    "runtime_tools": "tools/slm/s8_agent_tools_v3.json",
-    "runtime_skills": "tools/slm/s8_agent_runtime_skills_v3.json"
+    "runtime_tools": "tools/slm/s8_agent_tools_v4.json",
+    "runtime_skills": "tools/slm/s8_agent_runtime_skills_v4.json"
   },
   "case_fixture_overrides_by_case": {
     "a8-multi-01": {

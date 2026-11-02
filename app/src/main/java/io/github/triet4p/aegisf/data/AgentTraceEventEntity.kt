@@ -114,6 +114,18 @@ internal const val AGENT_TRACE_KIND_PROVIDER_REQUEST = "PROVIDER_REQUEST"
 /** The provider answer: status, safe headers and the complete body, or an explicit gap. */
 internal const val AGENT_TRACE_KIND_PROVIDER_RESPONSE = "PROVIDER_RESPONSE"
 
+/**
+ * One decoded server-sent event of a streamed provider answer, in wire order with its event
+ * name and exact data payload. Chunks are never merged, summarized or truncated silently.
+ */
+internal const val AGENT_TRACE_KIND_PROVIDER_STREAM_CHUNK = "PROVIDER_STREAM_CHUNK"
+
+/**
+ * The terminal state of one streamed exchange: HTTP status, delivered chunk count, and whether
+ * the stream completed, was interrupted by cancellation, or ended without a response.
+ */
+internal const val AGENT_TRACE_KIND_PROVIDER_STREAM_END = "PROVIDER_STREAM_END"
+
 /** The classified provider failure the executor acted on (value-free code and detail). */
 internal const val AGENT_TRACE_KIND_PROVIDER_FAILURE = "PROVIDER_FAILURE"
 

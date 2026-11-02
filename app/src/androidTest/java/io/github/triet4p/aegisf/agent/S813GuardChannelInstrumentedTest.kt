@@ -236,15 +236,15 @@ class S813GuardChannelInstrumentedTest {
         val boundary = MaskedPromptBoundary(vault)
         for (protocol in HostedProtocol.values()) {
             // Provider thinking never refuses the response by itself.
-            assertAccepted(scan(boundary, protocol, "⟦AMT-ab-1234⟧ and then 28,000 VND.", Channel.REASONING))
+            assertAccepted(scan(boundary, protocol, "⟦V-ab-1234⟧ and then 28,000 VND.", Channel.REASONING))
             assertAccepted(scan(boundary, protocol, raw, Channel.REASONING))
             // The user-visible answer is enforced before publication.
-            val forgedAnswer = scan(boundary, protocol, "⟦AMT-ab-1234⟧", Channel.ANSWER)
+            val forgedAnswer = scan(boundary, protocol, "⟦V-ab-1234⟧", Channel.ANSWER)
             assertRefused(forgedAnswer, HostedResponsePrivacyRefusalReason.UNKNOWN_TOKEN)
             val rawAnswer = scan(boundary, protocol, raw, Channel.ANSWER)
             assertRefused(rawAnswer, HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH)
             // Tool-call arguments are enforced before dispatch.
-            val forgedArguments = scan(boundary, protocol, "⟦AMT-ab-1234⟧", Channel.ARGUMENTS)
+            val forgedArguments = scan(boundary, protocol, "⟦V-ab-1234⟧", Channel.ARGUMENTS)
             assertRefused(forgedArguments, HostedResponsePrivacyRefusalReason.UNKNOWN_TOKEN)
             val rawArguments = scan(boundary, protocol, raw, Channel.ARGUMENTS)
             assertRefused(rawArguments, HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH)

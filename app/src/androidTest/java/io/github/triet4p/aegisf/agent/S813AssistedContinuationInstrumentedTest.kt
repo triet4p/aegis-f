@@ -354,7 +354,7 @@ class S813AssistedContinuationInstrumentedTest {
         val capturedTurns = turnsFile.readLines()
         assertTrue(capturedTurns.first().contains("\"TEST_ONLY\":true"))
         assertFalse(adapter.prompts.any { it.contains("62,000") })
-        assertTrue(adapter.prompts.any { it.contains("⟦AMT-") })
+        assertTrue(adapter.prompts.any { it.contains("⟦V-") })
         assertTrue(adapter.notices.single().contains(feedbackText))
         assertTrue(adapter.notices.single().contains("issued_mask_token_inventory"))
         assertEquals(eventRefInPhaseOne, eventRefInPhaseTwo)

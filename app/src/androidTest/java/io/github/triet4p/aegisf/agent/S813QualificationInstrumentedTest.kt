@@ -84,7 +84,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 internal data class SafeInboundResponseField(
-    val kind: String,
+    val shape: String,
     val location: String,
     val category: String,
     val nodeType: String,
@@ -93,7 +93,7 @@ internal data class SafeInboundResponseField(
 )
 
 internal data class SafeInboundResponseDiagnostics(
-    val kinds: List<String>,
+    val shapes: List<String>,
     val locations: List<String>,
     val categories: List<String>,
     val fields: List<SafeInboundResponseField>,
@@ -103,7 +103,7 @@ private fun privacyRefusalEvidence(refusal: HostedResponsePrivacyRefusal?): Any 
     refusal?.let {
         JSONObject()
             .put("reason", it.reason.name)
-            .put("sensitive_kind", it.sensitiveKind ?: JSONObject.NULL)
+            .put("sensitive_shape", it.sensitiveShape ?: JSONObject.NULL)
             .put("safe_location", it.safeLocation)
             .put("node_type", it.nodeType)
             .put("recognized_counter", it.recognizedCounter)
@@ -128,7 +128,7 @@ private fun recognizedCounterEvidence(
 ): JSONArray = JSONArray().also { rows ->
     matches.forEach { match ->
         rows.put(JSONObject()
-            .put("sensitive_kind", match.sensitiveKind)
+            .put("sensitive_shape", match.sensitiveShape)
             .put("safe_location", match.safeLocation)
             .put("node_type", match.nodeType)
             .put("recognized_counter", match.recognizedCounter)
@@ -142,7 +142,7 @@ private fun responsePrivacyGuardEvidence(result: HostedResponsePrivacyResult): J
             .put("accepted", true)
             .put("refusal_reason", JSONObject.NULL)
             .put("protocol_error_reason", JSONObject.NULL)
-            .put("sensitive_kind", JSONObject.NULL)
+            .put("sensitive_shape", JSONObject.NULL)
             .put("safe_location", JSONObject.NULL)
             .put("node_type", "NONE")
             .put("recognized_counter", false)
@@ -153,7 +153,7 @@ private fun responsePrivacyGuardEvidence(result: HostedResponsePrivacyResult): J
             .put("accepted", true)
             .put("refusal_reason", JSONObject.NULL)
             .put("protocol_error_reason", JSONObject.NULL)
-            .put("sensitive_kind", JSONObject.NULL)
+            .put("sensitive_shape", JSONObject.NULL)
             .put("safe_location", JSONObject.NULL)
             .put("node_type", "NUMBER")
             .put("recognized_counter", true)
@@ -164,7 +164,7 @@ private fun responsePrivacyGuardEvidence(result: HostedResponsePrivacyResult): J
             .put("accepted", true)
             .put("refusal_reason", JSONObject.NULL)
             .put("protocol_error_reason", JSONObject.NULL)
-            .put("sensitive_kind", JSONObject.NULL)
+            .put("sensitive_shape", JSONObject.NULL)
             .put("safe_location", JSONObject.NULL)
             .put("node_type", if (result.counters.isEmpty()) "NONE" else "NUMBER")
             .put("recognized_counter", result.counters.isNotEmpty())
@@ -175,7 +175,7 @@ private fun responsePrivacyGuardEvidence(result: HostedResponsePrivacyResult): J
             .put("accepted", false)
             .put("refusal_reason", result.refusal.reason.name)
             .put("protocol_error_reason", JSONObject.NULL)
-            .put("sensitive_kind", result.refusal.sensitiveKind ?: JSONObject.NULL)
+            .put("sensitive_shape", result.refusal.sensitiveShape ?: JSONObject.NULL)
             .put("safe_location", result.refusal.safeLocation)
             .put("node_type", result.refusal.nodeType)
             .put("recognized_counter", result.refusal.recognizedCounter)
@@ -186,7 +186,7 @@ private fun responsePrivacyGuardEvidence(result: HostedResponsePrivacyResult): J
             .put("accepted", false)
             .put("refusal_reason", JSONObject.NULL)
             .put("protocol_error_reason", result.reason.name)
-            .put("sensitive_kind", JSONObject.NULL)
+            .put("sensitive_shape", JSONObject.NULL)
             .put("safe_location", result.safeLocation)
             .put("node_type", result.nodeType)
             .put("recognized_counter", result.recognizedCounter)
@@ -215,8 +215,8 @@ internal fun safeInboundResponseDiagnostics(
     body: String,
     httpStatus: Int? = null,
 ): SafeInboundResponseDiagnostics {
-    val kinds = vault.scanLeakKinds(body).map { it.name }.sorted()
-    if (kinds.isEmpty()) return SafeInboundResponseDiagnostics(emptyList(), emptyList(), emptyList(), emptyList())
+    val shapes = vault.scanLeakShapes(body).map { it.wire }.sorted()
+    if (shapes.isEmpty()) return SafeInboundResponseDiagnostics(emptyList(), emptyList(), emptyList(), emptyList())
 
     val fields = linkedSetOf<SafeInboundResponseField>()
     val inspectUsage = httpStatus != null && httpStatus in 200..299
@@ -268,9 +268,9 @@ internal fun safeInboundResponseDiagnostics(
             HostedUsageContract.parseCounterNumber(text) != null
         val knownOtherProtocol = inspectUsage &&
             HostedUsageContract.isCounterPathForOtherProtocol(protocol, semanticPath)
-        vault.scanLeakKinds(text).forEach { kind ->
+        vault.scanLeakShapes(text).forEach { shape ->
             fields += SafeInboundResponseField(
-                kind = kind.name,
+                shape = shape.wire,
                 location = path,
                 category = category(path),
                 nodeType = nodeType,
@@ -285,7 +285,7 @@ internal fun safeInboundResponseDiagnostics(
             is JSONObject -> {
                 val keys = value.keys().asSequence().toList().sorted()
                 for (key in keys) {
-                    val keyKinds = vault.scanLeakKinds(key)
+                    val keyKinds = vault.scanLeakShapes(key)
                     val usagePath = inspectUsage && HostedUsageContract.isUsageDiagnosticPath(semanticPath)
                     val segment = when {
                         keyKinds.isNotEmpty() -> "other_field"
@@ -328,17 +328,17 @@ internal fun safeInboundResponseDiagnostics(
         try {
             JSONArray(body)
         } catch (_: Exception) {
-            val fields = kinds.map {
+            val fields = shapes.map {
                 SafeInboundResponseField(it, "response_body.non_json", "non_json", "SERIALIZED_BODY", false)
             }
             return SafeInboundResponseDiagnostics(
-                kinds, listOf("response_body.non_json"), listOf("non_json"), fields,
+                shapes, listOf("response_body.non_json"), listOf("non_json"), fields,
             )
         }
     }
     visit(root, "response_body", ArrayList())
     if (fields.isEmpty()) {
-        kinds.forEach {
+        shapes.forEach {
             fields += SafeInboundResponseField(
                 it,
                 "response_body.unclassified_json",
@@ -349,10 +349,10 @@ internal fun safeInboundResponseDiagnostics(
         }
     }
     val sortedFields = fields.sortedWith(
-        compareBy({ it.kind }, { it.location }, { it.category }, { it.nodeType }, { it.recognizedCounter }, { it.knownOtherProtocol }),
+        compareBy({ it.shape }, { it.location }, { it.category }, { it.nodeType }, { it.recognizedCounter }, { it.knownOtherProtocol }),
     )
     return SafeInboundResponseDiagnostics(
-        kinds,
+        shapes,
         sortedFields.map { it.location }.distinct().sorted(),
         sortedFields.map { it.category }.distinct().sorted(),
         sortedFields,
@@ -617,11 +617,11 @@ class S813QualificationInstrumentedTest {
         readInput("s8_agent_scoring.json", "scoring")
         inputHashes.put(
             "runtime_tools",
-            sha256(context.assets.open("s8_agent_tools_v3.json").use { it.readBytes() }),
+            sha256(context.assets.open("s8_agent_tools_v4.json").use { it.readBytes() }),
         )
         inputHashes.put(
             "runtime_skills",
-            sha256(context.assets.open("s8_agent_runtime_skills_v3.json").use { it.readBytes() }),
+            sha256(context.assets.open("s8_agent_runtime_skills_v4.json").use { it.readBytes() }),
         )
         val syntheticInputText = listOf("fixture", "dev_suite", "heldout_suite", "qualification_fixture")
             .mapNotNull { rawInputs[it] }.joinToString("\n")
@@ -2204,11 +2204,10 @@ class S813QualificationInstrumentedTest {
         val captureId = case.getJSONObject("context").getJSONArray("captureIds").getLong(0)
         val source = requireNotNull(db.captureMessageDao().findById(captureId)?.bodyText)
         val masked = boundary.vault.maskText(source)
-        val tokens = Regex("⟦(AMT|DATE|TIME|ACCT|BANK)-[^⟧]+⟧")
-            .findAll(masked).map { it.groupValues[1] }.toList()
+        val tokens = Regex("⟦V-[^⟧]+⟧").findAll(masked).map { it.value }.toList()
         val relationsPreserved = masked.contains("Salary") && masked.contains("to account ending") &&
-            tokens.containsAll(listOf("AMT", "DATE", "ACCT"))
-        val inbound = boundary.scanInbound("⟦AMT-${boundary.vault.scopeTag}-9999⟧")
+            tokens.size == 3
+        val inbound = boundary.scanInbound("⟦V-${boundary.vault.scopeTag}-9999⟧")
         val unknownTokenRefused =
             inbound is InboundScan.Refused && inbound.reason == InboundRefusal.UNKNOWN_TOKEN
         return JSONObject()
@@ -2349,6 +2348,11 @@ class S813QualificationInstrumentedTest {
                         .put("kind", "no_effect").put("no_effect_kind", effect.kindName)
                         .put("intent", effect.intent.name)
                         .put("declared_tools", JSONArray(effect.declaredTools))
+                    is WorkflowVerifiedEffect.NoEffect.AlreadyInterpreted -> JSONObject()
+                        .put("kind", "no_effect").put("no_effect_kind", effect.kindName)
+                        .put("intent", effect.intent.name)
+                        .put("event_id", effect.eventId)
+                        .put("event_revision", effect.eventRevision)
                 }
                 out.put(row)
             }
@@ -2446,7 +2450,7 @@ class S813QualificationInstrumentedTest {
                 response.body,
                 response.status,
             )
-            val serializedMatch = serializedDiagnostic.kinds.isNotEmpty()
+            val serializedMatch = serializedDiagnostic.shapes.isNotEmpty()
             serializedBodyMatchDetected = serializedBodyMatchDetected || serializedMatch
             decodedSensitiveInboundDetected = decodedSensitiveInboundDetected ||
                 refusal?.reason == HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH
@@ -2455,13 +2459,13 @@ class S813QualificationInstrumentedTest {
                 .put("response_body_replaced_before_adapter", false)
                 .put("serialized_body_diagnostic", JSONObject()
                     .put("matched", serializedMatch)
-                    .put("kinds", JSONArray(serializedDiagnostic.kinds))
+                    .put("shapes", JSONArray(serializedDiagnostic.shapes))
                     .put("locations", JSONArray(serializedDiagnostic.locations))
                     .put("categories", JSONArray(serializedDiagnostic.categories))
                     .put("fields", JSONArray().also { fields ->
                         serializedDiagnostic.fields.forEach { field ->
                             fields.put(JSONObject()
-                                .put("kind", field.kind)
+                                .put("shape", field.shape)
                                 .put("location", field.location)
                                 .put("category", field.category)
                                 .put("node_type", field.nodeType)

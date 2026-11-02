@@ -1,6 +1,6 @@
 {
-  "schema": "aegis-f-s8-agent-tools/v3",
-  "contract": "aegis-agent-interface/3",
+  "schema": "aegis-f-s8-agent-tools/v4",
+  "contract": "aegis-agent-interface/4",
   "additionalProperties": false,
   "tools": [
     {
@@ -22,7 +22,7 @@
     },
     {
       "name": "select_source",
-    "description": "Select the exact occurrence a reading is about without model-counted offsets, or select one exact merchant substring inside that occurrence. The host verifies the quote against the current masked source, checks protected-token boundaries, translates it to exact stored offsets and binds the capture revision plus the existing reading at that span, or its expected absence. Pure preparation: no event or ledger write. Returns the source alias, the copied quote, the existing event alias if any, the value aliases inside that occurrence and any already-trusted anchor. When the occurrence names a transaction counterparty as its seller or place, call it again with that exact merchant substring taken from the same capture and pass the returned source alias as record_event merchant_ref; a merchant handle must lie inside the recorded occurrence. A product, item or activity description is not a merchant. Do not call when no occurrence is grounded.",
+    "description": "Select the exact occurrence a reading is about without model-counted offsets, or select one exact merchant substring inside that occurrence. The host verifies the quote against the current masked source, checks protected-token boundaries, translates it to exact stored offsets and binds the capture revision plus the existing reading at that span, or its expected absence. Pure preparation: no event or ledger write. Returns the source alias, the copied quote, the existing event alias if any, the neutral value aliases inside that occurrence (each with a lexical shape hint such as numeric or alphanumeric) and any already-trusted anchor. A value alias is an opaque identity, not a typed amount/date/account: choose the one whose meaning fits the argument you pass it to and the host parses it locally for that argument. When the occurrence names a transaction counterparty as its seller or place, call it again with that exact merchant substring taken from the same capture and pass the returned source alias as record_event merchant_ref; a merchant handle must lie inside the recorded occurrence. A product, item or activity description is not a merchant. Do not call when no occurrence is grounded.",
       "mapsTo": "MaskedApplicationEffect.sourceOffsetsForMaskedSpan + capture/event read",
       "parameters": {
         "type": "object",
@@ -74,7 +74,7 @@
     },
     {
       "name": "make_time_anchor",
-      "description": "Assemble a grounded temporal selection from observed DATE/TIME aliases with deterministic validation. Pure preparation: no business write. Skip it when the observation already supplies the correct anchor or when no date is known. The host rejects inconsistent intervals instead of swapping endpoints; a date-only anchor has no zone, and a timed anchor uses the trusted capture time zone. Supplying an alias is not proof it belongs to the occurrence; record_event rechecks provenance.",
+      "description": "Assemble a grounded temporal selection from observed value aliases chosen for the date/time arguments, with deterministic local parsing and validation. Pure preparation: no business write. The values are neutral masked identities; this tool decides only whether your chosen values parse as a calendar date or wall-clock time and form a consistent interval. Skip it when the observation already supplies the correct anchor or when no date is known. The host rejects inconsistent intervals instead of swapping endpoints; a date-only anchor has no zone, and a timed anchor uses the trusted capture time zone. Supplying an alias is not proof it belongs to the occurrence; record_event rechecks provenance.",
       "mapsTo": "pure temporal validation over observed typed references",
       "parameters": {
         "type": "object",
@@ -84,19 +84,19 @@
           "date_ref": {
             "type": "string",
             "minLength": 1,
-            "description": "DATE alias grounded in the selected occurrence or its linked clarification."
+            "description": "Value alias whose value parses as a calendar date, bound to the selected occurrence or its linked clarification. The alias is neutral; the host parses it for this argument and refuses a value that is not a date."
           },
           "time_ref": {
             "type": ["string", "null"],
-            "description": "TIME alias for the start wall-clock time, or JSON null for a date-only anchor."
+            "description": "Value alias whose value parses as the start wall-clock time, or JSON null for a date-only anchor. Neutral alias; the host parses it for this argument."
           },
           "end_date_ref": {
             "type": ["string", "null"],
-            "description": "Explicit DATE alias for an interval end, or JSON null when there is no interval. It cannot precede the start date."
+            "description": "Value alias whose value parses as an interval end date, or JSON null when there is no interval. It cannot precede the start date."
           },
           "end_time_ref": {
             "type": ["string", "null"],
-            "description": "Explicit TIME alias for an interval end, or JSON null. It requires both an end date and a start time."
+            "description": "Value alias whose value parses as an interval end time, or JSON null. It requires both an end date and a start time."
           }
         }
       }
@@ -122,7 +122,7 @@
           },
           "amount_ref": {
             "type": ["string", "null"],
-            "description": "AMOUNT alias observed in this occurrence or its linked clarification; JSON null when the amount is missing or ambiguous. Never a raw amount and never another occurrence's value."
+            "description": "Value alias whose value parses as a whole-dong amount, observed in this occurrence or its linked clarification; JSON null when the amount is genuinely missing or genuinely ambiguous. The alias is a neutral masked identity: the host parses the underlying value for this argument and never asks the user to retype a value the source states. Never a raw amount and never another occurrence's value."
           },
           "anchor_ref": {
             "type": ["string", "null"],
@@ -247,7 +247,7 @@
           "field": {
             "type": "string",
             "enum": ["amount", "date", "time", "merchant", "occurrence", "candidate", "meaning"],
-            "description": "Exact primary uncertainty. Not permission to demand every optional field. The field is the component the source or user actually leaves unresolved: when the clock time is not remembered, choose time even though the date is also ungrounded, and never ask for the date in its place. For candidate, name the proposed row with the draft_label carried by the pair observation the recording tool returned."
+            "description": "Exact primary uncertainty. Not permission to demand every optional field. A value the masked source states is present evidence: ask amount, date or time only when no grounded reference of that kind was issued or the evidence is genuinely ambiguous, never because the value is displayed masked. The field is the component the source or user actually leaves unresolved: when the clock time is not remembered, choose time even though the date is also ungrounded, and never ask for the date in its place. For candidate, name the proposed row with the draft_label carried by the pair observation the recording tool returned."
           },
           "question": {
             "type": "string",

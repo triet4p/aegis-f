@@ -13,12 +13,15 @@ import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_FOLLOW_UP_MESSAGE
 import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_PROVIDER_FAILURE
 import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_PROVIDER_REQUEST
 import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_PROVIDER_RESPONSE
+import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_PROVIDER_STREAM_CHUNK
+import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_PROVIDER_STREAM_END
 import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_TOOL_CALL
 import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_TOOL_ERROR
 import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_TOOL_RESULT
 import io.github.triet4p.aegisf.data.AgentTraceStore
 import io.github.triet4p.aegisf.provider.HostedHttpRequest
 import io.github.triet4p.aegisf.provider.HostedHttpResponse
+import io.github.triet4p.aegisf.provider.HostedSseEvent
 import io.github.triet4p.aegisf.provider.HostedToolCall
 import java.util.concurrent.atomic.AtomicInteger
 import org.json.JSONArray
@@ -112,6 +115,94 @@ class AgentTraceRecorder internal constructor(private val store: AgentTraceStore
                 .put("headers", headers.first)
                 .put("redactedHeaders", headers.second)
                 .put("body", response.body)
+                .toString(),
+        )
+    }
+
+    /**
+     * Records one decoded server-sent event of a streamed exchange.
+     *
+     * The payload is exactly what the endpoint delivered for that event (field name and data
+     * text), in wire order. Chunks are never merged, summarized or truncated; an over-large
+     * stream fails the exchange instead of dropping evidence.
+     */
+    suspend fun providerStreamChunk(turn: Int?, index: Int, event: HostedSseEvent) {
+        val bound = binding ?: return
+        if (turn == null) return
+        store?.append(
+            runId = bound.runId,
+            scopeId = bound.scopeId,
+            attempt = bound.attempt,
+            kind = AGENT_TRACE_KIND_PROVIDER_STREAM_CHUNK,
+            turn = turn,
+            direction = AGENT_TRACE_DIRECTION_INBOUND,
+            completion = AGENT_TRACE_COMPLETION_COMPLETE,
+            payloadJson = JSONObject()
+                .put("index", index)
+                .put("event", event.event ?: JSONObject.NULL)
+                .put("data", event.data)
+                .toString(),
+        )
+    }
+
+    /**
+     * Records the terminal state of one streamed exchange.
+     *
+     * [status] is null when no response head arrived. A cancelled stream is `INTERRUPTED`, a
+     * failed one is `UNAVAILABLE`, and [chunks] states exactly how many events were delivered;
+     * no assembled body is invented for a stream that did not produce a turn.
+     */
+    suspend fun providerStreamEnd(
+        turn: Int?,
+        status: Int?,
+        chunks: Int,
+        interrupted: Boolean,
+        failure: Throwable? = null,
+    ) {
+        val bound = binding ?: return
+        if (turn == null) return
+        store?.append(
+            runId = bound.runId,
+            scopeId = bound.scopeId,
+            attempt = bound.attempt,
+            kind = AGENT_TRACE_KIND_PROVIDER_STREAM_END,
+            turn = turn,
+            direction = AGENT_TRACE_DIRECTION_INBOUND,
+            completion = when {
+                interrupted -> AGENT_TRACE_COMPLETION_INTERRUPTED
+                failure != null -> AGENT_TRACE_COMPLETION_UNAVAILABLE
+                else -> AGENT_TRACE_COMPLETION_COMPLETE
+            },
+            payloadJson = JSONObject()
+                .put("status", status ?: JSONObject.NULL)
+                .put("chunks", chunks)
+                .put("error", failure?.let { it::class.simpleName } ?: JSONObject.NULL)
+                .put("detail", failure?.message ?: JSONObject.NULL)
+                .toString(),
+        )
+    }
+
+    /**
+     * Records the canonical response body a streamed turn was assembled into, for the exchange
+     * that just finished. It is local evidence only: the provider's own delta content in the
+     * protocol's ordinary response shape, never displayed, rehydrated or read as authority.
+     */
+    suspend fun providerAssembledResponse(body: String?) {
+        val bound = binding ?: return
+        if (body.isNullOrEmpty()) return
+        val turn = exchange.get().takeIf { it > 0 } ?: return
+        store?.append(
+            runId = bound.runId,
+            scopeId = bound.scopeId,
+            attempt = bound.attempt,
+            kind = AGENT_TRACE_KIND_PROVIDER_RESPONSE,
+            turn = turn,
+            direction = AGENT_TRACE_DIRECTION_INBOUND,
+            completion = AGENT_TRACE_COMPLETION_COMPLETE,
+            payloadJson = JSONObject()
+                .put("streamed", true)
+                .put("assembled", true)
+                .put("body", body)
                 .toString(),
         )
     }

@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import io.github.triet4p.aegisf.privacy.SensitiveKind
+import io.github.triet4p.aegisf.privacy.IssuedValueShape
 import io.github.triet4p.aegisf.privacy.SensitiveVault
 import io.github.triet4p.aegisf.provider.HostedProtocol
 import java.io.File
@@ -42,12 +42,11 @@ class S813ResponseSerializationDiagnosticInstrumentedTest {
         val vault = SensitiveVault("s813-response-serialization-${UUID.randomUUID()}")
         val maskedDescription = vault.maskText(projectedDescription)
         val accountToken = SensitiveVault.TOKEN_PATTERN.findAll(maskedDescription)
-            .firstOrNull { it.groups[1]?.value == SensitiveKind.ACCOUNT.prefix }
-            ?.value
-        requireNotNull(accountToken)
-        val mappedAccountSurface = vault.rehydrateText(accountToken)
-        assertTrue(vault.scanLeakKinds(mappedAccountSurface).contains(SensitiveKind.ACCOUNT))
-        assertTrue(vault.scanLeakKinds(accountToken).isEmpty())
+            .map { it.value }
+            .first { token -> vault.rehydrateValue(token).let { it.length >= 4 && it.all(Char::isDigit) } }
+        val mappedAccountSurface = vault.rehydrateValue(accountToken)
+        assertTrue(vault.scanLeakShapes(mappedAccountSurface).contains(IssuedValueShape.NUMERIC))
+        assertTrue(vault.scanLeakShapes(accountToken).isEmpty())
         val bareDigitMatches = Regex("\\b\\d{4,}\\b").findAll(projectedDescription)
             .filter { it.value == mappedAccountSurface }
             .toList()
@@ -131,14 +130,14 @@ class S813ResponseSerializationDiagnosticInstrumentedTest {
                 unicodeEscapeBody,
             )
             cases.put(safeCase("unicode_escape_collision", unicodeEscapeBody, vault))
-            unicodeEscapeCanReproduce = vault.scanLeakKinds(unicodeEscapeBody)
-                .contains(SensitiveKind.ACCOUNT) &&
+            unicodeEscapeCanReproduce = vault.scanLeakShapes(unicodeEscapeBody)
+                .contains(IssuedValueShape.NUMERIC) &&
                 "response_body.unclassified_json" in unicodeDiagnostics.locations
         }
         val numericVault = SensitiveVault("s813-number-${UUID.randomUUID()}")
         val numericToken = SensitiveVault.TOKEN_PATTERN.findAll(
             numericVault.maskText("account ending 7319"),
-        ).first { it.groups[1]?.value == SensitiveKind.ACCOUNT.prefix }.value
+        ).map { it.value }.first { numericVault.rehydrateValue(it) == "7319" }
         val numericBody = JSONObject()
             .put("usage", JSONObject().put("total_tokens", 7319))
             .toString()
@@ -147,9 +146,9 @@ class S813ResponseSerializationDiagnosticInstrumentedTest {
 
         val amountVault = SensitiveVault("s813-amount-normalization-${UUID.randomUUID()}")
         amountVault.maskText("transaction 28,000 VND")
-        val amountGroupingNormalization = amountVault.scanLeakKinds("28,000")
-            .contains(SensitiveKind.AMOUNT) &&
-            amountVault.scanLeakKinds("28000").contains(SensitiveKind.AMOUNT)
+        val amountGroupingNormalization = amountVault.scanLeakShapes("28,000")
+            .contains(IssuedValueShape.NUMERIC) &&
+            amountVault.scanLeakShapes("28000").contains(IssuedValueShape.NUMERIC)
 
         fun hasField(case: JSONObject, location: String, category: String): Boolean =
             case.getJSONArray("fields").let { fields ->
@@ -163,14 +162,14 @@ class S813ResponseSerializationDiagnosticInstrumentedTest {
         assertTrue(hasField(cases.getJSONObject(1), "response_body.id", "provider_metadata"))
         assertTrue(hasField(actualNumericMetadataCase, "response_body.usage.total_tokens", "provider_metadata"))
         assertTrue(hasField(numberBoundaryContentCase, "response_body.choices[].message.content", "model_content"))
-        assertTrue(actualNumericMetadataCase.getJSONArray("whole_body_kinds").toString().contains("ACCOUNT"))
-        assertTrue(numberBoundaryContentCase.getJSONArray("whole_body_kinds").toString().contains("ACCOUNT"))
+        assertTrue(actualNumericMetadataCase.getJSONArray("whole_body_shapes").toString().contains("numeric"))
+        assertTrue(numberBoundaryContentCase.getJSONArray("whole_body_shapes").toString().contains("numeric"))
         assertTrue(hasField(cases.getJSONObject(4), "response_body.id", "provider_metadata"))
         assertTrue(duplicateLastValueWins)
         assertTrue(cases.getJSONObject(5).getJSONArray("locations").toString().contains("unclassified_json"))
-        assertTrue(cases.getJSONObject(6).getJSONArray("whole_body_kinds").length() == 0)
-        assertTrue(cases.getJSONObject(6).getJSONArray("diagnosed_kinds").length() == 0)
-        assertTrue(numericVault.scanLeakKinds(numericToken).isEmpty())
+        assertTrue(cases.getJSONObject(6).getJSONArray("whole_body_shapes").length() == 0)
+        assertTrue(cases.getJSONObject(6).getJSONArray("diagnosed_shapes").length() == 0)
+        assertTrue(numericVault.scanLeakShapes(numericToken).isEmpty())
         assertTrue(hasField(numericPrimitiveCase, "response_body.usage.total_tokens", "provider_metadata"))
         assertTrue(amountGroupingNormalization)
         if (mappedAccountSurface.length == 4) {
@@ -207,7 +206,7 @@ class S813ResponseSerializationDiagnosticInstrumentedTest {
         }
 
     private fun safeCase(name: String, body: String, vault: SensitiveVault): JSONObject {
-        val wholeBodyKinds = vault.scanLeakKinds(body).map { it.name }.sorted()
+        val wholeBodyShapes = vault.scanLeakShapes(body).map { it.wire }.sorted()
         val diagnostics = safeInboundResponseDiagnostics(
             HostedProtocol.OPENAI_CHAT_COMPLETIONS,
             vault,
@@ -215,14 +214,14 @@ class S813ResponseSerializationDiagnosticInstrumentedTest {
         )
         return JSONObject()
             .put("scenario", name)
-            .put("whole_body_kinds", JSONArray(wholeBodyKinds))
-            .put("diagnosed_kinds", JSONArray(diagnostics.kinds))
+            .put("whole_body_shapes", JSONArray(wholeBodyShapes))
+            .put("diagnosed_shapes", JSONArray(diagnostics.shapes))
             .put("locations", JSONArray(diagnostics.locations))
             .put("categories", JSONArray(diagnostics.categories))
             .put("fields", JSONArray().also { fields ->
                 diagnostics.fields.forEach { field ->
                     fields.put(JSONObject()
-                        .put("kind", field.kind)
+                        .put("shape", field.shape)
                         .put("location", field.location)
                         .put("category", field.category))
                 }

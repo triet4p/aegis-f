@@ -1,23 +1,25 @@
 {
-  "schema": "aegis-f-s8-agent-runtime-skills/v3",
-  "contract": "aegis-agent-interface/3",
+  "schema": "aegis-f-s8-agent-runtime-skills/v4",
+  "contract": "aegis-agent-interface/4",
   "skills": [
     {
       "skill_id": "event-reading",
-      "skill_version": 5,
+      "skill_version": 7,
       "trigger": "The user asks to interpret or correct captured occurrences.",
       "tools": ["observe", "select_source", "make_time_anchor", "record_event", "ask_user"],
       "prerequisites": [
         "Trusted host scope grants the capture; the initial observation or observe returns current capture/event aliases and masked source text.",
         "Every reference, view offset and value alias comes from a current observation. Aliases are opaque and are never constructed, reused across runs or parsed.",
-        "Capture-page amount/date/time aliases are display-only. record_event and make_time_anchor accept value aliases issued by select_source for the selected occurrence, or by a clarification linked to that exact subject; a capture-page alias is not occurrence evidence.",
+        "Capture-page value aliases are display-only. record_event and make_time_anchor accept value aliases issued by select_source for the selected occurrence, or by a clarification linked to that exact subject; a capture-page alias is not occurrence evidence.",
+        "A masked value select_source returns in values is present evidence: pass its alias. A value alias is a neutral opaque identity with only a lexical shape hint (numeric, text or alphanumeric); the shape is not a type and never makes a value an amount, a date or an account. Choose the alias whose meaning fits the argument (amount_ref, date_ref, time_ref) and the host parses and validates the underlying value locally for that argument. Never ask the user to repeat, retype or unmask a value the source states; ask only when the required role is genuinely absent or the evidence is genuinely ambiguous.",
+        "A numeric shape is not a role: one sentence can state a price and an account number, both numeric. Choose the value the sentence makes the amount (for example the one after a price or payment word) and do not ask merely because another numeric value exists; clarify only when the role itself is genuinely ambiguous.",
         "A merchant is a source handle, not a value alias and not prose. When the occurrence names its seller or place as the transaction counterparty, select that exact merchant substring with select_source in the same capture and pass the returned source alias as merchant_ref; it must lie inside the recorded occurrence's span. A product, item or activity description is not a merchant. Leave merchant_ref null when the occurrence states no counterparty, or when the candidate wording is uncertain; an absent or uncertain optional merchant is normal, not clarification-required and not a failed reading by itself.",
-        "A date-only anchor is complete without a time. A time needs its grounded date. A relative date needs an exact available DATE alias, otherwise ask for an absolute date.",
+        "A date-only anchor is complete without a time. A time needs its grounded date. A relative date needs a value alias that parses as the date, otherwise ask for an absolute date.",
         "The clarification field names the exact temporal component the source or user leaves unresolved; it is not a prerequisite you inferred. When the source says the clock time is not remembered, the unresolved component is time (clarification time) even though the date is also absent. The summary keeps that same meaning: never restate a missing clock time as a missing date. A supplied time still needs its grounded date before an anchor is stored."
       ],
       "tool_order": [
         "Inspect the authorized capture/current events and identify each distinct source-grounded occurrence; do not manufacture one for a no-match request.",
-        "Select the exact source quote for one occurrence. Use the amount/date/time aliases that select_source returned for that occurrence; when an anchor is needed, build it with make_time_anchor from those grounded aliases. Never pass a capture-page value alias as occurrence evidence.",
+        "Select the exact source quote for one occurrence. Use the value aliases select_source returned for that occurrence, choosing the ones whose meaning fits amount_ref/date_ref/time_ref; when an anchor is needed, build it with make_time_anchor from those grounded aliases. Never pass a capture-page value alias as occurrence evidence.",
         "If that occurrence names its seller or place as the transaction counterparty, select the exact merchant substring from the same capture with select_source and keep its source alias for merchant_ref. Record only a counterparty the selected occurrence explicitly names; never promote its product, item or activity description, never retype, translate or infer a merchant, and never reuse another occurrence's merchant alias.",
         "Decide what is truly unresolved. Null optional merchant, date or time is normal; unresolved does not mean 'not every field is populated'.",
         "Record one atomic reading. For several occurrences, repeat with an independent source alias for each; never reuse another occurrence's values.",
@@ -26,7 +28,7 @@
         "Finish only when each requested event is verified, or report pending clarification, no-match or a partial outcome truthfully."
       ],
       "branches": {
-        "normal": "A complete occurrence uses the source alias and the amount/anchor aliases select_source issued for it (or an anchor make_time_anchor built from those grounded aliases) with clarification none. An explicitly named seller-or-place counterparty is recorded by passing the source alias select_source issued for that exact merchant substring; an occurrence that names no counterparty, or whose candidate wording is uncertain, leaves merchant_ref null with clarification none, and that null is not an error.",
+        "normal": "A complete occurrence uses the source alias and the neutral value aliases select_source issued for it, chosen for amount_ref/date_ref/time_ref (or an anchor make_time_anchor built from those grounded aliases), with clarification none. An explicitly named seller-or-place counterparty is recorded by passing the source alias select_source issued for that exact merchant substring; an occurrence that names no counterparty, or whose candidate wording is uncertain, leaves merchant_ref null with clarification none, and that null is not an error.",
         "clarification": "A grounded but incomplete occurrence is stored with missing values null and the matching clarification field, then followed by one focused ask_user question. The field is the component the source or user actually leaves unresolved: when the clock time is not remembered it is time, even if the date is also ungrounded, and never date in its place. The stored summary preserves that component and meaning.",
         "no_match": "Report that no supported occurrence was found; do not create a reading.",
         "error": "On error, use the actual code, path and constraint. STALE_OBSERVATION means observe and reassess; SOURCE_QUOTE_NOT_FOUND means reselect exact text; MISSING_REQUIRED_MEANING means correct or ask.",
@@ -34,13 +36,13 @@
       },
       "error_recovery": {
         "stale_observation": "Observe the fresh capture, select the current quote and decide again; never force the old reading onto new text.",
-        "reference_kind_mismatch": "Use a value alias of the kind named by the error, issued by select_source for the selected occurrence or by its linked clarification. A capture-page value alias is display-only. For merchant_ref the accepted handle is a source alias for an exact seller-or-place substring named as the counterparty inside the recorded occurrence; a product, item or activity description is never accepted there.",
-        "missing_required_meaning": "Preserve a grounded partial reading and ask for the missing amount, or correct a genuinely wrong selection.",
+        "reference_kind_mismatch": "Use a value alias issued by select_source for the selected occurrence or by its linked clarification, and choose the value that parses for the argument named by the error. A capture-page value alias is display-only. For merchant_ref the accepted handle is a source alias for an exact seller-or-place substring named as the counterparty inside the recorded occurrence; a product, item or activity description is never accepted there.",
+        "missing_required_meaning": "Preserve a grounded partial reading and ask for the genuinely missing amount, or correct a genuinely wrong selection. A value the masked source states and select_source returns as an alias is not missing; pass that alias.",
         "privacy_refusal": "Stop hosted work. Do not retry another spelling, raw value or unmasked fallback."
       },
       "examples": [
         {
-          "given": "observe issues capture alias cap_a for an occurrence whose captured line describes only an activity, an amount and a date, and names no seller or place; its capture-page value aliases are display-only and no event exists yet. select_source on the exact occurrence quote returns src_a together with that occurrence's own amount alias amt_a and its grounded date/time aliases; make_time_anchor on those aliases returns anchor_a.",
+          "given": "observe issues capture alias cap_a for an occurrence whose captured line describes only an activity, an amount and a date, and names no seller or place; its capture-page value aliases are display-only and no event exists yet. select_source on the exact occurrence quote returns src_a together with that occurrence's own neutral value aliases (one chosen as the amount, one as the date/time); make_time_anchor on the temporal ones returns anchor_a.",
           "arguments": {
             "source_ref": "src_a",
             "summary": "Afternoon workbook purchase",
@@ -52,7 +54,7 @@
           "expected": "One verified reading with interpreted status, merchant null and no merchant question. The activity wording stays in the summary; it is never promoted into merchant_ref. The amount and anchor aliases are the ones select_source/the anchor helper issued for src_a, never the capture-page aliases."
         },
         {
-          "given": "select_source on the exact quote 'Harbor-side noodle lunch' returns src_b with no grounded amount alias.",
+          "given": "select_source on the exact quote 'Harbor-side noodle lunch' returns src_b with no value alias whose value parses as an amount.",
           "arguments": {
             "source_ref": "src_b",
             "summary": "Harbor-side noodle lunch",
@@ -64,7 +66,7 @@
           "expected": "One grounded partial reading pending clarification; follow with ask_user about the amount. Never infer zero and never promote the dish wording into merchant_ref."
         },
         {
-          "given": "The selected occurrence explicitly names its seller as the transaction counterparty. select_source on the occurrence quote returns src_c with its amount/date/time aliases, and a second select_source on that exact seller-or-place substring inside the same occurrence returns src_merchant bound to the same capture revision; make_time_anchor from the occurrence aliases returns anchor_c.",
+          "given": "The selected occurrence explicitly names its seller as the transaction counterparty. select_source on the occurrence quote returns src_c with its neutral value aliases, and a second select_source on that exact seller-or-place substring inside the same occurrence returns src_merchant bound to the same capture revision; make_time_anchor from the occurrence aliases returns anchor_c.",
           "arguments": {
             "source_ref": "src_c",
             "summary": "Evening meal",
@@ -76,7 +78,7 @@
           "expected": "One verified reading that stores the explicitly named counterparty, with interpreted status and no ledger row. merchant_ref is the source alias for that exact seller-or-place substring, never retyped merchant prose, and the extra selection creates no second event."
         },
         {
-          "given": "The captured line mentions a possible place word, but the wording is uncertain about whether it is the seller or only describes the item. select_source on the exact occurrence quote returns src_d with its amount/date/time aliases; make_time_anchor from the occurrence aliases returns anchor_d.",
+          "given": "The captured line mentions a possible place word, but the wording is uncertain about whether it is the seller or only describes the item. select_source on the exact occurrence quote returns src_d with its neutral value aliases; make_time_anchor from the occurrence aliases returns anchor_d.",
           "arguments": {
             "source_ref": "src_d",
             "summary": "Morning pastry purchase",
@@ -88,7 +90,7 @@
           "expected": "One verified reading with interpreted status and merchant null. An uncertain candidate is left null rather than guessed; absence or uncertainty of the optional merchant alone is neither clarification-required nor a failed reading."
         },
         {
-          "given": "The captured line states an amount and that the clock time cannot be recalled, and gives no date. select_source on the exact occurrence quote returns src_e with its amount alias only; no date or time alias is grounded.",
+          "given": "The captured line states an amount and that the clock time cannot be recalled, and gives no date. select_source on the exact occurrence quote returns src_e with its neutral value aliases; only the value that parses as the amount is present, and no date or time value is grounded.",
           "arguments": {
             "source_ref": "src_e",
             "summary": "Bus fare; clock time not remembered",

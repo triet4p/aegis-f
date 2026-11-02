@@ -231,14 +231,8 @@ internal class S813DebugCapture private constructor(
     }
 
     private fun syntheticValueOf(token: String, vault: SensitiveVault): String? = runCatching {
-        when {
-            token.startsWith("⟦AMT-") -> vault.rehydrateAmount(token).toString()
-            token.startsWith("⟦DATE-") -> vault.rehydrateDate(token)
-            token.startsWith("⟦TIME-") -> vault.rehydrateTime(token)
-            token.startsWith("⟦ACCT-") -> vault.rehydrateAccount(token)
-            token.startsWith("⟦BANK-") -> vault.rehydrateBank(token)
-            else -> null
-        }
+        val amount = runCatching { vault.parseAmount(token) }.getOrNull()
+        amount?.toString() ?: vault.rehydrateValue(token)
     }.getOrNull()
 
     private fun assistantMessageOf(protocol: String, body: String): JSONObject? = runCatching {

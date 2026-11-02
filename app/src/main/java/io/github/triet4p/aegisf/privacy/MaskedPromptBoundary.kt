@@ -98,7 +98,8 @@ class MaskedPromptBoundary(val vault: SensitiveVault) {
         TOKEN_LIKE_PATTERN.find(knownStripped)?.let {
             return InboundScan.Refused(InboundRefusal.UNKNOWN_TOKEN)
         }
-        if (vault.scanLeak(text)) return InboundScan.Refused(InboundRefusal.RAW_LITERAL_EGRESS)
+        val leaked = vault.scanLeak(text)
+        if (leaked) return InboundScan.Refused(InboundRefusal.RAW_LITERAL_EGRESS)
         return InboundScan.Accepted
     }
 
@@ -372,6 +373,23 @@ class MaskedPromptBoundary(val vault: SensitiveVault) {
                 // shape or a sensitive-looking value inside it is never displayed, rehydrated
                 // or treated as authority, so it cannot refuse the response by itself.
                 if (!nodeChannel.guarded) return null
+                // A documented nested provider-assigned identifier is metadata, not content.
+                // The id the next turn must echo can legitimately embed a short mapped surface
+                // inside a longer opaque value; the exemption is path- and schema-bound (never a
+                // general "looks like an identifier" heuristic), and an id that is itself the
+                // mapped value is still scanned and refused.
+                if (token == JsonToken.STRING &&
+                    HostedUsageContract.isNestedProviderIdPath(protocol, semanticPath) &&
+                    HostedUsageContract.isOpaqueProviderId(text) &&
+                    !vault.isMappedValueExact(text)
+                ) {
+                    validatedMetadata += HostedResponseValidatedMetadata(
+                        kind = HostedResponseMetadataKind.PROVIDER_ID,
+                        safeLocation = safeResponseJsonLocation(safePath),
+                        nodeType = nodeType,
+                    )
+                    return null
+                }
                 if (rootMetadata != null) {
                     when (metadataVerdict(rootMetadata, token, text, policy)) {
                         MetadataVerdict.EXEMPT -> {
@@ -419,11 +437,11 @@ class MaskedPromptBoundary(val vault: SensitiveVault) {
                 }
                 if (counterPath && token == JsonToken.NUMBER) {
                     if (HostedUsageContract.isNonnegativeIntegerNumber(text)) {
-                        vault.scanLeakKinds(text)
-                            .sortedBy { it.name }
-                            .forEach { kind ->
+                        vault.scanLeakShapes(text)
+                            .sortedBy { it.wire }
+                            .forEach { shape ->
                                 recognizedCounters += HostedResponseRecognizedCounter(
-                                    sensitiveKind = kind.name,
+                                    sensitiveShape = shape.wire,
                                     safeLocation = safeResponseJsonLocation(safePath),
                                 )
                             }
@@ -529,15 +547,15 @@ class MaskedPromptBoundary(val vault: SensitiveVault) {
             InboundRefusal.RAW_LITERAL_EGRESS ->
                 HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH
         }
-        val sensitiveKind = if (reason == HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH) {
-            vault.scanLeakKinds(text).minByOrNull { it.name }?.name
+        val sensitiveShape = if (reason == HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH) {
+            vault.scanLeakShapes(text).minByOrNull { it.wire }?.wire
         } else {
             null
         }
         return HostedResponsePrivacyResult.Refused(
             HostedResponsePrivacyRefusal(
                 reason = reason,
-                sensitiveKind = sensitiveKind,
+                sensitiveShape = sensitiveShape,
                 safeLocation = safeResponseJsonLocation(path, suffix),
                 nodeType = nodeType,
                 knownOtherProtocol = knownOtherProtocol,
@@ -553,7 +571,7 @@ class MaskedPromptBoundary(val vault: SensitiveVault) {
     ) = HostedResponsePrivacyResult.Refused(
         HostedResponsePrivacyRefusal(
             reason = reason,
-            sensitiveKind = null,
+            sensitiveShape = null,
             safeLocation = safeResponseJsonLocation(path, suffix),
             nodeType = nodeType,
         ),
@@ -879,7 +897,7 @@ private fun collectReasoningContainers(
 }
 
 private val TOKEN_LIKE_PATTERN = Regex("⟦[^\\s⟦⟧]{1,64}⟧")
-private val FOREIGN_TOKEN_PATTERN = Regex("⟦(?:AMT|DATE|TIME|ACCT|BANK)-[A-Za-z0-9]{4,12}-\\d{4}⟧")
+private val FOREIGN_TOKEN_PATTERN = Regex("⟦V-[A-Za-z0-9]{4,12}-\\d{4}⟧")
 private const val MAX_RESPONSE_JSON_DEPTH = 64
 private val SAFE_RESPONSE_JSON_PATH_SEGMENTS = setOf(
     "choices", "message", "content", "reasoning_content", "reasoning",
@@ -1048,18 +1066,18 @@ object MaskedApplicationEffect {
         }
         verifySpanAlignment(vault, captureText, spanStart, spanEnd, maskedSpanText)
         val amount = masked.amountToken?.let { token ->
-            withSensitiveTokenField("interpretation.amountVnd", "AMT") {
-                vault.rehydrateAmount(token)
+            withSensitiveTokenField("interpretation.amountVnd", "value") {
+                vault.parseAmount(token)
             }
         }
         val date = masked.dateToken?.let { token ->
-            withSensitiveTokenField("interpretation.timeAnchor.date", "DATE") {
-                vault.rehydrateDate(token)
+            withSensitiveTokenField("interpretation.timeAnchor.date", "value") {
+                vault.parseDate(token)
             }
         }
         val time = masked.timeToken?.let { token ->
-            withSensitiveTokenField("interpretation.timeAnchor.time", "TIME") {
-                vault.rehydrateTime(token)
+            withSensitiveTokenField("interpretation.timeAnchor.time", "value") {
+                vault.parseTime(token)
             }
         }
         return NoteEventInterpretation(

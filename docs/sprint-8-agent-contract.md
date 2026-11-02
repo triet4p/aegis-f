@@ -188,17 +188,30 @@ The boundary MUST:
   `VndMoney` parsing/addition, no rounding or currency conversion), **dates/times**
   (`YYYY-MM-DD` / `HH:mm`, trusted host timezone only when a start time is stated,
   relative-date resolution only from an explicit user/trusted reference with an available
-  same-session DATE token; otherwise clarify, and no timezone on a date-only anchor),
-  **source spans** (exact offsets into stored text),
+  same-session date-shaped token; otherwise clarify, and no timezone on a date-only
+  anchor), **source spans** (exact offsets into stored text),
   and the relations the workflow needs (equality, ordering, relative-time ordering).
   Tokenization that destroys those relationships is not an acceptable implementation.
+- **Opaque value identity, not literal-type identity.** Every detected value is masked as
+  one opaque, collision-safe token per value. Canonicalization, grouping, locale and
+  pattern detection vary by field role (amount, date, time, account/reference, bank code),
+  but the token itself carries no role. The host chooses the role by the *argument a value
+  is passed to* and validates it there against the current protocol (whole-dong integer for
+  amounts, `YYYY-MM-DD`/`HH:mm` or a trusted relative anchor for date/time); the same token
+  may also be used for any other argument whose role it satisfies (e.g. a card-like
+  reference passed as an amount, or a bare year passed as a date). A shape check may decide
+  which argument token to offer where a role is genuinely ambiguous (only a date-shaped token
+  is offered as a date argument, only a time-shaped token as a time argument), but it never
+  converts or overrides the locally supplied value. The model is never asked to reveal or
+  re-enter a value merely because the role is masked.
 - Preserve necessary relations in masked form (equal values mask equally within scope;
   ordering/relative-time relationships stay decidable where the workflow needs them)
   without leaking the underlying values.
 - Rehydrate validated values **locally** before invoking typed application commands;
   never accept arbitrary model text as a mapping key or authority. Inbound token
   references are validated against the scoped mapping; unknown tokens are refused, not
-  guessed.
+  guessed. A value arriving before the masking layer sees it is folded into its existing
+  token (same value → same token) so identity and role stay stable across the turn.
 - Scope the inbound guard to the channels that can leak or act: the model's user-visible
   answer is checked before publication and its tool-call arguments before dispatch.
   Provider reasoning/thinking is not guard input — it is never displayed, rehydrated or
@@ -207,10 +220,16 @@ The boundary MUST:
   the protocol's own continuation items carries no plaintext reasoning (opaque pairing
   state — Gemini `thoughtSignature`, Responses `encrypted_content` — stays; `thought`
   text and Responses `summary`/`content` are dropped), so no raw literal inside reasoning
-  rides the next request. Every model turn carries the run's complete issued-token
-  inventory (opaque tokens and kinds only, never raw values or mappings), rendered after
-  new observations, clarification, compaction and repair, so a value absent from the list
-  is unauthorized.
+  rides the next request. The decoded response scan exempts exactly one kind of nested
+  identifier — the documented provider-assigned tool-call id fields (Chat Completions
+  `choices[].message.tool_calls[].id`; Responses `output[].id` / `output[].call_id`) — after
+  validating the documented opaque-id shape and never when the identifier is itself a mapped
+  value. There is no general "looks like an identifier" allowance: `10000VND`, `10000k`,
+  `acc12345678` and every other glued content value remain leaks. Every model turn carries the run's complete issued-token
+  inventory (opaque tokens, lexical shape and display only, never raw values or mappings),
+  rendered after new observations, clarification, compaction and repair, so a value absent
+  from the list is unauthorized. A role mismatch is a field error the model repairs from
+  authoritative observations; it is never treated as a missing value.
 - Exclude credentials and vault mappings from logs/history/export in every case. The local
   production trace (`agent_trace_events`) is the owner-approved exception for transient
   reasoning and protocol continuation data: it retains the complete provider
@@ -228,8 +247,8 @@ equality/ordering/relative-time relations survive; unknown tokens and mapping fa
 are refused; rehydrated commands carry exact integer VND, dates/times and spans.
 
 Allowed tools for the agent (closed set): the eleven task-relevant operations declared by
-`tools/slm/s8_agent_tools_v3.json` (`aegis-f-s8-agent-tools/v3`, contract
-`aegis-agent-interface/3`) — `observe`, `select_source`, `list_drafts`, `make_time_anchor`,
+`tools/slm/s8_agent_tools_v4.json` (`aegis-f-s8-agent-tools/v4`, contract
+`aegis-agent-interface/4`) — `observe`, `select_source`, `list_drafts`, `make_time_anchor`,
 `record_event`, `inspect_link`, `propose_link`, `attach_link`, `classify_draft`,
 `replay_operation`, and `ask_user`. Only the subset the host-selected skills require is
 loaded for a run; an unloaded tool is neither offered nor executable. Model arguments are

@@ -410,6 +410,13 @@ data class HostedTurn(
     val usage: HostedUsage?,
     /** Present only when the turn asks for tool results and can therefore continue. */
     val conversation: HostedConversation?,
+    /**
+     * The canonical response body a streamed turn was assembled into, for the local production
+     * trace only. It is the provider's own delta content in the protocol's ordinary response shape:
+     * it is never displayed, rehydrated, exported or read as authority, and a complete-body turn
+     * leaves it null because the transport already recorded the exact body.
+     */
+    val assembledResponseBody: String? = null,
 )
 
 /**
@@ -439,15 +446,24 @@ enum class HostedResponsePrivacyRefusalReason {
          * v2 splits the former coarse token category into the precise [UNKNOWN_TOKEN] and
          * [FOREIGN_TOKEN] reasons. No live producer emits the retired coarse name; retained
          * pre-v2 artifacts are read by their own historical evidence contract, never rewritten.
+         *
+         * v3 replaces the semantic `sensitiveKind` diagnostic with `sensitiveShape`, the lexical
+         * shape hint (`numeric`/`text`/`alphanumeric`) of the matched value. Tokens are neutral
+         * identities now, so no refusal can claim a semantic kind.
          */
-        const val CONTRACT_VERSION = "aegis-response-refusal/v2"
+        const val CONTRACT_VERSION = "aegis-response-refusal/v3"
     }
 }
 
 /** Value-free response refusal metadata; locations are produced only from the boundary allowlist. */
 data class HostedResponsePrivacyRefusal(
     val reason: HostedResponsePrivacyRefusalReason,
-    val sensitiveKind: String?,
+    /**
+     * The lexical shape hint of the matched value, when one hit: `numeric`, `text` or
+     * `alphanumeric`. It is never a semantic type and never authority; null when the refusal
+     * concerned a token shape rather than a raw value.
+     */
+    val sensitiveShape: String?,
     val safeLocation: String,
     val nodeType: String,
     val recognizedCounter: Boolean = false,
@@ -455,7 +471,8 @@ data class HostedResponsePrivacyRefusal(
 )
 
 data class HostedResponseRecognizedCounter(
-    val sensitiveKind: String,
+    /** The lexical shape hint of the recognized value, never a semantic kind. */
+    val sensitiveShape: String,
     val safeLocation: String,
     val nodeType: String = "NUMBER",
     val recognizedCounter: Boolean = true,
@@ -585,6 +602,30 @@ interface HostedGenerationAdapter {
     val protocol: HostedProtocol
 
     /**
+     * Whether this adapter's validated configuration can stream public progress. False is an
+     * honest capability statement, not a fallback: a caller that requested streaming must
+     * report the limitation instead of simulating typed text.
+     */
+    val streamingEnabled: Boolean get() = false
+
+    /**
+     * Generates one turn and reports incremental public progress.
+     *
+     * The adapter owns protocol event parsing and delta assembly; [onProgress] receives only
+     * already-classified progress (never private reasoning, never partial tool arguments). The
+     * returned turn is assembled exactly like a complete-body turn, and a turn assembled from
+     * a stream carries [HostedTurn.assembledResponseBody] for the local trace. The default
+     * implementation performs no streaming at all, so an adapter that has not implemented the
+     * protocol's delta grammar cannot pretend to stream.
+     */
+    suspend fun streamGuarded(
+        conversation: HostedConversation,
+        tools: List<HostedToolDeclaration>,
+        responseGuard: HostedResponsePrivacyGuard,
+        onProgress: (HostedTurnProgress) -> Unit,
+    ): HostedGenerationResult = generateGuarded(conversation, tools, responseGuard)
+
+    /**
      * The value-free provider identity (protocol/host/model/frozen budget) of this
      * adapter's validated configuration, for one run's stable cache key. Null when
      * the adapter cannot attribute its configuration; the run then reports usage
@@ -671,10 +712,17 @@ interface HostedGenerationAdapter {
 
 /** Creates the adapter for the configured protocol; there is no fallback between protocols. */
 object HostedAdapters {
-    fun create(config: HostedProviderConfig, transport: HttpTransport): HostedGenerationAdapter =
-        when (config.protocol) {
-            HostedProtocol.GEMINI_GENERATE_CONTENT -> GeminiGenerateContentAdapter(config, transport)
-            HostedProtocol.OPENAI_CHAT_COMPLETIONS -> OpenAiChatCompletionsAdapter(config, transport)
-            HostedProtocol.OPENAI_RESPONSES -> OpenAiResponsesAdapter(config, transport)
+    fun create(config: HostedProviderConfig, transport: HttpTransport): HostedGenerationAdapter {
+        val streaming = transport as? HttpStreamTransport
+        return when (config.protocol) {
+            HostedProtocol.GEMINI_GENERATE_CONTENT ->
+                GeminiGenerateContentAdapter(config, transport, streaming)
+
+            HostedProtocol.OPENAI_CHAT_COMPLETIONS ->
+                OpenAiChatCompletionsAdapter(config, transport, streaming)
+
+            HostedProtocol.OPENAI_RESPONSES ->
+                OpenAiResponsesAdapter(config, transport, streaming)
         }
+    }
 }

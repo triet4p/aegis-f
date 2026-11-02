@@ -55,11 +55,21 @@ object AgentContextManager {
      * field names the component the source or user actually leaves unresolved (a missing clock
      * time is time, not date), and a row is named to the user with the application's own
      * user_label from the observation that binds it.
+     *
+     * v8 states the masked-evidence invariant that follows the owner-reported failure: a value
+     * the source states and the host displays as a mask is present evidence, so its issued
+     * value reference is used instead of asking the user to repeat it. A clarification is for a
+     * genuinely unresolved or ambiguous fact, never for a value the boundary merely masked.
+     *
+     * v9 records the owner-approved neutral identity: a masked value is one opaque identity with
+     * a lexical shape hint (numeric/text/alphanumeric), never a semantic kind. The shape cannot
+     * authorize a field; the model chooses the meaning by passing the value alias to a
+     * role-specific argument, and the host parses/validates it locally for that argument.
      */
-    const val CONTEXT_BLOCK_VERSION = "s8-agent-context/v7"
+    const val CONTEXT_BLOCK_VERSION = "s8-agent-context/v9"
 
-    /** Version of the host-authored issued-token inventory; wording changes mint a new one. */
-    const val TOKEN_INVENTORY_VERSION = "s8-agent-token-inventory/v1"
+    /** Version of the host-authored issued-token inventory; wording/shape changes mint a new one. */
+    const val TOKEN_INVENTORY_VERSION = "s8-agent-token-inventory/v2"
 
     /** Version of the tool-schema material included in the stable cache identity. */
     const val TOOL_SCHEMA_VERSION = AgentInterface.TOOL_SCHEMA
@@ -82,12 +92,12 @@ object AgentContextManager {
         appendLine("by scope/revision in this run; summaries never authorize state or effects.")
         appendLine("privacy_rule: the stable prefix carries versioned instructions and tool/skill")
         appendLine("schemas only — never raw values, mappings, keys, or credentials.")
-        appendLine("token_syntax_rule: bracket-delimited masked values may be written only as an exact")
-        appendLine("copy of one complete token listed in this turn's issued-token inventory. Never")
-        appendLine("abbreviate, reformat, renumber, guess or invent one, or copy a value from another")
-        appendLine("run; when no listed value fits, refer to the value by its alias or in plain words.")
-        appendLine("token_inventory_rule: the host appends this run's complete issued-token list to every")
-        appendLine("turn. That list is authoritative: an unlisted bracket-delimited value was never issued.")
+        appendLine("token_syntax_rule: copy a masked value only as one complete listed token; never")
+        appendLine("abbreviate, reformat, renumber, invent or copy a value from another run.")
+        appendLine("token_inventory_rule: every turn carries this run's complete issued-token list; it is")
+        appendLine("authoritative, so an unlisted bracket-delimited value was never issued.")
+        appendLine("value_identity_rule: a masked value is one opaque identity with a lexical shape hint,")
+        appendLine("not a type; pass it to the argument whose meaning fits and the host parses it locally.")
 
         appendLine("reference_rule: references are opaque host-issued aliases bound to one observation's revisions; never parse, construct or reuse one across runs, and re-observe instead of refreshing a stale binding.")
         appendLine("mutation_identity_rule: mutation identities and the recorded operation receipt are host-owned; never supply or request one.")
@@ -99,15 +109,18 @@ object AgentContextManager {
     /**
      * The authoritative issued-token inventory for one turn.
      *
-     * It lists every token this run has issued, in mint order, with the kind of value each one
-     * stands for — never the underlying value, never a rehydration hint, and never a token from
-     * another run. The list is complete: it is never filtered, reordered or truncated, so an
-     * absent entry always means "not issued" rather than "omitted for space". The executor
-     * appends it as the last dynamic prompt element of every turn (initial, clarification,
-     * compaction, tool-result continuation and masking repair); the stable versioned prefix
-     * stays byte-identical, so provider prefix caching is unaffected. A run whose inventory
-     * cannot fit its declared context bound stops with `CONTEXT_BUDGET` instead of dropping
-     * entries.
+     * It lists every token this run has issued, in mint order, with only the *lexical shape*
+     * of the value each one stands for — numeric, text or alphanumeric. The shape is a hint
+     * about how the characters are written, never a type: it never makes a value an amount, a
+     * date or an account, and it is never used as an eligibility gate. The model chooses the
+     * meaning by passing the value alias to a role-specific tool argument; the host parses and
+     * validates it locally for that argument. The list is complete: it is never filtered,
+     * reordered or truncated, so an absent entry always means "not issued" rather than
+     * "omitted for space". The executor appends it as the last dynamic prompt element of every
+     * turn (initial, clarification, compaction, tool-result continuation and masking repair);
+     * the stable versioned prefix stays byte-identical, so provider prefix caching is
+     * unaffected. A run whose inventory cannot fit its declared context bound stops with
+     * `CONTEXT_BUDGET` instead of dropping entries.
      */
     fun tokenInventoryBlock(tokens: List<IssuedMaskToken>): String = buildString {
         append("issued_mask_token_inventory (").append(TOKEN_INVENTORY_VERSION)
@@ -117,13 +130,14 @@ object AgentContextManager {
             appendLine("- none: no masked value has been issued yet; use plain words until an observation shows one.")
         } else {
             tokens.forEach { token ->
-                append("- ").append(token.token).append(" kind=").appendLine(token.kind.name)
+                append("- ").append(token.token).append(" shape=").appendLine(token.shape.wire)
             }
         }
         append(
             "This list is authoritative and complete. Use a listed token only as an exact " +
                 "complete copy; never abbreviate, reformat, renumber, invent or reuse a value " +
-                "from another run, and never treat an unlisted value as issued.",
+                "from another run, and never treat an unlisted value as issued. The shape hint " +
+                "describes characters only: choose the value whose meaning fits the argument.",
         )
     }
 

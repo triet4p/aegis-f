@@ -217,14 +217,21 @@ class MaskedBoundaryTest {
         val amountToken = vault.maskText("28,000 VND")
         val dateToken = vault.maskText("2026-10-21")
         // Unknown token: well-formed shape, never minted here.
-        assertTrue(boundary.scanInbound("⟦AMT-${vault.scopeTag}-9999⟧") is InboundScan.Refused)
+        assertTrue(boundary.scanInbound("⟦V-${vault.scopeTag}-9999⟧") is InboundScan.Refused)
         // Cross-session token minted for the same raw value elsewhere.
         val foreignToken = foreign.maskOutbound("28,000 VND", MaskedPath.CONTEXT)
         assertTrue(boundary.scanInbound(foreignToken) is InboundScan.Refused)
-        // Swapped: an amount token is not valid for an account field.
+        // A value is not privileged by its spelling: the same neutral token can be offered for
+        // an amount, but the host refuses it for an argument its value cannot parse.
         try {
-            vault.rehydrateAccount(amountToken)
-            fail("expected a swapped token to be refused")
+            vault.parseTime(amountToken)
+            fail("expected a value that is not a wall-clock time to be refused")
+        } catch (expected: TokenValidationException) {
+            assertTrue(expected.message.orEmpty().isNotBlank())
+        }
+        try {
+            vault.parseAmount(dateToken)
+            fail("expected a date value to be refused as a whole-dong amount")
         } catch (expected: TokenValidationException) {
             assertTrue(expected.message.orEmpty().isNotBlank())
         }
@@ -244,12 +251,12 @@ class MaskedBoundaryTest {
         val boundary = MaskedPromptBoundary(vault)
         val before = vault.entryCount()
         for (adversarial in listOf(
-            "⟦AMT-other-scope-0001⟧",
-            "⟦AMT-${vault.scopeTag}-9999⟧",
-            "⟦AMT-${vault.scopeTag}-12⟧",
+            "⟦V-other-scope-0001⟧",
+            "⟦V-${vault.scopeTag}-9999⟧",
+            "⟦V-${vault.scopeTag}-12⟧",
             "⟦EVIL-${vault.scopeTag}-0001⟧",
             "⟦UNMAPPED⟧",
-            "⟦AMT-${vault.scopeTag}-0001⟧ extra ⟦AMT-${vault.scopeTag}-0001⟧",
+            "⟦V-${vault.scopeTag}-0001⟧ extra ⟦V-${vault.scopeTag}-0001⟧",
         )) {
             assertTrue(
                 "adversarial '$adversarial' must be refused",
@@ -286,7 +293,7 @@ class MaskedBoundaryTest {
         val mutated = amountToken.dropLast(2) + mutatedDigit + "⟧"
         for (reasoning in listOf(
             "I will reuse $mutated for the amount.",
-            "Placeholder ⟦AMT-demo-1⟧ stands for the amount.",
+            "Placeholder ⟦V-demo-0001⟧ stands for the amount.",
             "The syntax is ⟦token⟧ and ⟦UNMAPPED⟧ in this interface.",
             "A cross-session value like $foreignToken must never appear.",
             "The raw amount is 28,000 VND and the account is 4821.",
@@ -302,7 +309,7 @@ class MaskedBoundaryTest {
         )
         assertResponseRefused(
             boundary,
-            chatBody("thinking", answer = "Placeholder ⟦AMT-demo-1⟧ stands for the amount."),
+            chatBody("thinking", answer = "Placeholder ⟦V-demo⟧ stands for the amount."),
             HostedResponsePrivacyRefusalReason.UNKNOWN_TOKEN,
         )
         assertResponseRefused(
@@ -349,7 +356,7 @@ class MaskedBoundaryTest {
                 captureText = "Lunch 99,999 VND at noon.",
                 spanStart = 6,
                 spanEnd = 20,
-                maskedSpanText = "Lunch ⟦AMT-${vault.scopeTag}-0099⟧ at noon.",
+                maskedSpanText = "Lunch ⟦V-${vault.scopeTag}-0099⟧ at noon.",
                 masked = MaskedInterpretation(
                     normalizedText = "Lunch",
                     amountToken = null,
@@ -402,9 +409,7 @@ class MaskedBoundaryTest {
             assertTrue(failure is HostedProviderFailure.PrivacyBlocked)
             val refusal = (failure as HostedProviderFailure.PrivacyBlocked).refusal
             assertEquals(HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH, refusal.reason)
-            assertTrue(refusal.sensitiveKind == "AMOUNT" || refusal.sensitiveKind == "DATE" ||
-                refusal.sensitiveKind == "TIME" || refusal.sensitiveKind == "ACCOUNT" ||
-                refusal.sensitiveKind == "BANK")
+            assertTrue(refusal.sensitiveShape == "numeric")
             assertTrue(refusal.safeLocation.startsWith("response_body"))
             assertFalse(rawSource in refusal.safeLocation)
             assertEquals(1, transport.requests.size)
@@ -436,7 +441,7 @@ class MaskedBoundaryTest {
 
         // Invented, foreign and raw-looking notation in the provider's own thinking parses.
         val acceptedTransport = RecordingTransport(
-            ProviderFixtures.reply(body("I will reuse ⟦AMT-ab-1234⟧ and pay 28,000 VND.")),
+            ProviderFixtures.reply(body("I will reuse ⟦V-ab-1234⟧ and pay 28,000 VND.")),
         )
         val acceptedGateway = gateway(acceptedTransport)
         val turn = ProviderFixtures.turn(
@@ -454,7 +459,7 @@ class MaskedBoundaryTest {
 
         // The same forged token in the final answer is refused before publication.
         val refusedTransport = RecordingTransport(
-            ProviderFixtures.reply(body("thinking", "I will reuse ⟦AMT-ab-1234⟧ for the amount.")),
+            ProviderFixtures.reply(body("thinking", "I will reuse ⟦V-ab-1234⟧ for the amount.")),
         )
         val refusedGateway = gateway(refusedTransport)
         val refused = refusedGateway.generate(
@@ -527,6 +532,49 @@ class MaskedBoundaryTest {
                 assertEquals(1, transport.requests.size)
             }
         }
+    }
+
+    @Test
+    fun `only documented provider id fields exempt an opaque identifier from the decoded scan`() {
+        val vault = SensitiveVault("pt2-provider-id-exemption")
+        vault.maskText("giá 10000 lúc 10h-11h")
+        val boundary = MaskedPromptBoundary(vault)
+
+        // A provider-assigned Chat Completions tool-call id may embed a short mapped surface
+        // (`11h`) inside a longer opaque identifier; that field is protocol metadata.
+        assertResponseAccepted(
+            boundary,
+            """{"choices":[{"message":{"tool_calls":[{"id":"call_00_f345vxh2eznfxf3sk11h6ax0","type":"function","function":{"name":"observe","arguments":"{}"}}]}}]}""",
+        )
+        // The same string outside the documented tool-call id path is content and is refused.
+        assertResponseRefused(
+            boundary,
+            """{"data":{"id":"call_00_f345vxh2eznfxf3sk11h6ax0"}}""",
+            HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH,
+        )
+        // A documented tool-call id that is itself the mapped value is still refused.
+        assertResponseRefused(
+            boundary,
+            """{"choices":[{"message":{"tool_calls":[{"id":"10000","type":"function","function":{"name":"observe","arguments":"{}"}}]}}]}""",
+            HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH,
+        )
+        // Glued content leaks are still refused: the exemption is not a general boundary rule.
+        assertResponseRefused(
+            boundary,
+            """{"choices":[{"message":{"content":"It cost 10000VND"}}]}""",
+            HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH,
+        )
+        assertResponseRefused(
+            boundary,
+            """{"choices":[{"message":{"content":"10000k"}}]}""",
+            HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH,
+        )
+        // Responses function-call ids follow the same narrow policy; Gemini has no such field.
+        assertResponseAccepted(
+            boundary,
+            """{"output":[{"type":"function_call","id":"item_00_f345vxh2eznfxf3sk11h6ax0","call_id":"call_11h","name":"observe","arguments":"{}"}]}""",
+            protocol = HostedProtocol.OPENAI_RESPONSES,
+        )
     }
 
     @Test
@@ -622,7 +670,7 @@ class MaskedBoundaryTest {
         assertEquals(HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH, nonGo.reason)
         assertEquals("response_body.usage.opencode.allowance", nonGo.safeLocation)
         assertEquals("NUMBER", nonGo.nodeType)
-        assertEquals("ACCOUNT", nonGo.sensitiveKind)
+        assertEquals("numeric", nonGo.sensitiveShape)
 
         val malformedBodies = listOf(
             """{"id":7319}""",
@@ -854,7 +902,7 @@ class MaskedBoundaryTest {
         assertResponseAccepted(boundary, """{"flag":true,"nothing":null}""")
         assertResponseRefused(
             boundary,
-            """{"token":"⟦ACCT-OTHER1234-9999⟧"}""",
+            """{"token":"⟦V-OTHER1234-9999⟧"}""",
             HostedResponsePrivacyRefusalReason.FOREIGN_TOKEN,
         )
         assertResponseRefused(
@@ -868,7 +916,7 @@ class MaskedBoundaryTest {
             """{"choices":[{"message":{"content":"account ending 7319"}}]}""",
         )
         assertEquals(HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH, contentRefusal.reason)
-        assertEquals("ACCOUNT", contentRefusal.sensitiveKind)
+        assertEquals("numeric", contentRefusal.sensitiveShape)
         assertEquals("response_body.choices[].message.content", contentRefusal.safeLocation)
         assertResponseRefused(
             boundary,
@@ -882,7 +930,7 @@ class MaskedBoundaryTest {
         val knownMatch =
             (knownCounter as HostedResponsePrivacyResult.AcceptedWithValidatedCounters).matches.single()
         assertEquals(
-            HostedResponseRecognizedCounter("ACCOUNT", "response_body.usage.total_tokens"),
+            HostedResponseRecognizedCounter("numeric", "response_body.usage.total_tokens"),
             knownMatch,
         )
         val unknownUsageRefusal = responseRefusal(boundary, """{"usage":{"unlisted":7319}}""")
@@ -927,7 +975,7 @@ class MaskedBoundaryTest {
         )
         val keyRefusal = responseRefusal(boundary, """{"7319":"safe"}""")
         assertEquals(HostedResponsePrivacyRefusalReason.DECODED_SENSITIVE_MATCH, keyRefusal.reason)
-        assertEquals("ACCOUNT", keyRefusal.sensitiveKind)
+        assertEquals("numeric", keyRefusal.sensitiveShape)
         assertEquals("response_body.field_name", keyRefusal.safeLocation)
         assertResponseRefused(
             boundary,
@@ -1007,7 +1055,7 @@ class MaskedBoundaryTest {
             val matches = (result as HostedResponsePrivacyResult.AcceptedWithValidatedCounters).matches
             assertEquals(expectedPaths, matches.map { it.safeLocation }.toSet())
             assertTrue(matches.all {
-                it.sensitiveKind == "ACCOUNT" && it.nodeType == "NUMBER" && it.recognizedCounter &&
+                it.sensitiveShape == "numeric" && it.nodeType == "NUMBER" && it.recognizedCounter &&
                     !it.knownOtherProtocol
             })
         }
@@ -1283,7 +1331,7 @@ class MaskedBoundaryTest {
         val vault = SensitiveVault("s8.13-channel-boundary")
         vault.maskText(raw)
         val boundary = MaskedPromptBoundary(vault)
-        val forged = "⟦AMT-ab-1234⟧"
+        val forged = "⟦V-ab-1234⟧"
         val issued = vault.maskText("15,000,000 VND").substringBefore(' ')
 
         for (protocol in io.github.triet4p.aegisf.provider.HostedProtocol.values()) {
@@ -1326,7 +1374,7 @@ class MaskedBoundaryTest {
 
     @Test
     fun `real adapters accept invented reasoning and block the same answer or arguments`() = runBlocking {
-        val forged = "⟦AMT-ab-1234⟧"
+        val forged = "⟦V-ab-1234⟧"
         for (protocol in io.github.triet4p.aegisf.provider.HostedProtocol.values()) {
             val acceptedTransport = RecordingTransport(
                 ProviderFixtures.reply(channelBody(protocol, forged, Channel.REASONING)),
@@ -1473,7 +1521,7 @@ class MaskedBoundaryTest {
         assertEquals(listOf("call_1"), mixedTurn.toolCalls.map { it.callId })
         assertTrue(mixedTurn.toolCalls.single().dispatchable)
 
-        val guardedBody = channelBody(protocol, "reasoning-like args ⟦AMT-ab-1234⟧", Channel.ARGUMENTS)
+        val guardedBody = channelBody(protocol, "reasoning-like args ⟦V-ab-1234⟧", Channel.ARGUMENTS)
         val guardedTransport = RecordingTransport(ProviderFixtures.reply(guardedBody))
         val guardedGateway = gatewayOf("s8.13-thought-args-guarded", guardedTransport, protocol)
         val failure = ProviderFixtures.failure(
@@ -1784,8 +1832,8 @@ class MaskedBoundaryTest {
             assertEquals(1, harness.database.workflowOperationDao().countOf("UPDATE_EVENT"))
             assertEquals(0, harness.database.transactionDao().findAll().size)
             // Rehydrated tokens are local authority: the same tokens decode to exact values.
-            assertEquals(15_000_000L, gateway.boundary.vault.rehydrateAmount(amountToken))
-            assertEquals("2026-10-25", gateway.boundary.vault.rehydrateDate(dateToken))
+            assertEquals(15_000_000L, gateway.boundary.vault.parseAmount(amountToken))
+            assertEquals("2026-10-25", gateway.boundary.vault.parseDate(dateToken))
         }
     }
 
@@ -1822,7 +1870,7 @@ class MaskedBoundaryTest {
                 assertTrue(expected.message.orEmpty().isNotBlank())
             }
             try {
-                vault.rehydrateAmount(foreign)
+                vault.parseAmount(foreign)
                 fail("expected a cross-session token to be refused")
             } catch (expected: TokenValidationException) {
                 assertTrue(expected.message.orEmpty().isNotBlank())

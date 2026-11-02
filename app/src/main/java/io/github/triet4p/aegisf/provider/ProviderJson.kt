@@ -33,6 +33,17 @@ internal object ProviderJson {
 
     fun copyObject(source: JSONObject): JSONObject = JSONObject(source.toString())
 
+    /**
+     * A field that is present and textual, with explicit JSON null treated as absent.
+     *
+     * Android's `optString` stringifies an explicit `null` value to the literal text `"null"`,
+     * which streaming providers do send for omitted optionals (`function.name`, `delta.role`,
+     * `finish_reason`, `model`, usage details). Appending that text to a tool name or model id
+     * silently corrupts it, so protocol parsing uses this accessor instead of `optString` and
+     * then applies its own blank/empty decision.
+     */
+    fun textOrNull(source: JSONObject, key: String): String? = source.opt(key) as? String
+
     fun copyArray(source: JSONArray): JSONArray = JSONArray(source.toString())
 
     /** Converts a provider-parsed object to immutable Kotlin values, with JSON null as `null`. */

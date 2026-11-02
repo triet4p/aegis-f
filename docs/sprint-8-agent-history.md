@@ -248,3 +248,73 @@ Full contract lives in the executor sources (`AgentContextManager`,
 Proven by `S811ContextCacheTest` (11 focused tests, host, scripted provider seam) and
 the gated live smoke `S811ContextLiveSmokeTest` (real Go Chat Completions run with
 exact masked wire, per-turn usage, cache identity, and verified effects).
+
+## PT2 masked-value usability and live streaming (summary)
+
+Owner-authorized post-S8.13 correction. Full contract lives in
+`SensitiveVault`, `AgentToolRuntime`, `HostedGeneration`, `MaskedHostedGateway`,
+`BoundedWorkflowExecutor` and the provider adapters; this section records the policy
+decision and the durable-history interaction only.
+
+- **Opaque value identity.** One token per value. Field-role canonicalization is
+  unchanged (whole dong for amounts, `YYYY-MM-DD`/`HH:mm` for date/time, integer
+  reference text for accounts), but the token carries no role. The host decides a
+  value's role from the argument it is passed to and validates against the current
+  protocol; a role mismatch is a field error repaired from observations, never a
+  missing value that triggers clarification. This is the owner bug: the amount was
+  masked with an amount-shaped token, could not satisfy date/time arguments, and the
+  model asked the owner to retype a value that was present in the note.
+- Only a date-shaped token is offered for a date argument and only a time-shaped token
+  for a time argument; the date-anchor helper selects by value validity, so a
+  YYYY-MM-DD value is never cut to a bare year. Arrival-time masking folds an already
+  masked value into its existing token, so identity and role stay stable across turns.
+- Diagnostics/exports describe tokens by lexical shape only (`sensitiveShape`), never
+  by field role; a `null` explicit field is absent, never the text "null" (streaming
+  providers send explicit nulls for omitted optionals).
+- **Streaming.** Streaming is a real transport path, not simulated typing: SSE frames
+  are parsed incrementally, tool-call JSON is assembled but only a complete validated
+  call is dispatchable, and provider complete/error/cancel are classified like a
+  complete-body turn. Public text crosses `PublicStreamGate` before display; private
+  reasoning is never progress. The trace keeps every `PROVIDER_STREAM_CHUNK` and the
+  assembled canonical body, with `INTERRUPTED`/`UNAVAILABLE` terminal states. A route
+  without an honest stream reports `StreamingUnavailable` and runs the complete-body
+  exchange.
+- Known UI lifecycle limitation (unchanged, out of this correction's scope): the chat
+  composer's run/continuation/stream state is composable-scoped, so switching tabs
+  while a run is displayed loses the visible clarification/progress while the durable
+  DB row keeps its true state (CLARIFYING/RUNNING). It is disclosed, not silently
+  fixed by a UI redesign.
+
+## PT2 round-2 addendum (bounded corrections)
+
+- **Chat exchange ownership.** The chat's in-progress exchange (outcome, clarification
+  continuation, streamed public text, job handle) is owned by the shell in
+  `ChatAgentRunState` and launched on the shell's coroutine scope, not by the Chat destination
+  subtree. A bottom-tab switch no longer cancels the run or drops the displayed clarification;
+  the destination reads the same state when it returns. The durable Room rows remain the
+  authority.
+- **Immediate capture projection.** Every settled send/resume bumps a projection revision that
+  is a key of the capture-loading effect, so a freshly written event shows as `Interpreted` in
+  the capture list instead of the stale `unresolved · no interpretation recorded`.
+- **One durable run identity.** The UI admits the run so it can show the identity and offer
+  cancellation/resume before the first provider turn; the executor now claims and runs that
+  same admission (`startTracked(admitted, …)`) instead of admitting a second, never-claimed run
+  row. Clarification resume therefore targets the run the user is interacting with.
+- **Nested provider-id metadata.** The decoded response scan exempts only the documented
+  provider-assigned tool-call identifier fields, validated by the opaque-id schema and never
+  when the identifier is itself a mapped value. Sensitive values glued into ordinary text or
+  into any other field still fail the strict substring leak scan.
+
+## PT2 round-3 addendum (capability vs demanded outcomes)
+
+- `WorkflowRunRequest` now separates the capability allowlist (`intents`, selecting tools and
+  skills) from the host-demanded outcomes (`requiredIntents`, defaulting to `intents`). Only the
+  demanded set gates completion; the interactive Chat passes its checked skills as the allowlist
+  and an empty required set, so enabling a skill no longer forces an unrelated or already-done
+  mutation. Qualification and scripted callers keep their existing required-effect contract.
+- A selected source whose event already carries an `INTERPRETED` reading at the observed revision
+  settles as `already_interpreted` after the executor re-reads the event, in a mixed run as well:
+  the goal state is proved from live state instead of being claimed or rewritten.
+- Claim verification is unchanged: a dispatched mutation that fails to verify still refuses, and
+  a host-required outcome with neither a verified effect nor a verified settlement stays
+  `Incomplete(REQUIRED_EFFECT_MISSING)`.

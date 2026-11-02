@@ -149,11 +149,21 @@ missing Responses prerequisite for this task.
 
 ## Limits and follow-ups
 
-- No streaming, no retry/backoff and no prompt caching: those belong to S8.9/S8.11. A rate-limited
-  or transport-failed turn is returned classified and is not retried here. When streaming is
-  added, the transport seam is the place to expose per-exchange chunks and the PT1 trace already
-  models partial completion: chunk events are closed `COMPLETE` or `INTERRUPTED` instead of
-  fabricating a body.
+- Streaming: all three protocol adapters implement `streamGuarded` over the
+  `HttpStreamTransport` seam (`HostedSseDecoder` for SSE frame boundaries, incremental tool-call
+  JSON assembled but dispatched only as complete validated calls, provider complete/error/cancel
+  classified like a complete-body turn). Streaming is opt-in per validated route
+  (`streamingEnabled`); a route without an honest stream reports
+  `StreamingUnavailable(reason)` and still runs the complete-body exchange, never simulated
+  typing. The masked gateway re-gates every incremental public text fragment through
+  `PublicStreamGate` (a masked value, foreign/unknown token or unclosed token delimiter is never
+  shown while still incomplete) and still scans the assembled response body and parsed turn
+  before publication or dispatch. The PT1 trace stores each `PROVIDER_STREAM_CHUNK` event and the
+  assembled canonical body, with `INTERRUPTED`/`UNAVAILABLE` terminal states for cancel/failure;
+  no body is invented for a stream that produced no turn. `TracingHttpTransport` forwards the
+  response head frame so the adapter can classify the exchange.
+- No retry/backoff and no prompt caching: those belong to S8.9/S8.11. A rate-limited
+  or transport-failed turn is returned classified and is not retried here.
 - Masking boundary (S8.6) is the only supported production caller: `MaskedHostedGateway` masks
   system/user instructions and tool-result JSON before `begin`/`continueWithToolResults`, keeps the
   protocol's required continuation items byte-identical, and scans decoded keys, strings and

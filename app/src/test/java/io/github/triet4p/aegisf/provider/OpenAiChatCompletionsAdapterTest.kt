@@ -183,7 +183,7 @@ class OpenAiChatCompletionsAdapterTest {
         }
         assertEquals("string", fields.getJSONObject("amount_ref").getString("type"))
         assertTrue(fields.getJSONObject("amount_ref").getBoolean("nullable"))
-        assertTrue(fields.getJSONObject("amount_ref").getString("description").contains("AMOUNT alias"))
+        assertTrue(fields.getJSONObject("amount_ref").getString("description").contains("Value alias"))
         assertEquals("string", fields.getJSONObject("source_ref").getString("type"))
         assertFalse(fields.getJSONObject("source_ref").optBoolean("nullable", false))
         assertTrue(fields.getJSONObject("source_ref").getString("description").contains("expected existing reading or expected absence"))

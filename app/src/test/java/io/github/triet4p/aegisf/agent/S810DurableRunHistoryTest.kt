@@ -67,6 +67,8 @@ class S810DurableRunHistoryTest {
     private lateinit var commands: WorkflowCommandService
     private lateinit var queries: WorkflowQueryService
     private lateinit var history: AgentRunHistory
+    /** The most recently prepared fixture's vault, for parse-based value selection. */
+    private lateinit var activeVault: SensitiveVault
     private lateinit var declarations: List<io.github.triet4p.aegisf.provider.HostedToolDeclaration>
     private lateinit var skills: WorkflowSkillCatalog
     private val sequence = AtomicInteger()
@@ -456,6 +458,7 @@ class S810DurableRunHistoryTest {
             setOf(draftId),
         )
         val boundary = MaskedPromptBoundary(SensitiveVault(scope.scopeId))
+        activeVault = boundary.vault
         val maskedSource = boundary.maskOutbound(source, MaskedPath.CONTEXT)
         return Fixture(captureId, draftId, scope, boundary, maskedSource)
     }
@@ -491,13 +494,21 @@ class S810DurableRunHistoryTest {
     private fun previousEnvelope(adapter: ScriptedAdapter, turnsBack: Int): JSONObject =
         JSONObject(adapter.toolResultPayloads[adapter.toolResultPayloads.size - turnsBack].single())
 
-    private fun valueRef(source: JSONObject, kind: String): String {
+    /** The test model's semantic choice: the alias whose value parses for the role. */
+    private fun valueRef(source: JSONObject, role: String): String {
         val values = source.getJSONArray("values")
         for (index in 0 until values.length()) {
             val item = values.getJSONObject(index)
-            if (item.getString("kind") == kind) return item.getString("ref")
+            val token = item.getString("display")
+            val parses = when (role) {
+                "amount" -> runCatching { activeVault.parseAmount(token) }.isSuccess
+                "date" -> runCatching { activeVault.parseDate(token, 2026) }.isSuccess
+                "time" -> runCatching { activeVault.parseTime(token) }.isSuccess
+                else -> false
+            }
+            if (parses) return item.getString("ref")
         }
-        error("expected a $kind alias in the selected source")
+        error("expected a value usable as $role in the selected source")
     }
 
     private fun scripted(): MutableList<suspend () -> ScriptedTurn> = mutableListOf()

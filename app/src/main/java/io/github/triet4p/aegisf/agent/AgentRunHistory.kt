@@ -737,7 +737,7 @@ class AgentRunHistory(
                     outcome.privacyRefusal?.let { refusal ->
                         JSONObject()
                             .put("reason", refusal.reason.name)
-                            .put("sensitiveKind", refusal.sensitiveKind ?: JSONObject.NULL)
+                            .put("sensitiveShape", refusal.sensitiveShape ?: JSONObject.NULL)
                             .put("safeLocation", refusal.safeLocation)
                             .put("nodeType", refusal.nodeType)
                     } ?: JSONObject.NULL,

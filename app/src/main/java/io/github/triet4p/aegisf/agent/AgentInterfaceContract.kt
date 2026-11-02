@@ -17,20 +17,25 @@ import java.security.SecureRandom
  * boundary and refuse with [AgentErrorCode.STALE_OBSERVATION] instead of overwriting.
  */
 object AgentInterface {
-    /** Envelope contract shared by every tool result. */
-    const val CONTRACT: String = "aegis-agent-interface/3"
+    /**
+     * Envelope contract shared by every tool result.
+     *
+     * v4 replaces the typed value-reference kinds with one neutral `value` kind: a masked value's
+     * role comes from the tool argument the model passes it to, not from the token or the alias.
+     */
+    const val CONTRACT: String = "aegis-agent-interface/4"
 
     /** Declaration schema identity; changing semantics changes the cache identity. */
-    const val TOOL_SCHEMA: String = "aegis-f-s8-agent-tools/v3"
+    const val TOOL_SCHEMA: String = "aegis-f-s8-agent-tools/v4"
 
     /** Bundled skill schema identity. */
-    const val SKILL_SCHEMA: String = "aegis-f-s8-agent-runtime-skills/v3"
+    const val SKILL_SCHEMA: String = "aegis-f-s8-agent-runtime-skills/v4"
 
     /** Version of the authored runtime examples bundled with the skills. */
-    const val EXAMPLES_VERSION: String = "s8-agent-examples/1"
+    const val EXAMPLES_VERSION: String = "s8-agent-examples/2"
 
     /** Extraction provenance label the host records for model-derived readings. */
-    const val EXTRACTION_VERSION: String = "agent-interface/3"
+    const val EXTRACTION_VERSION: String = "agent-interface/4"
 
     /** The complete closed model-facing catalog; a run loads only the selected subset. */
     val TOOL_NAMES: Set<String> = setOf(
@@ -48,13 +53,19 @@ object AgentInterface {
     )
 }
 
-/** What one host-issued handle refers to. The wire value is stated in field descriptions. */
+/**
+ * What one host-issued handle refers to. The wire value is stated in field descriptions.
+ *
+ * A value handle is deliberately one neutral kind: it names a masked value the model saw, and
+ * nothing about what that value means. The role comes from the tool argument the model passes
+ * it to (`amount_ref`, `date_ref`, `time_ref`), and the runtime parses, validates and binds the
+ * underlying value locally for that argument. There is no amount/date/time reference kind and
+ * therefore no way for a spelling to pre-authorize a semantic field.
+ */
 enum class AgentReferenceKind(val wire: String) {
     CAPTURE("capture"),
     SOURCE("source"),
-    AMOUNT("amount"),
-    DATE("date"),
-    TIME("time"),
+    VALUE("value"),
     ANCHOR("anchor"),
     DRAFT("draft"),
     EVENT("event"),
@@ -362,6 +373,16 @@ sealed interface AgentNoEffectClaim {
         val draftId: Long,
         val eventRevision: Int,
         val eligibility: String,
+    ) : AgentNoEffectClaim
+
+    /**
+     * One selected source that already carries an INTERPRETED reading at the observed revision.
+     * The executor re-reads the event before settling, so an already-satisfied interpretation is
+     * proved instead of being claimed or forced into a redundant write.
+     */
+    data class AlreadyInterpreted(
+        val eventId: Long,
+        val revision: Int,
     ) : AgentNoEffectClaim
 }
 

@@ -12,6 +12,7 @@ import io.github.triet4p.aegisf.data.LinkOperation
 import io.github.triet4p.aegisf.data.LinkOperationQuery
 import io.github.triet4p.aegisf.data.NoteEventEntity
 import io.github.triet4p.aegisf.data.NoteEventInterpretation
+import io.github.triet4p.aegisf.data.NoteEventStatus
 import io.github.triet4p.aegisf.data.NoteEventTimeAnchor
 import io.github.triet4p.aegisf.data.OPERATION_OUTCOME_PENDING
 import io.github.triet4p.aegisf.data.PendingBankDraftEntity
@@ -36,6 +37,8 @@ import io.github.triet4p.aegisf.privacy.TokenValidationException
 import io.github.triet4p.aegisf.provider.HostedToolDeclaration
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.Calendar
+import java.util.TimeZone
 
 /** Trusted host state of one run; none of it comes from model arguments. */
 data class AgentToolSession(
@@ -323,6 +326,11 @@ class AgentToolRuntime(
         )
         val anchors = existing?.let { event -> anchorsFor(event, capture.id, sourceRefKey(sourceStart, sourceEnd, capture.id)) }.orEmpty()
         val eventObservation = existing?.let { eventObservation(it) }
+        // Selecting an occurrence that already has a verified reading is truthful evidence that
+        // INTERPRET_EVENTS is already satisfied; the executor re-reads the event before settling.
+        val alreadyInterpreted = existing
+            ?.takeIf { it.status == NoteEventStatus.INTERPRETED }
+            ?.let { AgentNoEffectClaim.AlreadyInterpreted(it.id, it.revision) }
         val data = JSONObject()
             .put("source_ref", sourceRef)
             .put("quote", quote)
@@ -337,6 +345,7 @@ class AgentToolRuntime(
                 tool = "select_source",
                 data = data,
             ),
+            noEffectClaim = alreadyInterpreted,
         )
     }
 
@@ -404,10 +413,10 @@ class AgentToolRuntime(
     // ---- make_time_anchor ----------------------------------------------------------------
 
     private suspend fun makeTimeAnchor(arguments: JSONObject): AgentToolExecution {
-        val date = registry.resolve(arguments.getString("date_ref"), AgentReferenceKind.DATE, "$.date_ref")
-        val time = optionalReference(arguments, "time_ref", AgentReferenceKind.TIME, "$.time_ref")
-        val endDate = optionalReference(arguments, "end_date_ref", AgentReferenceKind.DATE, "$.end_date_ref")
-        val endTime = optionalReference(arguments, "end_time_ref", AgentReferenceKind.TIME, "$.end_time_ref")
+        val date = registry.resolve(arguments.getString("date_ref"), AgentReferenceKind.VALUE, "$.date_ref")
+        val time = optionalReference(arguments, "time_ref", AgentReferenceKind.VALUE, "$.time_ref")
+        val endDate = optionalReference(arguments, "end_date_ref", AgentReferenceKind.VALUE, "$.end_date_ref")
+        val endTime = optionalReference(arguments, "end_time_ref", AgentReferenceKind.VALUE, "$.end_time_ref")
         val all = listOfNotNull(date, time, endDate, endTime)
         if (all.any { !isGroundedValue(it) }) {
             AgentErrorCode.REFERENCE_KIND_MISMATCH.asIssue(
@@ -422,34 +431,37 @@ class AgentToolRuntime(
                 "The temporal components belong to different captures and cannot form one anchor.",
             )
         }
+        // A day/month value that states no year resolves only against the trusted calendar year
+        // of the capture it was read from; the app never borrows a year on its own.
+        val referenceYear = captureIds.singleOrNull()
+            ?.let { captureId -> runCatching { requireCapture(captureId) }.getOrNull() }
+            ?.let(::captureReferenceYear)
         if (!bindingCompatible(date, time) || !bindingCompatible(date, endDate) || !bindingCompatible(date, endTime)) {
             AgentErrorCode.REFERENCE_KIND_MISMATCH.asIssue(
                 "$","same_occurrence_binding",
                 "A temporal component came from another occurrence. Use components of the selected source or its clarification.",
             )
         }
-        if (time != null && date.valueToken == null) {
-            AgentErrorCode.TEMPORAL_CONSTRAINT.asIssue(
-                "$.time_ref","time_requires_date",
-                "A stated time needs an observed date reference.",
-            )
-        }
-        if (endDate != null && boundary.vault.compareDates(date.valueToken!!, endDate.valueToken!!) > 0) {
+        // The model chose these values for date/time arguments; the host parses each one locally
+        // and refuses the argument when the chosen value is not the needed temporal value.
+        val dateText = parseDateValue(date, referenceYear, "$.date_ref")
+        val timeText = time?.let { parseTimeValue(it, "$.time_ref") }
+        val endDateText = endDate?.let { parseDateValue(it, referenceYear, "$.end_date_ref") }
+        val endTimeText = endTime?.let { parseTimeValue(it, "$.end_time_ref") }
+        if (endDateText != null && endDateText < dateText) {
             AgentErrorCode.TEMPORAL_CONSTRAINT.asIssue(
                 "$.end_date_ref","end_not_before_start",
                 "An interval end cannot precede its start. Choose the grounded values, do not swap them.",
             )
         }
-        if (endTime != null) {
-            if (endDate == null || time == null) {
+        if (endTimeText != null) {
+            if (endDateText == null || timeText == null) {
                 AgentErrorCode.TEMPORAL_CONSTRAINT.asIssue(
                     "$.end_time_ref","requires_end_date_and_start_time",
                     "An interval end time needs its grounded end date and start time. Ask if those facts are unavailable.",
                 )
             }
-            if (boundary.vault.compareDates(date.valueToken!!, endDate.valueToken!!) == 0 &&
-                boundary.vault.compareTimes(time.valueToken!!, endTime.valueToken!!) >= 0
-            ) {
+            if (endDateText == dateText && endTimeText <= timeText) {
                 AgentErrorCode.TEMPORAL_CONSTRAINT.asIssue(
                     "$.end_time_ref","end_after_start",
                     "The interval end must follow its start. Correct the grounded selection or ask.",
@@ -488,6 +500,34 @@ class AgentToolRuntime(
             envelope = AgentEnvelope.ok(tool = "make_time_anchor", data = data),
         )
     }
+
+    /** The stored date the model selected for a temporal argument, or a repairable refusal. */
+    private fun parseDateValue(reference: AgentReference, referenceYear: Int?, path: String): String =
+        try {
+            boundary.vault.parseDate(requireNotNull(reference.valueToken), referenceYear)
+        } catch (_: TokenValidationException) {
+            throw AgentToolException(
+                AgentErrorCode.TEMPORAL_CONSTRAINT,
+                path,
+                "selected_value_is_a_calendar_date",
+                message = "The selected value is not a calendar date the host can read. " +
+                    "Choose the grounded date value or ask.",
+            )
+        }
+
+    /** The wall-clock time the model selected for a temporal argument, or a repairable refusal. */
+    private fun parseTimeValue(reference: AgentReference, path: String): String =
+        try {
+            boundary.vault.parseTime(requireNotNull(reference.valueToken))
+        } catch (_: TokenValidationException) {
+            throw AgentToolException(
+                AgentErrorCode.TEMPORAL_CONSTRAINT,
+                path,
+                "selected_value_is_a_wall_clock_time",
+                message = "The selected value is not a wall-clock time the host can read. " +
+                    "Choose the grounded time value or ask.",
+            )
+        }
 
     // ---- record_event --------------------------------------------------------------------
 
@@ -538,11 +578,11 @@ class AgentToolRuntime(
             )
         }
         val clarification = arguments.getString("clarification")
-        val amount = optionalReference(arguments, "amount_ref", AgentReferenceKind.AMOUNT, "$.amount_ref")
+        val amount = optionalReference(arguments, "amount_ref", AgentReferenceKind.VALUE, "$.amount_ref")
         if (amount != null && !bindingCompatible(source, amount)) {
             AgentErrorCode.REFERENCE_KIND_MISMATCH.asIssue(
                 "$.amount_ref","value_from_selected_occurrence",
-                "Choose an amount observed in this occurrence or its linked clarification.",
+                "Choose a value observed in this occurrence or its linked clarification.",
             )
         }
         val anchor = optionalReference(arguments, "anchor_ref", AgentReferenceKind.ANCHOR, "$.anchor_ref")
@@ -581,12 +621,25 @@ class AgentToolRuntime(
             )
         }
         val amountValue = amount?.let {
-            boundary.vault.rehydrateAmount(it.valueToken!!)
+            try {
+                boundary.vault.parseAmount(requireNotNull(it.valueToken))
+            } catch (_: TokenValidationException) {
+                throw AgentToolException(
+                    AgentErrorCode.MISSING_REQUIRED_MEANING,
+                    "$.amount_ref",
+                    "selected_value_is_a_whole_dong_amount",
+                    message = "The value chosen for the amount is not a whole-dong number. " +
+                        "Choose the amount value from this occurrence, or ask for the amount.",
+                )
+            }
         }
-        val anchorDate = anchor?.dateToken?.let { boundary.vault.rehydrateDate(it) }
-        val anchorTime = anchor?.timeToken?.let { boundary.vault.rehydrateTime(it) }
-        val intervalEndDate = anchor?.endDateToken?.let { boundary.vault.rehydrateDate(it) }
-        val intervalEndTime = anchor?.endTimeToken?.let { boundary.vault.rehydrateTime(it) }
+        val referenceYear = captureReferenceYear(capture)
+        val anchorDate = anchor?.dateToken?.let { rehydrateAnchorDate(it, referenceYear, "$.anchor_ref") }
+        val anchorTime = anchor?.timeToken?.let { parseAnchorTime(it, "$.anchor_ref") }
+        val intervalEndDate = anchor?.endDateToken?.let {
+            rehydrateAnchorDate(it, referenceYear, "$.anchor_ref")
+        }
+        val intervalEndTime = anchor?.endTimeToken?.let { parseAnchorTime(it, "$.anchor_ref") }
         val merchantValue = merchant?.display?.let { boundary.vault.rehydrateText(it) }
         val interpretation = NoteEventInterpretation(
             spanStart = source.spanStart,
@@ -1227,27 +1280,27 @@ class AgentToolRuntime(
                 val token = amountClarificationToken(userAnswer, maskedAnswer)
                 if (token != null) {
                     display = token
-                    val ref = issueClarificationValue(subject, linked, AgentReferenceKind.AMOUNT, token)
-                    observation.put("value_ref", ref).put("value_kind", AgentReferenceKind.AMOUNT.wire)
+                    val ref = issueClarificationValue(subject, linked, token)
+                    observation.put("value_ref", ref)
+                        .put("value_shape", boundary.vault.shapeOf(token)?.wire ?: JSONObject.NULL)
                 } else {
                     observation.put("value_ref", JSONObject.NULL)
-                        .put("note", "The answer did not state one unambiguous amount. Ask again or use the observed source.")
+                        .put("note", "The answer did not state one unambiguous value. Ask again or use the observed source.")
                 }
             }
             "date", "time" -> {
-                val kind = if (field == "date") AgentReferenceKind.DATE else AgentReferenceKind.TIME
                 val tokens = SensitiveVault.TOKEN_PATTERN.findAll(maskedAnswer)
                     .map { it.value }
-                    .filter { tokenKind(it) == kind }
                     .distinct()
                     .toList()
                 if (tokens.size == 1) {
                     display = tokens.single()
-                    val ref = issueClarificationValue(subject, linked, kind, tokens.single())
-                    observation.put("value_ref", ref).put("value_kind", kind.wire)
+                    val ref = issueClarificationValue(subject, linked, tokens.single())
+                    observation.put("value_ref", ref)
+                        .put("value_shape", boundary.vault.shapeOf(tokens.single())?.wire ?: JSONObject.NULL)
                 } else {
                     observation.put("value_ref", JSONObject.NULL)
-                        .put("note", "The answer did not state one unambiguous $field. Ask again or use the observed source.")
+                        .put("note", "The answer did not state one unambiguous value. Ask again or use the observed source.")
                 }
             }
             "merchant" -> {
@@ -1279,14 +1332,13 @@ class AgentToolRuntime(
     private fun issueClarificationValue(
         subject: AgentReference,
         linkedSubjectKey: String,
-        kind: AgentReferenceKind,
         token: String,
     ): String {
         val handle = registry.nextHandle()
         return registry.issue(
             AgentReference(
                 handle = handle,
-                kind = kind,
+                kind = AgentReferenceKind.VALUE,
                 scopeId = scope.scopeId,
                 subjectId = subject.subjectId,
                 captureId = subject.captureId,
@@ -1301,22 +1353,22 @@ class AgentToolRuntime(
     }
 
     /**
-     * The AMOUNT token for an answer to an amount question. Whole-dong input is accepted with
+     * The neutral token for an answer to a value question. Whole-dong input is accepted with
      * optional VN grouping and currency word; a unit-bearing or grouped answer is otherwise
-     * resolved from the masked text. Anything ambiguous stays unresolved.
+     * resolved from the masked text. The token carries no semantic kind: the clarification
+     * field names the role, and record_event/make_time_anchor parse the value for that role.
+     * Anything ambiguous stays unresolved.
      */
     private fun amountClarificationToken(userAnswer: String, maskedAnswer: String): String? {
         val digits = amountDigits(userAnswer)
         if (digits != null) {
-            // Mint under a unit so the same run of digits is typed as an amount here; a bare
-            // run elsewhere remains account-like and never silently means an amount.
+            // Mint under a unit so even a short bare answer becomes a masked value; the token
+            // stays neutral and the tool argument supplies the meaning.
             val minted = mask("$digits VND")
             return SensitiveVault.TOKEN_PATTERN.find(minted)?.value
-                ?.takeIf { tokenKind(it) == AgentReferenceKind.AMOUNT }
         }
         return SensitiveVault.TOKEN_PATTERN.findAll(maskedAnswer)
             .map { it.value }
-            .filter { tokenKind(it) == AgentReferenceKind.AMOUNT }
             .distinct()
             .singleOrNull()
     }
@@ -1468,6 +1520,11 @@ class AgentToolRuntime(
                 if (event.revision != claim.eventRevision) return false
                 if (claim.eligibility == LinkEligibility.ELIGIBLE.name) return false
                 pairIsUnattachableNow(claim.eventId, claim.draftId)
+            }
+
+            is AgentNoEffectClaim.AlreadyInterpreted -> {
+                val event = queries.noteEvent(claim.eventId) ?: return false
+                event.revision == claim.revision && event.status == NoteEventStatus.INTERPRETED
             }
         }
     }
@@ -1909,10 +1966,13 @@ class AgentToolRuntime(
     ): List<JSONObject> {
         if (event.anchorDate == null) return emptyList()
         val dateToken = mask(event.anchorDate)
-        if (!dateToken.startsWith("⟦DATE-")) return emptyList()
-        val timeToken = event.anchorTime?.let { mask(it) }?.takeIf { it.startsWith("⟦TIME-") }
-        val endDateToken = event.intervalEndDate?.let { mask(it) }?.takeIf { it.startsWith("⟦DATE-") }
-        val endTimeToken = event.intervalEndTime?.let { mask(it) }?.takeIf { it.startsWith("⟦TIME-") }
+        if (!SensitiveVault.TOKEN_PATTERN.matches(dateToken)) return emptyList()
+        val timeToken = event.anchorTime?.let { mask(it) }
+            ?.takeIf { SensitiveVault.TOKEN_PATTERN.matches(it) }
+        val endDateToken = event.intervalEndDate?.let { mask(it) }
+            ?.takeIf { SensitiveVault.TOKEN_PATTERN.matches(it) }
+        val endTimeToken = event.intervalEndTime?.let { mask(it) }
+            ?.takeIf { SensitiveVault.TOKEN_PATTERN.matches(it) }
         val handle = registry.nextHandle()
         val ref = registry.issue(
             AgentReference(
@@ -1948,6 +2008,15 @@ class AgentToolRuntime(
             eventId = null,
         )
 
+    /**
+     * Issues one neutral value alias for every masked value in [quote].
+     *
+     * The selection is deliberately semantic-free: every value the model can see receives the
+     * same `value` kind plus its lexical shape hint, so a plainly written amount, a date, a
+     * time, an account digit run and a reference code are all selectable. Which argument the
+     * model passes the alias to decides the role, and the runtime parses the value locally for
+     * that argument. Repeating the same token in one quote yields one alias.
+     */
     private fun valueRefsIn(
         captureId: Long,
         sourceKey: String,
@@ -1955,16 +2024,14 @@ class AgentToolRuntime(
         eventId: Long?,
     ): List<JSONObject> {
         val values = mutableListOf<JSONObject>()
+        val seen = mutableSetOf<String>()
         SensitiveVault.TOKEN_PATTERN.findAll(quote).forEach { match ->
-            val kind = tokenKind(match.value) ?: return@forEach
-            if (kind != AgentReferenceKind.AMOUNT && kind != AgentReferenceKind.DATE && kind != AgentReferenceKind.TIME) {
-                return@forEach
-            }
+            if (!seen.add(match.value)) return@forEach
             val handle = registry.nextHandle()
             val ref = registry.issue(
                 AgentReference(
                     handle = handle,
-                    kind = kind,
+                    kind = AgentReferenceKind.VALUE,
                     scopeId = scope.scopeId,
                     captureId = captureId,
                     eventId = eventId,
@@ -1975,17 +2042,11 @@ class AgentToolRuntime(
             )
             values += JSONObject()
                 .put("ref", ref)
-                .put("kind", kind.wire)
+                .put("kind", AgentReferenceKind.VALUE.wire)
+                .put("shape", boundary.vault.shapeOf(match.value)?.wire ?: JSONObject.NULL)
                 .put("display", match.value)
         }
         return values
-    }
-
-    private fun tokenKind(token: String): AgentReferenceKind? = when {
-        token.startsWith("⟦AMT-") -> AgentReferenceKind.AMOUNT
-        token.startsWith("⟦DATE-") -> AgentReferenceKind.DATE
-        token.startsWith("⟦TIME-") -> AgentReferenceKind.TIME
-        else -> null
     }
 
     private fun occurrences(text: String, quote: String): List<IntRange> {
@@ -2189,6 +2250,45 @@ class AgentToolRuntime(
     // ---- Masking -------------------------------------------------------------------------
 
     private fun mask(text: String): String = boundary.maskOutbound(text, MaskedPath.TOOL_RESULT)
+
+    /**
+     * The capture's own local calendar year: the trusted reference used only to resolve a
+     * stated day/month that carries no year. Null when the capture has no truthful instant,
+     * in which case a year-less date stays unresolved and is clarified instead of guessed.
+     */
+    private fun captureReferenceYear(capture: CaptureMessageEntity): Int? {
+        val instant = capture.capturedAtEpochMillis ?: return null
+        val zone = capture.captureTimezone
+            ?.takeIf { runCatching { TimeZone.getTimeZone(it).id == it }.getOrDefault(false) }
+            ?.let(TimeZone::getTimeZone)
+            ?: TimeZone.getDefault()
+        return Calendar.getInstance(zone).apply { timeInMillis = instant }.get(Calendar.YEAR)
+    }
+
+    private fun rehydrateAnchorDate(token: String, referenceYear: Int?, path: String): String =
+        try {
+            boundary.vault.parseDate(token, referenceYear)
+        } catch (_: TokenValidationException) {
+            throw AgentToolException(
+                AgentErrorCode.TEMPORAL_CONSTRAINT,
+                path,
+                "date_states_complete_calendar_date",
+                message = "The masked date states no year and the capture records no local year. " +
+                    "Ask for the full date instead of guessing one.",
+            )
+        }
+
+    private fun parseAnchorTime(token: String, path: String): String =
+        try {
+            boundary.vault.parseTime(token)
+        } catch (_: TokenValidationException) {
+            throw AgentToolException(
+                AgentErrorCode.TEMPORAL_CONSTRAINT,
+                path,
+                "time_states_wall_clock_value",
+                message = "The masked time is not a wall-clock time the host can read. Ask for the time.",
+            )
+        }
 
     private fun maskAmount(amount: Long?): Any = amount?.let { mask("$it VND") } ?: JSONObject.NULL
 
@@ -2434,7 +2534,7 @@ private fun AgentErrorCode.asIssue(
 
 /** Reads the single canonical declaration file copied from tools/slm at build time. */
 object AgentToolDeclarations {
-    const val ASSET_NAME = "s8_agent_tools_v3.json"
+    const val ASSET_NAME = "s8_agent_tools_v4.json"
 
     fun load(open: (String) -> java.io.InputStream): List<HostedToolDeclaration> {
         val root = JSONObject(open(ASSET_NAME).bufferedReader().use { it.readText() })
