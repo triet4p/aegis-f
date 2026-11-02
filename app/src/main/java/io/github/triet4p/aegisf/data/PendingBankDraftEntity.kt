@@ -159,3 +159,13 @@ data class PendingBankDraftEntity(
     @ColumnInfo(defaultValue = "0")
     val reviewRevision: Int = 0,
 )
+
+/**
+ * The working description of [draft]: the user's own wording when they corrected it, the
+ * permitted bank memo otherwise.
+ *
+ * It is the description the review form opens with and the one the hosted workflow reasons
+ * about. The bank memo and a review note are never concatenated.
+ */
+internal fun PendingBankDraftEntity.workingDescription(): String =
+    if (reviewMemoEdited) reviewMemo.orEmpty() else memo.orEmpty()

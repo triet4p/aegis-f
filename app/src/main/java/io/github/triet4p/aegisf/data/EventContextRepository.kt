@@ -151,7 +151,6 @@ internal class EventContextRepository(
     private val eventDao = database.noteEventDao()
     private val linkDao = database.contextLinkDao()
     private val draftDao = database.pendingBankDraftDao()
-    private val snapshotDao = database.classificationSnapshotDao()
 
     /**
      * Stores the reading of one span of a capture.
@@ -289,12 +288,6 @@ internal class EventContextRepository(
                 sourceRevision = reading.sourceRevision,
             )
             if (updated == 1) {
-                // The reading the drafts' suggestions were made from has changed, so those
-                // suggestions are stale. Only the drafts this event is linked to are touched.
-                snapshotDao.markStaleForEvent(
-                    existing.id,
-                    PredictionStaleReason.CONTEXT_CHANGED.name,
-                )
                 NoteEventWriteResult.Revised(existing.id, existing.revision + 1)
             } else {
                 NoteEventWriteResult.Changed
@@ -353,9 +346,6 @@ internal class EventContextRepository(
                 createdAtEpochMillis = clock.nowEpochMillis(),
             ),
         )
-        // The draft's effective context now carries this reading, so a prediction made
-        // before the link no longer describes what the app would ask the model now.
-        snapshotDao.markStaleForDraft(draftId, PredictionStaleReason.CONTEXT_CHANGED.name)
         ContextLinkResult.Linked(linkId, ContextLinkState.PROPOSED, 0)
     }
 
@@ -390,7 +380,6 @@ internal class EventContextRepository(
             return@withTransaction ContextLinkResult.Changed
         }
         refreshEventStatus(event.id)
-        snapshotDao.markStaleForDraft(draftId, PredictionStaleReason.CONTEXT_CHANGED.name)
         ContextLinkResult.Linked(link.id, ContextLinkState.ACCEPTED, expectedRevision + 1)
     }
 
@@ -415,7 +404,6 @@ internal class EventContextRepository(
             return@withTransaction ContextLinkResult.Changed
         }
         refreshEventStatus(link.eventId)
-        snapshotDao.markStaleForDraft(draftId, PredictionStaleReason.CONTEXT_CHANGED.name)
         ContextLinkResult.Linked(link.id, ContextLinkState.REJECTED, expectedRevision + 1)
     }
 
@@ -437,7 +425,6 @@ internal class EventContextRepository(
                 return@withTransaction ContextLinkResult.Changed
             }
             refreshEventStatus(link.eventId)
-            snapshotDao.markStaleForDraft(draftId, PredictionStaleReason.CONTEXT_CHANGED.name)
             ContextLinkResult.Unlinked(link.id)
         }
 
@@ -452,10 +439,6 @@ internal class EventContextRepository(
     internal suspend fun invalidateDerivedReadings(captureId: Long, reason: String) {
         val events = eventDao.findForCapture(captureId)
         if (events.isEmpty()) return
-        // The predictions those readings supported no longer describe anything: the text they
-        // were made from is gone, so the drafts they belong to are marked stale here, in the
-        // same transaction as the change that ended the readings.
-        snapshotDao.markStaleForCapture(captureId, PredictionStaleReason.SOURCE_CHANGED.name)
         linkDao.deleteActiveForCapture(captureId)
         val refused = linkDao.findRejectedForCapture(captureId).map { it.eventId }.toSet()
         events.forEach { event ->

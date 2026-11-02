@@ -3,15 +3,15 @@
 S8.7 introduced the Android adapter seam for the closed S8 agent operations; S8.13-pre replaces that
 model-facing surface with the approved eleven-tool interface. The runtime still uses only the
 existing `WorkflowQueryService` and `WorkflowCommandService`: it adds no persistence, no bypass of
-scope, revision, idempotency, link-evidence or Laya policy, and no ledger, confirmation or deletion
+scope, revision, idempotency or link-evidence policy, and no ledger, confirmation or deletion
 tool. A host creates one `AgentToolRuntime` with a trusted `AgentToolSession` containing the
 `AgentSession`, its S8.6 `MaskedPromptBoundary`, a per-run `AgentReferenceRegistry` and the loaded
 declarations. The executor loads only the declarations the selected skills require.
 
 ## Closed catalog and selective loading
 
-The one runtime declaration file is `tools/slm/s8_agent_tools_v3.json`
-(`aegis-f-s8-agent-tools/v3`). Its contract marker is `aegis-agent-interface/3`. It contains exactly
+The one runtime declaration file is `tools/slm/s8_agent_tools_v6.json`
+(`aegis-f-s8-agent-tools/v6`). Its contract marker is `aegis-agent-interface/6`. It contains exactly
 these eleven tools, each with a flat argument object, `additionalProperties: false`, and every
 named field listed in `required`:
 
@@ -25,7 +25,7 @@ named field listed in `required`:
 | `inspect_link` | 2 | read/evidence evaluation |
 | `propose_link` | 1 | atomic proposal mutation |
 | `attach_link` | 1 | atomic attachment mutation |
-| `classify_draft` | 1 | local review mutation |
+| `update_draft_review` | 2 | ordinary draft-review mutation |
 | `replay_operation` | 1 | journal-backed replay |
 | `ask_user` | 3 | conversation suspension |
 
@@ -49,7 +49,7 @@ validated local observation. Runtime handles are never parsed for meaning, never
 matching regex alone, and never cross an authorized session boundary. The bounded registry is
 scoped to the run, holds at most 512 handles, evicts the oldest, and is never persisted; after a
 restart the host re-establishes observations and old aliases are not current. Reference kinds are
-`capture`, `source`, neutral `value`, `anchor`, `draft`, `classification_context`, `event`, `pair`,
+`capture`, `source`, neutral `value`, `anchor`, `draft`, `category`, `event`, `pair`,
 `proposal`, `operation` and pagination `cursor`; each field states and enforces its expected kind.
 
 A handle binds the observation it came from: scope, capture/event/link/review revisions, exact
@@ -131,29 +131,21 @@ revision and evidence inside the real mutation and always invokes the non-overri
 model no longer supplies `userOverride`. Ambiguous, ineligible, stale or refused pairs are never
 attached, and no tool rewrites amounts/dates to force eligibility.
 
-`classify_draft(draft_ref)` keeps its ordinary source-text path: the host binds the authoritative stored
-description and review revision, calls local Laya, and stores the actual result. An optional hosted
-translation is accepted only as the pair `classification_context_ref` plus `english_translation`.
-`observe(draft)` issues that opaque context alias with a revision digest over the current draft and
-every active linked event reading, link and source revision; its masked display contains the draft
-description and all current linked readings, including zero, one or several. The host rechecks the
-digest, rejects stale contexts or changed neutral-token multiplicity, and rehydrates tokens only
-inside the local boundary. Laya receives the translated English as its sole primary input, never the
-original non-English context appended a second time. The snapshot stores only the input kind and
-one-way input/source identities, not the translation text; the result is labeled machine-derived,
-not owner-authored. Snapshot writes also compare the input identity observed before inference,
-so a late answer cannot replace a newer result produced from a different derived input.
-Translation adds no category hint, fact or confirmation authority. An explicitly
-requested but unavailable translation is reported as unavailable rather than silently classified
-from the untranslated source; ordinary offline/manual/intake review remains usable without it.
+`update_draft_review(draft_ref, category_ref)` is the ordinary draft-review update restricted to
+the category field. `observe(draft)` carries the current active `category_choices`, each an opaque
+category reference bound to the draft's review revision and the catalog digest it was observed
+against. The tool rechecks the draft revision, the category's live assignability and the catalog
+digest, then stores only the category; the amount, moment, memo and type are not rewritten. The
+draft stays pending and no ledger record is written. A stale draft, a changed catalog or an
+archived/removed category is refused with a fresh observation. There is no local classifier,
+translation input, probability or category fabrication anywhere in the path. The result returns
+the fresh draft observation and its journaled `operation_ref`, so the exact receipt can be selected
+for same-run replay.
 
-The host never shortens an oversize input, falls back to a hosted classification model, or treats a
-local model/unavailable state as a fabricated suggestion. A settled classification returns its
-journaled `operation_ref`, so the exact receipt can be selected for same-run replay; the call's own
-result is independently verified against the stored review state. `MODEL_UNAVAILABLE` and
-`INPUT_OVER_BUDGET` are truthful settled attempts with a verification claim for the actual manual
-review state, while a request another attempt still owns is `OPERATION_PENDING`, not a
-model-unavailable claim.
+A settled category update returns its journaled `operation_ref`, so the exact receipt can be
+selected for same-run replay; the call's own result is independently verified against the stored
+draft review state. A request another attempt still owns is `OPERATION_PENDING`, and an
+unverifiable settled result is `EFFECT_NOT_VERIFIED`, never a fabricated category.
 
 `ask_user(subject_ref, field, question)` validates that the subject supports the requested fact,
 masks the question, and returns `outcome: clarifying`, `control: await_user`. It changes no business

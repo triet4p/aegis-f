@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import io.github.triet4p.aegisf.data.CanonicalAgentRetryPolicy
-import io.github.triet4p.aegisf.data.ClassificationOperationQuery
 import io.github.triet4p.aegisf.data.ContextLinkState
 import io.github.triet4p.aegisf.data.IntakeDirection
 import io.github.triet4p.aegisf.data.IntakeFieldState
@@ -18,12 +17,9 @@ import io.github.triet4p.aegisf.data.SaveCaptureRequest
 import io.github.triet4p.aegisf.data.SystemLedgerClock
 import io.github.triet4p.aegisf.data.WorkflowCallerScope
 import io.github.triet4p.aegisf.data.WorkflowChange
-import io.github.triet4p.aegisf.data.WorkflowClaimGuard
 import io.github.triet4p.aegisf.data.WorkflowCommandOutcome
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
-import io.github.triet4p.aegisf.data.laya.LayaClassificationEngine
-import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
 import io.github.triet4p.aegisf.privacy.MaskedHostedGateway
 import io.github.triet4p.aegisf.privacy.MaskedPath
 import io.github.triet4p.aegisf.privacy.MaskedPromptBoundary
@@ -37,7 +33,6 @@ import io.github.triet4p.aegisf.provider.HostedToolResult
 import io.github.triet4p.aegisf.provider.HostedTurn
 import io.github.triet4p.aegisf.provider.HostedTurnFinish
 import io.github.triet4p.aegisf.provider.ToolCallDisposition
-import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
@@ -79,12 +74,10 @@ class S810DurableRunHistoryTest {
         database = Room.inMemoryDatabaseBuilder(context, LedgerDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        val laya = LayaInferenceLifecycle(File("build/s810-test-missing-model"))
         commands = WorkflowCommandService(
             database = database,
             clock = SystemLedgerClock,
             timezoneId = { "Asia/Ho_Chi_Minh" },
-            engine = LayaClassificationEngine(laya),
         )
         queries = WorkflowQueryService(database)
         history = AgentRunHistory(database)
@@ -94,7 +87,6 @@ class S810DurableRunHistoryTest {
 
     @After
     fun tearDown() {
-        WorkflowClaimGuard.reset()
         database.close()
     }
 
@@ -381,6 +373,7 @@ class S810DurableRunHistoryTest {
                 linkRevision = null,
                 draftId = null,
                 decisionSource = null,
+                selectedCategoryId = null,
                 observationJson = "{}",
                 now = System.currentTimeMillis(),
             ),

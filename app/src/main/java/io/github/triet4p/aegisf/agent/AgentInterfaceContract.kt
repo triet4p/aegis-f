@@ -22,19 +22,21 @@ object AgentInterface {
      *
      * v4 replaced typed value-reference kinds with one neutral `value` kind: a masked value's
      * role comes from the tool argument the model passes it to, not from the token or alias.
-     * v5 adds only a complete-current-context-bound optional English translation input for
-     * local classification; arbitrary text replacement and category targeting remain absent.
+     * v5 added the source-bound English translation input for local classification.
+     * v6 removes on-device classification and translation: the hosted workflow chooses one
+     * of the draft's current categories and submits it through the ordinary draft-review
+     * update, with no separate classifier or translation round-trip.
      */
-    const val CONTRACT: String = "aegis-agent-interface/5"
+    const val CONTRACT: String = "aegis-agent-interface/6"
 
     /** Declaration schema identity; changing semantics changes the cache identity. */
-    const val TOOL_SCHEMA: String = "aegis-f-s8-agent-tools/v5"
+    const val TOOL_SCHEMA: String = "aegis-f-s8-agent-tools/v6"
 
     /** Bundled skill schema identity. */
-    const val SKILL_SCHEMA: String = "aegis-f-s8-agent-runtime-skills/v5"
+    const val SKILL_SCHEMA: String = "aegis-f-s8-agent-runtime-skills/v6"
 
     /** Version of the authored runtime examples bundled with the skills. */
-    const val EXAMPLES_VERSION: String = "s8-agent-examples/4"
+    const val EXAMPLES_VERSION: String = "s8-agent-examples/5"
 
     /** Extraction provenance label the host records for model-derived readings. */
     const val EXTRACTION_VERSION: String = "agent-interface/4"
@@ -49,7 +51,7 @@ object AgentInterface {
         "inspect_link",
         "propose_link",
         "attach_link",
-        "classify_draft",
+        "update_draft_review",
         "replay_operation",
         "ask_user",
     )
@@ -70,7 +72,7 @@ enum class AgentReferenceKind(val wire: String) {
     VALUE("value"),
     DRAFT("draft"),
     ANCHOR("anchor"),
-    CLASSIFICATION_CONTEXT("classification_context"),
+    CATEGORY("category"),
     EVENT("event"),
     PAIR("pair"),
     PROPOSAL("proposal"),
@@ -99,8 +101,10 @@ data class AgentReference(
     val eventRevision: Int? = null,
     val draftId: Long? = null,
     val draftReviewRevision: Int? = null,
-    /** Digest of the complete current Laya source context for a draft-bound translation. */
-    val classificationSourceRevision: String? = null,
+    /** The stable id of the category a category reference names, validated again at the write. */
+    val categoryId: Long? = null,
+    /** The category catalog digest the choice was observed against. */
+    val categoryCatalogRevision: String? = null,
     val linkId: Long? = null,
     val linkRevision: Int? = null,
     /** The state of the observed event/draft link. */
@@ -190,8 +194,6 @@ enum class AgentErrorCode(
     MISSING_REQUIRED_MEANING("meaning", true, "correct_or_clarify"),
     LINK_INELIGIBLE("policy", false, "stop_pair_or_clarify"),
     USER_DECISION_REQUIRED("authority", false, "await_user_or_stop", terminal = true),
-    MODEL_UNAVAILABLE("model", false, "manual_path"),
-    INPUT_OVER_BUDGET("model", false, "manual_path"),
     CANCELLED("state", false, "stop", terminal = true),
     OPERATION_PENDING("state", false, "reconcile", terminal = true),
     EFFECT_UNKNOWN("state", false, "reconcile", terminal = true),
@@ -315,20 +317,15 @@ sealed interface AgentEffectClaim {
         val revision: Int,
     ) : AgentEffectClaim
 
-    data class Classification(
+    /**
+     * The hosted workflow stored one existing category on a still-pending draft.
+     *
+     * The claim is re-read from the draft row before the run may report completion: the
+     * same category id must still be stored and the draft must still be pending.
+     */
+    data class DraftCategory(
         val draftId: Long,
-        val source: String,
-        val categoryId: Long?,
-        val confidence: Double?,
-        val reviewStatus: String,
-        val reviewRevision: Int,
-        val observedAtMillis: Long,
-    ) : AgentEffectClaim
-
-    /** A truthful classification attempt that produced no prediction (manual/unavailable). */
-    data class ClassificationManual(
-        val draftId: Long,
-        val reasonCode: String,
+        val categoryId: Long,
         val reviewStatus: String,
         val reviewRevision: Int,
     ) : AgentEffectClaim

@@ -28,10 +28,6 @@ import io.github.triet4p.aegisf.ui.AegisAppShell
  */
 class MainActivity : ComponentActivity() {
 
-    private val layaInferenceLifecycle by lazy {
-        (application as AegisApplication).container.layaInferenceLifecycle
-    }
-
     private val notificationAccessStore: NotificationAccessStore by lazy {
         (application as AegisApplication).container.notificationAccessStore
     }
@@ -48,10 +44,6 @@ class MainActivity : ComponentActivity() {
     private val hostedProviderSettingsStore: HostedProviderSettingsStore by lazy {
         (application as AegisApplication).container.hostedProviderSettingsStore
     }
-    /** The same durable queue the process starts; review reads its state and controls it. */
-    private val classificationQueue by lazy {
-        (application as AegisApplication).container.bankDraftClassificationQueue
-    }
 
     override fun onResume() {
         super.onResume()
@@ -62,18 +54,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Opening the app is one of the two ways a new process resumes the classification
-        // work an earlier process left queued or running (the other is the notification
-        // listener reconnecting, which reaches the same queue through intake).
-        (application as AegisApplication).container.startClassificationWork()
         enableEdgeToEdge()
         setContent {
             AegisTheme {
                 AegisAppShell(
                     queryService = workflowQueryService,
                     commandService = workflowCommandService,
-                    classificationQueue = classificationQueue,
-                    layaInferenceLifecycle = layaInferenceLifecycle,
                     notificationAccessStore = notificationAccessStore,
                     hostedProviderSettingsStore = hostedProviderSettingsStore,
                     createHostedWorkflowHost = (application as AegisApplication).container::createHostedWorkflowHost,

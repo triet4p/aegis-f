@@ -252,18 +252,17 @@ data class DraftCandidateQuery(
 /** Which order a review-queue read returns the pending drafts in. */
 enum class ReviewQueueOrder {
     /**
-     * The uncertainty-first order: unresolved link and data conflicts first, then drafts whose
-     * classification is missing, stale, unknown or not comparable, then comparable fresh
-     * predictions by ascending sharpness. This is the review order the queue policy freezes.
+     * The uncertainty-first order: unresolved linking or bank-data conflicts first, then
+     * drafts that still need a category, then drafts ready for confirm or dismiss. It is the
+     * order the review queue freezes.
      */
     UNCERTAINTY_FIRST,
 
     /**
      * The chronological override: every pending draft by creation instant, then id.
      *
-     * It is the order the work arrived in, so a high-confidence draft that sorts late in the
-     * review order is still reachable here without walking the review order first. It is an
-     * order of the same rows, never a different filter: no draft is missing from either.
+     * It is an order of the same rows, never a different filter: no draft is missing from
+     * either.
      */
     CHRONOLOGICAL,
 }
@@ -272,22 +271,15 @@ enum class ReviewQueueOrder {
 enum class ReviewQueueGroup {
     /**
      * 0 — unresolved linking or bank-data conflicts: a possible duplicate, a link the user has
-     * not decided, or bank data that needs attention. This is the user's decision to make, so
-     * it comes before any classification.
+     * not decided, or bank data that needs attention.
      */
     NEEDS_DECISION,
 
-    /**
-     * 1 — the classification is missing, stale, unknown/no-fit, a direct answer that is not a
-     * model score, or a category the user already chose. Stored confidence never orders here.
-     */
-    NOT_COMPARABLE,
+    /** 1 — the draft has no chosen category yet, so review still has a decision to offer. */
+    NEEDS_CATEGORY,
 
-    /**
-     * 2 — a fresh prediction from a stored distribution, comparable only with the predictions
-     * of its own comparability group, ordered by ascending sharpness.
-     */
-    SUGGESTION,
+    /** 2 — a category is chosen (or explicitly none); the draft waits for confirm or dismiss. */
+    READY,
 }
 
 /** Why a pending draft waits in [ReviewQueueGroup.NEEDS_DECISION]. */
@@ -300,30 +292,6 @@ enum class ReviewQueueConflict {
 
     /** The bank's amount or moment is unresolved, or its format is unsupported. */
     UNRESOLVED_BANK_DATA,
-}
-
-/**
- * Why a pending draft waits in [ReviewQueueGroup.NOT_COMPARABLE], in the order §7.1 lists.
- *
- * Only one subkind is reported per draft, and the order of the checks is fixed: a missing
- * prediction, then a category the user already chose, then a stale prediction, then an
- * unknown/no-fit outcome, then the direct answers that are not model scores.
- */
-enum class ReviewQueueSubkind {
-    /** No stored prediction: never classified, or nothing was recorded. */
-    MISSING,
-
-    /** The stored prediction no longer applies; its confidence orders nothing. */
-    STALE,
-
-    /** The stored prediction chose the no-fit option; its sharpness promotes nothing. */
-    UNKNOWN,
-
-    /** A saved rule, an explicit correction, or a category name answered; there is no score. */
-    DIRECT,
-
-    /** The user already chose the category; the draft waits for confirm or dismiss. */
-    USER_RESOLVED,
 }
 
 /**
@@ -341,127 +309,16 @@ data class ReviewQueueQuery(
 )
 
 /**
- * The lifecycle state of one draft's durable classification work, as the review surface sees
- * it.
- *
- * [QUEUED] and [RUNNING] are the truthful "waiting" and "busy" states of the stored job;
- * [RESULT] means a prediction was stored, [CANCELLED] means nothing further is asked until a
- * relevant change or an explicit retry, and [FAILED] records a check that ended without a
- * prediction. The state is a fact about the app's own work, never a claim about a category.
- */
-enum class ClassificationWorkState {
-    QUEUED,
-    RUNNING,
-    RESULT,
-    CANCELLED,
-    FAILED,
-}
-
-/**
- * The privacy-safe reason a classification job ended as it did.
- *
- * A reason says which rule ended the job and never what the draft or the model said. It is
- * the stored code read back as a named value, so a surface can explain a cancelled or failed
- * job without displaying an internal string.
- */
-enum class ClassificationWorkStatusReason {
-    DESCRIPTION_MISSING,
-    DRAFT_RESOLVED,
-    DRAFT_REVIEWED,
-    DRAFT_MISSING,
-    DENIED,
-    SUPERSEDED,
-    CONTEXT_CHANGED,
-    MODEL_OR_INFERENCE_FAILED,
-    NOT_RECORDED,
-    USER_CANCELLED,
-}
-
-/**
- * The stored classification work of one draft: its lifecycle state, why it ended, and when
- * that state was last written.
- *
- * This is the durable job's own truth, so review can show that a suggestion is queued, being
- * checked, failed, or cancelled instead of only showing that no prediction exists. It carries
- * no draft text and no model output.
- */
-data class ClassificationWorkStatus(
-    val draftId: Long,
-    val state: ClassificationWorkState,
-    /** Why the job is cancelled or failed, or null while it waits, runs, or has a result. */
-    val reason: ClassificationWorkStatusReason?,
-    val updatedAtEpochMillis: Long,
-)
-
-/**
- * The measured relative-confidence statement of one fresh model suggestion.
- *
- * Every number is read from the same stored distribution: the top category's own share, the
- * no-fit share, and the one sharpness value. [evaluatedCount] is how many categories were
- * evaluated (the unknown slot is separate) and [activeCategoryCount] is the active catalog at
- * read time, so a surface can state the scope instead of implying a full-catalog or accuracy
- * claim. It exists only under the S7.1 L1–L6 policy; a stale, unresolved, conflicting, direct,
- * unknown, or user-resolved draft never carries one.
- */
-data class RelativeConfidence(
-    val topCategoryId: Long,
-    val topShare: Double,
-    val unknownShare: Double,
-    val sharpness: Double,
-    val evaluatedCount: Int,
-    val activeCategoryCount: Int,
-)
-
-/**
  * One pending draft in the review queue, with the group that placed it there.
  *
  * The entry carries the stored facts the ordering used, so the surface can show the group and
- * the reason instead of only a position: [conflicts] names the unresolved-link/data reasons,
- * [subkind] names the not-comparable reason, and [confidence] with [candidateIds] states the
- * measured scope of a fresh prediction. The evaluated shares, no-fit share, prediction time,
- * model revision, candidate-set version, and linked readings are the stored provenance the
- * surface shows with the suggestion; [relativeConfidence] is present only when the frozen
- * policy lets a dominant category be called relatively confident, and it always carries its
- * scope. Nothing here is a new score: every value is the one the app already stored, and no
- * field can confirm, dismiss, or file anything by itself.
+ * the reason instead of only a position. Nothing here selects, confirms, dismisses, or files
+ * anything by itself.
  */
 data class ReviewQueueEntry(
     val draft: PendingBankDraftEntity,
     val group: ReviewQueueGroup,
     val conflicts: List<ReviewQueueConflict>,
-    /** The not-comparable subkind, or null outside [ReviewQueueGroup.NOT_COMPARABLE]. */
-    val subkind: ReviewQueueSubkind?,
-    /** Why a stored prediction stopped applying, or null while it applies. */
-    val staleReason: PredictionStaleReason?,
-    /**
-     * The comparability group of a fresh prediction, or null outside
-     * [ReviewQueueGroup.SUGGESTION]. Two predictions of different groups are never compared.
-     */
-    val comparabilityKey: String?,
-    /** The stored sharpness that orders a fresh prediction, or null outside that group. */
-    val confidence: Double?,
-    /** The evaluated category ids of the stored prediction, empty when none was evaluated. */
-    val candidateIds: List<Long>,
-    /** The category the stored decision pointed at, or null when it pointed at none. */
-    val suggestedCategoryId: Long? = null,
-    /** The evaluated shares, in the same order as [candidateIds]. */
-    val probabilities: List<Double> = emptyList(),
-    /** The calibrated no-fit share of the same distribution, or null when none was produced. */
-    val unknownShare: Double? = null,
-    /** When the stored prediction was recorded, or null when none is stored. */
-    val predictionTimeEpochMillis: Long? = null,
-    /** The model revision that produced the stored prediction, or null. */
-    val modelRevision: String? = null,
-    /** The candidate-set construction that produced the stored prediction, or null. */
-    val candidateSetVersion: String? = null,
-    /** The stored linked readings the prediction's input was composed from. */
-    val eventIds: List<Long> = emptyList(),
-    /** Whether the suggestion input was stored source text or a derived English translation. */
-    val classificationInputKind: ClassificationInputKind = ClassificationInputKind.STORED_SOURCE,
-    /** The active category count at read time, stated with a suggestion's scope. */
-    val activeCategoryCount: Int = 0,
-    /** The policy-gated relative statement, or null when no label is allowed. */
-    val relativeConfidence: RelativeConfidence? = null,
 )
 
 /**
@@ -538,17 +395,6 @@ data class EventOperationQuery(
  */
 data class CaptureEventQuery(
     val captureId: Long,
-    val bounds: QueryPageRequest,
-)
-
-/**
- * A bounded read of the stored classification results — the results of the classification
- * requests.
- *
- * [staleOnly] narrows the read to the predictions that no longer apply.
- */
-data class ClassificationOperationQuery(
-    val staleOnly: Boolean = false,
     val bounds: QueryPageRequest,
 )
 
@@ -700,23 +546,6 @@ data class EventOperation(
     val revision: Int,
     val sourceRevision: Int,
     val unresolvedReason: String?,
-)
-
-/**
- * The stored result of one classification request.
- *
- * The prediction is review-only evidence: it names where the decision came from, the
- * category it pointed at, the categories the model evaluated, and the one sharpness value
- * of that distribution. [staleReason] says why it no longer applies, or null while it does.
- */
-data class ClassificationOperation(
-    val draftId: Long,
-    val decisionSource: PredictionSource,
-    val suggestedCategoryId: Long?,
-    val candidateIds: List<Long>,
-    val confidence: Double?,
-    val predictionTimeEpochMillis: Long,
-    val staleReason: PredictionStaleReason?,
 )
 
 /**

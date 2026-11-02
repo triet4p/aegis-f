@@ -8,7 +8,7 @@ enum class WorkflowIntent {
     INTERPRET_EVENTS,
     SEARCH_DRAFTS,
     LINK_EVENT_TO_DRAFT,
-    PREPARE_LAYA_REVIEW,
+    DRAFT_CATEGORY_REVIEW,
     REPLAY_OPERATION,
 }
 
@@ -17,7 +17,7 @@ enum class WorkflowSkillId(val wireId: String) {
     EVENT_READING("event-reading"),
     DRAFT_SEARCH("draft-search"),
     LINK_EVENT_DRAFT("link-event-draft"),
-    LOCAL_REVIEW("local-review"),
+    DRAFT_REVIEW("draft-review"),
     OPERATION_REPLAY("explicit-operation-replay"),
 }
 
@@ -80,7 +80,7 @@ class WorkflowSkillCatalog private constructor(
                 WorkflowIntent.INTERPRET_EVENTS -> selected += WorkflowSkillId.EVENT_READING
                 WorkflowIntent.SEARCH_DRAFTS -> selected += WorkflowSkillId.DRAFT_SEARCH
                 WorkflowIntent.LINK_EVENT_TO_DRAFT -> selected += WorkflowSkillId.LINK_EVENT_DRAFT
-                WorkflowIntent.PREPARE_LAYA_REVIEW -> selected += WorkflowSkillId.LOCAL_REVIEW
+                WorkflowIntent.DRAFT_CATEGORY_REVIEW -> selected += WorkflowSkillId.DRAFT_REVIEW
                 WorkflowIntent.REPLAY_OPERATION -> selected += WorkflowSkillId.OPERATION_REPLAY
             }
         }
@@ -105,8 +105,8 @@ class WorkflowSkillCatalog private constructor(
     }
 
     companion object {
-        const val ASSET_NAME = "s8_agent_runtime_skills_v5.json"
-        const val SCHEMA = "aegis-f-s8-agent-runtime-skills/v5"
+        const val ASSET_NAME = "s8_agent_runtime_skills_v6.json"
+        const val SCHEMA = "aegis-f-s8-agent-runtime-skills/v6"
 
         private val EXPECTED_IDS = WorkflowSkillId.entries.associateBy(WorkflowSkillId::wireId)
         private val EXPECTED_VERSIONS = mapOf(
@@ -132,10 +132,11 @@ class WorkflowSkillCatalog private constructor(
             // own user_label and a pair observation names the exact event/draft labels it binds, so a
             // candidate question copies the proposed row's label instead of inferring it from order.
             WorkflowSkillId.LINK_EVENT_DRAFT to 3,
-            // Version 2 adds optional source-bound English translation for local Laya: it covers
-            // the complete current draft and active linked readings, preserves neutral tokens,
-            // and never replaces the ordinary source-text path when translation is not needed.
-            WorkflowSkillId.LOCAL_REVIEW to 2,
+            // Version 1 of the hosted category workflow: the model chooses one existing
+            // category from the draft's own current choices and submits it through the
+            // ordinary draft-review update. There is no classifier, translation hop or
+            // separate category-only round-trip, and the draft stays pending.
+            WorkflowSkillId.DRAFT_REVIEW to 1,
             WorkflowSkillId.OPERATION_REPLAY to 1,
         )
         private val REQUIRED_BRANCHES = setOf("normal", "error")

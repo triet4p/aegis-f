@@ -15,6 +15,7 @@ import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_RUN_ADMITTED
 import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_RUN_CANCELLED
 import io.github.triet4p.aegisf.data.AGENT_TRACE_RUN_SCOPE_ATTEMPT
 import io.github.triet4p.aegisf.data.CanonicalAgentRetryPolicy
+import io.github.triet4p.aegisf.data.IntakeReviewStatus
 import io.github.triet4p.aegisf.data.LedgerDatabase
 import io.github.triet4p.aegisf.data.QueryPageRequest
 import io.github.triet4p.aegisf.data.WorkflowCallerScope
@@ -121,6 +122,7 @@ class AgentRunHistory(
             linkRevision = null,
             draftId = null,
             decisionSource = null,
+            selectedCategoryId = null,
             observationJson = JSONObject().put("admitted", true).toString(),
             ownerToken = UUID.randomUUID().toString(),
             createdAtEpochMillis = now,
@@ -227,7 +229,8 @@ class AgentRunHistory(
             linkState = effect?.linkState,
             linkRevision = effect?.linkRevision,
             draftId = effect?.draftId,
-            decisionSource = effect?.decisionSource,
+            decisionSource = null,
+            selectedCategoryId = effect?.categoryId,
             observationJson = safeObservation,
             now = now,
         )
@@ -520,14 +523,11 @@ class AgentRunHistory(
                     pair.revision == (row.linkRevision ?: return null) &&
                         pair.state.name == (row.linkState ?: return null)
                 }
-                "classification" -> {
-                    val stored = queryService.classificationOperations(
-                        io.github.triet4p.aegisf.data.ClassificationOperationQuery(
-                            staleOnly = false,
-                            bounds = QueryPageRequest(500, 0),
-                        ),
-                    ).items.firstOrNull { it.draftId == row.draftId } ?: return null
-                    stored.decisionSource.name == (row.decisionSource ?: return null)
+                "draft_category" -> {
+                    val draft = queryService.draftCandidate(row.draftId ?: return null) ?: return null
+                    draft.reviewStatus == IntakeReviewStatus.PENDING &&
+                        draft.reviewCategoryResolved &&
+                        draft.reviewCategoryId == (row.selectedCategoryId ?: return null)
                 }
                 else -> null
             }
@@ -780,18 +780,12 @@ class AgentRunHistory(
                     .put("draftId", effect.draftId)
                     .put("state", effect.state.name)
                     .put("revision", effect.revision)
-                is WorkflowVerifiedEffect.Classification -> item
-                    .put("kind", "classification")
+                is WorkflowVerifiedEffect.DraftCategory -> item
+                    .put("kind", "draft_category")
                     .put("draftId", effect.draftId)
-                    .put("source", effect.source.name)
-                    .put("suggestedCategoryId", effect.suggestedCategoryId ?: JSONObject.NULL)
-                    .put("confidence", effect.confidence ?: JSONObject.NULL)
+                    .put("categoryId", effect.categoryId)
                     .put("reviewStatus", effect.reviewStatus.name)
-                is WorkflowVerifiedEffect.ClassificationUnavailable -> item
-                    .put("kind", "classification_unavailable")
-                    .put("draftId", effect.draftId)
-                    .put("reasonCode", effect.reasonCode)
-                    .put("reviewStatus", effect.reviewStatus.name)
+                    .put("reviewRevision", effect.reviewRevision)
                 is WorkflowVerifiedEffect.ReplayIdentity -> item
                     .put("kind", "replay_identity")
                     .put("operationKey", effect.operationKey)
@@ -827,12 +821,12 @@ class AgentRunHistory(
             is WorkflowRunOutcome.Completed -> {
                 val link = outcome.verifiedEffects.filterIsInstance<WorkflowVerifiedEffect.LinkState>().firstOrNull()
                 val event = outcome.verifiedEffects.filterIsInstance<WorkflowVerifiedEffect.EventReading>().firstOrNull()
-                val classification = outcome.verifiedEffects.filterIsInstance<WorkflowVerifiedEffect.Classification>().firstOrNull()
+                val draftCategory = outcome.verifiedEffects.filterIsInstance<WorkflowVerifiedEffect.DraftCategory>().firstOrNull()
                 val noEffect = outcome.verifiedEffects.filterIsInstance<WorkflowVerifiedEffect.NoEffect>().isNotEmpty()
                 val effect = when {
                     link != null -> AttemptEffect("link", link.eventId, link.revision, link.linkId, link.state.name, link.revision, link.draftId, null)
                     event != null -> AttemptEffect("event", event.eventId, event.revision, null, null, null, null, null)
-                    classification != null -> AttemptEffect("classification", null, null, null, null, null, classification.draftId, classification.source.name)
+                    draftCategory != null -> AttemptEffect("draft_category", null, null, null, null, null, draftCategory.draftId, draftCategory.categoryId)
                     noEffect -> AttemptEffect("no_effect", null, null, null, null, null, null, null)
                     else -> AttemptEffect("query", null, null, null, null, null, null, null)
                 }
@@ -844,7 +838,7 @@ class AgentRunHistory(
         }
     }
 
-    private data class AttemptEffect(val kind: String?, val eventId: Long?, val eventRevision: Int?, val linkId: Long?, val linkState: String?, val linkRevision: Int?, val draftId: Long?, val decisionSource: String?)
+    private data class AttemptEffect(val kind: String?, val eventId: Long?, val eventRevision: Int?, val linkId: Long?, val linkState: String?, val linkRevision: Int?, val draftId: Long?, val categoryId: Long?)
 
     private companion object {
         const val MAX_REQUEST_CHARS = 2_000

@@ -7,8 +7,6 @@ import io.github.triet4p.aegisf.data.CaptureKind
 import io.github.triet4p.aegisf.data.CaptureMessageEntity
 import io.github.triet4p.aegisf.data.CaptureSourceKind
 import io.github.triet4p.aegisf.data.CategoryEntity
-import io.github.triet4p.aegisf.data.ClassificationEngine
-import io.github.triet4p.aegisf.data.ClassificationEngineResult
 import io.github.triet4p.aegisf.data.IntakeDirection
 import io.github.triet4p.aegisf.data.IntakeFieldState
 import io.github.triet4p.aegisf.data.IntakeParseStatus
@@ -20,7 +18,6 @@ import io.github.triet4p.aegisf.data.SystemLedgerClock
 import io.github.triet4p.aegisf.data.WorkflowCallerScope
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
-import io.github.triet4p.aegisf.data.laya.LayaEffectiveContext
 import io.github.triet4p.aegisf.privacy.MaskedHostedGateway
 import io.github.triet4p.aegisf.privacy.MaskedPromptBoundary
 import io.github.triet4p.aegisf.privacy.SensitiveVault
@@ -88,7 +85,6 @@ class AgentMaskedValueUsabilityTest {
             database = database,
             clock = SystemLedgerClock,
             timezoneId = { "Asia/Ho_Chi_Minh" },
-            engine = UnavailableEngine,
         )
         queries = WorkflowQueryService(database)
         declarations = AgentToolDeclarations.load(context.assets::open)
@@ -729,14 +725,6 @@ class AgentMaskedValueUsabilityTest {
         }
 
         fun egress(): List<String> = prompts + toolResultPayloads.flatten()
-    }
-
-    private object UnavailableEngine : ClassificationEngine {
-        override suspend fun classify(
-            context: LayaEffectiveContext,
-            categories: List<CategoryEntity>,
-        ): ClassificationEngineResult =
-            ClassificationEngineResult.Failed("Laya is not available in this unit test.")
     }
 
     // ---- Envelope helpers -----------------------------------------------------------------

@@ -41,6 +41,7 @@ abstract class AgentRunAttemptDao {
             "`effectKind` = :effectKind, `eventId` = :eventId, `eventRevision` = :eventRevision, " +
             "`linkId` = :linkId, `linkState` = :linkState, `linkRevision` = :linkRevision, " +
             "`draftId` = :draftId, `decisionSource` = :decisionSource, " +
+            "`selectedCategoryId` = :selectedCategoryId, " +
             "`observationJson` = :observationJson, `ownerToken` = NULL, " +
             "`updatedAtEpochMillis` = :now " +
             "WHERE `id` = :id AND `ownerToken` = :ownerToken AND `state` = 'PENDING'",
@@ -58,6 +59,7 @@ abstract class AgentRunAttemptDao {
         linkRevision: Int?,
         draftId: Long?,
         decisionSource: String?,
+        selectedCategoryId: Long?,
         observationJson: String,
         now: Long,
     ): Int

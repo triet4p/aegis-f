@@ -121,8 +121,7 @@ internal class ReviewCommands(
 /**
  * The review commands of one database, built the way the app builds its boundary.
  *
- * The classifier is stood in for: a financial command never asks the local model
- * anything, and the model is not installed on a host test machine.
+ * The boundary is the only public way to review a draft; no classifier is involved.
  */
 internal fun reviewCommands(
     database: LedgerDatabase,
@@ -131,12 +130,6 @@ internal fun reviewCommands(
     commands = WorkflowCommandService(
         database = database,
         clock = clock,
-        engine = object : ClassificationEngine {
-            override suspend fun classify(
-                context: io.github.triet4p.aegisf.data.laya.LayaEffectiveContext,
-                categories: List<CategoryEntity>,
-            ): ClassificationEngineResult = ClassificationEngineResult.Failed("not used here")
-        },
     ),
     drafts = database.pendingBankDraftDao(),
 )

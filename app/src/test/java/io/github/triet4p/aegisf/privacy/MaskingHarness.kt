@@ -1,14 +1,11 @@
 package io.github.triet4p.aegisf.privacy
 
-import io.github.triet4p.aegisf.data.ClassificationEngine
-import io.github.triet4p.aegisf.data.ClassificationEngineResult
 import io.github.triet4p.aegisf.data.LedgerDatabase
 import io.github.triet4p.aegisf.data.SaveCaptureRequest
 import io.github.triet4p.aegisf.data.SystemLedgerClock
 import io.github.triet4p.aegisf.data.UpdateEventRequest
 import io.github.triet4p.aegisf.data.WorkflowCallerScope
 import io.github.triet4p.aegisf.data.WorkflowChange
-import io.github.triet4p.aegisf.data.WorkflowClaimGuard
 import io.github.triet4p.aegisf.data.WorkflowCommandOutcome
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
@@ -85,20 +82,10 @@ internal object MaskingHarnessIsolation {
                 database = database,
                 clock = SystemLedgerClock,
                 timezoneId = { "Asia/Ho_Chi_Minh" },
-                engine = RefusingEngine,
             )
             block(Harness(database, commands, WorkflowQueryService(database)))
         } finally {
-            WorkflowClaimGuard.reset()
             database.close()
         }
-    }
-
-    private object RefusingEngine : ClassificationEngine {
-        override suspend fun classify(
-            context: io.github.triet4p.aegisf.data.laya.LayaEffectiveContext,
-            categories: List<io.github.triet4p.aegisf.data.CategoryEntity>,
-        ): ClassificationEngineResult =
-            ClassificationEngineResult.Failed("classifier is out of scope for masking")
     }
 }

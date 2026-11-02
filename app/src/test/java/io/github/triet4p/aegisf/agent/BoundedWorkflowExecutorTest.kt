@@ -20,12 +20,9 @@ import io.github.triet4p.aegisf.data.SystemLedgerClock
 import io.github.triet4p.aegisf.data.UpdateEventRequest
 import io.github.triet4p.aegisf.data.WorkflowCallerScope
 import io.github.triet4p.aegisf.data.WorkflowChange
-import io.github.triet4p.aegisf.data.WorkflowClaimGuard
 import io.github.triet4p.aegisf.data.WorkflowCommandOutcome
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
-import io.github.triet4p.aegisf.data.laya.LayaClassificationEngine
-import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
 import io.github.triet4p.aegisf.privacy.MaskedHostedGateway
 import io.github.triet4p.aegisf.privacy.MaskedPath
 import io.github.triet4p.aegisf.privacy.MaskedPromptBoundary
@@ -43,7 +40,6 @@ import io.github.triet4p.aegisf.provider.HostedToolResult
 import io.github.triet4p.aegisf.provider.HostedTurn
 import io.github.triet4p.aegisf.provider.HostedTurnFinish
 import io.github.triet4p.aegisf.provider.ToolCallDisposition
-import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
@@ -71,7 +67,6 @@ class BoundedWorkflowExecutorTest {
     private lateinit var database: LedgerDatabase
     private lateinit var commands: WorkflowCommandService
     private lateinit var queries: WorkflowQueryService
-    private lateinit var laya: LayaInferenceLifecycle
     private lateinit var declarations: List<HostedToolDeclaration>
     /** The active fixture's vault, used to select a value alias by the role it parses for. */
     private lateinit var vault: SensitiveVault
@@ -84,12 +79,10 @@ class BoundedWorkflowExecutorTest {
         database = Room.inMemoryDatabaseBuilder(context, LedgerDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        laya = LayaInferenceLifecycle(File("build/s813-executor-test-missing-model"))
         commands = WorkflowCommandService(
             database = database,
             clock = SystemLedgerClock,
             timezoneId = { "Asia/Ho_Chi_Minh" },
-            engine = LayaClassificationEngine(laya),
         )
         queries = WorkflowQueryService(database)
         declarations = AgentToolDeclarations.load(context.assets::open)
@@ -98,8 +91,6 @@ class BoundedWorkflowExecutorTest {
 
     @After
     fun tearDown() {
-        WorkflowClaimGuard.reset()
-        laya.close()
         database.close()
     }
 
@@ -855,31 +846,6 @@ class BoundedWorkflowExecutorTest {
             outcome.trace.count { it.state == WorkflowRunState.DISPATCHING } >= 3,
         )
         assertNotNull("a clarifying run must offer one follow-up", outcome.followUp)
-    }
-
-    @Test
-    fun `local model unavailability completes truthfully without a prediction`() = runBlocking {
-        val fixture = prepare()
-        lateinit var adapter: ScriptedAdapter
-        val script = scripted()
-        script += { toolTurn(call("classify_draft", JSONObject().put("draft_ref", draftRef(adapter)))) }
-        script += { complete("The local suggestion is unavailable; review stays manual.") }
-        adapter = ScriptedAdapter(script)
-        val outcome = run(fixture, adapter, WorkflowRunRequest(
-            intents = setOf(WorkflowIntent.PREPARE_LAYA_REVIEW),
-            userRequest = "Suggest a category for the draft.",
-        ))
-        assertTrue("expected completion, got $outcome", outcome is WorkflowRunOutcome.Completed)
-        outcome as WorkflowRunOutcome.Completed
-        val manual = outcome.verifiedEffects.filterIsInstance<WorkflowVerifiedEffect.ClassificationUnavailable>().single()
-        assertEquals("MODEL_UNAVAILABLE", manual.reasonCode)
-        assertEquals(IntakeReviewStatus.PENDING, queries.draftCandidate(fixture.draftId)?.reviewStatus)
-        assertEquals(0, queries.classificationOperations(
-            io.github.triet4p.aegisf.data.ClassificationOperationQuery(bounds = QueryPageRequest(10, 0)),
-        ).items.size)
-        val result = JSONObject(adapter.toolResultPayloads.single().single())
-        assertEquals("MODEL_UNAVAILABLE", result.getJSONObject("error").getString("code"))
-        assertEquals("dispatched", result.getString("dispatch"))
     }
 
     // ---- Bounded masking repair ----------------------------------------------------------

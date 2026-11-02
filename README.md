@@ -23,7 +23,7 @@ opt-in notification review inbox — every bank-derived record still requires th
   destinations or going back keeps unsaved form input and list filters, and the open destination,
   route and draft survive process recreation.
 - **Chat / Quick Capture** — a persistent local journal and an optional hosted workflow. Saving a note is local and does not send it or create a ledger record. Captures can hold multiple editable event interpretations tied to exact source excerpts. Bounded pending-draft browsing lets you explicitly attach, permanently reject, or unlink context; missing or multiple candidates are never selected automatically, stale source conflicts stay visible, and link decisions never change a bank-stated amount. An unmatched event can open a prefilled Manual form with its saved-note/event provenance; it becomes a ledger record only after you explicitly save it.
-  When you explicitly start a hosted run, selected notes, drafts, and tool results are masked on-device before being sent to the endpoint shown in Settings. The assistant can interpret notes, search drafts, attach only eligible links, request a local Laya review, or ask one visible clarification. It cannot confirm or dismiss a bank draft, delete a ledger record, or create a financial record; review and confirmation remain separate user actions. A failed run stays visibly incomplete with retry/manual options, and cancellation does not roll back an effect already recorded. Local notes, intake, Manual entry, and Laya remain available without hosted inference.
+  When you explicitly start a hosted run, selected notes, drafts, and tool results are masked on-device before being sent to the endpoint shown in Settings. The assistant can interpret notes, search drafts, attach only eligible links, save one existing category on a draft as review state, or ask one visible clarification. It cannot confirm or dismiss a bank draft, delete a ledger record, or create a financial record; review and confirmation remain separate user actions. A failed run stays visibly incomplete with retry/manual options, and cancellation does not roll back an effect already recorded. Local notes, intake, Manual entry, and review remain available without hosted inference.
 - **Hosted provider privacy disclosure** — before sending, Chat and provider settings warn that the selected HTTPS endpoint receives locally masked context and that masking is not anonymity. Review the endpoint and its terms before starting a request.
 - **Manual → Record a transaction** — amount, type (expense, income, internal transfer), date (`YYYY-MM-DD`),
   time (`HH:mm`, device time zone), optional description, and a category. Starting from an unmatched
@@ -230,79 +230,30 @@ arriving through the listener on a phone. What is actually verified today:
 
 The following capabilities are not available yet:
 
-- **Review-only suggestions are available for manual entry and notification drafts.**
-  Since Sprint 7, a supported bank notification is classified automatically: intake stores the
-  draft first, then records one durable classification job for it, so opening Review does not
-  require asking the model by hand. A missing, busy, cancelled, or failed model leaves the
-  draft exactly as stored — reviewable and manually categorisable with no suggestion — and a
-  repeated delivery of the same notification never asks the model twice. The job is durable and
-  coalesced: a newer description, linked note reading, category catalog or remembered rule
-  replaced instead of adding another one, so rapid edits are answered about
-  the newest wording only and an edit that does not change the model's input (such as correcting
-  an amount) asks nothing; a process that ends mid-inference resumes the job on its next start,
-  and a draft the user resolves, confirms or dismisses has its job cancelled before the model is
-  asked. The stored suggestion follows the same rule: choosing a category yourself, editing the
-  wording or a linked reading, and renaming, archiving or deleting a category mark it stale with
-  that change, and a result that arrives afterwards — or after a note excerpt is unlinked — is
-  refused instead of replacing the newer state. A suggestion is never offered for a category that
-  has since been archived or removed. Intake never waits for inference, one inference runs at a
-  time, and the automatic request grows out of the permitted stored memo, honours an explicit
-  remembered rule before inference, is skipped once the draft already carries the user's own
-  category, and never rewrites the stored memo or the parsed bank fields.
-  S4.4 supplies current-category planning with caller-supplied corrections, deterministic
-  category-name matching, a token-budgeted shortlist, an explicit no-fit result, and
-  omitted-candidate uncertainty. S4.5 runs decisions through a process-owned bounded lifecycle.
-  S4.6 uses that lifecycle for new manual expense forms and resolves results by stable id
-  against fresh category rows. S4.7 offers deliberate **Remember for this description** and
-  **Remove rule** actions: an explicit rule matches one exact description after case and
-  whitespace normalization, resolves only to its current active category id, and is checked
-  before neural inference. It never learns from a correction, generalizes to other descriptions,
-  changes the category field without an explicit **Use suggestion** or **Use remembered category**
-  action, or writes a transaction. Income, transfers, and corrections remain manual.
-  Description/type edits, manual category selection, category metadata changes, and leaving the
-  form invalidate pending results. S4.8 first connected the review-only path to notification
-  drafts; S7.6 retired that screen's transient suggestion note and its own per-edit model
-  request, so a corrected description or accepted note context now schedules the durable queue
-  and review reads the stored suggestion back. Non-blank permitted text (English works best
-  because the pinned model is English-first; any language is tried and no multilingual quality
-  is claimed) reaches the saved-rule lookup and bounded inference, while blank text stays
-  manual and only OTP/security-like text and bank reference codes stay manual. The stored memo
-  is never rewritten, and the draft category field changes only on explicit acceptance;
-  confirmation still requires a separate action. Draft review keeps the Category suggestion
-  header visible for every stored state, with an indeterminate progress bar plus truthful
-  busy text while rules or the model work; manual entry keeps the same visible busy state. A
-  safety-blocked description explains nothing was sent, so the ordinary bank path no longer
-  looks like a missing feature. S4.10
-  replaces the single-winner display with the model-returned ranked per-category probability
-  distribution plus the same-softmax unknown share in both manual entry and draft
-  review: every evaluated active category is listed in descending calibrated probability with
-  the overall Jev confidence labeled as sharpness (never a per-category guarantee), unknown
-  wins keep all rows selectable, explicit rules and category-name matches still short-circuit
-  with no fabricated scores, and oversized subsets keep their evaluated-scope disclosure.
-  Selecting any row only stages it into the category field; nothing is saved or confirmed.
-  A category permanently deleted while a suggestion is pending, or already selected, resolves stale
-  by its stable id: its ranked row keeps the model share it was given but has no current category to
-  select, and saving the removed id is refused, so a late decision cannot resurrect it.
-  The S4.9 phone evaluation recorded 7/8 labeled top choices and only 1/6 expected-category
-  shortlist recall with 206 active categories; keep the model review-only with manual fallback
-  ([evaluation](artifacts/sprint-4/workers/S4.9-A1.md)). S7.8 then measured the review effort both
-  paths actually cost on a paired seven-draft phone fixture: automatic intake stored all seven
-  suggestions before review opened, removed the four typed description entries and the review-time
-  model waiting, while type, category and the explicit confirmation dialog stayed manual on both
-  builds; the dashboard totals reconciled exactly on each build
-  ([review effort](docs/sprint-7-review-effort.md)).
+- **Manual review and the hosted category choice.** A supported bank notification is stored as a
+  reviewable draft; nothing is classified on the device. Review shows every waiting draft in the
+  uncertainty-first order (unresolved link or bank-data conflicts, then drafts that still need a
+  category, then drafts ready for confirm or dismiss), with a chronological override. The category
+  is chosen by you in Review, or by the hosted workflow when you explicitly ask it to categorize a
+  draft: the model receives the draft's current active category choices and submits one existing
+  category through the ordinary draft-review update. The app re-checks the draft revision and the
+  live catalog before writing, so a stale or archived choice is refused instead of applied. A saved
+  category is review state only: the draft stays pending and confirmation remains a separate user
+  action. Manual category selection, saved exact-description rules, intake and the ledger work
+  without a hosted provider. Historical local predictions remain stored as provenance but are never
+  presented or treated as hosted decisions.
 - **No bank account connection.** The review inbox uses only permitted notification drafts; the app
   does not log in to a bank or request SMS, accessibility, or notification-posting permissions.
-- **No cloud service, sync, or account.** There is no login, no server, and no network use at all.
+- **No app-operated cloud service, sync, or account.** There is no login and no Aegis server; the
+  only network use is the optional hosted request to the provider the owner configures.
 - **No backup, restore, or export.** See the data note below.
 - **No multi-currency, receipt OCR, voice input, or shared accounts**, and no published release: the
   APK is built and installed privately by its owner.
 
 Planned work (real-bank device verification; the four-screen workflow and persistent quick
-capture; proactive Laya review — automatic intake classification with durable, coalesced work,
-the uncertainty-first review queue with its focus controls, and the stored status/cancel/retry
-review controls are implemented and measured on the phone (S7.7 quality bounds and S7.8 paired
-review effort, [review effort](docs/sprint-7-review-effort.md)); evidence-backed offline
+capture; the uncertainty-first review queue with its focus controls and the hosted category
+choice described above are implemented and measured on the phone (S7.7 quality bounds and S7.8
+paired review effort, [review effort](docs/sprint-7-review-effort.md)); evidence-backed offline
 model/tool research; multi-event note orchestration; recovery and personal daily-use delivery) is
 described in [docs/PLAN.md](docs/PLAN.md).
 

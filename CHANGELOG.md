@@ -7,6 +7,23 @@ and no release has been tagged or published. Format follows
 
 ## [Unreleased]
 
+### Changed
+- Hosted draft-category selection replaces the on-device classifier. A draft observation carries
+  the current active category choices, and the hosted workflow submits one existing category
+  through the ordinary draft-review update; the host validates the draft review revision, the
+  category's live assignability and the catalog digest it observed, stores only the category and
+  keeps the draft pending. Stale, out-of-scope or removed choices are refused and never confirm,
+  dismiss or write ledger fields. The uncertainty-first queue no longer reads model confidence:
+  unresolved conflicts stay first, then drafts without a chosen category, then drafts ready for
+  confirm or dismiss, with the existing chronological override.
+
+### Removed
+- Removed the Laya local classifier and its English translation bridge from the active app:
+  inference runtime, ONNX Runtime dependency, tokenizer/calibration assets, model provisioning,
+  classification queue and snapshots, `classify_draft` and translation-only skill/UI paths.
+  Historical predictions remain stored provenance only and are never presented or treated as
+  hosted decisions; manual review keeps working offline.
+
 ### Fixed
 - Masked values are no longer mistaken for missing values. A value the owner already wrote is
   masked as one opaque token; the token's canonicalization still varies by field role (amount,
@@ -49,16 +66,6 @@ and no release has been tagged or published. Format follows
   as an explicit gap instead of being reconstructed. Existing databases upgrade in place
   (schema v14) with every stored run, attempt and conversation row preserved.
 
-- Added optional hosted English translation as derived input to local Laya review. The existing
-  `classify_draft(draft_ref)` source-text path remains available; translation requires the opaque
-  complete-current-context reference from `observe(draft)` and a faithful rendering of the draft
-  plus every active linked reading. The host revalidates source revisions and masked-token identity,
-  rehydrates only at the local inference boundary, and sends English as the sole input. Category
-  hints, arbitrary text replacement, source mutation and ledger confirmation remain unavailable.
-  Snapshots store only input-kind/source/input digests, and a compare-and-set identity fence
-  prevents late inference from replacing a newer differently derived input. Offline/manual/intake
-  review remains usable without translation. Database schema v15 migrates existing snapshots in place.
-
 - Added a bounded S8.14 physical-phone integration runner for the actual app UI. Its credential-free
   local mode exercises recovery and offline work; the separately selected
   `--hosted-primary-replay-slice` runs only the real hosted primary workflow and its persisted
@@ -98,13 +105,6 @@ and no release has been tagged or published. Format follows
   run reached a legitimate 17th local-Laya request that the old cap refused. All other run,
   provider, privacy and authority limits remain unchanged; the behavioral boundary regression
   proves dispatch stops before effects beyond the configured cap.
-
-- Local Laya now receives raw bank-draft descriptions and eligible event readings, including
-  OTP/security-word text and bank references. Existing emptiness, provenance and size checks
-  remain, and hosted outbound masking is unchanged.
-- Blank local descriptions now produce a correction-required result instead of being reported as
-  a missing local model; genuine inference failures remain `MODEL_UNAVAILABLE`.
-
 
 - Agent observations now carry the application's own user label for each row ("draft #421",
   "event #313"), and a pair observation names the exact event and draft labels it binds, so a

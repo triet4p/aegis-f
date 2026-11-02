@@ -1,12 +1,18 @@
 {
-  "schema": "aegis-f-s8-agent-runtime-skills/v5",
+  "schema": "aegis-f-s8-agent-runtime-skills/v6",
   "contract": "aegis-agent-interface/5",
   "skills": [
     {
       "skill_id": "event-reading",
       "skill_version": 7,
       "trigger": "The user asks to interpret or correct captured occurrences.",
-      "tools": ["observe", "select_source", "make_time_anchor", "record_event", "ask_user"],
+      "tools": [
+        "observe",
+        "select_source",
+        "make_time_anchor",
+        "record_event",
+        "ask_user"
+      ],
       "prerequisites": [
         "Trusted host scope grants the capture; the initial observation or observe returns current capture/event aliases and masked source text.",
         "Every reference, view offset and value alias comes from a current observation. Aliases are opaque and are never constructed, reused across runs or parsed.",
@@ -108,7 +114,11 @@
       "skill_id": "draft-search",
       "skill_version": 1,
       "trigger": "The user asks to find stored drafts or gather bounded candidates.",
-      "tools": ["list_drafts", "observe", "ask_user"],
+      "tools": [
+        "list_drafts",
+        "observe",
+        "ask_user"
+      ],
       "prerequisites": [
         "The host grants the draft scope; model text never widens it.",
         "Filters are review status, possible-duplicate selection and the host-issued cursor. The host chooses page size."
@@ -148,7 +158,14 @@
       "skill_id": "link-event-draft",
       "skill_version": 3,
       "trigger": "The user asks to propose or attach an event-draft association.",
-      "tools": ["observe", "list_drafts", "inspect_link", "propose_link", "attach_link", "ask_user"],
+      "tools": [
+        "observe",
+        "list_drafts",
+        "inspect_link",
+        "propose_link",
+        "attach_link",
+        "ask_user"
+      ],
       "prerequisites": [
         "Use current event and draft aliases from observations in the trusted scope.",
         "Do not infer an association from prose, ids, dates or similar amounts. The application computes trusted evidence.",
@@ -180,7 +197,9 @@
       "examples": [
         {
           "given": "Observation issues event alias evt_a and draft alias draft_a. inspect_link returns pair alias pair_a with eligibility eligible.",
-          "arguments": { "pair_ref": "pair_a" },
+          "arguments": {
+            "pair_ref": "pair_a"
+          },
           "expected": "A proposal alias and actual proposal state. Attach only if the user requested attachment."
         },
         {
@@ -196,58 +215,63 @@
       "completion": "A fresh application observation shows the intended proposal, or the exact pair ACCEPTED when attachment was requested. No ledger row exists."
     },
     {
-      "skill_id": "local-review",
-      "skill_version": 2,
-      "trigger": "The user requests the existing local review suggestion for a stored draft.",
-      "tools": ["list_drafts", "observe", "classify_draft", "ask_user"],
+      "skill_id": "draft-review",
+      "skill_version": 1,
+      "trigger": "The user asks to categorize, review or suggest a category for a stored bank draft.",
+      "tools": [
+        "list_drafts",
+        "observe",
+        "update_draft_review",
+        "ask_user"
+      ],
       "prerequisites": [
-        "The host grants the draft and returns a classification_context_ref bound to its current description plus every active linked event reading, with their link, capture, source and revision identities. The model does not submit ungrounded replacement text.",
-        "Translation is optional and is used only when the user requests English. Without that request, call the existing source-text path. When requested, preserve all facts, proper names, exact displayed neutral tokens, uncertainty and absent facts; never add extracted fields or category names."
+        "The host grants the draft and returns its current review revision, masked description, accepted linked readings and current category_choices with one opaque reference per active category.",
+        "Only an existing category from those choices may be chosen; never invent a category, name one that was not offered, or supply a probability."
       ],
       "tool_order": [
         "Identify the actual draft; clarify when several are plausible.",
-        "Call observe on the selected current draft and inspect its description and every linked_context event.text plus the current classification_context_ref.",
-        "If the user requested English translation, translate only the complete displayed source context (description plus all linked event text, or description alone when none are linked) and call classify_draft with the fresh draft ref from that same observation, its classification_context_ref, and english_translation. Preserve every masked token exactly, names, uncertainty and missing facts. Do not include category names, extracted fields absent from the text, or untranslated duplicate source text.",
-        "If no translation was requested, call classify_draft with the fresh draft ref from the observation only, retaining the ordinary local source-text path.",
-        "Report the actual local suggestion and whether its input was machine-translated. Leave category choice and confirmation to the user."
+        "Call observe on the selected current draft and read its description, linked_context readings and category_choices.",
+        "Choose exactly one offered category whose meaning fits the draft and its linked context, or ask the user when the evidence genuinely supports none of them.",
+        "Call update_draft_review with that draft ref and the chosen category ref from the same observation.",
+        "Report the stored category and that the draft remains pending; confirmation stays the user's decision."
       ],
       "branches": {
-        "normal": "Present the actual local suggestion as review-only; identify English translation as machine-derived input, not owner-authored evidence, and keep the draft pending.",
-        "clarification": "Ask which draft or review task the user intended.",
-        "no_match": "Report no in-scope draft; never guess an identifier.",
-        "error": "Report the actual unavailable/blocked/stale/over-budget state without substitute prediction or translation.",
-        "retry": "A stale draft or source-context alias means observe current draft/context and reassess; never bypass a changed revision."
+        "normal": "Report the actually stored category as review state; the draft stays pending and no ledger row is written.",
+        "clarification": "Ask which draft the user meant, or which category fits when the current choices leave the draft genuinely ambiguous.",
+        "no_match": "Report that no current category fits; offer to add a category in the app. Never invent or approximate one.",
+        "error": "Report the actual stale/refused/unavailable state without a substitute category or fabricated probability.",
+        "retry": "A stale draft review revision or changed category catalog means observe the current draft and reassess; never bypass the change."
       },
       "error_recovery": {
-        "stale_observation": "Observe the current draft and complete linked context, then translate again only from that fresh classification_context_ref.",
-        "schema_invalid": "Correct only token-preservation or paired-argument errors from the current masked source observation. Never add categories, facts or certainty.",
-        "missing_required_meaning": "Report that a faithful translation is unavailable; do not translate unrelated user text or classify untranslated source as though it were translated.",
-        "model_unavailable": "Leave review manual when translation was required. The normal source-text path remains available for requests that do not require translation.",
-        "input_over_budget": "Report refusal truthfully; never shorten source or translation to force inference."
+        "stale_observation": "Observe the current draft and its current category_choices, then choose again only from that fresh observation.",
+        "schema_invalid": "Pass only aliases: a draft ref and one category ref issued by the same current observation.",
+        "missing_required_meaning": "Ask the user which category fits; do not guess or create one.",
+        "user_decision_required": "Only the user can confirm or dismiss the draft; report the saved review state and stop."
       },
       "examples": [
         {
-          "given": "observe(draft_a) returns description 'Bánh mì' and classification_context_ref context_a with linked event text 'Mua bánh mì sáng nay; không nhớ giờ'.",
+          "given": "observe(draft_a) returns description 'Bánh mì Phố' with linked_context text 'Mua bánh mì sáng nay' and category_choices [Foods, Transport].",
           "arguments": {
             "draft_ref": "draft_a",
-            "classification_context_ref": "context_a",
-            "english_translation": "Bought bread this morning; the time is not remembered."
+            "category_ref": "<Foods category ref from the same observation>"
           },
-          "expected": "Local Laya receives the faithful English rendering, the absent clock time remains absent, and the result is labeled machine-translated. No category is supplied or chosen."
+          "expected": "Foods is stored as the draft's review category; the draft remains pending and no ledger row is written."
         },
         {
-          "given": "observe(draft_b) returns a current draft description 'bus fare' and no linked_context readings.",
-          "arguments": { "draft_ref": "draft_b" },
-          "expected": "The ordinary local source-text path classifies 'bus fare' without requiring a hosted translation."
+          "given": "observe(draft_b) returns category_choices [Foods, Transport] and a description that fits neither.",
+          "expected": "Ask the user rather than saving a category that does not fit; no category or probability is fabricated."
         }
       ],
-      "completion": "A fresh review observation confirms the actual suggestion/manual/unavailable state; the draft remains unconfirmed and no ledger row is written."
+      "completion": "A fresh draft observation shows the chosen existing category stored and the draft still pending; no ledger record exists."
     },
     {
       "skill_id": "explicit-operation-replay",
       "skill_version": 1,
       "trigger": "The user explicitly requests repeat/idempotence verification, or host recovery selects a settled replayable operation.",
-      "tools": ["observe", "replay_operation"],
+      "tools": [
+        "observe",
+        "replay_operation"
+      ],
       "prerequisites": [
         "A recorded operation alias exists from this run or was re-established by the host from the journal.",
         "A failed validation has no successful operation to replay."
@@ -273,7 +297,9 @@
       "examples": [
         {
           "given": "A previous verified mutation returned operation alias op_a.",
-          "arguments": { "operation_ref": "op_a" },
+          "arguments": {
+            "operation_ref": "op_a"
+          },
           "expected": "Journal no_change with the same operation identity and a separate current-effect check."
         }
       ],

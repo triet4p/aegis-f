@@ -1,5 +1,11 @@
 # Sprint 8.9 — bounded multi-turn agent executor
 
+**CAT1 (2026-11-02):** Laya and its English translation bridge are removed from the active
+app. The hosted workflow chooses an existing category from the draft observation's current
+`category_choices` and submits it through `update_draft_review` (the ordinary draft-review
+update). Laya-specific sections below are historical S4/S7/S8 evidence, not the active
+contract.
+
 **Status:** The bounded executor was first exercised on the host with real providers, the real
 masked gateway, typed tools/Room services and local Laya. S8.12 now wires it into Chat with
 user-configured hosted providers; this document's earlier host/device evidence remains historical

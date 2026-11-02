@@ -22,12 +22,9 @@ import io.github.triet4p.aegisf.data.SaveCaptureRequest
 import io.github.triet4p.aegisf.data.SystemLedgerClock
 import io.github.triet4p.aegisf.data.WorkflowCallerScope
 import io.github.triet4p.aegisf.data.WorkflowChange
-import io.github.triet4p.aegisf.data.WorkflowClaimGuard
 import io.github.triet4p.aegisf.data.WorkflowCommandOutcome
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
-import io.github.triet4p.aegisf.data.laya.LayaClassificationEngine
-import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
 import io.github.triet4p.aegisf.privacy.MaskedHostedGateway
 import io.github.triet4p.aegisf.privacy.MaskedPromptBoundary
 import io.github.triet4p.aegisf.privacy.SensitiveVault
@@ -41,7 +38,6 @@ import io.github.triet4p.aegisf.provider.HostedProtocol
 import io.github.triet4p.aegisf.provider.HostedToolDeclaration
 import io.github.triet4p.aegisf.provider.HttpTransport
 import io.github.triet4p.aegisf.provider.OpenAiChatCompletionsAdapter
-import java.io.File
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CancellationException
@@ -97,7 +93,6 @@ class ProductionTraceTest {
             database = database,
             clock = SystemLedgerClock,
             timezoneId = { "Asia/Ho_Chi_Minh" },
-            engine = LayaClassificationEngine(LayaInferenceLifecycle(File("build/pt1-trace-missing-model"))),
         )
         queries = WorkflowQueryService(database)
         store = AgentTraceStore(database.agentTraceDao())
@@ -108,7 +103,6 @@ class ProductionTraceTest {
 
     @After
     fun tearDown() {
-        WorkflowClaimGuard.reset()
         database.close()
         context.deleteDatabase(LedgerDatabase.NAME)
     }

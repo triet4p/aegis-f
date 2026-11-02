@@ -15,12 +15,9 @@ import io.github.triet4p.aegisf.data.SaveCaptureRequest
 import io.github.triet4p.aegisf.data.SystemLedgerClock
 import io.github.triet4p.aegisf.data.WorkflowCallerScope
 import io.github.triet4p.aegisf.data.WorkflowChange
-import io.github.triet4p.aegisf.data.WorkflowClaimGuard
 import io.github.triet4p.aegisf.data.WorkflowCommandOutcome
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
-import io.github.triet4p.aegisf.data.laya.LayaClassificationEngine
-import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
 import io.github.triet4p.aegisf.privacy.MaskedHostedGateway
 import io.github.triet4p.aegisf.privacy.MaskedPath
 import io.github.triet4p.aegisf.privacy.MaskedPromptBoundary
@@ -37,7 +34,6 @@ import io.github.triet4p.aegisf.provider.HostedTurn
 import io.github.triet4p.aegisf.provider.HostedTurnFinish
 import io.github.triet4p.aegisf.provider.HostedUsage
 import io.github.triet4p.aegisf.provider.ToolCallDisposition
-import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
@@ -82,12 +78,10 @@ class S811ContextCacheTest {
         database = Room.inMemoryDatabaseBuilder(context, LedgerDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        val laya = LayaInferenceLifecycle(File("build/s811-test-missing-model"))
         commands = WorkflowCommandService(
             database = database,
             clock = SystemLedgerClock,
             timezoneId = { "Asia/Ho_Chi_Minh" },
-            engine = LayaClassificationEngine(laya),
         )
         queries = WorkflowQueryService(database)
         declarations = AgentToolDeclarations.load(context.assets::open)
@@ -96,7 +90,6 @@ class S811ContextCacheTest {
 
     @After
     fun tearDown() {
-        WorkflowClaimGuard.reset()
         database.close()
     }
 
@@ -115,22 +108,22 @@ class S811ContextCacheTest {
         assertTrue(firstPrompts.first().contains("token_inventory_rule"))
         assertTrue(firstPrompts.first().contains("mutable_state_rule"))
         assertTrue(firstPrompts.first().contains("skill_id: draft-search"))
-        assertFalse(firstPrompts.first().contains("skill_id: local-review"))
+        assertFalse(firstPrompts.first().contains("skill_id: draft-review"))
         assertTrue(
             "the initial prompt must stay a small fraction of the 160000-character turn budget",
             firstPrompts.first().length < 40_000,
         )
 
         // Different intents select different skills: the prefix is stable per workflow, not global.
-        val laya = prepare()
-        val layaAdapter = ScriptedAdapter(scripted() + { complete("done") }, usage = null)
-        val layaPrompts = promptsOf(
-            laya,
-            layaAdapter,
-            intents = setOf(WorkflowIntent.PREPARE_LAYA_REVIEW),
+        val draftReview = prepare()
+        val draftReviewAdapter = ScriptedAdapter(scripted() + { complete("done") }, usage = null)
+        val draftReviewPrompts = promptsOf(
+            draftReview,
+            draftReviewAdapter,
+            intents = setOf(WorkflowIntent.DRAFT_CATEGORY_REVIEW),
         )
-        assertFalse(layaPrompts.first() == firstPrompts.first())
-        assertTrue(layaPrompts.first().contains("skill_id: local-review"))
+        assertFalse(draftReviewPrompts.first() == firstPrompts.first())
+        assertTrue(draftReviewPrompts.first().contains("skill_id: draft-review"))
     }
 
     @Test
@@ -340,7 +333,7 @@ class S811ContextCacheTest {
             model = "deepseek-v4.1-flash",
             generationBudget = "maxOutputTokens=8192;reasoningEffort=-;temperature=-;parallelToolCalls=false",
             declarations = declarations,
-            skills = skills.select(setOf(WorkflowIntent.PREPARE_LAYA_REVIEW)),
+            skills = skills.select(setOf(WorkflowIntent.DRAFT_CATEGORY_REVIEW)),
             privacyScopeTag = fixture.boundary.vault.scopeTag,
         )
         assertFalse(base.fingerprint() == otherModel.fingerprint())

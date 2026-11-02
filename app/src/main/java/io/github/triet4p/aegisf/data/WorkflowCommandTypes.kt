@@ -1,8 +1,5 @@
 package io.github.triet4p.aegisf.data
 
-import io.github.triet4p.aegisf.data.laya.LayaEventReading
-import io.github.triet4p.aegisf.data.laya.LayaContextDecision
-
 /**
  * Who is asking the application to change something.
  *
@@ -108,8 +105,6 @@ enum class WorkflowDenialReason {
      * so the link is refused and the event stays recorded.
      */
     EVENT_ALREADY_RECORDED,
-    /** The primary review description exceeds the local classifier's measured input budget. */
-    MODEL_INPUT_OVER_BUDGET,
 }
 
 /**
@@ -191,19 +186,16 @@ sealed interface WorkflowChange {
     data class LinkUnlinked(val linkId: Long) : WorkflowChange
 
     /**
-     * A classification was produced for a draft.
+     * The hosted workflow saved one existing category on a still-pending draft.
      *
-     * [decision] is the review-only decision this call produced, and it is null when the
-     * outcome was replayed from the durable operation record: the decision itself is not
-     * stored, only the summary of it.
+     * [categoryId] is the category the draft now names, and [revision] is the review
+     * revision the save left behind. The draft is still pending: this is review state,
+     * never a ledger record or a financial confirmation.
      */
-    data class Classified(
+    data class DraftCategorySelected(
         val draftId: Long,
-        val snapshotId: Long,
-        val source: PredictionSource,
-        val suggestedCategoryId: Long?,
-        val confidence: Double?,
-        val decision: LayaContextDecision? = null,
+        val revision: Int,
+        val categoryId: Long,
     ) : WorkflowChange
 
     /**
@@ -410,51 +402,24 @@ data class UnlinkLinkRequest(
 )
 
 /**
- * One request to classify a bank draft.
+ * One request to save the category of a still-pending bank draft.
  *
- * The description is the current authoritative stored primary source. Ordinary requests pass
- * it to Laya and compose active linked readings. With [HostedEnglishClassificationInput], it
- * remains a current-draft check while Laya receives only the bound English translation.
+ * It is the ordinary draft-review update restricted to the one field an agent may submit:
+ * the category the hosted workflow chose from the draft's current choices. The amount, the
+ * moment, the memo, and the type are re-stored unchanged, the draft stays pending, and no
+ * ledger record is written — only the user's own confirmation can do that.
  *
- * [expectedReviewRevision] is the draft's own review revision when the caller wants the
- * request pinned to the state it read; null leaves the draft's review state open, and the
- * dependency check of the stored prediction still applies.
+ * [expectedReviewRevision] is the draft review revision the caller observed; a draft that
+ * moved on is refused instead of overwritten. The category is validated against the live
+ * assignable catalog inside the mutation, so a removed or archived category is refused too.
  */
-data class ClassificationRequest(
+data class SelectDraftCategoryRequest(
     val idempotencyKey: String,
     val draftId: Long,
-    val description: String,
-    val expectedReviewRevision: Int? = null,
+    val expectedReviewRevision: Int,
+    val categoryId: Long,
 )
 
-/**
- * A digest binding a hosted English translation to the draft's complete current Laya source context.
- * The digest covers the draft review revision and every active linked reading, link, and source revision.
- * It supports draft-only input as well as zero, one, or several current linked readings.
- */
-internal data class ClassificationTranslationBinding(
-    val draftId: Long,
-    val draftReviewRevision: Int,
-    val sourceRevision: String,
-)
-
-/** One in-memory translation result, with a redacted string form to avoid accidental logging. */
-internal class HostedEnglishClassificationInput(
-    val text: String,
-    val binding: ClassificationTranslationBinding,
-) {
-    override fun toString(): String = "HostedEnglishClassificationInput(<redacted>)"
-}
-
-/** Full authorized source context for one translation request; never serialized as an agent result. */
-internal class ClassificationTranslationSource(
-    val binding: ClassificationTranslationBinding,
-    val primaryText: String,
-    val eventReadings: List<LayaEventReading>,
-    val eventCaptureIds: List<Long>,
-) {
-    override fun toString(): String = "ClassificationTranslationSource(<redacted>)"
-}
 /**
  * One request to add a category to the catalog.
  *
@@ -546,8 +511,6 @@ internal fun WorkflowCommandOutcome.refusalMessage(): String? = when (this) {
             "That note was already recorded as a ledger record."
         WorkflowDenialReason.EVENT_UNAVAILABLE ->
             "That note no longer holds the occurrence it described."
-        WorkflowDenialReason.MODEL_INPUT_OVER_BUDGET ->
-            "The review text exceeds the local classification input budget and was not shortened."
         WorkflowDenialReason.CALLER_SCOPE ->
             "That item is outside what this caller may change."
         else -> "This change was refused."
@@ -561,39 +524,12 @@ internal fun WorkflowCommandOutcome.refusalMessage(): String? = when (this) {
  * The digest of the category catalog's current state.
  *
  * It changes when a category is added, renamed, archived, or deleted, and it changes
- * for nothing else. The stored predictions are recorded against the same digest, so a
- * catalog that moved on makes them stale.
+ * for nothing else. A caller that pins a category choice to the catalog it observed can
+ * compare this digest instead of assuming the catalog stayed still.
  */
 fun categoryCatalogRevision(categories: List<CategoryEntity>): String = canonicalDependencyDigest(
     categories.sortedBy { it.id }.flatMap { category ->
         listOf(category.id.toString(), category.name, category.archived.toString())
     },
-)
-
-/**
- * The idempotency key of one review's classification request.
- *
- * The key names the request, not the answer: the same review, with the same text, the
- * same category catalog, and the same request identity, asks the same question. A change
- * of any of them is a different question and gets its own key.
- *
- * [formIdentity] identifies the review form the request came from, and [revision] counts
- * the explicit requests the user made on it.
- */
-fun reviewClassificationRequestKey(
-    draftId: Long,
-    formIdentity: Int,
-    revision: Int,
-    description: String,
-    categories: List<CategoryEntity>,
-): String = canonicalDependencyDigest(
-    listOf(
-        "REVIEW_CLASSIFICATION",
-        draftId.toString(),
-        formIdentity.toString(),
-        revision.toString(),
-        categoryCatalogRevision(categories),
-        description,
-    ),
 )
 

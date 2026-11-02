@@ -81,9 +81,10 @@ class WorkflowOperationMigrationTest {
             // reason and never becomes the app's own evidence.
             assertEquals("same day fuel", links.single().evidence)
             assertFalse(isTrustedLinkEvidence(links.single().evidence))
-            val snapshot = database.classificationSnapshotDao().findForDraft(PENDING_DRAFT_ID)
-            assertNotNull(snapshot)
-            assertEquals("MODEL", snapshot!!.decisionSource)
+            assertEquals(
+                "MODEL",
+                text(room, "SELECT decisionSource FROM classification_snapshots LIMIT 1"),
+            )
 
             // The new table exists and starts empty: version 9 recorded no command.
             assertEquals(0L, scalar(room, "SELECT COUNT(*) FROM workflow_operations"))
@@ -304,6 +305,12 @@ class WorkflowOperationMigrationTest {
         database.rawQuery(sql, null).use { cursor ->
             check(cursor.moveToFirst()) { "$sql returned no row" }
             cursor.getLong(0)
+        }
+
+    private fun text(database: androidx.sqlite.db.SupportSQLiteDatabase, sql: String): String =
+        database.query(sql).use { cursor ->
+            check(cursor.moveToFirst()) { "$sql returned no row" }
+            cursor.getString(0)
         }
 
     private fun text(database: SQLiteDatabase, sql: String): String =

@@ -1,5 +1,10 @@
 # S7.1 confidence semantics and uncertainty-first queue policy (frozen for S7.2+)
 
+**CAT1 update (2026-11-02):** the active review queue no longer reads model predictions.
+It orders unresolved link/bank-data conflicts first, then drafts that have not chosen a
+category, then drafts ready for confirm or dismiss; the chronological override is unchanged.
+The Laya confidence and prediction sections below are historical S7 policy.
+
 **Scope:** S7.1 policy only. This document freezes what Laya `confidence` means, how
 correction rules and unknown outcomes behave, which predictions may be compared, when a
 dominant category may be called relatively confident, and the deterministic queue order

@@ -89,7 +89,7 @@ internal fun HostedProviderSettingsScreen(
             Text(
                 "Requests use the selected HTTPS endpoint and may send locally masked context. " +
                     "Masking reduces direct values but is not anonymity; remaining context may still identify you. " +
-                    "Review the endpoint and provider terms before sending. Manual entry, notification intake and local Laya remain available offline.",
+                    "Review the endpoint and provider terms before sending. Manual entry and notification intake remain available offline.",
             )
             if (storeLoadFailed) {
                 Text(

@@ -45,7 +45,6 @@ class FinancialCommandServiceTest {
         context = ApplicationProvider.getApplicationContext()
         context.deleteDatabase(LedgerDatabase.NAME)
         clock = FixedClock()
-        WorkflowClaimGuard.reset()
     }
 
     private fun open(): LedgerDatabase = LedgerDatabase.build(context)
@@ -54,12 +53,6 @@ class FinancialCommandServiceTest {
         database = database,
         clock = clock,
         timezoneId = { CAPTURE_ZONE },
-        engine = object : ClassificationEngine {
-            override suspend fun classify(
-                context: io.github.triet4p.aegisf.data.laya.LayaEffectiveContext,
-                categories: List<CategoryEntity>,
-            ): ClassificationEngineResult = ClassificationEngineResult.Failed("not used here")
-        },
     )
 
     private fun ledger(database: LedgerDatabase) = LedgerRepository(

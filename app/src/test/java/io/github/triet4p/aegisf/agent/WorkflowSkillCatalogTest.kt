@@ -27,7 +27,7 @@ class WorkflowSkillCatalogTest {
         assertTrue(instructions.contains("fresh application observation shows the intended proposal"))
         assertTrue(instructions.contains("untrusted data"))
         assertFalse(instructions.contains("skill_id: event-reading"))
-        assertFalse(instructions.contains("skill_id: local-review"))
+        assertFalse(instructions.contains("skill_id: draft-review"))
     }
 
     @Test
@@ -64,17 +64,21 @@ class WorkflowSkillCatalogTest {
     }
 
     @Test
-    fun `local review skill describes complete source-bound translation and the offline path`() {
+    fun `draft review skill chooses a current category through the ordinary update`() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val catalog = WorkflowSkillCatalog.load(context.assets::open)
-        val review = catalog.select(setOf(WorkflowIntent.PREPARE_LAYA_REVIEW)).single()
+        val review = catalog.select(setOf(WorkflowIntent.DRAFT_CATEGORY_REVIEW)).single()
 
-        assertEquals(2, review.version)
-        assertTrue(review.prerequisites.any { it.contains("every active linked event reading") })
-        assertTrue(review.toolOrder.any { it.contains("complete displayed source context") })
-        assertTrue(review.toolOrder.any { it.contains("ordinary local source-text path") })
-        assertTrue(review.errorRecovery.getValue("stale_observation").contains("fresh classification_context_ref"))
-        assertTrue(review.examples.any { it.getString("expected").contains("machine-translated") })
+        assertEquals(WorkflowSkillId.DRAFT_REVIEW, review.id)
+        assertEquals(1, review.version)
+        assertEquals(
+            setOf("list_drafts", "observe", "update_draft_review", "ask_user"),
+            review.tools.toSet(),
+        )
+        assertTrue(review.prerequisites.any { it.contains("category_choices") })
+        assertTrue(review.toolOrder.any { it.contains("update_draft_review") })
+        assertTrue(review.errorRecovery.getValue("stale_observation").contains("fresh observation"))
+        assertTrue(review.examples.any { it.getString("expected").contains("remains pending") })
     }
 
     @Test(expected = IllegalArgumentException::class)

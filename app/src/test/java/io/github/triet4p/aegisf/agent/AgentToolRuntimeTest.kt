@@ -4,13 +4,10 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import io.github.triet4p.aegisf.data.AddCategoryRequest
-import io.github.triet4p.aegisf.data.ClassificationInputKind
 import io.github.triet4p.aegisf.data.CategoryEntity
 import io.github.triet4p.aegisf.data.CaptureKind
 import io.github.triet4p.aegisf.data.CaptureMessageEntity
 import io.github.triet4p.aegisf.data.CaptureSourceKind
-import io.github.triet4p.aegisf.data.ClassificationEngine
-import io.github.triet4p.aegisf.data.ClassificationEngineResult
 import io.github.triet4p.aegisf.data.ContextLinkState
 import io.github.triet4p.aegisf.data.ContextLinkResult
 import io.github.triet4p.aegisf.data.EventContextRepository
@@ -24,8 +21,6 @@ import io.github.triet4p.aegisf.data.NoteEventWriteResult
 import io.github.triet4p.aegisf.data.LedgerDatabase
 import io.github.triet4p.aegisf.data.PendingBankDraftEntity
 import io.github.triet4p.aegisf.data.LinkOperationQuery
-import io.github.triet4p.aegisf.data.PredictionStaleReason
-import io.github.triet4p.aegisf.data.PredictionSource
 import io.github.triet4p.aegisf.data.QueryPageRequest
 import io.github.triet4p.aegisf.data.RejectLinkRequest
 import io.github.triet4p.aegisf.data.ReviseCaptureRequest
@@ -36,15 +31,7 @@ import io.github.triet4p.aegisf.data.WorkflowChange
 import io.github.triet4p.aegisf.data.WorkflowCommandOutcome
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
-import io.github.triet4p.aegisf.data.classificationDescription
-import io.github.triet4p.aegisf.data.effectiveInputDigest
-import io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner
-import io.github.triet4p.aegisf.data.laya.LayaEffectiveContextComposer
-import io.github.triet4p.aegisf.data.laya.LayaContextDecision
-import io.github.triet4p.aegisf.data.laya.LayaEffectiveContext
-import io.github.triet4p.aegisf.data.laya.LayaEffectiveInput
-import io.github.triet4p.aegisf.data.laya.LayaEvaluation
-import io.github.triet4p.aegisf.data.laya.LayaTokenizerLoader
+import io.github.triet4p.aegisf.data.workingDescription
 import io.github.triet4p.aegisf.privacy.MaskedPromptBoundary
 import io.github.triet4p.aegisf.privacy.SensitiveVault
 import io.github.triet4p.aegisf.provider.HostedToolDeclaration
@@ -87,12 +74,10 @@ class AgentToolRuntimeTest {
         database = Room.inMemoryDatabaseBuilder(context, LedgerDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        val engine = RefusingEngine
         commands = WorkflowCommandService(
             database = database,
             clock = SystemLedgerClock,
             timezoneId = { "Asia/Ho_Chi_Minh" },
-            engine = engine,
         )
         queries = WorkflowQueryService(database)
         val saved = commands.saveCapture(
@@ -111,20 +96,22 @@ class AgentToolRuntimeTest {
     }
 
     @Test
-    fun `classification declaration permits only the draft and paired source-bound translation fields`() {
-        val declaration = declarations.single { it.name == "classify_draft" }
+    fun `draft review declaration permits only the draft and a category reference`() {
+        val declaration = declarations.single { it.name == "update_draft_review" }
         val parameters = declaration.parameters
         val properties = parameters.getJSONObject("properties")
         val required = parameters.getJSONArray("required")
 
         assertFalse(parameters.getBoolean("additionalProperties"))
-        assertEquals(3, properties.length())
-        assertEquals(1, required.length())
+        assertEquals(2, properties.length())
+        assertEquals(2, required.length())
         assertEquals("draft_ref", required.getString(0))
-        assertEquals("string", properties.getJSONObject("classification_context_ref").getString("type"))
-        assertEquals("string", properties.getJSONObject("english_translation").getString("type"))
+        assertEquals("category_ref", required.getString(1))
+        assertEquals("string", properties.getJSONObject("draft_ref").getString("type"))
+        assertEquals("string", properties.getJSONObject("category_ref").getString("type"))
         assertFalse(properties.has("description"))
         assertFalse(properties.has("category_id"))
+        assertFalse(declarations.any { it.name == "classify_draft" })
     }
 
     @Test
@@ -867,438 +854,6 @@ class AgentToolRuntimeTest {
     }
 
     @Test
-    fun `raw bank draft text reaches local classification unchanged without ledger authority`() = runBlocking {
-        val rawDescription = "Bank notice OTP 123456 securityword 382K26A0 iPhone15"
-        database.categoryDao().insert(
-            CategoryEntity(
-                name = "S8.14 Raw Local",
-                createdAtEpochMillis = 1_798_000_000_000L,
-                updatedAtEpochMillis = 1_798_000_000_000L,
-            ),
-        )
-        val draftId = storeDraft(
-            amount = 29_000L,
-            date = "2026-10-21",
-            memo = rawDescription,
-        )
-        var inferenceCalls = 0
-        var observedContext: LayaEffectiveContext? = null
-        val rawLocalCommands = WorkflowCommandService(
-            database = database,
-            clock = SystemLedgerClock,
-            timezoneId = { "Asia/Ho_Chi_Minh" },
-            engine = object : ClassificationEngine {
-                override suspend fun classify(
-                    context: LayaEffectiveContext,
-                    categories: List<CategoryEntity>,
-                ): ClassificationEngineResult {
-                    inferenceCalls += 1
-                    observedContext = context
-                    return ClassificationEngineResult.Failed("The deterministic test engine is unavailable.")
-                }
-            },
-        )
-        val sessionScope = WorkflowCallerScope.AgentSession(scope.scopeId, scope.captureIds, setOf(draftId))
-        val runtime = AgentToolRuntime(
-            commands = rawLocalCommands,
-            queries = queries,
-            session = AgentToolSession(sessionScope, boundary, AgentReferenceRegistry(sessionScope.scopeId)),
-            declarations = declarations,
-        )
-        val draft = draftPage(runtime, draftId)
-        val operationKey = "s8.14-raw-local-classification"
-        val beforeDraft = database.pendingBankDraftDao().findById(draftId)!!
-        val beforeClassifications = database.classificationSnapshotDao().findPage(0, 20, 0)
-        val beforeLedger = database.transactionDao().findAll()
-        val beforeLinks = queries.linkOperations(
-            LinkOperationQuery(draftId = draftId, bounds = QueryPageRequest(20, 0)),
-        ).items
-
-        val execution = runtime.execute(
-            "classify_draft",
-            JSONObject().put("draft_ref", draft.getString("ref")),
-            operationKey,
-        )
-        val result = execution.envelope
-        val manualClaim = execution.effectClaim as? AgentEffectClaim.ClassificationManual
-
-        assertEquals(rawDescription, observedContext?.primaryText)
-        assertTrue(observedContext?.eventReadings?.isEmpty() == true)
-        assertEquals("error", result.getString("outcome"))
-        assertEquals("MODEL_UNAVAILABLE", result.getJSONObject("error").getString("code"))
-        assertEquals("none", result.getString("effect"))
-        assertEquals("MODEL_UNAVAILABLE", manualClaim?.reasonCode)
-        assertEquals(1, inferenceCalls)
-        assertEquals(beforeDraft.reviewStatus, database.pendingBankDraftDao().findById(draftId)!!.reviewStatus)
-        assertEquals(beforeDraft.reviewRevision, database.pendingBankDraftDao().findById(draftId)!!.reviewRevision)
-        assertEquals(beforeClassifications, database.classificationSnapshotDao().findPage(0, 20, 0))
-        assertEquals(beforeLedger, database.transactionDao().findAll())
-        assertEquals(
-            beforeLinks,
-            queries.linkOperations(LinkOperationQuery(draftId = draftId, bounds = QueryPageRequest(20, 0))).items,
-        )
-        assertNull(database.workflowOperationDao().findByKey(operationKey))
-    }
-
-    @Test
-    fun `hosted translation binds all current readings and stores distinct English input identity`() = runBlocking {
-        val sourceText = "Bread 50,000 VND at 10:00; coffee 50,000 VND at 10:15"
-        val sourceCaptureId = storeCapture("lt1-translation-source", sourceText)
-        val eventRepository = EventContextRepository(database)
-        suspend fun readEvent(span: String, time: String) = run {
-            val start = sourceText.indexOf(span)
-            val result = eventRepository.recordEvent(
-                captureId = sourceCaptureId,
-                expectedCaptureRevision = 0,
-                interpretation = NoteEventInterpretation(
-                    spanStart = start,
-                    spanEnd = start + span.length,
-                    normalizedText = span,
-                    amountVnd = 50_000L,
-                    timeAnchor = NoteEventTimeAnchor(
-                        date = "2026-11-02",
-                        time = time,
-                        timezoneId = "Asia/Ho_Chi_Minh",
-                    ),
-                ),
-                extractionVersion = "lt1-behavior-fixture",
-            )
-            assertTrue("the note reading was not stored: $result", result is NoteEventWriteResult.Stored)
-            eventRepository.findEvent((result as NoteEventWriteResult.Stored).eventId)!!
-        }
-        val breadEvent = readEvent("Bread 50,000 VND at 10:00", "10:00")
-        val coffeeEvent = readEvent("coffee 50,000 VND at 10:15", "10:15")
-        val draftId = storeDraft(amount = 50_000L, date = "2026-11-02", memo = "Bread")
-        assertTrue(eventRepository.proposeLink(breadEvent.id, draftId) is ContextLinkResult.Linked)
-        assertTrue(eventRepository.proposeLink(coffeeEvent.id, draftId) is ContextLinkResult.Linked)
-
-        val foodsId = database.categoryDao().insert(
-            CategoryEntity(
-                name = "Foods",
-                createdAtEpochMillis = 1_798_000_000_000L,
-                updatedAtEpochMillis = 1_798_000_000_000L,
-            ),
-        )
-        database.categoryDao().insert(
-            CategoryEntity(
-                name = "Transport",
-                createdAtEpochMillis = 1_798_000_000_001L,
-                updatedAtEpochMillis = 1_798_000_000_001L,
-            ),
-        )
-        val observedInputs = ArrayList<LayaEffectiveInput>()
-        var returnNoFit = true
-        val tokenizer = LayaTokenizerLoader.loadFromRepoFile()
-        val recordingEngine = object : ClassificationEngine {
-            override suspend fun classify(
-                context: LayaEffectiveContext,
-                categories: List<CategoryEntity>,
-            ): ClassificationEngineResult {
-                val effective = LayaEffectiveContextComposer.compose(tokenizer, context)
-                observedInputs.add(effective)
-                val evaluated = categories.map { it.id }
-                val distribution = LayaEvaluation(
-                    categoryIds = evaluated,
-                    probabilities = List(evaluated.size) { 0.3 },
-                    unknownShare = 0.4,
-                    confidence = 0.4,
-                )
-                val decision = if (returnNoFit) {
-                    LayaCandidatePlanner.Decision.Unknown(LayaCandidatePlanner.ManualReason.MODEL_NO_FIT)
-                } else {
-                    val foods = categories.single { it.id == foodsId }
-                    LayaCandidatePlanner.Decision.Category(
-                        categoryId = foods.id,
-                        snapshotName = foods.name,
-                        source = LayaCandidatePlanner.SuggestionSource.MODEL,
-                        confidence = 0.4,
-                    )
-                }
-                return ClassificationEngineResult.Decided(
-                    LayaContextDecision(decision, effective, distribution),
-                )
-            }
-        }
-        val sessionScope = WorkflowCallerScope.AgentSession(
-            scopeId = scope.scopeId,
-            captureIds = scope.captureIds + sourceCaptureId,
-            draftIds = setOf(draftId),
-        )
-        val translationCommands = WorkflowCommandService(
-            database = database,
-            clock = SystemLedgerClock,
-            timezoneId = { "Asia/Ho_Chi_Minh" },
-            engine = recordingEngine,
-        )
-        val runtime = AgentToolRuntime(
-            commands = translationCommands,
-            queries = queries,
-            session = AgentToolSession(
-                sessionScope,
-                boundary,
-                AgentReferenceRegistry(sessionScope.scopeId),
-            ),
-            declarations = declarations,
-        )
-        val draft = draftPage(runtime, draftId)
-        assertEquals(2, draft.getInt("linked_context_count"))
-        val linked = draft.getJSONArray("linked_context")
-        val firstText = linked.getJSONObject(0).getJSONObject("event").getString("text")
-        val secondText = linked.getJSONObject(1).getJSONObject("event").getString("text")
-        fun tokensIn(text: String): List<String> = boundary.vault.issuedTokens()
-            .mapNotNull { issued ->
-                text.indexOf(issued.token).takeIf { it >= 0 }?.let { it to issued.token }
-            }
-            .sortedBy { it.first }
-            .map { it.second }
-        val firstTokens = tokensIn(firstText)
-        val secondTokens = tokensIn(secondText)
-        assertTrue("the observed event text must expose its masked amount and time", firstTokens.size >= 2)
-        assertTrue("the second current reading must be displayed", secondTokens.size >= 2)
-
-        val rawResult = runtime.execute(
-            "classify_draft",
-            JSONObject().put("draft_ref", draft.getString("ref")),
-            "lt1-baseline-no-fit",
-        ).envelope
-        assertEquals("ok", rawResult.getString("outcome"))
-        assertEquals("NO_FIT", rawResult.getJSONObject("data").getString("source"))
-        assertEquals("stored_source", rawResult.getJSONObject("data")
-            .getJSONObject("classification_input").getString("provenance"))
-        val rawInput = observedInputs.single()
-        assertEquals(
-            "Bread ${breadEvent.normalizedText} ${coffeeEvent.normalizedText}",
-            rawInput.text,
-        )
-        assertEquals(2, rawInput.includedReadings.size)
-        val baselineSnapshot = database.classificationSnapshotDao().findForDraft(draftId)!!
-        assertEquals(PredictionSource.NO_FIT.name, baselineSnapshot.decisionSource)
-        assertEquals(ClassificationInputKind.STORED_SOURCE.name, baselineSnapshot.classificationInputKind)
-        val baselineIdentity = baselineSnapshot.classificationInputIdentity
-
-        val amountOne = firstTokens.first()
-        val amountTwo = secondTokens.first()
-        val translation = "Bread cost $amountOne at ${firstTokens.last()}; " +
-            "coffee cost $amountTwo at ${secondTokens.last()}."
-        val currentContextRef = draft.getString("classification_context_ref")
-        val missingBinding = runtime.execute(
-            "classify_draft",
-            JSONObject()
-                .put("draft_ref", draft.getString("ref"))
-                .put("english_translation", translation),
-            "lt1-missing-context",
-        ).envelope
-        assertEquals("SCHEMA_INVALID", missingBinding.getJSONObject("error").getString("code"))
-        val droppedToken = firstTokens.last()
-        val tokenDropped = translation.replaceFirst(droppedToken, "")
-        val missingFact = runtime.execute(
-            "classify_draft",
-            JSONObject()
-                .put("draft_ref", draft.getString("ref"))
-                .put("classification_context_ref", currentContextRef)
-                .put("english_translation", tokenDropped),
-            "lt1-missing-source-token",
-        ).envelope
-        assertEquals("SCHEMA_INVALID", missingFact.getJSONObject("error").getString("code"))
-        assertEquals(1, observedInputs.size)
-        assertEquals(baselineSnapshot, database.classificationSnapshotDao().findForDraft(draftId))
-
-        returnNoFit = false
-        val translated = runtime.execute(
-            "classify_draft",
-            JSONObject()
-                .put("draft_ref", draft.getString("ref"))
-                .put("classification_context_ref", currentContextRef)
-                .put("english_translation", translation),
-            "lt1-hosted-translation",
-        ).envelope
-        assertEquals("ok", translated.getString("outcome"))
-        val translatedData = translated.getJSONObject("data")
-        assertEquals(
-            "machine_translated_english",
-            translatedData.getJSONObject("classification_input").getString("provenance"),
-        )
-        val translatedInput = observedInputs.last()
-        assertEquals(boundary.vault.rehydrateText(translation), translatedInput.text)
-        assertTrue(translatedInput.includedReadings.isEmpty())
-        assertTrue(translatedInput.droppedReadings.isEmpty())
-        assertFalse(translatedInput.text.contains("Bread 50,000 VND"))
-        val translatedSnapshot = database.classificationSnapshotDao().findForDraft(draftId)!!
-        assertEquals(ClassificationInputKind.HOSTED_ENGLISH_TRANSLATION.name, translatedSnapshot.classificationInputKind)
-        assertNotEquals(baselineIdentity, translatedSnapshot.classificationInputIdentity)
-        assertEquals(
-            translatedData.getJSONObject("classification_input").getString("identity"),
-            translatedSnapshot.classificationInputIdentity,
-        )
-        assertEquals(
-            translatedSnapshot.effectiveInputDigest,
-            translatedData.getJSONObject("classification_input").getString("effective_input_digest"),
-        )
-        assertEquals(effectiveInputDigest(translatedInput.text), translatedSnapshot.effectiveInputDigest)
-        assertTrue(!translatedSnapshot.translationSourceRevision.isNullOrBlank())
-        assertNull(translatedSnapshot.staleReason)
-
-        val scopeLimited = AgentToolRuntime(
-            commands = translationCommands,
-            queries = queries,
-            session = AgentToolSession(
-                WorkflowCallerScope.AgentSession(scope.scopeId, scope.captureIds, setOf(draftId)),
-                boundary,
-                AgentReferenceRegistry(scope.scopeId),
-            ),
-            declarations = declarations,
-        )
-        val limitedDraft = scopeLimited.execute(
-            "list_drafts",
-            JSONObject().put("review_status", "PENDING").put("duplicates_only", false).put("cursor", JSONObject.NULL),
-            "read-only",
-        ).envelope.getJSONObject("data").getJSONArray("items").getJSONObject(0)
-        val outOfScope = scopeLimited.execute(
-            "observe",
-            JSONObject().put("ref", limitedDraft.getString("ref")),
-            "read-only",
-        ).envelope
-        assertEquals("REFERENCE_SCOPE_REFUSED", outOfScope.getJSONObject("error").getString("code"))
-        assertEquals(0, outOfScope.getJSONArray("observations").length())
-
-        assertTrue(eventRepository.rejectLink(coffeeEvent.id, draftId, expectedRevision = 0) is ContextLinkResult.Linked)
-        val staleBinding = runtime.execute(
-            "classify_draft",
-            JSONObject()
-                .put("draft_ref", draft.getString("ref"))
-                .put("classification_context_ref", currentContextRef)
-                .put("english_translation", translation),
-            "lt1-stale-context",
-        ).envelope
-        assertEquals("STALE_OBSERVATION", staleBinding.getJSONObject("error").getString("code"))
-        assertEquals(2, observedInputs.size)
-        val staleSnapshot = database.classificationSnapshotDao().findForDraft(draftId)!!
-        assertEquals(PredictionStaleReason.CONTEXT_CHANGED.name, staleSnapshot.staleReason)
-        assertEquals("Bread", database.pendingBankDraftDao().findById(draftId)!!.classificationDescription())
-        assertEquals(0, database.transactionDao().findAll().size)
-    }
-
-
-    @Test
-    fun `missing local description remains a correction error without invoking Laya`() = runBlocking {
-        val draftId = storeDraft(amount = 28_000L, date = "2026-10-21", memo = "")
-        var inferenceCalls = 0
-        val missingDescriptionCommands = WorkflowCommandService(
-            database = database,
-            clock = SystemLedgerClock,
-            timezoneId = { "Asia/Ho_Chi_Minh" },
-            engine = object : ClassificationEngine {
-                override suspend fun classify(
-                    context: LayaEffectiveContext,
-                    categories: List<CategoryEntity>,
-                ): ClassificationEngineResult {
-                    inferenceCalls += 1
-                    return ClassificationEngineResult.Failed("A blank description must not reach this engine.")
-                }
-            },
-        )
-        val sessionScope = WorkflowCallerScope.AgentSession(scope.scopeId, scope.captureIds, setOf(draftId))
-        val runtime = AgentToolRuntime(
-            commands = missingDescriptionCommands,
-            queries = queries,
-            session = AgentToolSession(sessionScope, boundary, AgentReferenceRegistry(sessionScope.scopeId)),
-            declarations = declarations,
-        )
-        val draft = draftPage(runtime, draftId)
-        val operationKey = "s8.14-empty-local-description"
-        val beforeDraft = database.pendingBankDraftDao().findById(draftId)!!
-        val beforeLedger = database.transactionDao().findAll()
-        val result = runtime.execute(
-            "classify_draft",
-            JSONObject().put("draft_ref", draft.getString("ref")),
-            operationKey,
-        ).envelope
-
-        assertEquals("error", result.getString("outcome"))
-        assertEquals("MISSING_REQUIRED_MEANING", result.getJSONObject("error").getString("code"))
-        assertEquals("none", result.getString("effect"))
-        assertEquals(0, inferenceCalls)
-        assertEquals(beforeDraft.reviewStatus, database.pendingBankDraftDao().findById(draftId)!!.reviewStatus)
-        assertEquals(beforeDraft.reviewRevision, database.pendingBankDraftDao().findById(draftId)!!.reviewRevision)
-        assertEquals(beforeLedger, database.transactionDao().findAll())
-        assertEquals(0L, database.classificationSnapshotDao().findPage(0, 10, 0).size.toLong())
-        assertNull(database.workflowOperationDao().findByKey(operationKey))
-    }
-
-    @Test
-    fun `local model refusal is a truthful manual state with no fabricated suggestion`() = runBlocking {
-        val draftId = storeDraft(amount = 28_000L, date = "2026-10-21")
-        val runtime = runtimeFor(
-            WorkflowCallerScope.AgentSession(scope.scopeId, scope.captureIds, setOf(draftId)),
-        )
-        val draft = draftPage(runtime, draftId)
-        val result = runtime.execute(
-            "classify_draft", JSONObject().put("draft_ref", draft.getString("ref")), "classify-manual",
-        ).envelope
-        assertEquals("error", result.getString("outcome"))
-        assertEquals("MODEL_UNAVAILABLE", result.getJSONObject("error").getString("code"))
-        assertEquals("dispatched", result.getString("dispatch"))
-        assertEquals("none", result.getString("effect"))
-        assertTrue(result.getJSONArray("observations").length() >= 1)
-        assertEquals(IntakeReviewStatus.PENDING, database.pendingBankDraftDao().findById(draftId)!!.reviewStatus)
-        assertEquals(0L, database.classificationSnapshotDao().findPage(0, 10, 0).size.toLong())
-        // A refused local attempt records no phantom operation row: it changed nothing.
-        assertNull(database.workflowOperationDao().findByKey("classify-manual"))
-    }
-
-    @Test
-    fun `over budget local classification is refused truthfully without a snapshot`() = runBlocking {
-        val draftId = storeDraft(amount = 28_000L, date = "2026-10-21")
-        val overBudgetEngine = object : ClassificationEngine {
-            override suspend fun classify(
-                context: LayaEffectiveContext,
-                categories: List<io.github.triet4p.aegisf.data.CategoryEntity>,
-            ): ClassificationEngineResult = ClassificationEngineResult.Decided(
-                io.github.triet4p.aegisf.data.laya.LayaContextDecision(
-                    decision = io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner.Decision.Unknown(
-                        io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner.ManualReason.EFFECTIVE_INPUT_OVER_BUDGET,
-                    ),
-                    effectiveInput = io.github.triet4p.aegisf.data.laya.LayaEffectiveInput(
-                        text = context.primaryText,
-                        digest = "over-budget-input",
-                        includedReadings = emptyList(),
-                        droppedReadings = context.eventReadings,
-                        tokenCount = 317,
-                        roomTokens = 316,
-                        refusal = io.github.triet4p.aegisf.data.laya.LayaEffectiveInput.Refusal.PRIMARY_EXCEEDS_ROOM,
-                    ),
-                    evaluation = null,
-                ),
-            )
-        }
-        val overBudgetCommands = WorkflowCommandService(
-            database = database,
-            clock = SystemLedgerClock,
-            timezoneId = { "Asia/Ho_Chi_Minh" },
-            engine = overBudgetEngine,
-        )
-        val session = WorkflowCallerScope.AgentSession(scope.scopeId, scope.captureIds, setOf(draftId))
-        val runtime = AgentToolRuntime(
-            commands = overBudgetCommands,
-            queries = queries,
-            session = AgentToolSession(session, boundary, AgentReferenceRegistry(session.scopeId)),
-            declarations = declarations,
-        )
-        val draft = draftPage(runtime, draftId)
-        val result = runtime.execute(
-            "classify_draft", JSONObject().put("draft_ref", draft.getString("ref")), "classify-overbudget",
-        ).envelope
-        assertEquals("error", result.getString("outcome"))
-        assertEquals("INPUT_OVER_BUDGET", result.getJSONObject("error").getString("code"))
-        assertEquals("none", result.getString("effect"))
-        assertEquals("dispatched", result.getString("dispatch"))
-        assertTrue(result.getJSONArray("observations").length() >= 1)
-        assertEquals(IntakeReviewStatus.PENDING, database.pendingBankDraftDao().findById(draftId)!!.reviewStatus)
-        assertEquals(0L, database.classificationSnapshotDao().findPage(0, 10, 0).size.toLong())
-        assertNull(database.workflowOperationDao().findByKey("classify-overbudget"))
-    }
-
-    @Test
     fun `same day intervals follow chronological order and reject reversed ends`() = runBlocking {
         val saved = commands.saveCapture(
             WorkflowCallerScope.User,
@@ -1538,62 +1093,6 @@ class AgentToolRuntimeTest {
     }
 
     @Test
-    fun `a settled classification carries a replayable receipt and a running one is uncertain`() = runBlocking {
-        val draftId = storeDraft(amount = 28_000L, date = "2026-10-21")
-        val added = commands.addCategory(
-            WorkflowCallerScope.User,
-            AddCategoryRequest(idempotencyKey = "s8.13-pre-category", name = "Food"),
-        )
-        assertTrue(added is WorkflowCommandOutcome.Applied)
-        val categoryId = ((added as WorkflowCommandOutcome.Applied).change as WorkflowChange.CategoryAdded).categoryId
-        val decidingCommands = WorkflowCommandService(
-            database = database,
-            clock = SystemLedgerClock,
-            timezoneId = { "Asia/Ho_Chi_Minh" },
-            engine = DecidingEngine(categoryId),
-        )
-        val session = WorkflowCallerScope.AgentSession(scope.scopeId, scope.captureIds, setOf(draftId))
-        val runtime = AgentToolRuntime(
-            commands = decidingCommands,
-            queries = queries,
-            session = AgentToolSession(session, boundary, AgentReferenceRegistry(session.scopeId)),
-            declarations = declarations,
-        )
-        val draft = draftPage(runtime, draftId)
-        val classified = runtime.execute(
-            "classify_draft",
-            JSONObject().put("draft_ref", draft.getString("ref")),
-            "classify-receipt",
-        ).envelope
-        assertEquals(classified.toString(), "ok", classified.getString("outcome"))
-        assertEquals("applied", classified.getString("effect"))
-        assertTrue(classified.getBoolean("verified"))
-        val operationRef = classified.getString("operation_ref")
-        assertTrue(operationRef.startsWith("r_"))
-
-        val replay = runtime.execute(
-            "replay_operation",
-            JSONObject().put("operation_ref", operationRef),
-            "read-only",
-        ).envelope
-        assertEquals("ok", replay.getString("outcome"))
-        assertEquals("unchanged", replay.getString("effect"))
-        assertTrue(replay.getJSONObject("data").getBoolean("replayed"))
-
-        markOperationPending("classify-receipt")
-        val running = runtime.execute(
-            "classify_draft",
-            JSONObject().put("draft_ref", draft.getString("ref")),
-            "classify-receipt",
-        ).envelope
-        assertEquals("error", running.getString("outcome"))
-        assertEquals("OPERATION_PENDING", running.getJSONObject("error").getString("code"))
-        assertEquals("unknown", running.getString("effect"))
-        assertEquals("stop", running.getJSONObject("control").getString("action"))
-        assertEquals(1L, database.workflowOperationDao().countOf("REQUEST_CLASSIFICATION"))
-    }
-
-    @Test
     fun `the reference registry is bounded and evicts the oldest alias`() {
         val registry = AgentReferenceRegistry("s8.13-pre-eviction", maxEntries = 16)
         val oldest = registry.issue(
@@ -1794,7 +1293,7 @@ class AgentToolRuntimeTest {
         val stored = database.pendingBankDraftDao().findById(draftId)
             ?: error("draft $draftId is not stored")
         val expected = boundary.maskOutbound(
-            stored.classificationDescription(),
+            stored.workingDescription(),
             io.github.triet4p.aegisf.privacy.MaskedPath.TOOL_RESULT,
         )
         val result = runtime.execute(
@@ -1846,46 +1345,57 @@ class AgentToolRuntimeTest {
             ),
         )
 
-    private object RefusingEngine : ClassificationEngine {
-        override suspend fun classify(
-            context: LayaEffectiveContext,
-            categories: List<io.github.triet4p.aegisf.data.CategoryEntity>,
-        ): ClassificationEngineResult = ClassificationEngineResult.Failed("Laya is not available in this unit test.")
-    }
+    @Test
+    fun `the hosted workflow saves one offered category without confirming the draft`() = runBlocking {
+        val draftId = storeDraft(amount = 28_000L, date = "2026-10-21")
+        val added = commands.addCategory(
+            WorkflowCallerScope.User,
+            AddCategoryRequest(idempotencyKey = "s8.13-pre-category", name = "Food"),
+        )
+        assertTrue(added is WorkflowCommandOutcome.Applied)
+        val categoryId = ((added as WorkflowCommandOutcome.Applied).change as WorkflowChange.CategoryAdded).categoryId
+        val session = WorkflowCallerScope.AgentSession(
+            scopeId = scope.scopeId,
+            captureIds = scope.captureIds,
+            draftIds = setOf(draftId),
+        )
+        val runtime = runtimeFor(session)
+        val draft = draftPage(runtime, draftId)
+        val choices = draft.getJSONArray("category_choices")
+        assertTrue("the draft observation must carry current category choices", choices.length() >= 1)
+        val chosen = (0 until choices.length())
+            .map { choices.getJSONObject(it) }
+            .single { it.getString("name") == "Food" }
 
-    /** A local classifier that answers with one fresh category, as the planner would. */
-    private class DecidingEngine(private val categoryId: Long) : ClassificationEngine {
-        override suspend fun classify(
-            context: LayaEffectiveContext,
-            categories: List<CategoryEntity>,
-        ): ClassificationEngineResult {
-            val category = categories.firstOrNull { it.id == categoryId }
-                ?: return ClassificationEngineResult.Failed("The offered category is gone.")
-            return ClassificationEngineResult.Decided(
-                LayaContextDecision(
-                    decision = LayaCandidatePlanner.Decision.Category(
-                        categoryId = category.id,
-                        snapshotName = category.name,
-                        source = LayaCandidatePlanner.SuggestionSource.MODEL,
-                        confidence = 0.5,
-                    ),
-                    effectiveInput = LayaEffectiveInput(
-                        text = context.primaryText,
-                        digest = "digest-of-${context.primaryText}",
-                        includedReadings = context.eventReadings,
-                        droppedReadings = emptyList(),
-                        tokenCount = 4,
-                        roomTokens = 128,
-                    ),
-                    evaluation = LayaEvaluation(
-                        categoryIds = listOf(category.id),
-                        probabilities = listOf(0.75),
-                        unknownShare = 0.25,
-                        confidence = 0.5,
-                    ),
-                ),
-            )
-        }
+        val applied = runtime.execute(
+            "update_draft_review",
+            JSONObject()
+                .put("draft_ref", draft.getString("ref"))
+                .put("category_ref", chosen.getString("ref")),
+            "category-choice",
+        ).envelope
+        assertEquals(applied.toString(), "ok", applied.getString("outcome"))
+        assertEquals("applied", applied.getString("effect"))
+        assertTrue(applied.getBoolean("verified"))
+
+        val stored = database.pendingBankDraftDao().findById(draftId)!!
+        assertEquals(IntakeReviewStatus.PENDING, stored.reviewStatus)
+        assertEquals(categoryId, stored.reviewCategoryId)
+        assertTrue(stored.reviewCategoryResolved)
+        assertNull(stored.confirmedTransactionId)
+        assertTrue("the category save never writes the ledger", database.transactionDao().findAll().isEmpty())
+
+        // The observation's revision moved on, so the same stale aliases are refused.
+        val stale = runtime.execute(
+            "update_draft_review",
+            JSONObject()
+                .put("draft_ref", draft.getString("ref"))
+                .put("category_ref", chosen.getString("ref")),
+            "category-choice-stale",
+        ).envelope
+        assertEquals("error", stale.getString("outcome"))
+        assertEquals("STALE_OBSERVATION", stale.getJSONObject("error").getString("code"))
+        assertEquals(categoryId, database.pendingBankDraftDao().findById(draftId)!!.reviewCategoryId)
     }
 
     private companion object {

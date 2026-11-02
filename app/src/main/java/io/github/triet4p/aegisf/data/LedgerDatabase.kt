@@ -11,7 +11,12 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 /**
  * The app's only local database: user-defined categories, ledger records, explicit remembered
  * category rules, bank-notification drafts, versioned source captures with their event
- * readings and context links, and the stored prediction snapshots about those drafts.
+ * readings and context links, the historical prediction snapshots about those drafts, and the
+ * hosted workflow's run history.
+ *
+ * The `classification_snapshots` table is retained as historical provenance only. No active
+ * code writes or reads it for a decision: the hosted workflow's category choice is stored on
+ * the draft's own review state.
  *
  * Schema versioning rules for this database:
  *
@@ -39,7 +44,6 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ContextLinkEntity::class,
         ClassificationSnapshotEntity::class,
         WorkflowOperationEntity::class,
-        ClassificationWorkEntity::class,
         AgentRunEntity::class,
         AgentRunAttemptEntity::class,
         AgentConversationEntity::class,
@@ -60,7 +64,7 @@ abstract class LedgerDatabase : RoomDatabase() {
     /** Atomic draft-review transitions across the pending and ledger tables. */
     abstract fun bankDraftReviewDao(): BankDraftReviewDao
 
-    /** The uncertainty-first review order of the pending drafts and their predictions. */
+    /** The uncertainty-first review order of the pending drafts. */
     abstract fun reviewQueueDao(): ReviewQueueDao
 
     /** Explicit description-scoped category rules for manual expense entry. */
@@ -75,14 +79,8 @@ abstract class LedgerDatabase : RoomDatabase() {
     /** Proposed, accepted, and refused links between an event and a pending draft. */
     abstract fun contextLinkDao(): ContextLinkDao
 
-    /** The stored predictions about pending drafts, with the dependencies they were made against. */
-    abstract fun classificationSnapshotDao(): ClassificationSnapshotDao
-
     /** The durable record of the preparation commands and their idempotency keys. */
     abstract fun workflowOperationDao(): WorkflowOperationDao
-
-    /** The durable, coalescing classification jobs of the pending bank drafts. */
-    abstract fun classificationWorkDao(): ClassificationWorkDao
 
     /** The durable identity and lifecycle of one agent run; user-visible history. */
     abstract fun agentRunDao(): AgentRunDao
@@ -97,7 +95,7 @@ abstract class LedgerDatabase : RoomDatabase() {
     abstract fun agentTraceDao(): AgentTraceDao
 
     companion object {
-        const val VERSION = 15
+        const val VERSION = 16
 
         /** File name of the on-device database. */
         const val NAME = "aegis-ledger.db"
@@ -847,6 +845,25 @@ abstract class LedgerDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Version 15 to 16 removes the on-device classification queue and records the hosted
+         * workflow's category provenance on attempts.
+         *
+         * `classification_work` held only ephemeral question jobs for the local model, so
+         * dropping it loses no owner record. `classification_snapshots` is intentionally
+         * retained exactly as stored: it is historical provenance, not a hosted decision, and
+         * no active code writes it. `agent_run_attempts.selectedCategoryId` records the
+         * category a verified draft-review attempt stored; historical rows keep null.
+         */
+        val MIGRATION_15_16: Migration = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS `classification_work`")
+                db.execSQL(
+                    "ALTER TABLE `agent_run_attempts` ADD COLUMN `selectedCategoryId` INTEGER",
+                )
+            }
+        }
+
         /** Builds the production database on the app's real file directory. */
         fun build(context: Context): LedgerDatabase =
             Room.databaseBuilder(context.applicationContext, LedgerDatabase::class.java, NAME)
@@ -865,6 +882,7 @@ abstract class LedgerDatabase : RoomDatabase() {
                     MIGRATION_12_13,
                     MIGRATION_13_14,
                     MIGRATION_14_15,
+                    MIGRATION_15_16,
                 )
                 .build()
 

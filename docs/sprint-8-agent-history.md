@@ -1,5 +1,11 @@
 # Sprint 8.10 — durable run history and safe retry/cancel/restart
 
+**CAT1 (2026-11-02):** Laya and its English translation bridge are removed from the active
+app. The hosted workflow chooses an existing category from the draft observation's current
+`category_choices` and submits it through `update_draft_review` (the ordinary draft-review
+update). Laya-specific sections below are historical S4/S7/S8 evidence, not the active
+contract.
+
 **Status:** Implemented and exercised on the host (real provider + real Room) and on the
 isolated phone package (real local Laya). No worker commits; full-route review and the
 separate Bronze checkpoint follow the evidence PASS.

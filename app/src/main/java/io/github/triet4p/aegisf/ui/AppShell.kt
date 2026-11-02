@@ -50,12 +50,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.triet4p.aegisf.data.BankDraftClassificationQueue
 import io.github.triet4p.aegisf.data.IntakeReviewStatus
 import io.github.triet4p.aegisf.data.NotificationAccessStore
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
-import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
 import io.github.triet4p.aegisf.agent.AgentRunHistory
 import io.github.triet4p.aegisf.agent.WorkflowRunHost
 import io.github.triet4p.aegisf.data.WorkflowCallerScope
@@ -96,7 +94,6 @@ private enum class PrimaryDestination(val label: String, val spokenName: String)
 private sealed interface DashboardRoute : Serializable {
     data object Settings : DashboardRoute
     data object BankNotifications : DashboardRoute
-    data object ModelSetup : DashboardRoute
 
     /** The records behind one Dashboard figure, in the scope the figure shows. */
     data class ScopedList(val listScope: DashboardListScope) : DashboardRoute
@@ -137,8 +134,6 @@ private sealed interface ManualRoute : Serializable {
 internal fun AegisAppShell(
     queryService: WorkflowQueryService,
     commandService: WorkflowCommandService,
-    classificationQueue: BankDraftClassificationQueue,
-    layaInferenceLifecycle: LayaInferenceLifecycle,
     notificationAccessStore: NotificationAccessStore,
     hostedProviderSettingsStore: HostedProviderSettingsStore,
     createHostedWorkflowHost: (WorkflowCallerScope.AgentSession, HostedProviderConfig) -> WorkflowRunHost,
@@ -197,12 +192,6 @@ internal fun AegisAppShell(
         }
     }
 
-    /** Opens model setup from a review whose check failed because no usable model is installed. */
-    fun openModelSetup() {
-        dashboardStack = listOf(DashboardRoute.ModelSetup)
-        destination = PrimaryDestination.DASHBOARD
-    }
-
     val backEnabled = when (destination) {
         PrimaryDestination.DASHBOARD -> dashboardStack.isNotEmpty()
         PrimaryDestination.CHAT -> true
@@ -257,7 +246,6 @@ internal fun AegisAppShell(
                         DashboardDestination(
                             queryService = queryService,
                             commandService = commandService,
-                            layaInferenceLifecycle = layaInferenceLifecycle,
                             scope = dashboardScope,
                             onScopeChange = { dashboardScope = it },
                             hostedProviderSettingsStore = hostedProviderSettingsStore,
@@ -268,9 +256,6 @@ internal fun AegisAppShell(
                             },
                             onOpenBankNotifications = {
                                 dashboardStack = dashboardStack + DashboardRoute.BankNotifications
-                            },
-                            onOpenModelSetup = {
-                                dashboardStack = dashboardStack + DashboardRoute.ModelSetup
                             },
                             onOpenHostedProviderSettings = {
                                 dashboardStack = dashboardStack + DashboardRoute.HostedProviderSettings
@@ -308,19 +293,16 @@ internal fun AegisAppShell(
                     PrimaryDestination.REVIEW -> ReviewDestination(
                         queryService = queryService,
                         commandService = commandService,
-                        classificationQueue = classificationQueue,
                         stack = reviewStack,
                         onOpenDraft = { draftId ->
                             reviewStack = reviewStack + ReviewRoute.Draft(draftId)
                         },
                         onPop = { reviewStack = reviewStack.dropLast(1) },
-                        onOpenModelSetup = ::openModelSetup,
                     )
 
                     PrimaryDestination.MANUAL -> ManualDestination(
                         queryService = queryService,
                         commandService = commandService,
-                        layaInferenceLifecycle = layaInferenceLifecycle,
                         stack = manualStack,
                         transactionFilters = transactionFilters,
                         onTransactionFiltersChange = { transactionFilters = it },
@@ -489,7 +471,6 @@ private fun PrimaryDestinationGlyph(destination: PrimaryDestination, color: Colo
 private fun DashboardDestination(
     queryService: WorkflowQueryService,
     commandService: WorkflowCommandService,
-    layaInferenceLifecycle: LayaInferenceLifecycle,
     scope: DashboardScopeState,
     onScopeChange: (DashboardScopeState) -> Unit,
     notificationAccessStore: NotificationAccessStore,
@@ -497,7 +478,6 @@ private fun DashboardDestination(
     stack: List<DashboardRoute>,
     onOpenSettings: () -> Unit,
     onOpenBankNotifications: () -> Unit,
-    onOpenModelSetup: () -> Unit,
     onOpenHostedProviderSettings: () -> Unit,
     onOpenList: (DashboardListScope) -> Unit,
     onOpenRecord: (Long) -> Unit,
@@ -518,7 +498,6 @@ private fun DashboardDestination(
         DashboardRoute.Settings -> SettingsRoot(
             onNavigateUp = onPop,
             onOpenBankNotifications = onOpenBankNotifications,
-            onOpenModelSetup = onOpenModelSetup,
             onOpenHostedProviderSettings = onOpenHostedProviderSettings,
         )
 
@@ -530,8 +509,6 @@ private fun DashboardDestination(
             store = hostedProviderSettingsStore,
             onNavigateUp = onPop,
         )
-
-        DashboardRoute.ModelSetup -> LayaProvisioningScreen(onNavigateUp = onPop)
 
         is DashboardRoute.ScopedList -> DashboardScopedListScreen(
             queryService = queryService,
@@ -555,7 +532,6 @@ private fun DashboardDestination(
         is DashboardRoute.RecordEdit -> TransactionEditorScreen(
             commandService = commandService,
             queryService = queryService,
-            layaInferenceLifecycle = layaInferenceLifecycle,
             transactionId = route.transactionId,
             // A saved correction and a cancelled one both return to the detail view,
             // which re-reads the stored row.
@@ -574,7 +550,6 @@ private fun DashboardRoute.routeKey(): String = when (this) {
     is DashboardRoute.Settings -> "settings"
     is DashboardRoute.BankNotifications -> "bank-notifications"
     is DashboardRoute.HostedProviderSettings -> "hosted-provider-settings"
-    is DashboardRoute.ModelSetup -> "model-setup"
     is DashboardRoute.ScopedList -> "scoped-list-${listScope.name}"
     is DashboardRoute.RecordDetail -> "record-detail-$transactionId"
     is DashboardRoute.RecordEdit -> "record-edit-$transactionId"
@@ -584,21 +559,17 @@ private fun DashboardRoute.routeKey(): String = when (this) {
 private fun ReviewDestination(
     queryService: WorkflowQueryService,
     commandService: WorkflowCommandService,
-    classificationQueue: BankDraftClassificationQueue,
     stack: List<ReviewRoute>,
     onOpenDraft: (Long) -> Unit,
     onPop: () -> Unit,
-    onOpenModelSetup: () -> Unit,
 ) {
     when (val route = stack.lastOrNull()) {
         null -> BankDraftReviewScreen(
             queryService = queryService,
             commandService = commandService,
-            classificationQueue = classificationQueue,
             draftId = null,
             onSelectDraft = onOpenDraft,
             onNavigateUp = {},
-            onOpenModelSetup = onOpenModelSetup,
             // The inbox is this destination's root: there is no previous screen to go back
             // to, so it must not offer a Back control of its own.
             showBack = false,
@@ -607,11 +578,9 @@ private fun ReviewDestination(
         is ReviewRoute.Draft -> BankDraftReviewScreen(
             queryService = queryService,
             commandService = commandService,
-            classificationQueue = classificationQueue,
             draftId = route.draftId,
             onSelectDraft = onOpenDraft,
             onNavigateUp = onPop,
-            onOpenModelSetup = onOpenModelSetup,
             showBack = true,
         )
     }
@@ -621,7 +590,6 @@ private fun ReviewDestination(
 private fun ManualDestination(
     queryService: WorkflowQueryService,
     commandService: WorkflowCommandService,
-    layaInferenceLifecycle: LayaInferenceLifecycle,
     stack: List<ManualRoute>,
     transactionFilters: TransactionFilterState,
     onTransactionFiltersChange: (TransactionFilterState) -> Unit,
@@ -660,7 +628,6 @@ private fun ManualDestination(
         is ManualRoute.NewTransaction -> TransactionEditorScreen(
             commandService = commandService,
             queryService = queryService,
-            layaInferenceLifecycle = layaInferenceLifecycle,
             transactionId = null,
             sourceEventId = route.sourceEventId,
             onNavigateUp = onPop,
@@ -680,7 +647,6 @@ private fun ManualDestination(
         is ManualRoute.Edit -> TransactionEditorScreen(
             commandService = commandService,
             queryService = queryService,
-            layaInferenceLifecycle = layaInferenceLifecycle,
             transactionId = route.transactionId,
             // A saved correction and a cancelled one both return to the detail view,
             // which re-reads the stored row.
@@ -809,14 +775,13 @@ private fun ChatDestination(
 
 /**
  * The settings hub behind Dashboard's Settings action: the bank-notification choices and the
- * optional offline model, each on the screen that already owns it.
+ * hosted agent provider, each on the screen that already owns it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsRoot(
     onNavigateUp: () -> Unit,
     onOpenBankNotifications: () -> Unit,
-    onOpenModelSetup: () -> Unit,
     onOpenHostedProviderSettings: () -> Unit,
 ) {
     Scaffold(
@@ -900,32 +865,6 @@ private fun SettingsRoot(
                     )
                     OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onOpenBankNotifications,
                     modifier = Modifier.fillMaxWidth(),) { Text("Bank notification settings") }
-                }
-            }
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(4.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Text(
-                        text = "OFFLINE MODEL",
-                        style = MaterialTheme.typography.labelLarge,
-                        letterSpacing = 1.2.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = "Check the pinned local model or import it from a folder. " +
-                            "This is optional; manual transaction entry works either way.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onOpenModelSetup,
-                    modifier = Modifier.fillMaxWidth(),) { Text("Model setup") }
                 }
             }
         }

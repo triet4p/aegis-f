@@ -58,10 +58,7 @@ import io.github.triet4p.aegisf.data.LIST_PAGE_SIZE
 import io.github.triet4p.aegisf.data.QueryPage
 import io.github.triet4p.aegisf.data.QueryPageRequest
 import io.github.triet4p.aegisf.data.LedgerValidationException
-import io.github.triet4p.aegisf.data.ManualCategoryDecision
 import io.github.triet4p.aegisf.data.ManualTransactionSource
-import io.github.triet4p.aegisf.data.RemoveCategoryRuleRequest
-import io.github.triet4p.aegisf.data.RememberCategoryRuleRequest
 import io.github.triet4p.aegisf.data.SaveManualTransactionRequest
 import io.github.triet4p.aegisf.data.TransactionEntity
 import io.github.triet4p.aegisf.data.TransactionType
@@ -73,25 +70,13 @@ import io.github.triet4p.aegisf.data.WorkflowCommandOutcome
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowDenialReason
 import io.github.triet4p.aegisf.data.WorkflowQueryService
-import io.github.triet4p.aegisf.data.decideRememberedBeforeInference
 import io.github.triet4p.aegisf.data.refusalMessage
-import io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner
-import io.github.triet4p.aegisf.data.laya.LayaEffectiveContext
-import io.github.triet4p.aegisf.data.laya.LayaInferenceLifecycle
-import io.github.triet4p.aegisf.data.laya.LayaInferenceOutcome
-import io.github.triet4p.aegisf.data.laya.LayaRuntimeContract
 import java.util.Locale
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
-
-/** Calibrated model shares render as whole percents; values are never fabricated. */
-internal fun formatProbability(probability: Double): String {
-    val percent = (probability * 100.0).coerceIn(0.0, 100.0)
-    return String.format(Locale.US, "%.0f%%", percent)
-}
 
 /**
  * Manual transaction editor: one stored record per Save.
@@ -109,12 +94,11 @@ internal fun formatProbability(probability: Double): String {
  * category where applicable — and writes them through the command boundary, which owns every
  * data rule and the caller's authority. A refused write stores nothing and shows the reason
  * under the field it belongs to, with the typed values intact.
- * New expense creation first checks for an explicit remembered exact-description rule, then
- * may show a process-owned Laya suggestion; either changes the category field only after
- * explicit acceptance and never writes a transaction. Income, transfers, and correction forms
- * remain manual. The live category list backs the picker and rule/suggestion resolution, so a
- * category renamed or archived during a request cannot remain eligible; an existing record
- * keeps its archived category link unless the user chooses another category.
+ * New expense creation writes only what the user states; nothing is classified on the device
+ * and no suggestion changes the category field. Income, transfers, and correction forms are
+ * equally manual. The live category list backs the picker, so a category renamed or archived
+ * during an edit cannot remain eligible; an existing record keeps its archived category link
+ * unless the user chooses another category.
  *
  * A record may be written from a saved note the user recorded by hand: the note event is
  * named, the note's own amount and moment fill the form, and the saved record resolves that
@@ -128,7 +112,6 @@ internal fun formatProbability(probability: Double): String {
 fun TransactionEditorScreen(
     commandService: WorkflowCommandService,
     queryService: WorkflowQueryService,
-    layaInferenceLifecycle: LayaInferenceLifecycle,
     transactionId: Long?,
     onNavigateUp: () -> Unit,
     sourceEventId: Long? = null,
@@ -138,7 +121,6 @@ fun TransactionEditorScreen(
         TransactionFormScreen(
             commandService = commandService,
             queryService = queryService,
-            layaInferenceLifecycle = layaInferenceLifecycle,
             storedRecord = null,
             storedCategory = null,
             sourceEventId = sourceEventId,
@@ -173,7 +155,6 @@ fun TransactionEditorScreen(
         is StoredTransactionState.Found -> TransactionFormScreen(
             commandService = commandService,
             queryService = queryService,
-            layaInferenceLifecycle = layaInferenceLifecycle,
             storedRecord = stored.record,
             storedCategory = stored.category,
             onNavigateUp = onNavigateUp,
@@ -201,7 +182,6 @@ private sealed interface StoredTransactionState {
 private fun TransactionFormScreen(
     commandService: WorkflowCommandService,
     queryService: WorkflowQueryService,
-    layaInferenceLifecycle: LayaInferenceLifecycle,
     storedRecord: TransactionEntity?,
     storedCategory: CategoryEntity?,
     onNavigateUp: () -> Unit,
@@ -234,8 +214,6 @@ private fun TransactionFormScreen(
     var categoryError by remember { mutableStateOf<String?>(null) }
     var saveError by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
-    var ruleActionInFlight by remember { mutableStateOf(false) }
-    var ruleActionError by remember { mutableStateOf<String?>(null) }
     var savedRecordId by rememberSaveable { mutableStateOf<Long?>(null) }
     var savedRecord by remember { mutableStateOf<TransactionEntity?>(null) }
 
@@ -260,24 +238,12 @@ private fun TransactionFormScreen(
     }
     var notePickerVisible by rememberSaveable { mutableStateOf(false) }
 
-    // The whole catalog, live and read in bounded chunks: the model's candidate ranking
-    // needs every active category, and an archive or a rename of any of them has to
-    // invalidate a suggestion that was made against the catalog. The picker itself reads
-    // the catalog page by page, so every stored category is reachable there.
+    // The whole catalog, live and read in bounded chunks: an archive or a rename must be
+    // visible at once, and the picker reads the catalog page by page so every stored
+    // category is reachable there.
     val catalog: List<CategoryEntity>? by remember(queryService) {
         queryService.observeCategoryCatalog()
     }.collectAsState(initial = null)
-    val activeCategories = remember(catalog) {
-        catalog?.filterNot { it.archived }
-    }
-    var formIdentity by remember { mutableStateOf(Any()) }
-    val suggestionMachine = remember(formIdentity) { ManualCategorySuggestionMachine() }
-    var suggestionRevision by remember { mutableStateOf(0) }
-    val suggestionIntent = remember(formIdentity, descriptionText, selectedType) {
-        ManualSuggestionIntent(formIdentity, descriptionText, selectedType)
-    }
-    val latestSuggestionIntent by rememberUpdatedState(suggestionIntent)
-    val latestObservedCategories by rememberUpdatedState(catalog)
 
     LaunchedEffect(queryService, sourceEventId) {
         val eventId = sourceEventId ?: return@LaunchedEffect
@@ -318,126 +284,6 @@ private fun TransactionFormScreen(
 
     val scope = rememberCoroutineScope()
     val writeInFlight = remember { AtomicBoolean(false) }
-    LaunchedEffect(
-        queryService,
-        layaInferenceLifecycle,
-        formIdentity,
-        editing,
-        descriptionText,
-        selectedType,
-        catalog,
-        suggestionRevision,
-        savedRecordId,
-    ) {
-        if (editing || savedRecordId != null) {
-            suggestionMachine.reset()
-            return@LaunchedEffect
-        }
-        if (selectedType != TransactionType.EXPENSE) {
-            if (selectedType == TransactionType.INCOME) {
-                suggestionMachine.notApplicableToKind()
-            } else {
-                suggestionMachine.reset()
-            }
-            return@LaunchedEffect
-        }
-        val requestCategories = catalog
-        if (requestCategories == null) {
-            suggestionMachine.waitForCategories()
-            return@LaunchedEffect
-        }
-        if (descriptionText.isBlank()) {
-            suggestionMachine.waitForDescription()
-            return@LaunchedEffect
-        }
-        val requestActiveCategories = checkNotNull(activeCategories)
-        if (requestActiveCategories.isEmpty()) {
-            suggestionMachine.noActiveCategories()
-            return@LaunchedEffect
-        }
-
-        val token = suggestionMachine.begin(
-            ManualSuggestionRequest(suggestionIntent, requestCategories),
-        ) ?: return@LaunchedEffect
-        val decision = try {
-            decideRememberedBeforeInference(
-                description = descriptionText,
-                context = LayaEffectiveContext.of(descriptionText),
-                activeCategories = requestActiveCategories,
-                findRememberedCategory = { description ->
-                    queryService.findRememberedCategory(description)
-                },
-                infer = { context, categories ->
-                    layaInferenceLifecycle.suggest(context, categories)
-                },
-            )
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            val currentCategories = queryService.categoryCatalog()
-            suggestionMachine.unavailable(
-                token = token,
-                currentIntent = latestSuggestionIntent,
-                currentCategories = currentCategories,
-                observedCategories = latestObservedCategories,
-                reason = UnavailableReason.FAILED,
-            )
-            return@LaunchedEffect
-        }
-        val currentCategories = queryService.categoryCatalog()
-        val observedCategories = latestObservedCategories
-        val outcome = when (decision) {
-            is ManualCategoryDecision.Remembered -> {
-                suggestionMachine.completeRemembered(
-                    token = token,
-                    currentIntent = latestSuggestionIntent,
-                    currentCategories = currentCategories,
-                    observedCategories = observedCategories,
-                    category = decision.category,
-                )
-                return@LaunchedEffect
-            }
-            is ManualCategoryDecision.Inferred -> decision.outcome
-        }
-        when (outcome) {
-            is LayaInferenceOutcome.Completed -> suggestionMachine.complete(
-                token = token,
-                currentIntent = latestSuggestionIntent,
-                currentCategories = currentCategories,
-                observedCategories = observedCategories,
-                resolution = LayaCandidatePlanner.resolveCurrent(
-                    outcome.value.decision,
-                    currentCategories,
-                ),
-            )
-            is LayaInferenceOutcome.Unavailable -> suggestionMachine.unavailable(
-                token = token,
-                currentIntent = latestSuggestionIntent,
-                currentCategories = currentCategories,
-                observedCategories = observedCategories,
-                reason = when (outcome.state) {
-                    LayaRuntimeContract.State.Missing -> UnavailableReason.MISSING
-                    is LayaRuntimeContract.State.CorruptOrIncompatible ->
-                        UnavailableReason.INCOMPATIBLE
-                    LayaRuntimeContract.State.Ready -> UnavailableReason.FAILED
-                },
-            )
-            LayaInferenceOutcome.Superseded -> suggestionMachine.unavailable(
-                token = token,
-                currentIntent = latestSuggestionIntent,
-                currentCategories = currentCategories,
-                observedCategories = observedCategories,
-                reason = UnavailableReason.SUPERSEDED,
-            )
-            LayaInferenceOutcome.Closed -> suggestionMachine.unavailable(
-                token = token,
-                currentIntent = latestSuggestionIntent,
-                currentCategories = currentCategories,
-                observedCategories = observedCategories,
-                reason = UnavailableReason.CLOSED,
-            )
-        }
-    }
 
     BackHandler { if (!saving) onNavigateUp() }
 
@@ -452,12 +298,6 @@ private fun TransactionFormScreen(
             categoryLabel(storedCategory)
         else -> selectedCategoryName
     }
-    val rememberableCategoryName = currentSelectedCategory
-        ?.takeIf {
-            !editing && selectedType == TransactionType.EXPENSE && descriptionText.isNotBlank()
-        }
-        ?.takeUnless { it.archived }
-        ?.name
     val categoryNote = when {
         currentSelectedCategory?.archived == true &&
             selectedCategoryId != storedRecord?.categoryId ->
@@ -620,90 +460,6 @@ private fun TransactionFormScreen(
         }
     }
 
-    fun rememberSelectedCategoryRule() {
-        val categoryId = selectedCategoryId ?: return
-        val intent = suggestionIntent
-        if (editing || selectedType != TransactionType.EXPENSE ||
-            descriptionText.isBlank() ||
-            activeCategories?.any { it.id == categoryId } != true
-        ) {
-            return
-        }
-        ruleActionInFlight = true
-        ruleActionError = null
-        scope.launch {
-            try {
-                val outcome = commandService.rememberCategoryRule(
-                    scope = WorkflowCallerScope.User,
-                    request = RememberCategoryRuleRequest(
-                        idempotencyKey = newRuleRequestKey("remember"),
-                        description = intent.description,
-                        categoryId = categoryId,
-                    ),
-                )
-                if (latestSuggestionIntent == intent) {
-                    when (outcome) {
-                        is WorkflowCommandOutcome.Applied -> {
-                            suggestionMachine.clearSuppression()
-                            suggestionRevision += 1
-                        }
-                        is WorkflowCommandOutcome.NoChange -> {
-                            ruleActionError =
-                                "A saved rule already applies to this exact description. Remove " +
-                                    "it before saving a different category."
-                        }
-                        else -> ruleActionError = outcome.refusalMessage()
-                            ?: "The rule could not be saved; nothing was changed."
-                    }
-                }
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                if (latestSuggestionIntent == intent) {
-                    ruleActionError = "The rule could not be saved; nothing was changed."
-                }
-            } finally {
-                ruleActionInFlight = false
-            }
-        }
-    }
-
-    fun removeRememberedCategoryRule() {
-        val intent = suggestionIntent
-        ruleActionInFlight = true
-        ruleActionError = null
-        scope.launch {
-            try {
-                val outcome = commandService.removeCategoryRule(
-                    scope = WorkflowCallerScope.User,
-                    request = RemoveCategoryRuleRequest(
-                        idempotencyKey = newRuleRequestKey("remove"),
-                        description = intent.description,
-                    ),
-                )
-                if (latestSuggestionIntent == intent) {
-                    when (outcome) {
-                        is WorkflowCommandOutcome.Applied -> suggestionMachine.ruleRemoved(intent)
-                        is WorkflowCommandOutcome.NoChange -> {
-                            ruleActionError = "This saved rule is no longer available."
-                        }
-                        else -> ruleActionError = outcome.refusalMessage()
-                            ?: "The rule could not be removed; it is still stored."
-                    }
-                    suggestionRevision += 1
-                }
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                if (latestSuggestionIntent == intent) {
-                    ruleActionError = "The rule could not be removed; it is still stored."
-                }
-            } finally {
-                ruleActionInFlight = false
-            }
-        }
-    }
-
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
@@ -721,9 +477,7 @@ private fun TransactionFormScreen(
                 record = saved,
                 categoryName = selectedCategoryName,
                 onRecordAnother = {
-                    // A further record is a new suggestion context, with the current moment.
                     val nowMillis = System.currentTimeMillis()
-                    formIdentity = Any()
                     amountText = ""
                     selectedType = TransactionType.EXPENSE
                     dateText = ManualDateTime.dateFieldText(nowMillis)
@@ -748,10 +502,8 @@ private fun TransactionFormScreen(
                 amountError = amountError,
                 selectedType = selectedType,
                 onTypeChange = {
-                    if (selectedType != it) suggestionMachine.clearSuppression()
                     selectedType = it
                     categoryError = null
-                    ruleActionError = null
                 },
                 dateText = dateText,
                 onDateChange = { dateText = it; dateError = null },
@@ -760,13 +512,7 @@ private fun TransactionFormScreen(
                 onTimeChange = { timeText = it; timeError = null },
                 timeError = timeError,
                 descriptionText = descriptionText,
-                onDescriptionChange = {
-                    if (descriptionText != it) {
-                        suggestionMachine.clearSuppression()
-                        ruleActionError = null
-                    }
-                    descriptionText = it
-                },
+                onDescriptionChange = { descriptionText = it },
                 categoryName = categoryButtonLabel,
                 categoryId = selectedCategoryId,
                 categoryArchived = currentSelectedCategory?.archived
@@ -774,51 +520,11 @@ private fun TransactionFormScreen(
                         selectedCategoryId == storedCategory.id),
                 categoryNote = categoryNote,
                 categoryError = categoryError,
-                rememberableCategoryName = rememberableCategoryName,
-                ruleActionError = ruleActionError,
-                ruleActionInFlight = ruleActionInFlight,
                 onPickCategory = { categoryPickerVisible = true },
-                suggestionState = suggestionMachine.state,
-                onAcceptSuggestion = {
-                    suggestionMachine.acceptSuggestion()?.let { category ->
-                        selectedCategoryId = category.id
-                        selectedCategoryName = category.name
-                        categoryError = null
-                    }
-                },
-                onAcceptRememberedRule = {
-                    suggestionMachine.acceptRememberedRule()?.let { rememberedCategory ->
-                        val currentCategory = activeCategories
-                            ?.firstOrNull { it.id == rememberedCategory.id }
-                        if (currentCategory == null) {
-                            suggestionMachine.clearSuppression()
-                            suggestionRevision += 1
-                        } else {
-                            selectedCategoryId = currentCategory.id
-                            selectedCategoryName = currentCategory.name
-                            categoryError = null
-                        }
-                    }
-                },
-                onIgnoreSuggestion = {
-                    suggestionMachine.ignore(suggestionIntent)
-                    suggestionRevision += 1
-                },
-                onRememberCategoryRule = ::rememberSelectedCategoryRule,
-                onRemoveRememberedRule = ::removeRememberedCategoryRule,
-                onChooseDistributionOption = { categoryId ->
-                    suggestionMachine.chooseDistributionOption(categoryId)?.let { category ->
-                        selectedCategoryId = category.id
-                        selectedCategoryName = category.name
-                        categoryError = null
-                    }
-                },
                 onChooseNoCategory = {
-                    if (suggestionMachine.chooseNoCategoryOption()) {
-                        selectedCategoryId = null
-                        selectedCategoryName = null
-                        categoryError = null
-                    }
+                    selectedCategoryId = null
+                    selectedCategoryName = null
+                    categoryError = null
                 },
                 sourceEvent = sourceEvent,
                 sourceEventLoading = sourceEventLoading,
@@ -857,12 +563,9 @@ private fun TransactionFormScreen(
                 },
             selectedCategoryId = selectedCategoryId,
             onSelect = { id, name ->
-                suggestionMachine.chooseManually(suggestionIntent)
-                suggestionRevision += 1
                 selectedCategoryId = id
                 selectedCategoryName = name
                 categoryError = null
-                ruleActionError = null
                 categoryPickerVisible = false
             },
             onDismiss = { categoryPickerVisible = false },
@@ -947,14 +650,6 @@ private fun noteLabel(note: UnrecordedNoteEvent): String {
 
 /** A key that names one save request; the same key stores one record. */
 private fun newSaveRequestKey(): String = "manual-save:" + UUID.randomUUID()
-
-/**
- * A key that names one rule action; the same key stores one rule.
- *
- * Each action the user takes is its own request: saving the same description for another
- * category later is a different request, and it gets its own key.
- */
-private fun newRuleRequestKey(action: String): String = "rule-$action:" + UUID.randomUUID()
 
 /** The top bar of every editor state: one title and one Back control. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1057,17 +752,7 @@ private fun TransactionForm(
     categoryArchived: Boolean,
     categoryNote: String?,
     categoryError: String?,
-    rememberableCategoryName: String?,
-    ruleActionError: String?,
-    ruleActionInFlight: Boolean,
     onPickCategory: () -> Unit,
-    suggestionState: ManualCategorySuggestionState,
-    onAcceptSuggestion: () -> Unit,
-    onAcceptRememberedRule: () -> Unit,
-    onRememberCategoryRule: () -> Unit,
-    onRemoveRememberedRule: () -> Unit,
-    onIgnoreSuggestion: () -> Unit,
-    onChooseDistributionOption: (Long) -> Unit,
     onChooseNoCategory: () -> Unit,
     sourceEvent: UnrecordedNoteEvent?,
     sourceEventLoading: Boolean,
@@ -1223,22 +908,6 @@ private fun TransactionForm(
                 )
             }
         }
-        if (!editing && selectedType != TransactionType.TRANSFER) {
-            ManualSuggestionPanel(
-                state = suggestionState,
-                enabled = !saving && !ruleActionInFlight,
-                rememberableCategoryName = rememberableCategoryName,
-                ruleActionError = ruleActionError,
-                onAccept = onAcceptSuggestion,
-                onAcceptRememberedRule = onAcceptRememberedRule,
-                onIgnore = onIgnoreSuggestion,
-                onRemember = onRememberCategoryRule,
-                onRemoveRememberedRule = onRemoveRememberedRule,
-                onChooseDistributionOption = onChooseDistributionOption,
-                onChooseNoCategory = onChooseNoCategory,
-            )
-        }
-
         if (!editing) {
             OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onPickNote,
             enabled = !saving,
@@ -1292,299 +961,6 @@ private fun TransactionForm(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp),) { Text("Cancel") }
-    }
-}
-@Composable
-private fun ManualSuggestionPanel(
-    state: ManualCategorySuggestionState,
-    enabled: Boolean,
-    rememberableCategoryName: String?,
-    ruleActionError: String?,
-    onAccept: () -> Unit,
-    onAcceptRememberedRule: () -> Unit,
-    onIgnore: () -> Unit,
-    onRemember: () -> Unit,
-    onRemoveRememberedRule: () -> Unit,
-    onChooseDistributionOption: (Long) -> Unit = {},
-    onChooseNoCategory: () -> Unit = {},
-) {
-    if (state == ManualCategorySuggestionState.Idle) return
-
-    val status = when (state) {
-        ManualCategorySuggestionState.Idle -> return
-        ManualCategorySuggestionState.LoadingCategories ->
-            "Loading current categories. Manual entry remains available."
-        ManualCategorySuggestionState.WaitingForDescription ->
-            "Enter a description to request a suggestion. You can still choose a category or " +
-                "save without one."
-        ManualCategorySuggestionState.Loading ->
-            "Working: checking saved rules, then running the local model if needed. Manual " +
-                "category selection and saving remain available."
-        ManualCategorySuggestionState.NoActiveCategories ->
-            "No active categories are available. You can save without a category."
-        ManualCategorySuggestionState.NotApplicableToKind ->
-            "Laya category suggestions are for spending descriptions. Choose an income category " +
-                "manually; normal entry and saving remain available."
-        is ManualCategorySuggestionState.Suggested ->
-            if (state.distribution != null) {
-                "The model ranked your current categories below. Pick one to fill the " +
-                    "category field, or leave the field unchanged. Nothing is saved."
-            } else {
-                "Laya suggests “${state.category.name}” from your current categories. It will not " +
-                    "change the selected category unless you accept it."
-            }
-        is ManualCategorySuggestionState.Remembered ->
-            if (state.manualSelection) {
-                "Your manual category choice stays selected. The saved rule for " +
-                    "“${state.category.name}” remains separate and is not overwritten."
-            } else if (state.accepted) {
-                "The saved exact-description rule for “${state.category.name}” was accepted. " +
-                    "The category field changed only at your request; nothing has been saved. " +
-                    "This is a saved rule, not a model score."
-            } else {
-                "A saved exact-description rule matches “${state.category.name}”. It does not " +
-                    "change the category field until you accept it. This is a saved rule, not " +
-                    "a model score."
-            }
-        ManualCategorySuggestionState.RuleRemoved ->
-            "The saved rule was removed. No remembered rule applies to this description now."
-        is ManualCategorySuggestionState.Accepted ->
-            if (state.distribution != null) {
-                "“${state.category.name}” from the ranked model list is selected in the " +
-                    "category field at your request. Review it before saving; nothing has " +
-                    "been saved."
-            } else {
-                "“${state.category.name}” is selected in the category field at your request. " +
-                    "Review it before saving; nothing has been saved."
-            }
-        is ManualCategorySuggestionState.NoFit -> when (state.reason) {
-            LayaCandidatePlanner.ManualReason.MODEL_NO_FIT ->
-                if (state.distribution != null) {
-                    "Unknown scored highest, so nothing was preselected. The ranked " +
-                        "categories below stay selectable. Nothing is saved."
-                } else {
-                    "The model returned no fitting category. Choose one manually or save without " +
-                        "a category."
-                }
-            LayaCandidatePlanner.ManualReason.NO_METADATA_EVIDENCE ->
-                "The current category names did not identify candidates to check. Choose a " +
-                    "category manually or save without one."
-            LayaCandidatePlanner.ManualReason.SEQUENCE_UNFIT ->
-                "The current category choices did not fit the model input budget. No " +
-                    "suggestion was made; manual entry remains available."
-            LayaCandidatePlanner.ManualReason.EMPTY_DESCRIPTION ->
-                "Enter a description to request a suggestion. You can still choose a category " +
-                    "or save without one."
-            LayaCandidatePlanner.ManualReason.NO_ACTIVE_CATEGORIES ->
-                "No active categories are available. You can save without a category."
-            LayaCandidatePlanner.ManualReason.EFFECTIVE_INPUT_OVER_BUDGET ->
-                effectiveInputOverBudgetMessage()
-            else ->
-                "No category suggestion is available for this description and category list. " +
-                    "Choose one manually or save without one."
-        }
-        is ManualCategorySuggestionState.Stale -> when (state.reason) {
-            LayaCandidatePlanner.StaleReason.MISSING_OR_ARCHIVED ->
-                "The suggested category is no longer active. It was not applied; choose from " +
-                    "current categories instead."
-            LayaCandidatePlanner.StaleReason.RENAMED ->
-                "A category was renamed while this suggestion was checked. It was not applied."
-            LayaCandidatePlanner.StaleReason.DUPLICATE_ID, null ->
-                "Category data changed while this suggestion was checked. It was not applied."
-        }
-        is ManualCategorySuggestionState.Unavailable -> when (state.reason) {
-            UnavailableReason.MISSING ->
-                "The local model is not installed. Manual category selection and saving still work."
-            UnavailableReason.INCOMPATIBLE ->
-                "The local model could not be verified. Manual category selection and saving " +
-                    "still work."
-            UnavailableReason.SUPERSEDED, UnavailableReason.CLOSED, UnavailableReason.FAILED ->
-                "A suggestion is unavailable right now. Manual category selection and saving " +
-                    "still work."
-        }
-        ManualCategorySuggestionState.ManuallySelected ->
-            "Your category choice stays selected. Laya will not replace it for this description."
-        ManualCategorySuggestionState.Ignored ->
-            "Suggestion ignored. The selected category and other record fields are unchanged."
-        ManualCategorySuggestionState.NoCategory ->
-            "No category will be filed for this description unless you pick one. " +
-                "Saving without a category remains available."
-    }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = "Category suggestion",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        val busy = state == ManualCategorySuggestionState.LoadingCategories ||
-            state == ManualCategorySuggestionState.Loading
-        if (busy) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        }
-        Text(
-            text = status,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-        )
-        val uncertainty = when (val current = state) {
-            is ManualCategorySuggestionState.Suggested -> current.uncertainty
-            is ManualCategorySuggestionState.Accepted -> current.uncertainty
-            is ManualCategorySuggestionState.NoFit -> current.uncertainty
-            else -> null
-        }
-        val pendingDistribution = when (val current = state) {
-            is ManualCategorySuggestionState.Suggested -> current.distribution
-            is ManualCategorySuggestionState.NoFit -> current.distribution
-            else -> null
-        }
-        if (uncertainty != null && uncertainty.omittedCategoryCount > 0) {
-            Text(
-                text = "The suggestion process offered ${uncertainty.offeredCategoryCount} of " +
-                    "${uncertainty.activeCategoryCount} active categories; " +
-                    "${uncertainty.omittedCategoryCount} were omitted, so a better fit may be " +
-                    "missing.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        when (state) {
-            is ManualCategorySuggestionState.Suggested -> {
-                val distribution = state.distribution
-                if (distribution != null) {
-                    ManualDistributionList(
-                        distribution = distribution,
-                        enabled = enabled,
-                        onChooseDistributionOption = onChooseDistributionOption,
-                        onChooseNoCategory = onChooseNoCategory,
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onIgnore, enabled = enabled) { Text("Ignore") }
-                    }
-                } else {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(shape = MaterialTheme.shapes.small, onClick = onAccept, enabled = enabled) { Text("Use suggestion") }
-                        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onIgnore, enabled = enabled) { Text("Ignore") }
-                    }
-                }
-            }
-            is ManualCategorySuggestionState.NoFit -> {
-                val distribution = state.distribution
-                if (distribution != null) {
-                    ManualDistributionList(
-                        distribution = distribution,
-                        enabled = enabled,
-                        onChooseDistributionOption = onChooseDistributionOption,
-                        onChooseNoCategory = onChooseNoCategory,
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onIgnore, enabled = enabled) { Text("Ignore") }
-                    }
-                }
-            }
-            is ManualCategorySuggestionState.Remembered -> {
-                if (!state.accepted || state.manualSelection) {
-                    Button(shape = MaterialTheme.shapes.small, onClick = onAcceptRememberedRule,
-                    enabled = enabled,
-                    modifier = Modifier.fillMaxWidth(),) { Text("Use remembered category") }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onIgnore, enabled = enabled) { Text("Ignore") }
-                    OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onRemoveRememberedRule, enabled = enabled) { Text("Remove rule") }
-                }
-            }
-            is ManualCategorySuggestionState.Accepted -> Unit
-            is ManualCategorySuggestionState.NoCategory -> Unit
-            is ManualCategorySuggestionState.Stale -> Unit
-            is ManualCategorySuggestionState.Unavailable -> Unit
-            ManualCategorySuggestionState.ManuallySelected -> Unit
-            ManualCategorySuggestionState.Ignored -> Unit
-            ManualCategorySuggestionState.LoadingCategories -> Unit
-            ManualCategorySuggestionState.WaitingForDescription -> Unit
-            ManualCategorySuggestionState.Loading -> Unit
-            ManualCategorySuggestionState.NoActiveCategories -> Unit
-            ManualCategorySuggestionState.NotApplicableToKind -> Unit
-            ManualCategorySuggestionState.RuleRemoved -> Unit
-            ManualCategorySuggestionState.Idle -> Unit
-        }
-        if (state !is ManualCategorySuggestionState.Suggested &&
-            state !is ManualCategorySuggestionState.NoFit &&
-            state !is ManualCategorySuggestionState.Remembered &&
-            rememberableCategoryName != null
-        ) {
-            Text(
-                text = "This rule matches only the description as written (case and repeated " +
-                    "spaces are ignored). No other descriptions or records change.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onRemember,
-            enabled = enabled,
-            modifier = Modifier.fillMaxWidth(),) { Text("Remember ${rememberableCategoryName} for this description") }
-        }
-        if (ruleActionError != null) {
-            Text(
-                text = ruleActionError,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-            )
-        }
-    }
-}
-
-/**
- * Ranked model distribution shared by manual entry and bank review. Rows list the
- * evaluated categories in descending calibrated probability plus the unknown/no-fit
- * row from the same softmax; selecting any evaluated row only stages it for the
- * caller's explicit field update and never saves.
- */
-@Composable
-internal fun ManualDistributionList(
-    distribution: LayaCandidatePlanner.ScoredDistribution,
-    enabled: Boolean,
-    onChooseDistributionOption: (Long) -> Unit,
-    onChooseNoCategory: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(
-            text = "Model probabilities over the evaluated options; confidence " +
-                "${formatProbability(distribution.confidence)} is the overall " +
-                "sharpness, not a per-category guarantee.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        distribution.options.forEach { option ->
-            val current = option.currentCategory
-            OutlinedButton(shape = MaterialTheme.shapes.small, onClick = { onChooseDistributionOption(option.categoryId) },
-            enabled = enabled && current != null,
-            modifier = Modifier.fillMaxWidth(),) { Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                CategorySwatch(categoryId = option.categoryId, directory = true)
-                Text(
-                    if (current != null) {
-                        "${current.name} — ${formatProbability(option.probability)}"
-                    } else {
-                        "${option.snapshotName} — ${formatProbability(option.probability)} " +
-                            "(unavailable)"
-                    },
-                )
-            } }
-        }
-        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onChooseNoCategory,
-        enabled = enabled,
-        modifier = Modifier.fillMaxWidth(),) { Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            CategorySwatch(categoryId = null, directory = true)
-            Text("Unknown / no fit — ${formatProbability(distribution.unknownProbability)}")
-        } }
     }
 }
 

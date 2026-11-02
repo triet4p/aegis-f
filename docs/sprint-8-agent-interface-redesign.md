@@ -1,5 +1,11 @@
 # S8.13-pre — Agent interface redesign: tools, skills, prompt and errors
 
+**CAT1 (2026-11-02):** Laya and its English translation bridge are removed from the active
+app. The hosted workflow chooses an existing category from the draft observation's current
+`category_choices` and submits it through `update_draft_review` (the ordinary draft-review
+update). Laya-specific sections below are historical S4/S7/S8 evidence, not the active
+contract.
+
 Date: 2026-10-28. Author: Main, directly requested by the owner.
 
 **Status: owner-approved implementation design; implementation and independent acceptance pending.** The owner initially authorized analysis/documentation and has now explicitly requested implementation according to this document. This approves the proposed interface cutover, including journal-backed `replay_operation`, not retroactive changes to historical scores or a new hosted qualification batch. Names, schemas, references and examples remain specifications until verified against the implemented runtime. S8.13-pre remains open through runtime verification, independent evidence review and its separate checkpoint; S8.13 remains unqualified.

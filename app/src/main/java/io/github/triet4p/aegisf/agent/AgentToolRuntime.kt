@@ -2,13 +2,8 @@ package io.github.triet4p.aegisf.agent
 
 import io.github.triet4p.aegisf.data.CaptureEventQuery
 import io.github.triet4p.aegisf.data.CaptureMessageEntity
-import io.github.triet4p.aegisf.data.ClassificationInputKind
-import io.github.triet4p.aegisf.data.ClassificationOperationQuery
-import io.github.triet4p.aegisf.data.ClassificationRequest
-import io.github.triet4p.aegisf.data.ClassificationTranslationBinding
 import io.github.triet4p.aegisf.data.ContextLinkState
 import io.github.triet4p.aegisf.data.DraftCandidateQuery
-import io.github.triet4p.aegisf.data.HostedEnglishClassificationInput
 import io.github.triet4p.aegisf.data.IntakeReviewStatus
 import io.github.triet4p.aegisf.data.LinkEligibility
 import io.github.triet4p.aegisf.data.LinkOperation
@@ -21,6 +16,7 @@ import io.github.triet4p.aegisf.data.OPERATION_OUTCOME_PENDING
 import io.github.triet4p.aegisf.data.PendingBankDraftEntity
 import io.github.triet4p.aegisf.data.ProposeLinkRequest
 import io.github.triet4p.aegisf.data.QueryPageRequest
+import io.github.triet4p.aegisf.data.SelectDraftCategoryRequest
 import io.github.triet4p.aegisf.data.UpdateEventRequest
 import io.github.triet4p.aegisf.data.WorkflowCallerScope
 import io.github.triet4p.aegisf.data.WorkflowChange
@@ -30,9 +26,8 @@ import io.github.triet4p.aegisf.data.WorkflowDenialReason
 import io.github.triet4p.aegisf.data.WorkflowOperation
 import io.github.triet4p.aegisf.data.WorkflowOperationQuery
 import io.github.triet4p.aegisf.data.WorkflowQueryService
-import io.github.triet4p.aegisf.data.classificationDescription
-import io.github.triet4p.aegisf.data.classificationInputIdentity
-import io.github.triet4p.aegisf.data.effectiveInputDigest
+import io.github.triet4p.aegisf.data.categoryCatalogRevision
+import io.github.triet4p.aegisf.data.workingDescription
 import io.github.triet4p.aegisf.privacy.InboundScan
 import io.github.triet4p.aegisf.privacy.MaskedApplicationEffect
 import io.github.triet4p.aegisf.privacy.MaskedPath
@@ -59,9 +54,9 @@ data class AgentToolSession(
  * Every tool returns the shared [AgentEnvelope] result and, for settled mutations, a local
  * [AgentEffectClaim] the executor re-reads before the run may claim completion. The runtime
  * owns reference issuance/resolution, source mapping, atomic event recording, trusted link
- * inspection, local Laya classification of stored source or a complete current-source-bound
- * English translation, and journal replay. It never widens scope, invents a value, runs
- * SQL/shell/filesystem work or writes a ledger row.
+ * inspection, the ordinary draft-review update that stores the hosted workflow's category
+ * choice, and journal replay. It never widens scope, invents a value, runs SQL/shell/filesystem
+ * work or writes a ledger row.
  */
 class AgentToolRuntime(
     private val commands: WorkflowCommandService,
@@ -151,7 +146,7 @@ class AgentToolRuntime(
                 "inspect_link" -> inspectLink(arguments)
                 "propose_link" -> proposeLink(arguments, operationKey)
                 "attach_link" -> attachLink(arguments, operationKey)
-                "classify_draft" -> classifyDraft(arguments, operationKey)
+                "update_draft_review" -> updateDraftReview(arguments, operationKey)
                 "replay_operation" -> replayOperation(arguments)
                 "ask_user" -> askUser(arguments)
                 else -> failed(name, AgentErrorCode.SCHEMA_INVALID, emptyList())
@@ -204,7 +199,6 @@ class AgentToolRuntime(
             setOf(
                 AgentReferenceKind.CAPTURE,
                 AgentReferenceKind.DRAFT,
-                AgentReferenceKind.CLASSIFICATION_CONTEXT,
                 AgentReferenceKind.EVENT,
                 AgentReferenceKind.PAIR,
                 AgentReferenceKind.PROPOSAL,
@@ -215,9 +209,6 @@ class AgentToolRuntime(
         val observation = when (reference.kind) {
             AgentReferenceKind.CAPTURE -> captureObservation(requireCapture(reference.captureId))
             AgentReferenceKind.DRAFT -> draftContextObservation(requireDraft(reference.draftId))
-            AgentReferenceKind.CLASSIFICATION_CONTEXT -> draftContextObservation(
-                requireDraft(reference.draftId),
-            )
             AgentReferenceKind.EVENT -> eventObservation(requireEvent(reference.eventId))
             AgentReferenceKind.PAIR, AgentReferenceKind.PROPOSAL -> pairObservation(
                 requireEvent(reference.eventId),
@@ -228,7 +219,7 @@ class AgentToolRuntime(
                 AgentErrorCode.REFERENCE_KIND_MISMATCH,
                 "$.ref",
                 "observable_reference_kind",
-                message = "Only capture, draft, classification context, event, pair or operation references are observable.",
+                message = "Only capture, draft, event, pair or operation references are observable.",
             )
         }
         return AgentToolExecution(
@@ -956,126 +947,101 @@ class AgentToolRuntime(
         )
     }
 
-    // ---- classify_draft ------------------------------------------------------------------
+    // ---- update_draft_review -------------------------------------------------------------
 
-    private suspend fun classifyDraft(arguments: JSONObject, operationKey: String): AgentToolExecution {
+    /**
+     * Saves the category the hosted workflow chose for one observed draft.
+     *
+     * The model supplies two aliases only: the current draft and one of the category choices
+     * issued by that draft's own observation. The host re-checks the draft's review revision,
+     * the category's current assignability and the catalog digest the choice was observed
+     * against, then writes the choice through the ordinary draft-review mutation. The draft
+     * stays pending and no ledger row is written; only the user can confirm it.
+     */
+    private suspend fun updateDraftReview(
+        arguments: JSONObject,
+        operationKey: String,
+    ): AgentToolExecution {
         val draftRef = registry.resolve(arguments.getString("draft_ref"), AgentReferenceKind.DRAFT, "$.draft_ref")
         val draft = requireDraft(draftRef.draftId)
         if (draftRef.draftReviewRevision != null && draftRef.draftReviewRevision != draft.reviewRevision) {
             throw staleDraft("$.draft_ref", draft)
         }
-        val hostedEnglishInput = hostedEnglishInput(arguments, draftRef, draft)
-        val request = ClassificationRequest(
-            idempotencyKey = operationKey,
-            draftId = draft.id,
-            description = draft.classificationDescription(),
-            expectedReviewRevision = draftRef.draftReviewRevision,
+        val categoryRef = registry.resolve(
+            arguments.getString("category_ref"),
+            AgentReferenceKind.CATEGORY,
+            "$.category_ref",
         )
-        val result = if (hostedEnglishInput == null) {
-            commands.requestClassification(scope, request)
-        } else {
-            commands.requestHostedEnglishClassification(scope, request, hostedEnglishInput)
+        val categoryId = categoryRef.categoryId
+            ?: throw AgentToolException(
+                AgentErrorCode.REFERENCE_UNAVAILABLE,
+                "$.category_ref",
+                "observed_category_identity",
+                message = "The category reference holds no stored category identity.",
+            )
+        val currentCatalog = queries.categoryCatalog()
+        if (categoryRef.categoryCatalogRevision != null &&
+            categoryRef.categoryCatalogRevision != categoryCatalogRevision(currentCatalog)
+        ) {
+            throw staleCategoryChoices(draft)
         }
+        if (currentCatalog.none { it.id == categoryId && !it.archived }) {
+            throw staleCategoryChoices(draft)
+        }
+        val result = commands.selectDraftCategory(
+            scope = scope,
+            request = SelectDraftCategoryRequest(
+                idempotencyKey = operationKey,
+                draftId = draft.id,
+                expectedReviewRevision = draftRef.draftReviewRevision ?: draft.reviewRevision,
+                categoryId = categoryId,
+            ),
+        )
         return when (result) {
-            is WorkflowCommandOutcome.Applied, is WorkflowCommandOutcome.NoChange -> {
-                val change = (result as? WorkflowCommandOutcome.Applied)?.change
-                    ?: (result as WorkflowCommandOutcome.NoChange).change
-                val classified = change as? WorkflowChange.Classified
+            is WorkflowCommandOutcome.Applied -> {
+                val change = result.change as? WorkflowChange.DraftCategorySelected
                     ?: throw AgentToolException(
-                        AgentErrorCode.EFFECT_UNKNOWN, null, "journaled_classification",
-                        message = "The application returned no classification identity; reconcile.",
+                        AgentErrorCode.EFFECT_UNKNOWN, null, "journaled_draft_category",
+                        message = "The application returned no category identity; reconcile.",
                     )
-                val fresh = requireDraft(draft.id)
-                val inputKind = if (hostedEnglishInput == null) {
-                    ClassificationInputKind.STORED_SOURCE
-                } else {
-                    ClassificationInputKind.HOSTED_ENGLISH_TRANSLATION
-                }
-                val effectiveDigest = classified.decision?.effectiveInput?.digest
-                    ?: hostedEnglishInput?.let { effectiveInputDigest(it.text) }
-                val inputIdentity = effectiveDigest?.let {
-                    classificationInputIdentity(
-                        inputKind,
-                        hostedEnglishInput?.binding?.sourceRevision,
-                        it,
-                    )
-                }
-                val observation = draftObservation(fresh)
-                AgentToolExecution(
-                    envelope = AgentEnvelope.ok(
-                        tool = "classify_draft",
-                        data = JSONObject()
-                            .put("draft", observation)
-                            .put("source", classified.source.name)
-                            .put("suggested_category_id", classified.suggestedCategoryId ?: JSONObject.NULL)
-                            .put("confidence", classified.confidence ?: JSONObject.NULL)
-                            .put(
-                                "classification_input",
-                                JSONObject()
-                                    .put(
-                                        "provenance",
-                                        if (hostedEnglishInput == null) "stored_source" else "machine_translated_english",
-                                    )
-                                    .put("identity", inputIdentity ?: JSONObject.NULL)
-                                    .put("effective_input_digest", effectiveDigest ?: JSONObject.NULL),
-                            )
-                            .put("review_status", fresh.reviewStatus.name)
-                            .put("review_only", true),
-                        observations = listOf(observation),
-                        effect = if (result is WorkflowCommandOutcome.Applied) "applied" else "unchanged",
-                        verified = true,
-                        // The settled classification is journaled like every other mutation,
-                        // so its exact operation identity is replayable in this run.
-                        operationRef = issueOperationRef(operationKey, eventId = null, draftId = fresh.id),
-                    ),
-                    effectClaim = AgentEffectClaim.Classification(
-                        draftId = fresh.id,
-                        source = classified.source.name,
-                        categoryId = classified.suggestedCategoryId,
-                        confidence = classified.confidence,
-                        reviewStatus = fresh.reviewStatus.name,
-                        reviewRevision = fresh.reviewRevision,
-                        observedAtMillis = session.clock.nowMillis(),
-                    ),
-                )
+                categorySelected(change, operationKey, applied = true)
+            }
+            is WorkflowCommandOutcome.NoChange -> {
+                val change = result.change as? WorkflowChange.DraftCategorySelected
+                    ?: throw staleDraft("$.draft_ref", requireDraft(draft.id))
+                categorySelected(change, operationKey, applied = false)
             }
             is WorkflowCommandOutcome.Denied -> when (result.reason) {
-                WorkflowDenialReason.MODEL_INPUT_OVER_BUDGET ->
-                    manualClassification("classify_draft", draft, AgentErrorCode.INPUT_OVER_BUDGET)
+                WorkflowDenialReason.CATEGORY_UNAVAILABLE -> throw staleCategoryChoices(draft)
                 WorkflowDenialReason.CALLER_SCOPE -> throw AgentToolException(
                     AgentErrorCode.REFERENCE_SCOPE_REFUSED, "$.draft_ref", "draft_in_trusted_scope",
                     message = "The draft is outside this authorized session.",
                 )
                 WorkflowDenialReason.USER_DECISION_REQUIRED -> throw AgentToolException(
                     AgentErrorCode.USER_DECISION_REQUIRED, "$.draft_ref", "user_only_decision",
-                    message = "That decision belongs to the user and cannot be supplied by the agent.",
+                    message = "Only the user can confirm or dismiss this draft.",
                 )
-                WorkflowDenialReason.ALREADY_DELETED ->
-                    subjectUnavailable("$.draft_ref", "The draft is no longer current.")
                 else -> deny(null, result.reason)
             }
+            is WorkflowCommandOutcome.Conflict -> throw staleDraft("$.draft_ref", requireDraft(draft.id))
+            WorkflowCommandOutcome.NotFound -> subjectUnavailable("$.draft_ref", "The chosen draft is gone.")
+            WorkflowCommandOutcome.Cancelled -> throw AgentToolException(
+                AgentErrorCode.CANCELLED, null, "request_not_cancelled",
+                message = "The application cancelled the category save before an effect.",
+            )
             is WorkflowCommandOutcome.Failed -> {
-                // A claim that another attempt still owns is not a model failure: the
-                // effect may yet be settled by that attempt, so the caller reconciles
-                // instead of being told the local model is unavailable or that nothing
-                // happened.
-                if (result.reason == WorkflowCommandService.IN_PROGRESS_REASON ||
-                    result.reason == WorkflowCommandService.CLAIM_NOT_KEPT_REASON
-                ) {
-                    throw AgentToolException(
-                        AgentErrorCode.OPERATION_PENDING, "$.draft_ref", "recorded_classification_settled",
-                        message = "This classification request is still owned elsewhere. Reconcile before retrying.",
-                    )
-                }
                 val journal = queries.workflowOperation(operationKey)
                 if (journal != null && journal.outcome != OPERATION_OUTCOME_PENDING) {
                     throw AgentToolException(
-                        AgentErrorCode.EFFECT_NOT_VERIFIED, "$.draft_ref", "settled_classification_readable",
-                        message = "The journal holds a settled classification this attempt could not read. " +
+                        AgentErrorCode.EFFECT_NOT_VERIFIED, "$.draft_ref", "settled_change_readable",
+                        message = "The journal holds a settled change this attempt could not read. " +
                             "Reconcile before claiming or retrying.",
                     )
                 }
-                manualClassification("classify_draft", draft, AgentErrorCode.MODEL_UNAVAILABLE)
+                throw AgentToolException(
+                    AgentErrorCode.EFFECT_UNKNOWN, "$.draft_ref", "settled_effect_readable",
+                    message = "The application did not report a settled effect; reconcile before retrying.",
+                )
             }
             is WorkflowCommandOutcome.NeedsClarification -> AgentErrorCode.MISSING_REQUIRED_MEANING.asIssue(
                 "$.${fieldPathFor(result.field)}",
@@ -1083,169 +1049,66 @@ class AgentToolRuntime(
                 "The application needs a grounded value before it can continue.",
                 subjectRef = draftRef.handle,
             )
-            is WorkflowCommandOutcome.Conflict -> if (hostedEnglishInput == null) {
-                throw staleDraft("$.draft_ref", requireDraft(draft.id))
-            } else {
-                staleClassificationContext(requireDraft(draft.id))
-            }
-            WorkflowCommandOutcome.NotFound -> subjectUnavailable("$.draft_ref", "The chosen draft is gone.")
-            WorkflowCommandOutcome.Cancelled -> throw AgentToolException(
-                AgentErrorCode.CANCELLED, null, "request_not_cancelled",
-                message = "The application cancelled the classification before an effect.",
-            )
         }
     }
 
-    private suspend fun hostedEnglishInput(
-        arguments: JSONObject,
-        draftRef: AgentReference,
-        draft: PendingBankDraftEntity,
-    ): HostedEnglishClassificationInput? {
-        val translation = optionalString(arguments, "english_translation")
-        val contextHandle = optionalString(arguments, "classification_context_ref")
-        if (translation == null && contextHandle == null) return null
-        if (translation == null || contextHandle == null) {
-            throw AgentToolException(
-                AgentErrorCode.SCHEMA_INVALID,
-                "$.classification_context_ref",
-                "translation_and_current_context_together",
-                JSONObject().put("required_together", JSONArray(listOf("classification_context_ref", "english_translation"))),
-                "A hosted translation requires both the current classification-context alias and its English translation.",
-                subjectRef = draftRef.handle,
-            )
-        }
-        val contextRef = registry.resolve(
-            contextHandle,
-            AgentReferenceKind.CLASSIFICATION_CONTEXT,
-            "$.classification_context_ref",
-        )
-        val sourceRevision = contextRef.classificationSourceRevision
-        if (contextRef.draftId != draft.id ||
-            contextRef.draftReviewRevision != draft.reviewRevision ||
-            contextRef.draftId != draftRef.draftId ||
-            contextRef.draftReviewRevision != draftRef.draftReviewRevision ||
-            sourceRevision.isNullOrBlank()
-        ) {
-            throw staleClassificationContext(draft)
-        }
-        val binding = ClassificationTranslationBinding(
-            draftId = draft.id,
-            draftReviewRevision = draft.reviewRevision,
-            sourceRevision = sourceRevision,
-        )
-        val source = commands.classificationTranslationSource(scope, binding)
-            ?: throw staleClassificationContext(draft)
-        val translated = translation.trim()
-        if (translated.isEmpty()) {
-            throw AgentToolException(
-                AgentErrorCode.MISSING_REQUIRED_MEANING,
-                "$.english_translation",
-                "nonblank_faithful_translation",
-                message = "No English translation was supplied; keep the source reviewable or provide a faithful translation.",
-                subjectRef = contextHandle,
-            )
-        }
-        val sourceMaterial = buildString {
-            val primary = source.primaryText.trim()
-            if (primary.isNotEmpty()) append(primary)
-            for (reading in source.eventReadings) {
-                val text = reading.text.trim()
-                if (text.isEmpty()) continue
-                if (isNotEmpty()) append(' ')
-                append(text)
-            }
-        }
-        if (sourceMaterial.isBlank()) {
-            throw AgentToolException(
-                AgentErrorCode.MISSING_REQUIRED_MEANING,
-                "$.english_translation",
-                "current_source_meaning",
-                message = "The current Laya input has no source text to translate; no facts can be inferred.",
-                subjectRef = draftRef.handle,
-            )
-        }
-        val maskedSource = boundary.vault.maskedPreview(sourceMaterial)
-        if (SensitiveVault.UNMAPPED_SENTINEL in maskedSource) {
-            throw staleClassificationContext(draft)
-        }
-        for (issued in boundary.vault.issuedTokens()) {
-            if (countOccurrences(maskedSource, issued.token) != countOccurrences(translated, issued.token)) {
-                throw AgentToolException(
-                    AgentErrorCode.SCHEMA_INVALID,
-                    "$.english_translation",
-                    "preserve_current_source_tokens",
-                    JSONObject().put("rule", "copy every source token exactly, without adding or dropping one"),
-                    "Translate the observed source faithfully and preserve every masked token exactly; do not add facts or category names.",
-                    subjectRef = contextHandle,
-                )
-            }
-        }
-        val localText = boundary.vault.rehydrateText(translated)
-        return HostedEnglishClassificationInput(localText, source.binding)
-    }
-
-    private suspend fun staleClassificationContext(draft: PendingBankDraftEntity): Nothing {
-        val fresh = draftContextObservation(requireDraft(draft.id))
-        throw AgentToolException(
-            AgentErrorCode.STALE_OBSERVATION,
-            "$.classification_context_ref",
-            "current_draft_and_linked_source_revisions",
-            JSONObject().put("fresh_observation_required", true),
-            "The classification source changed. Re-observe the draft and translate only the current displayed context.",
-            subjectRef = fresh.optString("classification_context_ref").takeIf { it.isNotBlank() },
-            observations = listOf(fresh),
-        )
-    }
-
-    private fun countOccurrences(text: String, token: String): Int {
-        var count = 0
-        var offset = 0
-        while (true) {
-            val index = text.indexOf(token, offset)
-            if (index < 0) return count
-            count++
-            offset = index + token.length
-        }
-    }
-
-    private suspend fun manualClassification(
-        tool: String,
-        draft: PendingBankDraftEntity,
-        code: AgentErrorCode,
+    /**
+     * Reports the stored category as the settled review state it is.
+     *
+     * The fresh draft is re-read after the mutation, so the observation the model continues
+     * from carries the new review revision and the same current category choices. Nothing
+     * here confirms the draft or writes a ledger row.
+     */
+    private suspend fun categorySelected(
+        change: WorkflowChange.DraftCategorySelected,
+        operationKey: String,
+        applied: Boolean,
     ): AgentToolExecution {
-        val issue = if (code == AgentErrorCode.INPUT_OVER_BUDGET) {
-            AgentIssue(
-                "$.draft_ref",
-                "input_fits_local_budget",
-                null,
-                "The stored description exceeds the local model's input budget. It was not shortened.",
-            )
-        } else {
-            AgentIssue(
-                "$.draft_ref",
-                "local_model_available",
-                null,
-                "The local Laya model did not produce a suggestion. Review remains manual.",
-            )
-        }
-        val fresh = requireDraft(draft.id)
-        val observation = draftObservation(fresh)
+        val fresh = requireDraft(change.draftId)
+        val observation = draftContextObservation(fresh)
+        val categoryName = queries.categoryCatalog()
+            .firstOrNull { it.id == change.categoryId }
+            ?.name
         return AgentToolExecution(
-            envelope = AgentEnvelope.error(
-                tool = tool,
-                code = code,
-                issues = listOf(issue),
-                dispatch = "dispatched",
-                effect = "none",
+            envelope = AgentEnvelope.ok(
+                tool = "update_draft_review",
+                data = JSONObject()
+                    .put("draft", observation)
+                    .put(
+                        "category",
+                        JSONObject()
+                            .put("id", change.categoryId)
+                            .put("name", categoryName ?: JSONObject.NULL),
+                    )
+                    .put("review_status", fresh.reviewStatus.name)
+                    .put("review_only", true),
                 observations = listOf(observation),
-                allowedTools = listOf("observe", "ask_user"),
+                effect = if (applied) "applied" else "unchanged",
+                verified = true,
+                // The stored category is journaled like every other mutation, so its exact
+                // operation identity is replayable in this run.
+                operationRef = issueOperationRef(operationKey, eventId = null, draftId = fresh.id),
             ),
-            effectClaim = AgentEffectClaim.ClassificationManual(
+            effectClaim = AgentEffectClaim.DraftCategory(
                 draftId = fresh.id,
-                reasonCode = code.name,
+                categoryId = change.categoryId,
                 reviewStatus = fresh.reviewStatus.name,
                 reviewRevision = fresh.reviewRevision,
             ),
+        )
+    }
+
+    /** Refuses a category choice whose catalog or category identity is no longer current. */
+    private suspend fun staleCategoryChoices(draft: PendingBankDraftEntity): Nothing {
+        val fresh = draftContextObservation(requireDraft(draft.id))
+        throw AgentToolException(
+            AgentErrorCode.STALE_OBSERVATION,
+            "$.category_ref",
+            "current_category_choices",
+            JSONObject().put("fresh_observation_required", true),
+            "The category choices changed. Re-observe the draft and choose a current category.",
+            subjectRef = fresh.getString("ref"),
+            observations = listOf(fresh),
         )
     }
 
@@ -1604,7 +1467,7 @@ class AgentToolRuntime(
             "attach_link" -> registry.resolve(
                 arguments.getString("proposal_ref"), AgentReferenceKind.PROPOSAL, "$.proposal_ref",
             ).let { "link:${it.eventId}:${it.draftId}" }
-            "classify_draft" -> registry.resolve(
+            "update_draft_review" -> registry.resolve(
                 arguments.getString("draft_ref"), AgentReferenceKind.DRAFT, "$.draft_ref",
             ).let { "draft:${it.draftId}" }
             "replay_operation" -> registry.resolve(
@@ -1627,20 +1490,11 @@ class AgentToolRuntime(
             link != null && link.eventId == claim.eventId && link.draftId == claim.draftId &&
                 link.state.name == claim.state && link.revision == claim.revision
         }
-        is AgentEffectClaim.Classification -> {
+        is AgentEffectClaim.DraftCategory -> {
             val draft = queries.draftCandidate(claim.draftId)
             draft != null && draft.reviewStatus.name == claim.reviewStatus &&
-                draft.reviewRevision == claim.reviewRevision && snapshotMatches(
-                    draftId = claim.draftId,
-                    source = claim.source,
-                    categoryId = claim.categoryId,
-                    notBeforeMillis = claim.observedAtMillis - CLOCK_SKEW_MILLIS,
-                )
-        }
-        is AgentEffectClaim.ClassificationManual -> {
-            val draft = queries.draftCandidate(claim.draftId)
-            draft != null && draft.reviewStatus.name == claim.reviewStatus &&
-                draft.reviewRevision == claim.reviewRevision
+                draft.reviewRevision == claim.reviewRevision &&
+                draft.reviewCategoryId == claim.categoryId
         }
         // The replay request itself is settled and verified by the domain journal; whether the
         // historical effect is still present is reported separately as currentEffectMatches and
@@ -1708,24 +1562,6 @@ class AgentToolRuntime(
         return links.items.none { link ->
             link.eventId == eventId && link.draftId == draft.id &&
                 (link.state == ContextLinkState.PROPOSED || link.state == ContextLinkState.ACCEPTED)
-        }
-    }
-
-    private suspend fun snapshotMatches(
-        draftId: Long,
-        source: String,
-        categoryId: Long?,
-        notBeforeMillis: Long,
-    ): Boolean {
-        val page = queries.classificationOperations(
-            ClassificationOperationQuery(staleOnly = false, bounds = QueryPageRequest(200, 0)),
-        )
-        return page.items.any { operation ->
-            operation.draftId == draftId &&
-                operation.staleReason == null &&
-                operation.decisionSource.name == source &&
-                operation.suggestedCategoryId == categoryId &&
-                operation.predictionTimeEpochMillis >= notBeforeMillis
         }
     }
 
@@ -1832,6 +1668,8 @@ class AgentToolRuntime(
     }
 
     private suspend fun draftObservation(draft: PendingBankDraftEntity): JSONObject {
+        val catalog = queries.categoryCatalog()
+        val catalogRevision = categoryCatalogRevision(catalog)
         val handle = registry.nextHandle()
         val ref = registry.issue(
             AgentReference(
@@ -1841,9 +1679,28 @@ class AgentToolRuntime(
                 subjectId = draft.id,
                 draftId = draft.id,
                 draftReviewRevision = draft.reviewRevision,
-                display = mask(draft.classificationDescription()),
+                display = mask(draft.workingDescription()),
             ),
         )
+        val choices = JSONArray()
+        for (category in catalog.filterNot { it.archived }) {
+            val categoryRef = registry.issue(
+                AgentReference(
+                    handle = registry.nextHandle(),
+                    kind = AgentReferenceKind.CATEGORY,
+                    scopeId = scope.scopeId,
+                    subjectId = category.id,
+                    categoryId = category.id,
+                    categoryCatalogRevision = catalogRevision,
+                ),
+            )
+            choices.put(
+                JSONObject()
+                    .put("ref", categoryRef)
+                    .put("name", category.name),
+            )
+        }
+        val chosen = draft.reviewCategoryId?.let { id -> catalog.firstOrNull { it.id == id } }
         return JSONObject()
             .put("ref", ref)
             .put("kind", "draft")
@@ -1855,54 +1712,45 @@ class AgentToolRuntime(
             .put("stated_date", maskDate(draft.statedDate))
             .put("stated_time", maskDate(draft.statedTime))
             .put("memo", draft.memo?.let { mask(it) } ?: JSONObject.NULL)
-            .put("description", mask(draft.classificationDescription()))
+            .put("description", mask(draft.workingDescription()))
             .put("possible_duplicate", draft.possibleDuplicateOfDraftId != null)
+            .put("category_resolved", draft.reviewCategoryResolved)
+            .put(
+                "selected_category",
+                chosen?.let { JSONObject().put("id", it.id).put("name", it.name) }
+                    ?: JSONObject.NULL,
+            )
+            .put("category_choices", choices)
     }
 
-    /** Fresh draft, complete linked readings, and one opaque revision bound for optional translation. */
+    /**
+     * One fresh draft observation plus the masked readings of its accepted links.
+     *
+     * The linked readings are the source context a category choice may rest on; every text
+     * passes through the same local masking boundary as the draft's own description. A link
+     * in any other state is not context and is not shown as though it were.
+     */
     private suspend fun draftContextObservation(draft: PendingBankDraftEntity): JSONObject {
         val observation = draftObservation(draft)
-        val source = commands.classificationTranslationSource(
-            scope,
-            ClassificationTranslationBinding(draft.id, draft.reviewRevision, ""),
-        )
-        if (source == null && draft.reviewStatus == IntakeReviewStatus.PENDING && !draft.reviewCategoryResolved) {
-            throw AgentToolException(
-                AgentErrorCode.REFERENCE_SCOPE_REFUSED,
-                "$.draft_ref",
-                "complete_current_classification_context_in_scope",
-                message = "The complete current Laya context is unavailable in this scope; no partial context was shown.",
-                subjectRef = observation.optString("ref").takeIf { it.isNotBlank() },
-            )
-        }
-        if (source != null) observation.put("description", mask(source.primaryText))
-        val contextRef = source?.let {
-            registry.issue(
-                AgentReference(
-                    handle = registry.nextHandle(),
-                    kind = AgentReferenceKind.CLASSIFICATION_CONTEXT,
-                    scopeId = scope.scopeId,
-                    subjectId = draft.id,
-                    draftId = draft.id,
-                    draftReviewRevision = draft.reviewRevision,
-                    classificationSourceRevision = it.binding.sourceRevision,
-                ),
-            )
-        }
         val linkedContext = JSONArray()
-        if (source != null) {
-            for (reading in source.eventReadings) {
-                val event = requireEvent(reading.eventId)
-                val eventJson = eventObservation(event).put("text", mask(reading.text))
-                linkedContext.put(
-                    JSONObject()
-                        .put("event", eventJson)
-                        .put("pair", pairObservation(event, draft)),
-                )
-            }
+        val links = queries.draftContextLinks(
+            draftId = draft.id,
+            bounds = QueryPageRequest(MAX_DRAFT_CONTEXT_LINKS, 0),
+        )
+        for (link in links.items) {
+            if (link.state != ContextLinkState.ACCEPTED) continue
+            val reading = link.readingText ?: link.excerpt
+            linkedContext.put(
+                JSONObject()
+                    .put("event_id", link.eventId)
+                    .put("user_label", "event #${link.eventId}")
+                    .put("text", reading?.let { mask(it) } ?: JSONObject.NULL)
+                    .put("amount", maskAmount(link.amountVnd))
+                    .put("date", maskDate(link.anchorDate))
+                    .put("merchant", link.merchant?.let { mask(it) } ?: JSONObject.NULL),
+            )
         }
         return observation
-            .put("classification_context_ref", contextRef ?: JSONObject.NULL)
             .put("linked_context", linkedContext)
             .put("linked_context_count", linkedContext.length())
     }
@@ -1976,7 +1824,7 @@ class AgentToolRuntime(
                 scopeId = scope.scopeId,
                 eventId = (change as? WorkflowChange.EventStored)?.eventId
                     ?: (change as? WorkflowChange.EventRevised)?.eventId,
-                draftId = (change as? WorkflowChange.Classified)?.draftId,
+                draftId = (change as? WorkflowChange.DraftCategorySelected)?.draftId,
             ),
         )
         return JSONObject()
@@ -2344,7 +2192,7 @@ class AgentToolRuntime(
                 eventId = eventId
                     ?: (change as? WorkflowChange.EventStored)?.eventId
                     ?: (change as? WorkflowChange.EventRevised)?.eventId,
-                draftId = draftId ?: (change as? WorkflowChange.Classified)?.draftId,
+                draftId = draftId ?: (change as? WorkflowChange.DraftCategorySelected)?.draftId,
                 operationKey = operation.idempotencyKey,
                 operationCommand = operation.command,
                 operationDigest = operation.payloadDigest,
@@ -2356,7 +2204,7 @@ class AgentToolRuntime(
         is WorkflowChange.EventStored -> change.eventId
         is WorkflowChange.EventRevised -> change.eventId
         is WorkflowChange.LinkDecided -> change.linkId
-        is WorkflowChange.Classified -> change.draftId
+        is WorkflowChange.DraftCategorySelected -> change.draftId
         is WorkflowChange.CaptureSaved -> change.captureId
         is WorkflowChange.CaptureRevised -> change.captureId
         is WorkflowChange.CaptureDeleted -> change.captureId
@@ -2393,14 +2241,10 @@ class AgentToolRuntime(
             val link = queries.linkOperation(change.linkId)
             link != null && link.revision == change.revision && link.state == change.state
         }
-        is WorkflowChange.Classified -> {
+        is WorkflowChange.DraftCategorySelected -> {
             val draft = queries.draftCandidate(change.draftId)
-            draft != null && snapshotMatches(
-                draftId = change.draftId,
-                source = change.source.name,
-                categoryId = change.suggestedCategoryId,
-                notBeforeMillis = 0,
-            )
+            draft != null && draft.reviewCategoryResolved &&
+                draft.reviewCategoryId == change.categoryId
         }
         else -> false
     }
@@ -2412,7 +2256,7 @@ class AgentToolRuntime(
         is WorkflowChange.EventStored -> JSONObject().put("kind", "event").put("event_id", change.eventId).put("revision", change.revision)
         is WorkflowChange.EventRevised -> JSONObject().put("kind", "event").put("event_id", change.eventId).put("revision", change.revision)
         is WorkflowChange.LinkDecided -> JSONObject().put("kind", "link").put("link_id", change.linkId).put("state", change.state.name).put("revision", change.revision)
-        is WorkflowChange.Classified -> JSONObject().put("kind", "classification").put("draft_id", change.draftId).put("source", change.source.name).put("category_id", change.suggestedCategoryId ?: JSONObject.NULL)
+        is WorkflowChange.DraftCategorySelected -> JSONObject().put("kind", "draft_category").put("draft_id", change.draftId).put("category_id", change.categoryId).put("revision", change.revision)
         is WorkflowChange.CaptureSaved -> JSONObject().put("kind", "capture").put("capture_id", change.captureId).put("revision", change.revision)
         is WorkflowChange.CaptureRevised -> JSONObject().put("kind", "capture").put("capture_id", change.captureId).put("revision", change.revision)
         is WorkflowChange.CaptureDeleted -> JSONObject().put("kind", "capture").put("capture_id", change.captureId).put("revision", change.revision)
@@ -2424,6 +2268,7 @@ class AgentToolRuntime(
         is WorkflowChange.EventStored -> change.revision
         is WorkflowChange.EventRevised -> change.revision
         is WorkflowChange.LinkDecided -> change.revision
+        is WorkflowChange.DraftCategorySelected -> change.revision
         is WorkflowChange.CaptureSaved -> change.revision
         is WorkflowChange.CaptureRevised -> change.revision
         is WorkflowChange.CaptureDeleted -> change.revision
@@ -2561,10 +2406,6 @@ class AgentToolRuntime(
                 "$", "user_only_decision",
                 message = "That decision belongs to the user and cannot be supplied by the agent.",
                 subjectRef = subjectRef,
-            )
-            WorkflowDenialReason.MODEL_INPUT_OVER_BUDGET -> throw AgentToolException(
-                AgentErrorCode.INPUT_OVER_BUDGET, "$", "input_fits_local_budget",
-                message = "The stored description exceeds the local model's input budget.",
             )
             WorkflowDenialReason.CALLER_SCOPE -> throw AgentToolException(
                 AgentErrorCode.REFERENCE_SCOPE_REFUSED, "$", "trusted_scope",
@@ -2717,8 +2558,8 @@ class AgentToolRuntime(
     private companion object {
         const val DRAFT_PAGE_SIZE = 10
         const val MAX_OBSERVATION_ROWS = 200
+        const val MAX_DRAFT_CONTEXT_LINKS = 20
         const val MAX_SCAN_PAGES = 50
-        const val CLOCK_SKEW_MILLIS = 2_000L
     }
 }
 
@@ -2733,7 +2574,7 @@ private fun AgentErrorCode.asIssue(
 
 /** Reads the single canonical declaration file copied from tools/slm at build time. */
 object AgentToolDeclarations {
-    const val ASSET_NAME = "s8_agent_tools_v5.json"
+    const val ASSET_NAME = "s8_agent_tools_v6.json"
 
     fun load(open: (String) -> java.io.InputStream): List<HostedToolDeclaration> {
         val root = JSONObject(open(ASSET_NAME).bufferedReader().use { it.readText() })

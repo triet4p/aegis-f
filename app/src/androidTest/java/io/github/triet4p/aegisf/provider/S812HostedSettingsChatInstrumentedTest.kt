@@ -31,7 +31,7 @@ class S812HostedSettingsChatInstrumentedTest {
     }
 
     @Test
-    fun retainedOfflineManualReviewIntakeAndLayaRoutesRemainReachable() {
+    fun retainedOfflineManualReviewAndIntakeRoutesRemainReachable() {
         selectPrimaryDestination("Dashboard")
 
         selectPrimaryDestination("Manual entry")
@@ -49,8 +49,6 @@ class S812HostedSettingsChatInstrumentedTest {
         waitForText("Bank notifications")
         compose.onNodeWithText("Back").performClick()
 
-        compose.onNodeWithText("Model setup").performScrollTo().performClick()
-        waitForText("Local model status")
     }
 
     private fun selectPrimaryDestination(description: String) {

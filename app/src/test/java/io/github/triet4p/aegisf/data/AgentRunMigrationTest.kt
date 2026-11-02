@@ -51,7 +51,14 @@ class AgentRunMigrationTest {
             assertEquals(1L, scalar(room, "SELECT COUNT(*) FROM context_links"))
             assertEquals(1L, scalar(room, "SELECT COUNT(*) FROM classification_snapshots"))
             assertEquals(2L, scalar(room, "SELECT COUNT(*) FROM workflow_operations"))
-            assertEquals(1L, scalar(room, "SELECT COUNT(*) FROM classification_work"))
+            assertEquals(
+                "the obsolete local queue table is removed",
+                0L,
+                scalar(
+                    room,
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'classification_work'",
+                ),
+            )
             assertEquals(
                 80_000L,
                 scalar(

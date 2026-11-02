@@ -3,7 +3,6 @@ package io.github.triet4p.aegisf.agent
 import io.github.triet4p.aegisf.data.ContextLinkState
 import io.github.triet4p.aegisf.data.IntakeReviewStatus
 import io.github.triet4p.aegisf.data.LinkEligibility
-import io.github.triet4p.aegisf.data.PredictionSource
 import io.github.triet4p.aegisf.data.WorkflowCallerScope
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
@@ -48,7 +47,7 @@ import org.json.JSONObject
  * - A mutation keeps one trusted operation key per exact model-facing call within the run, so an
  *   exact repeat replays the stored operation instead of creating a second effect.
  * - `Completed` requires each settlement claim to be re-read from live application state and the
- *   requested workflow's effect to be present, or a truthful manual/unavailable classification.
+ *   requested workflow's effect to be present.
  *
  * The executor never writes ledger rows, confirms or dismisses a draft, deletes data, runs
  * SQL/shell, touches the filesystem or automates a device: those operations have no declared tool.
@@ -318,19 +317,12 @@ sealed interface WorkflowVerifiedEffect {
         val revision: Int,
     ) : WorkflowVerifiedEffect
 
-    data class Classification(
+    /** The hosted workflow saved one existing category on a still-pending draft. */
+    data class DraftCategory(
         val draftId: Long,
-        val source: PredictionSource,
-        val suggestedCategoryId: Long?,
-        val confidence: Double?,
+        val categoryId: Long,
         val reviewStatus: IntakeReviewStatus,
-    ) : WorkflowVerifiedEffect
-
-    /** The local model returned no prediction; the actual manual/unavailable state was confirmed. */
-    data class ClassificationUnavailable(
-        val draftId: Long,
-        val reasonCode: String,
-        val reviewStatus: IntakeReviewStatus,
+        val reviewRevision: Int,
     ) : WorkflowVerifiedEffect
 
     /** A journal replay succeeded; [currentEffectMatches] reports the original effect now. */
@@ -661,7 +653,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             RECORD_EVENT to attemptKey + ":record",
             PROPOSE_LINK to attemptKey + ":propose",
             ATTACH_LINK to attemptKey + ":attach",
-            CLASSIFY_DRAFT to attemptKey + ":classify",
+            UPDATE_DRAFT_REVIEW to attemptKey + ":draft-review",
         )
         return startInternal(request, seedsByTool, progress)
     }
@@ -1518,15 +1510,14 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                 ?.linkId
         }.toSet()
         val latestEventRevision = mutableMapOf<Long, Int>()
-        val latestClassificationIndex = mutableMapOf<Long, Int>()
+        val latestDraftCategoryIndex = mutableMapOf<Long, Int>()
         run.dispatches.forEachIndexed { index, dispatch ->
             when (val claim = dispatch.claim) {
                 is AgentEffectClaim.EventReading -> {
                     latestEventRevision[claim.eventId] =
                         maxOf(latestEventRevision[claim.eventId] ?: claim.revision, claim.revision)
                 }
-                is AgentEffectClaim.Classification -> latestClassificationIndex[claim.draftId] = index
-                is AgentEffectClaim.ClassificationManual -> latestClassificationIndex[claim.draftId] = index
+                is AgentEffectClaim.DraftCategory -> latestDraftCategoryIndex[claim.draftId] = index
                 else -> Unit
             }
         }
@@ -1548,14 +1539,12 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                     // A later correction of the same reading is the reported final effect.
                     continue
                 }
-                if ((claim is AgentEffectClaim.Classification || claim is AgentEffectClaim.ClassificationManual)) {
-                    val draftId = (claim as? AgentEffectClaim.Classification)?.draftId
-                        ?: (claim as? AgentEffectClaim.ClassificationManual)?.draftId
-                    if (draftId != null &&
-                        latestClassificationIndex[draftId] != null &&
-                        latestClassificationIndex[draftId] != index
+                if (claim is AgentEffectClaim.DraftCategory) {
+                    val draftId = claim.draftId
+                    if (latestDraftCategoryIndex[draftId] != null &&
+                        latestDraftCategoryIndex[draftId] != index
                     ) {
-                        // A later local-review attempt on the same draft is the final effect.
+                        // A later category choice on the same draft is the final effect.
                         continue
                     }
                 }
@@ -1578,20 +1567,12 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                         state = runCatching { ContextLinkState.valueOf(claim.state) }.getOrDefault(ContextLinkState.PROPOSED),
                         revision = claim.revision,
                     )
-                    is AgentEffectClaim.Classification -> WorkflowVerifiedEffect.Classification(
+                    is AgentEffectClaim.DraftCategory -> WorkflowVerifiedEffect.DraftCategory(
                         draftId = claim.draftId,
-                        source = runCatching { PredictionSource.valueOf(claim.source) }
-                            .getOrDefault(PredictionSource.REMEMBERED_RULE),
-                        suggestedCategoryId = claim.categoryId,
-                        confidence = claim.confidence,
+                        categoryId = claim.categoryId,
                         reviewStatus = runCatching { IntakeReviewStatus.valueOf(claim.reviewStatus) }
                             .getOrDefault(IntakeReviewStatus.PENDING),
-                    )
-                    is AgentEffectClaim.ClassificationManual -> WorkflowVerifiedEffect.ClassificationUnavailable(
-                        draftId = claim.draftId,
-                        reasonCode = claim.reasonCode,
-                        reviewStatus = runCatching { IntakeReviewStatus.valueOf(claim.reviewStatus) }
-                            .getOrDefault(IntakeReviewStatus.PENDING),
+                        reviewRevision = claim.reviewRevision,
                     )
                     is AgentEffectClaim.Replay -> WorkflowVerifiedEffect.ReplayIdentity(
                         operationKey = claim.operationKey,
@@ -1618,8 +1599,8 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                 WorkflowIntent.LINK_EVENT_TO_DRAFT ->
                     verified.none { it is WorkflowVerifiedEffect.LinkState } &&
                         noEffects[intent] == null
-                WorkflowIntent.PREPARE_LAYA_REVIEW -> verified.none {
-                    it is WorkflowVerifiedEffect.Classification || it is WorkflowVerifiedEffect.ClassificationUnavailable
+                WorkflowIntent.DRAFT_CATEGORY_REVIEW -> verified.none {
+                    it is WorkflowVerifiedEffect.DraftCategory
                 } && noEffects[intent] == null
                 WorkflowIntent.SEARCH_DRAFTS -> false
                 WorkflowIntent.REPLAY_OPERATION ->
@@ -1768,8 +1749,8 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
     ): Boolean = when (intent) {
         WorkflowIntent.INTERPRET_EVENTS -> verified.any { it is WorkflowVerifiedEffect.EventReading }
         WorkflowIntent.LINK_EVENT_TO_DRAFT -> verified.any { it is WorkflowVerifiedEffect.LinkState }
-        WorkflowIntent.PREPARE_LAYA_REVIEW -> verified.any {
-            it is WorkflowVerifiedEffect.Classification || it is WorkflowVerifiedEffect.ClassificationUnavailable
+        WorkflowIntent.DRAFT_CATEGORY_REVIEW -> verified.any {
+            it is WorkflowVerifiedEffect.DraftCategory
         }
         WorkflowIntent.SEARCH_DRAFTS -> false
         WorkflowIntent.REPLAY_OPERATION -> verified.any { it is WorkflowVerifiedEffect.ReplayIdentity }
@@ -1828,8 +1809,8 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         appendLine()
         appendLine("Actions:")
         appendLine(
-            "- Make only decisions needed for the user's request. Do not add linking, classification, " +
-                "replay or financial actions that were not requested or authorized.",
+            "- Make only decisions needed for the user's request. Do not add linking, category " +
+                "selection, replay or financial actions that were not requested or authorized.",
         )
         appendLine("- Tools own their field contracts; skills own conditional workflow order.")
         appendLine("- Missing optional information is not automatically an unresolved event.")
@@ -1860,7 +1841,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         appendLine("- Claim an effect only when the host reports it verified. A historical receipt, provider HTTP 200 or a successful read is not proof of a current mutation.")
         appendLine("- Report partial effects, pending clarification, no-match and failures precisely.")
         appendLine("- Do not claim rollback, exact replay or complete search unless actually proved.")
-        appendLine("- No tool grants financial confirmation, deletion, arbitrary SQL/shell/filesystem access or user-only evidence overrides. Local Laya is review-only.")
+        appendLine("- No tool grants financial confirmation, deletion, arbitrary SQL/shell/filesystem access or user-only evidence overrides. A saved draft category is review-only and never confirms the draft.")
         appendLine("- Privacy or authority refusal is not an invitation to try another spelling, endpoint, raw value or fallback model.")
         appendLine()
         appendLine(AgentContextManager.stableRuntimeBlock())
@@ -1878,7 +1859,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         val draftDependent = request.intents.any {
             it == WorkflowIntent.SEARCH_DRAFTS ||
                 it == WorkflowIntent.LINK_EVENT_TO_DRAFT ||
-                it == WorkflowIntent.PREPARE_LAYA_REVIEW
+                it == WorkflowIntent.DRAFT_CATEGORY_REVIEW
         }
         if (draftDependent) runtime.initialDraftObservation()?.let { observations.put(it) }
         if (WorkflowIntent.REPLAY_OPERATION in request.intents) {
@@ -2140,9 +2121,9 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         const val RECORD_EVENT = "record_event"
         const val PROPOSE_LINK = "propose_link"
         const val ATTACH_LINK = "attach_link"
-        const val CLASSIFY_DRAFT = "classify_draft"
+        const val UPDATE_DRAFT_REVIEW = "update_draft_review"
 
-        val MUTATION_TOOLS = setOf(RECORD_EVENT, PROPOSE_LINK, ATTACH_LINK, CLASSIFY_DRAFT)
+        val MUTATION_TOOLS = setOf(RECORD_EVENT, PROPOSE_LINK, ATTACH_LINK, UPDATE_DRAFT_REVIEW)
     }
 }
 

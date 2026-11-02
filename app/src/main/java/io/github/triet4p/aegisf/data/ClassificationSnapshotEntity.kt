@@ -8,92 +8,16 @@ import androidx.room.PrimaryKey
 import java.security.MessageDigest
 
 /**
- * Why a stored prediction is no longer current.
+ * One historical prompt-time prediction about one bank draft.
  *
- * The reason names the dependency that moved. It is stored rather than recomputed on every
- * read, so a stale prediction stays visibly stale across restarts instead of looking fresh
- * again because nothing happened to read it while it was stale.
- */
-enum class PredictionStaleReason {
-    /**
-     * The context the prediction was made against changed: a linked event was re-read, a
-     * link changed, or the draft's own review state moved on.
-     */
-    CONTEXT_CHANGED,
-
-    /**
-     * The source text one linked event was read from was edited or deleted, so the reading
-     * the prediction relied on no longer exists.
-     */
-    SOURCE_CHANGED,
-
-    /**
-     * The category catalog changed: a category was added, renamed, archived, or deleted, so
-     * the evaluated candidate set is no longer the one the model saw.
-     */
-    CATEGORY_CHANGED,
-
-    /**
-     * The user's remembered category rules changed, so the saved rule that short-circuits
-     * inference may now answer differently.
-     */
-    RULE_CHANGED,
-
-    /**
-     * The model revision changed, so the prediction was made by a model this build no
-     * longer runs.
-     */
-    MODEL_CHANGED,
-
-    /**
-     * The candidate-set construction changed, so the same description would now be offered a
-     * different set of categories.
-     */
-    CANDIDATE_SET_CHANGED,
-
-    /**
-     * The user already chose a category for this draft. Their choice stands, and a
-     * prediction is never applied over it.
-     */
-    USER_CATEGORY_CHOSEN,
-}
-
-/** Where a recorded decision came from. */
-enum class PredictionSource {
-    /** A saved exact-description rule answered before inference ran. */
-    REMEMBERED_RULE,
-
-    /** An explicit correction rule named the category. */
-    EXPLICIT_CORRECTION,
-
-    /** The description contained the category's own name. */
-    CATEGORY_METADATA,
-
-    /** The model evaluated a candidate set. */
-    MODEL,
-
-    /** Nothing fit, and the review stays manual. */
-    NO_FIT,
-}
-/** Whether Laya received the stored source context or a hosted machine translation. */
-enum class ClassificationInputKind {
-    STORED_SOURCE,
-    HOSTED_ENGLISH_TRANSLATION,
-}
-
-
-/**
- * One stored prediction about one bank draft, with the dependencies it was made against.
+ * The row is retained because it is the owner's stored provenance of how drafts were
+ * classified before the hosted category cutover. Nothing in the active application writes
+ * it, reads it for a decision, or treats its decision source as a hosted choice: a hosted
+ * category is stored on the draft's own review state, never here. Keeping the table (and
+ * this schema) means an existing populated database upgrades without losing the rows, and
+ * the frozen S8.13 evidence still corresponds to the data it measured.
  *
- * The snapshot is review-only evidence: it records what was suggested, against which
- * categories, with which shares, and — the point of the row — which state the suggestion was
- * made in. The dependencies are stored as digests, so a later read can tell whether the
- * context, the categories, the rules, or the model have moved on since, and can then say
- * that the prediction is stale instead of applying it.
- *
- * The composed model input itself is NOT stored: only its digest. A prompt is ephemeral by
- * contract, and the digest is enough to recognise that the same input produced the same
- * prediction.
+ * The composed model input itself was never stored: only its digest.
  */
 @Entity(
     tableName = "classification_snapshots",
@@ -115,11 +39,7 @@ data class ClassificationSnapshotEntity(
     val id: Long = 0L,
     /** The draft this prediction is about. */
     val draftId: Long,
-    /**
-     * Digest of the model input identity the prediction was made against: the draft's
-     * working description plus the readings of the events linked to it. An amount or
-     * moment correction changes no model input and so does not change this digest.
-     */
+    /** Digest of the model input identity the prediction was made against. */
     val contextRevision: String,
     /** Digest of the category catalog the prediction was made against. */
     val categoryRevision: String,
@@ -129,7 +49,7 @@ data class ClassificationSnapshotEntity(
     val modelRevision: String,
     /** The candidate-set construction that produced the prediction. */
     val candidateSetVersion: String,
-    /** Where the recorded decision came from; see [PredictionSource]. */
+    /** The historical decision source (`MODEL`, `REMEMBERED_RULE`, `NO_FIT`, ...). */
     val decisionSource: String,
     /** The category the decision pointed at, or null when it pointed at none. */
     val suggestedCategoryId: Long?,
@@ -141,12 +61,12 @@ data class ClassificationSnapshotEntity(
     val unknownShare: Double?,
     /** The one Jev sharpness value of the same distribution, or null when none was produced. */
     val confidence: Double?,
-    /** The digest of the composed model input; the input itself is never stored. */
+    /** The digest of the composed model input; the input itself was never stored. */
     val effectiveInputDigest: String,
-    /** How this input was derived; translated text itself remains ephemeral. */
+    /** How the historical input was derived; translated text itself was never stored. */
     @ColumnInfo(defaultValue = "'STORED_SOURCE'")
-    val classificationInputKind: String = ClassificationInputKind.STORED_SOURCE.name,
-    /** Hash of input kind, source revision (when translated), and the exact composed Laya input digest. */
+    val classificationInputKind: String = "STORED_SOURCE",
+    /** Hash of input kind, source revision (when translated), and the composed input digest. */
     @ColumnInfo(defaultValue = "''")
     val classificationInputIdentity: String = "",
     /** Source/draft/link revision identity required to keep a hosted translation current. */
@@ -155,25 +75,8 @@ data class ClassificationSnapshotEntity(
     val eventIds: String,
     /** When the prediction was recorded. */
     val predictionTime: Long,
-    /** Why the prediction is no longer current, or null while it is. */
+    /** Why the prediction was no longer current, or null while it was. */
     val staleReason: String?,
-)
-
-/**
- * The digest of one composed model input.
- *
- * Only the digest is ever stored: the composed text is the user's own text, and a prompt
- * stays ephemeral.
- */
-fun effectiveInputDigest(text: String): String = sha256Hex(text)
-
-/** Digest of the actual composed model input together with its derivation and current source binding. */
-internal fun classificationInputIdentity(
-    kind: ClassificationInputKind,
-    translationSourceRevision: String?,
-    composedInputDigest: String,
-): String = canonicalDependencyDigest(
-    listOf(kind.name, translationSourceRevision, composedInputDigest),
 )
 
 /**

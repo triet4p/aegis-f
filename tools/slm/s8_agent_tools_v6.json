@@ -1,6 +1,6 @@
 {
-"schema": "aegis-f-s8-agent-tools/v5",
-"contract": "aegis-agent-interface/5",
+  "schema": "aegis-f-s8-agent-tools/v6",
+  "contract": "aegis-agent-interface/5",
   "additionalProperties": false,
   "tools": [
     {
@@ -10,7 +10,9 @@
       "parameters": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["ref"],
+        "required": [
+          "ref"
+        ],
         "properties": {
           "ref": {
             "type": "string",
@@ -22,12 +24,16 @@
     },
     {
       "name": "select_source",
-    "description": "Select the exact occurrence a reading is about without model-counted offsets, or select one exact merchant substring inside that occurrence. The host verifies the quote against the current masked source, checks protected-token boundaries, translates it to exact stored offsets and binds the capture revision plus the existing reading at that span, or its expected absence. Pure preparation: no event or ledger write. Returns the source alias, the copied quote, the existing event alias if any, the neutral value aliases inside that occurrence (each with a lexical shape hint such as numeric or alphanumeric) and any already-trusted anchor. A value alias is an opaque identity, not a typed amount/date/account: choose the one whose meaning fits the argument you pass it to and the host parses it locally for that argument. When the occurrence names a transaction counterparty as its seller or place, call it again with that exact merchant substring taken from the same capture and pass the returned source alias as record_event merchant_ref; a merchant handle must lie inside the recorded occurrence. A product, item or activity description is not a merchant. Do not call when no occurrence is grounded.",
+      "description": "Select the exact occurrence a reading is about without model-counted offsets, or select one exact merchant substring inside that occurrence. The host verifies the quote against the current masked source, checks protected-token boundaries, translates it to exact stored offsets and binds the capture revision plus the existing reading at that span, or its expected absence. Pure preparation: no event or ledger write. Returns the source alias, the copied quote, the existing event alias if any, the neutral value aliases inside that occurrence (each with a lexical shape hint such as numeric or alphanumeric) and any already-trusted anchor. A value alias is an opaque identity, not a typed amount/date/account: choose the one whose meaning fits the argument you pass it to and the host parses it locally for that argument. When the occurrence names a transaction counterparty as its seller or place, call it again with that exact merchant substring taken from the same capture and pass the returned source alias as record_event merchant_ref; a merchant handle must lie inside the recorded occurrence. A product, item or activity description is not a merchant. Do not call when no occurrence is grounded.",
       "mapsTo": "MaskedApplicationEffect.sourceOffsetsForMaskedSpan + capture/event read",
       "parameters": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["capture_ref", "quote", "occurrence"],
+        "required": [
+          "capture_ref",
+          "quote",
+          "occurrence"
+        ],
         "properties": {
           "capture_ref": {
             "type": "string",
@@ -54,11 +60,20 @@
       "parameters": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["review_status", "duplicates_only", "cursor"],
+        "required": [
+          "review_status",
+          "duplicates_only",
+          "cursor"
+        ],
         "properties": {
           "review_status": {
             "type": "string",
-            "enum": ["PENDING", "CONFIRMED", "DISMISSED", "ALL"],
+            "enum": [
+              "PENDING",
+              "CONFIRMED",
+              "DISMISSED",
+              "ALL"
+            ],
             "description": "Exact stored review-state filter. ALL disables only this filter, never scope."
           },
           "duplicates_only": {
@@ -66,7 +81,10 @@
             "description": "true selects only drafts the application marked as possible duplicates; it does not prove a duplicate or an event association."
           },
           "cursor": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "JSON null for the first page; otherwise the exact next_cursor returned for this same filter and scope. Never increment or construct one."
           }
         }
@@ -79,7 +97,12 @@
       "parameters": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["date_ref", "time_ref", "end_date_ref", "end_time_ref"],
+        "required": [
+          "date_ref",
+          "time_ref",
+          "end_date_ref",
+          "end_time_ref"
+        ],
         "properties": {
           "date_ref": {
             "type": "string",
@@ -87,15 +110,24 @@
             "description": "Value alias whose value parses as a calendar date, bound to the selected occurrence or its linked clarification. The alias is neutral; the host parses it for this argument and refuses a value that is not a date."
           },
           "time_ref": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Value alias whose value parses as the start wall-clock time, or JSON null for a date-only anchor. Neutral alias; the host parses it for this argument."
           },
           "end_date_ref": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Value alias whose value parses as an interval end date, or JSON null when there is no interval. It cannot precede the start date."
           },
           "end_time_ref": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Value alias whose value parses as an interval end time, or JSON null. It requires both an end date and a start time."
           }
         }
@@ -103,12 +135,19 @@
     },
     {
       "name": "record_event",
-    "description": "Atomically store or correct one grounded reading of the occurrence selected by source_ref. The host derives capture/event compare-and-set, source translation, extraction provenance, operation identity and unresolved status; the model supplies meaning, observed value aliases and the primary clarification need. A grounded partial reading is allowed, but an ungrounded or materially ambiguous occurrence is not: ask_user about occurrence or meaning before writing. An absent or uncertain optional merchant alone is not clarification-required and not a failed reading by itself; record it as null rather than promoting a product, item or activity description. Returns the actual event observation, an operation alias and independently verified effect status. Creates no ledger row.",
+      "description": "Atomically store or correct one grounded reading of the occurrence selected by source_ref. The host derives capture/event compare-and-set, source translation, extraction provenance, operation identity and unresolved status; the model supplies meaning, observed value aliases and the primary clarification need. A grounded partial reading is allowed, but an ungrounded or materially ambiguous occurrence is not: ask_user about occurrence or meaning before writing. An absent or uncertain optional merchant alone is not clarification-required and not a failed reading by itself; record it as null rather than promoting a product, item or activity description. Returns the actual event observation, an operation alias and independently verified effect status. Creates no ledger row.",
       "mapsTo": "WorkflowCommandService.updateEventInterpretation(scope, UpdateEventRequest)",
       "parameters": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["source_ref", "summary", "amount_ref", "anchor_ref", "merchant_ref", "clarification"],
+        "required": [
+          "source_ref",
+          "summary",
+          "amount_ref",
+          "anchor_ref",
+          "merchant_ref",
+          "clarification"
+        ],
         "properties": {
           "source_ref": {
             "type": "string",
@@ -121,20 +160,35 @@
             "description": "Nonblank concise normalized meaning grounded in that source and any authorized clarification. Preserve displayed privacy aliases if included; prefer not to repeat optional sensitive values. Not an instruction, operation label, guessed merchant, or promoted product, item or activity description."
           },
           "amount_ref": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Value alias whose value parses as a whole-dong amount, observed in this occurrence or its linked clarification; JSON null when the amount is genuinely missing or genuinely ambiguous. The alias is a neutral masked identity: the host parses the underlying value for this argument and never asks the user to retype a value the source states. Never a raw amount and never another occurrence's value."
           },
           "anchor_ref": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Anchor alias for this occurrence from the observation, select_source or make_time_anchor; JSON null when no grounded date/time is available."
           },
           "merchant_ref": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Source alias for the exact seller-or-place substring named as the transaction counterparty inside this occurrence, or the host-issued clarification source alias linked to it; JSON null when that counterparty is absent or uncertain. Obtain it with select_source on that exact merchant substring inside this occurrence: an explicitly named counterparty is recorded, not dropped, while an absent or uncertain one stays null. Never use a product, item or activity description."
           },
           "clarification": {
             "type": "string",
-            "enum": ["none", "amount", "date", "time", "merchant"],
+            "enum": [
+              "none",
+              "amount",
+              "date",
+              "time",
+              "merchant"
+            ],
             "description": "Primary material field that needs user input. none means no blocking interpretation ambiguity, not that every optional field is present. A missing amount requires amount. Absence or uncertainty of the optional merchant alone stays none with merchant_ref null. Uncertain occurrence or meaning is handled by ask_user before writing. Choose the component the source or user actually leaves unresolved: when the clock time is not remembered, that is time even if the date is also ungrounded, and never date instead. The summary must keep the source meaning rather than restating one temporal component as the other."
           }
         }
@@ -147,7 +201,10 @@
       "parameters": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["event_ref", "draft_ref"],
+        "required": [
+          "event_ref",
+          "draft_ref"
+        ],
         "properties": {
           "event_ref": {
             "type": "string",
@@ -169,7 +226,9 @@
       "parameters": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["pair_ref"],
+        "required": [
+          "pair_ref"
+        ],
         "properties": {
           "pair_ref": {
             "type": "string",
@@ -186,7 +245,9 @@
       "parameters": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["proposal_ref"],
+        "required": [
+          "proposal_ref"
+        ],
         "properties": {
           "proposal_ref": {
             "type": "string",
@@ -197,28 +258,26 @@
       }
     },
     {
-      "name": "classify_draft",
-      "description": "Request a review-only local Laya suggestion for the current draft. Without translation fields, the host classifies the stored draft description and current linked readings exactly as before. For a user-requested English translation, pass the opaque classification_context_ref returned by observe(draft) and one faithful english_translation of its complete displayed source context (the draft description plus every linked event text, or the draft text alone when there are no linked readings). The host rechecks the complete draft/event/link/source revision digest, verifies every neutral token occurs exactly as in the source, and rehydrates tokens only for local inference. Translation is machine-derived input, never owner-authored evidence; preserve proper names, uncertainty, and missing facts, add no extracted facts or category names, and do not choose a category. Stale bindings and token mismatches are refused; nothing is shortened, confirmed or written to the ledger.",
-      "mapsTo": "host source-bound translation validation, then WorkflowCommandService.requestHostedEnglishClassification or requestClassification",
+      "name": "update_draft_review",
+      "description": "Save one existing category on a still-pending bank draft as its ordinary review update. Use a category reference issued by the same fresh observe(draft) observation, chosen from category_choices by its name. The host rechecks the draft review revision, the category's current assignability and the catalog the choice was observed against, stores only the category field, and leaves the draft pending: it never confirms the draft, writes a ledger row, invents a category or supplies a probability. A stale draft or changed choices are refused; observe again.",
+      "mapsTo": "WorkflowCommandService.selectDraftCategory(scope, SelectDraftCategoryRequest) — ordinary draft-review category update, no confirmation",
       "parameters": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["draft_ref"],
+        "required": [
+          "draft_ref",
+          "category_ref"
+        ],
         "properties": {
           "draft_ref": {
             "type": "string",
             "minLength": 1,
-            "description": "Current draft alias binding its authoritative description and review revision."
+            "description": "Current draft alias from observe(draft); binds the authoritative working description and review revision."
           },
-          "classification_context_ref": {
+          "category_ref": {
             "type": "string",
             "minLength": 1,
-            "description": "Opaque complete current Laya source-context alias returned by observe(draft). Must match draft_ref; it binds the draft and every active linked event/link/source revision, including an empty linked-reading set."
-          },
-          "english_translation": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Faithful English rendering of exactly the complete source text shown by observe(draft), preserving every displayed neutral token exactly and adding no categories, facts, or certainty."
+            "description": "Category alias from that same draft observation's category_choices. Not a category name, database id or a choice from another observation."
           }
         }
       }
@@ -230,7 +289,9 @@
       "parameters": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["operation_ref"],
+        "required": [
+          "operation_ref"
+        ],
         "properties": {
           "operation_ref": {
             "type": "string",
@@ -247,7 +308,11 @@
       "parameters": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["subject_ref", "field", "question"],
+        "required": [
+          "subject_ref",
+          "field",
+          "question"
+        ],
         "properties": {
           "subject_ref": {
             "type": "string",
@@ -256,7 +321,15 @@
           },
           "field": {
             "type": "string",
-            "enum": ["amount", "date", "time", "merchant", "occurrence", "candidate", "meaning"],
+            "enum": [
+              "amount",
+              "date",
+              "time",
+              "merchant",
+              "occurrence",
+              "candidate",
+              "meaning"
+            ],
             "description": "Exact primary uncertainty. Not permission to demand every optional field. A value the masked source states is present evidence: ask amount, date or time only when no grounded reference of that kind was issued or the evidence is genuinely ambiguous, never because the value is displayed masked. The field is the component the source or user actually leaves unresolved: when the clock time is not remembered, choose time even though the date is also ungrounded, and never ask for the date in its place. For candidate, name the proposed row with the draft_label carried by the pair observation the recording tool returned."
           },
           "question": {

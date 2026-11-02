@@ -30,15 +30,6 @@ class S84AgentContractTest {
         override fun nowEpochMillis(): Long = now
     }
 
-    private class RefusingEngine : ClassificationEngine {
-        override suspend fun classify(
-            context: io.github.triet4p.aegisf.data.laya.LayaEffectiveContext,
-            categories: List<CategoryEntity>,
-        ): ClassificationEngineResult = ClassificationEngineResult.Failed(
-            "Laya runtime is not installed on this host test machine.",
-        )
-    }
-
     private lateinit var context: Context
     private lateinit var clock: FixedClock
 
@@ -47,7 +38,6 @@ class S84AgentContractTest {
         context = ApplicationProvider.getApplicationContext()
         context.deleteDatabase(LedgerDatabase.NAME)
         clock = FixedClock()
-        WorkflowClaimGuard.reset()
     }
 
     private fun open(): LedgerDatabase = LedgerDatabase.build(context)
@@ -56,7 +46,6 @@ class S84AgentContractTest {
         database = database,
         clock = clock,
         timezoneId = { CAPTURE_ZONE },
-        engine = RefusingEngine(),
     )
 
     private fun agent(captureIds: Set<Long>, draftIds: Set<Long>): WorkflowCallerScope.AgentSession =

@@ -41,11 +41,8 @@ import kotlinx.coroutines.launch
  * left explicitly unresolved. A persisted draft is reviewable evidence, never a ledger
  * record: it enters no summary and is never auto-confirmed.
  *
- * Scope (S7.2): the repository reports each supported draft it stored to the process's
- * bounded classification queue, so review opens with Laya's suggestion without the user
- * invoking the model. That scheduling happens after the draft's transaction commits, on
- * the persistence dispatcher, and it never waits for the model: a missing, busy, or
- * cancelled model leaves the draft stored and reviewable exactly as before.
+ * Scope (S7.2): a supported draft is stored as reviewable evidence only. Nothing is
+ * classified on the device, and no suggestion is produced behind the user's back.
  *
  * After a (re)connect the service also reconciles what is still active on the system side:
  * once the allowlist snapshot is loaded and [connection] is `Connected`, it reads the
@@ -363,10 +360,9 @@ class BankNotificationListener : NotificationListenerService() {
          * The intake repository the background persistence step writes through.
          *
          * Production code uses the application's own repository, so the notification path
-         * shares the process's one database, its thread-safe claim guard, and the bounded
-         * classification work a stored draft is reported to. Tests replace it with their
-         * own repository to assert the callback-to-persistence wiring without touching the
-         * application container.
+         * shares the process's one database and its thread-safe claim guard. Tests replace
+         * it with their own repository to assert the callback-to-persistence wiring without
+         * touching the application container.
          */
         @Volatile
         var intakeRepository: io.github.triet4p.aegisf.data.IntakeRepository? = null

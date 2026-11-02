@@ -66,12 +66,13 @@ object AgentContextManager {
      * authorize a field; the model chooses the meaning by passing the value alias to a
      * role-specific argument, and the host parses/validates it locally for that argument.
      */
-    const val CONTEXT_BLOCK_VERSION = "s8-agent-context/v10"
+    const val CONTEXT_BLOCK_VERSION = "s8-agent-context/v11"
 
     /**
-     * v10 adds a source-bound hosted-translation path for the English-only local Laya model.
-     * The translation is derived input only; its opaque context reference binds the complete
-     * current draft/event/link revisions, and the translated text never replaces stored evidence.
+     * v11 removes the on-device classifier and its translation hop. A draft observation carries
+     * the application's current category choices as opaque references; the model chooses one
+     * existing category and submits it through the ordinary draft-review update. The saved
+     * category is review-only and never confirms the draft.
      */
 
     /** Version of the host-authored issued-token inventory; wording/shape changes mint a new one. */
@@ -109,14 +110,11 @@ object AgentContextManager {
         appendLine("mutation_identity_rule: mutation identities and the recorded operation receipt are host-owned; never supply or request one.")
         appendLine("replay_evidence_rule: exact replay is the recorded operation alias only; report the journal no_change result and current effect verification separately.")
         appendLine("repair_rule: repair only errors whose control permits it, using fresh authoritative masked observations. Terminal errors stop hosted work.")
-        appendLine("classification_translation_rule: only translate the complete current Laya source context shown by observe(draft);")
-        appendLine("preserve every displayed value token exactly, names, uncertainty and absent facts; add no category names,")
-        appendLine("desired labels or extracted facts absent from the text. The host rehydrates tokens only for local Laya.")
-        appendLine("when English translation is requested, the translation is the sole Laya input: never append")
-        appendLine("untranslated source again. Without a translation request, the ordinary local/manual path remains.")
-        appendLine("translation_repair_rule: use the same fresh classification_context_ref and its current observations;")
-        appendLine("on stale or token-fidelity feedback re-observe and translate again. If a requested translation cannot")
-        appendLine("be supplied faithfully, report unavailable and do not classify untranslated text as if translated.")
+        appendLine("category_selection_rule: draft categories are chosen from the current category_choices only;")
+        appendLine("never invent a category, translate in order to classify, or reuse a choice from another draft observation.")
+        appendLine("category_choice_rule: pass one category reference issued by the same fresh draft observation to")
+        appendLine("update_draft_review. A stale draft revision or changed catalog is refused; observe again.")
+        appendLine("A saved category is review state only and never confirms the draft or writes a ledger record.")
         appendLine("masking_repair_rule: one masking refusal is repairable by the HOST only — when a complete response carried a masked-value form this session never issued, the host discards that whole response, appends one fixed shape-only notice and re-issues the same turn once. You never retry a privacy refusal with another spelling, raw value, endpoint or fallback model, and a second refusal or any foreign-token, raw-literal or decoded-sensitive finding stays terminal.")
     }
 

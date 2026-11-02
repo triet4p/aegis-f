@@ -299,9 +299,12 @@ class MigrationChainTest {
                 assertEquals(0L, scalar(room, "SELECT COUNT(*) FROM context_links"))
                 assertEquals(0L, scalar(room, "SELECT COUNT(*) FROM classification_snapshots"))
                 assertEquals(0L, scalar(room, "SELECT COUNT(*) FROM workflow_operations"))
-                // The durable classification jobs are a new table: the older file held no
-                // job, and the upgrade invents none, so no draft is classified unasked.
-                assertEquals(0L, scalar(room, "SELECT COUNT(*) FROM classification_work"))
+                // The obsolete local classification queue is gone; the historical snapshot
+                // table remains exactly as it was stored.
+                assertEquals(
+                    0L,
+                    scalar(room, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'classification_work'"),
+                )
 
                 // --- The constraints the newer versions rely on -------------------------
                 room.query(SimpleSQLiteQuery("PRAGMA foreign_key_check")).use { cursor ->
@@ -314,8 +317,6 @@ class MigrationChainTest {
                     "index_workflow_operations_idempotencyKey",
                     "index_context_links_eventId_draftId",
                     "index_classification_snapshots_draftId",
-                    "index_classification_work_draftId",
-                    "index_classification_work_state_updatedAtEpochMillis",
                 )) {
                     assertEquals(
                         "the index $index must exist after the upgrade",
@@ -340,19 +341,44 @@ class MigrationChainTest {
             }
         }
     @Test
-    fun `version fourteen snapshot migration preserves source baseline and backfills its legacy identity`() =
+    fun `version fifteen cutover preserves historical snapshots and drops the local queue`() =
         runTest {
             writeVersionFourteenDatabase()
             val database = LedgerDatabase.build(context)
             try {
                 val room = database.openHelper.writableDatabase
-                val migrated = database.classificationSnapshotDao().findForDraft(PENDING_DRAFT_ID)!!
                 assertEquals(LedgerDatabase.VERSION.toLong(), scalar(room, "PRAGMA user_version"))
-                assertEquals(ClassificationInputKind.STORED_SOURCE.name, migrated.classificationInputKind)
-                assertEquals("legacy-effective-input-digest", migrated.classificationInputIdentity)
-                assertEquals("legacy-effective-input-digest", migrated.effectiveInputDigest)
-                assertNull(migrated.translationSourceRevision)
-                assertEquals(PredictionSource.NO_FIT.name, migrated.decisionSource)
+                assertEquals(
+                    "STORED_SOURCE",
+                    text(room, "SELECT classificationInputKind FROM classification_snapshots WHERE draftId = $PENDING_DRAFT_ID"),
+                )
+                assertEquals(
+                    "legacy-effective-input-digest",
+                    text(room, "SELECT classificationInputIdentity FROM classification_snapshots WHERE draftId = $PENDING_DRAFT_ID"),
+                )
+                assertEquals(
+                    "legacy-effective-input-digest",
+                    text(room, "SELECT effectiveInputDigest FROM classification_snapshots WHERE draftId = $PENDING_DRAFT_ID"),
+                )
+                assertEquals(
+                    "NO_FIT",
+                    text(room, "SELECT decisionSource FROM classification_snapshots WHERE draftId = $PENDING_DRAFT_ID"),
+                )
+                assertEquals(
+                    "the historical snapshot row is preserved",
+                    1L,
+                    scalar(room, "SELECT COUNT(*) FROM classification_snapshots"),
+                )
+                assertEquals(
+                    "the ephemeral local queue table is gone",
+                    0L,
+                    scalar(room, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'classification_work'"),
+                )
+                assertEquals(
+                    "attempts record the hosted category provenance",
+                    1L,
+                    scalar(room, "SELECT COUNT(*) FROM pragma_table_info('agent_run_attempts') WHERE name = 'selectedCategoryId'"),
+                )
                 assertEquals("PENDING", database.pendingBankDraftDao().findById(PENDING_DRAFT_ID)!!.reviewStatus.name)
                 assertTrue(database.transactionDao().findAll().isEmpty())
             } finally {
@@ -371,13 +397,6 @@ class MigrationChainTest {
                     database = database,
                     clock = SystemLedgerClock,
                     timezoneId = { zoneId },
-                    engine = object : ClassificationEngine {
-                        override suspend fun classify(
-                            context: io.github.triet4p.aegisf.data.laya.LayaEffectiveContext,
-                            categories: List<CategoryEntity>,
-                        ): ClassificationEngineResult =
-                            ClassificationEngineResult.Failed("not used by this test")
-                    },
                 )
                 val query = WorkflowQueryService(database)
 

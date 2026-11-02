@@ -159,6 +159,50 @@ abstract class BankDraftReviewDao {
         }
     }
 
+    @Query(
+        "UPDATE pending_bank_drafts SET " +
+            "reviewCategoryId = :categoryId, " +
+            "reviewCategoryResolved = 1, " +
+            "reviewRevision = reviewRevision + 1 " +
+            "WHERE id = :id AND reviewStatus = 'PENDING' AND " +
+            "confirmedTransactionId IS NULL AND reviewRevision = :expectedRevision",
+    )
+    protected abstract suspend fun updateReviewCategory(
+        id: Long,
+        expectedRevision: Int,
+        categoryId: Long,
+    ): Int
+
+    /**
+     * Saves only the chosen category of a still-pending draft.
+     *
+     * The amount, the moment, the memo, and the type are left exactly as they are: this
+     * is the one field the hosted workflow may submit, and it must not rewrite review
+     * values the user never touched. The same transaction re-checks that the category is
+     * still assignable, so a removed or archived category cannot be written back.
+     */
+    @Transaction
+    open suspend fun saveReviewCategory(
+        id: Long,
+        expectedRevision: Int,
+        categoryId: Long,
+    ): BankDraftReviewResult {
+        val draft = findDraft(id) ?: return BankDraftReviewResult.NotFound
+        if (draft.reviewStatus != IntakeReviewStatus.PENDING || draft.confirmedTransactionId != null) {
+            return BankDraftReviewResult.AlreadyReviewed
+        }
+        if (draft.reviewRevision != expectedRevision) return BankDraftReviewResult.Changed
+        if (countAssignableCategory(categoryId) == 0) {
+            return BankDraftReviewResult.CategoryUnavailable
+        }
+        val updated = updateReviewCategory(id, expectedRevision, categoryId)
+        return if (updated == 1) {
+            BankDraftReviewResult.Saved(expectedRevision + 1)
+        } else {
+            BankDraftReviewResult.Changed
+        }
+    }
+
     /**
      * Atomically marks the pending draft terminal, inserts exactly one transaction, and links
      * it back to the draft. SQLite serializes competing writers; the conditional claim also

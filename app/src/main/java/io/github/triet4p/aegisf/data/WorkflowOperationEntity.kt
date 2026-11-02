@@ -105,14 +105,12 @@ internal fun encodeWorkflowChange(change: WorkflowChange): String = when (change
     is WorkflowChange.LinkUnlinked -> encodeFields(
         listOf("LINK_UNLINKED", change.linkId.toString()),
     )
-    is WorkflowChange.Classified -> encodeFields(
+    is WorkflowChange.DraftCategorySelected -> encodeFields(
         listOf(
-            "CLASSIFIED",
+            "DRAFT_CATEGORY_SELECTED",
             change.draftId.toString(),
-            change.snapshotId.toString(),
-            change.source.name,
-            change.suggestedCategoryId?.toString(),
-            change.confidence?.toString(),
+            change.revision.toString(),
+            change.categoryId.toString(),
         ),
     )
     is WorkflowChange.TransactionSaved -> encodeFields(
@@ -206,15 +204,10 @@ internal fun decodeWorkflowChange(summary: String?): WorkflowChange? {
             revision = fields.intAt(3),
         )
         "LINK_UNLINKED" -> WorkflowChange.LinkUnlinked(linkId = fields.longAt(1))
-        "CLASSIFIED" -> WorkflowChange.Classified(
+        "DRAFT_CATEGORY_SELECTED" -> WorkflowChange.DraftCategorySelected(
             draftId = fields.longAt(1),
-            snapshotId = fields.longAt(2),
-            source = fields.textAt(3)?.let { name ->
-                PredictionSource.entries.firstOrNull { it.name == name }
-            } ?: return null,
-            suggestedCategoryId = fields.textAt(4)?.toLongOrNull(),
-            confidence = fields.textAt(5)?.toDoubleOrNull(),
-            decision = null,
+            revision = fields.intAt(2),
+            categoryId = fields.longAt(3),
         )
         "TRANSACTION_SAVED" -> WorkflowChange.TransactionSaved(
             transactionId = fields.longAt(1),

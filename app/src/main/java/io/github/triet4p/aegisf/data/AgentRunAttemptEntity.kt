@@ -66,8 +66,10 @@ data class AgentRunAttemptEntity(
     val linkRevision: Int?,
     /** The draft the attempt searched or classified, or null. */
     val draftId: Long?,
-    /** Where a verified classification decision came from, or null. */
+    /** Where a verified classification decision came from; historical rows only. */
     val decisionSource: String?,
+    /** The category a verified draft-category attempt stored, or null. */
+    val selectedCategoryId: Long? = null,
     /**
      * The privacy-safe masked observation of this attempt: turn/tool counts, statuses,
      * ids, reason codes — never raw text, mappings, credentials, or reasoning.

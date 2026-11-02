@@ -1,5 +1,9 @@
 # Command-line developer setup
 
+**CAT1 update (2026-11-02):** the app no longer ships or builds the Laya ONNX runtime,
+tokenizer asset, provisioning UI or classification queue. Sections below that describe Laya
+model setup and parity are historical and are not required to build or use the app.
+
 This is the supported development path for Aegis F: the official Android SDK command-line tools, the project's Gradle Wrapper, and `adb` to a physical phone. Android Studio and an emulator are **not** required; no project step uses them. Device access is user-operated by default. A worker may operate only Aegis F and only when the active task explicitly authorizes a narrow, app-scoped check; that permission does not extend to other apps, bank activity, notification content, ledger/model mutation, or system/security settings. Other device procedures remain user-run.
 
 Verified state (2026-10-15, Sprint 2): the pinned toolchain below built the debug APK from a genuinely new process; the Room persistence and ledger unit tests (`:app:testDebugUnitTest`, Robolectric against the real database file) passed on the host with 31 tests and no failures; and the manual transaction creation form was exercised on the real launcher Activity against the real Room database (see the S2.4 creation proof). Earlier verification (2026-10-14): the user reported that the S1.5 launch checks and the S1.6 A/B update-path checks passed. Historical evidence: [S1.1 toolchain](../artifacts/sprint-1/S1.1-a1/toolchain.md), [S1.2 SDK setup](../artifacts/sprint-1/S1.2-a1/sdk-setup.md), [S1.4 build](../artifacts/sprint-1/S1.4-a1/build-proof.md), [S1.5 launch](../artifacts/sprint-1/S1.5-a2/launch-proof.md), [S1.6 A/B update](../artifacts/sprint-1/S1.6-a1/update-proof.md), [S1.6 clean APK](../artifacts/sprint-1/S1.6-a2/clean-proof.md), [S2.1 storage](../artifacts/sprint-2/S2.1-a2/storage-proof.md). The fresh-process reproduction of the commands in sections 2–3 is recorded in [S1.7 docs proof](../artifacts/sprint-1/S1.7-a1/docs-proof.md).
@@ -272,7 +276,11 @@ This logs only privacy-safe state transitions, rebind requests, allowlist checks
 
 **Evidence distinction to keep clear:** the S1.5 and S1.6 device checks used the S1.5 package and S1.6 A/B packages (`versionCode` 1–3). The current debug `versionCode = 4` package was installed in place and exercised for S4.6-A2; see the [sanitized phone evidence](../artifacts/sprint-4/workers/S4.6-A2.md). That limited Aegis UI observation does not replace unrelated task-specific device checks or the final user real-experience gate.
 
-## 6. On-device Laya evaluation and limits (S4.2/S4.9)
+## 6. Historical on-device model evaluation and provisioning (removed by CAT1)
+
+> **Do not run the procedures in this section.** CAT1 removed Laya, its provisioning UI and
+> the on-device model path from the active app. This section is retained only as the historical
+> S4/S5 qualification record.
 
 The accepted S4.2 parity report is retained at
 [`artifacts/sprint-4/reviews/S42-parity-report.json`](../artifacts/sprint-4/reviews/S42-parity-report.json).
@@ -402,7 +410,7 @@ When the active task authorizes the Aegis-only phone path, exercise a synthetic 
 
 1. Open **Record a transaction**, leave **Expense** selected, enter a unique synthetic description, choose one existing active category in the unsaved form, and tap **Remember … for this description**.
 2. Cancel without saving, reopen the form, and enter the same description with only case/whitespace differences. Verify the saved exact-description rule is shown before model inference, the selected category field remains unchanged until **Use remembered category**, and **Remove rule** is available.
-3. Tap **Remove rule** and confirm the UI says no remembered rule applies. Cancel, reopen the same description, and verify the remembered-rule state no longer appears; a Laya suggestion or its normal no-fit/unavailable result is a model fallback, not a rule hit.
+3. Tap **Remove rule** and confirm the UI says no remembered rule applies. Cancel, reopen the same description, and verify the remembered-rule state no longer appears and the form returns to its ordinary manual category choice.
 4. Cancel without pressing **Save transaction**. Remove any synthetic rule created by the check if it remains.
 
 The S4.7-A1 host checks passed: file-backed close/reopen persistence, exact

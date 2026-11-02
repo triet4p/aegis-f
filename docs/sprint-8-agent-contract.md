@@ -10,6 +10,12 @@ scorer under `tools/slm/s8_agent_*` are the source of case identities, exact arg
 masking-boundary checks, and denominators. Frozen v2 (`docs/sprint-8-evaluation-contract.md`,
 `tools/slm/s8_workflow_*`) stays byte-identical and is never rescored by this revision.
 
+**Current cutover (CAT1, 2026-11-02):** the on-device Laya classifier, its English translation
+hop, provisioning UI, model assets and runtime dependency are removed from the active app. A
+draft observation now carries the current active category choices, and the hosted workflow
+submits one existing category through the ordinary draft-review update. Sections below that
+describe Laya/translation are historical S8.4–S8.14 evidence, not the active contract.
+
 ## 1. Scope and non-goals
 
 This contract covers the hosted workflow agent only: user-configured Gemini API, OpenAI
@@ -20,27 +26,25 @@ multi-turn executor with verification; durable run state with safe retry/cancel/
 and the task-level evaluation in this revision.
 
 It does **not** deliver production adapters, the executor, masking, or settings
-implementations — those were S8.5–S8.12 tasks. Current production adds an optional, source-bound
-English translation input for local Laya without changing the pinned model, offline/manual/intake
-behavior, ledger guarantees, or frozen evaluation contracts.
+implementations — those were S8.5–S8.12 tasks. Current production adds the hosted draft-category
+choice through the ordinary review update without changing offline/manual/intake behavior,
+ledger guarantees, or frozen evaluation contracts.
 
 Inspected application surface (behavioral, not aspirational):
 
 - `WorkflowCommandService` (preparation commands plus user-only financial commands):
   `saveCapture`, `reviseCapture`, `deleteCapture`, `updateEventInterpretation`,
-  `proposeLink`, `attachLink`, `rejectLink`, `unlinkLink`, `requestClassification`, and the
+  `proposeLink`, `attachLink`, `rejectLink`, `unlinkLink`, `selectDraftCategory`, and the
   user-only save/correct/delete transaction, draft review/confirm/dismiss, and
   category add/rename/archive/delete plus rule remember/remove paths. Command names are the
   `COMMAND_*` constants (`SAVE_CAPTURE`, `UPDATE_EVENT`, `PROPOSE_LINK`, `ATTACH_LINK`,
-  `REJECT_LINK`, `UNLINK_LINK`, `REQUEST_CLASSIFICATION`, …); the claim lease default is
-  `DEFAULT_CLAIM_LEASE_MILLIS` (5 minutes); a still-running key answers
-  `IN_PROGRESS_REASON`; a lost claim answers `CLAIM_NOT_KEPT_REASON`.
+  `REJECT_LINK`, `UNLINK_LINK`, `SELECT_DRAFT_CATEGORY`, …).
 - `WorkflowQueryService` (read-only, every read bounded by `QueryPageRequest` limit
   1–500, offset ≥ 0): `categories`, `categoryCatalog`, `ledgerRecords`,
   `confirmedLedgerAggregate` (closed ranges only), `spendingDrillDown`, `sourceExcerpts`,
   `captureContextSummaries`, `unrecordedNoteEvents`, `draftCandidates`, `reviewQueue`,
   `linkOperations`, `draftContextLinks`, `draftOperations`, `captureOperations`,
-  `eventOperations`, `captureEvents`, `classificationOperations`, `workflowOperations`.
+  `eventOperations`, `captureEvents`, `workflowOperations`.
 - Storage semantics owned by `EventContextRepository` (span/revision/amount/merchant/time
   validation, one reading per span, accepted-link protection), `LinkEvidencePolicy`
   (app-computed `TrustedLinkEvidence`, `UNIQUE` vs `AMBIGUOUS`, marker
@@ -248,22 +252,21 @@ equality/ordering/relative-time relations survive; unknown tokens and mapping fa
 are refused; rehydrated commands carry exact integer VND, dates/times and spans.
 
 Allowed tools for the agent (closed set): the eleven task-relevant operations in the current
-production declaration `tools/slm/s8_agent_tools_v5.json` (`aegis-f-s8-agent-tools/v5`, contract
-`aegis-agent-interface/5`) — `observe`, `select_source`, `list_drafts`, `make_time_anchor`,
-`record_event`, `inspect_link`, `propose_link`, `attach_link`, `classify_draft`,
+production declaration `tools/slm/s8_agent_tools_v6.json` (`aegis-f-s8-agent-tools/v6`, contract
+`aegis-agent-interface/6`) — `observe`, `select_source`, `list_drafts`, `make_time_anchor`,
+`record_event`, `inspect_link`, `propose_link`, `attach_link`, `update_draft_review`,
 `replay_operation`, and `ask_user`. Only the subset the host-selected skills require is
 loaded for a run; an unloaded tool is neither offered nor executable. Model arguments are
 flat primitives and host-issued opaque references, never raw sensitive scalars, revisions,
-operation keys, scope or override flags. `classify_draft` retains the ordinary stored-source
-path and may instead receive an English translation only paired with the opaque current
-classification-context reference from `observe(draft)`. That reference binds the complete
-active draft/event/link/source revision set, including zero or several linked readings;
-stale, out-of-scope or token-incomplete inputs are refused before local inference. Laya gets
-only the English derived input, while stored source remains unchanged and the snapshot stores
-only safe provenance/input digests. The historical S8.13 qualification fixture remains pinned
-to its copied v4 declaration. The frozen `tools/slm/s8_agent_tools.json` v1 and
-`s8_agent_tools_v2.json` v2 evaluation schemas remain unchanged historical inputs and are
-not loaded by the production Android runtime. There is explicitly **no** financial
+operation keys, scope or override flags. An `observe(draft)` observation carries the current
+active `category_choices`; `update_draft_review` submits exactly one of those category
+references through the ordinary draft-review mutation. The host rechecks the draft review
+revision, the category's live assignability and the catalog digest the choice was observed
+against, stores only the category field, and leaves the draft pending. No local classifier,
+translation input or fabricated probability exists. The historical S8.13 qualification
+fixture remains pinned to its copied v4 declaration. The frozen `tools/slm/s8_agent_tools.json`
+v1 and `s8_agent_tools_v2.json` v2 evaluation schemas remain unchanged historical inputs and
+are not loaded by the production Android runtime. There is explicitly **no** financial
 confirmation, deletion, arbitrary SQL, shell, arbitrary filesystem access, general plugin
 system, or device automation tool. Unknown tools, `execute_sql`, `confirm`/`delete` shapes,
 and caller-supplied evidence fields never reach the API.
@@ -281,7 +284,7 @@ judgment and ambiguity stay with the model/user. Bundled skills for this contrac
 - `event-reading/7` — grounded occurrence interpretation, atomic recording, explicitly named counterparty source selection, exact neutral value references and clarification;
 - `draft-search/1` — bounded candidate reads;
 - `link-event-draft/3` — inspect, propose and policy-gated attach;
-- `local-review/2` — optional source-bound English translation into local Laya, with the ordinary source-text path retained;
+- `draft-review/1` — choose one current existing category and submit it through the ordinary draft-review update;
 - `explicit-operation-replay/1` — exact journal-backed replay of a recorded operation.
 
 ### 5.2 Trusted scope, revision and idempotency ownership
@@ -317,12 +320,11 @@ judgment and ambiguity stay with the model/user. Bundled skills for this contrac
   an agent attach needs still-current `UNIQUE` evidence bound to the exact
   source/event/draft/revisions. Rejections are durable and user-only
   (`USER_DECISION_REQUIRED`); refused pairs stay refused.
-- **Laya** is review-only: remembered rules answer before inference; blank or sparse
-  descriptions and over-budget inputs stay manual. Genuine model failures remain
-  model-unavailable; eligible event readings remain subject to provenance and input-budget
-  rules; no-fit predictions stay reviewable. Predictions never write ledger fields.
-  Confirmation, dismissal, ledger edits/deletion and category changes are user-only and
-  have no agent tool.
+- **Draft category** is review state only. The hosted workflow may save one existing,
+  assignable category on a draft in its own scope through the ordinary draft-review update;
+  the operation validates the observed review revision and the live catalog and never
+  confirms, dismisses or writes a ledger record. Confirmation, dismissal, ledger
+  edits/deletion and every other category change are user-only and have no agent tool.
 
 ## 6. Verification postconditions (before COMPLETED)
 
