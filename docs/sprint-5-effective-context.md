@@ -48,8 +48,8 @@ text, whatever order the links were made in.
 - the primary text comes first and is never rewritten, shortened, or reordered;
 - the readings follow in the order they were supplied, each separated by a single space;
 - a reading is added only while the composed text still fits the room the model leaves for its
-  state; a reading that does not fit, or that the safety guard refuses, is left out and
-  reported in `droppedReadings` instead of being truncated into the text;
+  state; a reading that does not fit is left out and reported in `droppedReadings` instead of
+  being truncated into the text;
 - the room is the room every candidate set leaves: the sequence's total budget (512 tokens)
   minus the largest header the model may build (192 tokens) minus the four structural tokens
   around the state. Because the header never exceeds that bound, a composed input that fits
@@ -237,8 +237,11 @@ replace its stored prediction. The per-process evidence is recorded in
 Implementation references: `app/src/main/java/io/github/triet4p/aegisf/data/laya/LayaEffectiveContext.kt`,
 `app/src/main/java/io/github/triet4p/aegisf/data/ClassificationSnapshotEntity.kt`,
 `ClassificationSnapshotDao.kt`, `ClassificationSnapshotRepository.kt`,
-`app/src/main/java/io/github/triet4p/aegisf/data/SuggestionSafety.kt`,
 `app/src/main/java/io/github/triet4p/aegisf/data/EventContextRepository.kt`,
 `app/src/main/java/io/github/triet4p/aegisf/data/LedgerDatabase.kt`, and
 `app/src/main/java/io/github/triet4p/aegisf/ui/BankDraftReviewScreen.kt`. The frozen source,
 privacy, and authority contract is `docs/sprint-5-workflow-contract.md`.
+
+S8.14 later removed the former local pattern filter: on-device Laya receives raw draft
+descriptions and eligible event readings. Empty readings and tokenizer-budget constraints
+remain governed by this composer; hosted outbound masking is separate.

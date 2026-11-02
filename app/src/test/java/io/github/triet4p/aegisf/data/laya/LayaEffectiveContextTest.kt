@@ -113,20 +113,22 @@ class LayaEffectiveContextTest {
     }
 
     @Test
-    fun `a safety-blocked reading is never offered to the model`() {
+    fun `security words and bank references in eligible readings remain exact local context`() {
+        val rawReading = "Bank SMS OTP 123456 securityword T5RYKH8N iPhone15"
         val composed = LayaEffectiveContextComposer.compose(
             tokenizer = tokenizer,
             context = LayaEffectiveContext(
                 primaryText = "Circle K store",
                 eventReadings = listOf(
-                    LayaEventReading(1L, "CT DI382K26A0"),
-                    LayaEventReading(2L, "Fuel 50,000"),
+                    LayaEventReading(1L, rawReading),
+                    LayaEventReading(2L, "  "),
+                    LayaEventReading(3L, "Fuel 50,000"),
                 ),
             ),
         )
-        assertEquals(listOf(2L), composed.includedReadings.map { it.eventId })
-        assertEquals(listOf(1L), composed.droppedReadings.map { it.eventId })
-        assertTrue(!composed.text.contains("382K26A0"))
+        assertEquals("Circle K store $rawReading Fuel 50,000", composed.text)
+        assertEquals(listOf(1L, 3L), composed.includedReadings.map { it.eventId })
+        assertEquals(listOf(2L), composed.droppedReadings.map { it.eventId })
     }
 
     @Test

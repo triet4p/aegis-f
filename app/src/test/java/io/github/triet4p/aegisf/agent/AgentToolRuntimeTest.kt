@@ -839,14 +839,23 @@ class AgentToolRuntimeTest {
     }
 
     @Test
-    fun blockedClassificationDoesNotCallLayaOrChangeState() = runBlocking {
+    fun `raw bank draft text reaches local classification unchanged without ledger authority`() = runBlocking {
+        val rawDescription = "Bank notice OTP 123456 securityword 382K26A0 iPhone15"
+        database.categoryDao().insert(
+            CategoryEntity(
+                name = "S8.14 Raw Local",
+                createdAtEpochMillis = 1_798_000_000_000L,
+                updatedAtEpochMillis = 1_798_000_000_000L,
+            ),
+        )
         val draftId = storeDraft(
             amount = 29_000L,
             date = "2026-10-21",
-            memo = "Bank notice contains OTP 123456",
+            memo = rawDescription,
         )
         var inferenceCalls = 0
-        val safetyCommands = WorkflowCommandService(
+        var observedContext: LayaEffectiveContext? = null
+        val rawLocalCommands = WorkflowCommandService(
             database = database,
             clock = SystemLedgerClock,
             timezoneId = { "Asia/Ho_Chi_Minh" },
@@ -856,19 +865,20 @@ class AgentToolRuntimeTest {
                     categories: List<CategoryEntity>,
                 ): ClassificationEngineResult {
                     inferenceCalls += 1
-                    return ClassificationEngineResult.Failed("The test engine must not run for a safety block.")
+                    observedContext = context
+                    return ClassificationEngineResult.Failed("The deterministic test engine is unavailable.")
                 }
             },
         )
         val sessionScope = WorkflowCallerScope.AgentSession(scope.scopeId, scope.captureIds, setOf(draftId))
         val runtime = AgentToolRuntime(
-            commands = safetyCommands,
+            commands = rawLocalCommands,
             queries = queries,
             session = AgentToolSession(sessionScope, boundary, AgentReferenceRegistry(sessionScope.scopeId)),
             declarations = declarations,
         )
         val draft = draftPage(runtime, draftId)
-        val operationKey = "s8.14-safety-blocked-classification"
+        val operationKey = "s8.14-raw-local-classification"
         val beforeDraft = database.pendingBankDraftDao().findById(draftId)!!
         val beforeClassifications = database.classificationSnapshotDao().findPage(0, 20, 0)
         val beforeLedger = database.transactionDao().findAll()
@@ -884,15 +894,13 @@ class AgentToolRuntimeTest {
         val result = execution.envelope
         val manualClaim = execution.effectClaim as? AgentEffectClaim.ClassificationManual
 
-        assertEquals("clarifying", result.getString("outcome"))
-        assertEquals("await_user", result.getJSONObject("control").getString("action"))
-        assertEquals("description", result.getJSONObject("data").getString("field"))
-        assertTrue(result.getJSONObject("data").getString("question").contains("blocked from local suggestions"))
-        assertTrue(result.isNull("error"))
+        assertEquals(rawDescription, observedContext?.primaryText)
+        assertTrue(observedContext?.eventReadings?.isEmpty() == true)
+        assertEquals("error", result.getString("outcome"))
+        assertEquals("MODEL_UNAVAILABLE", result.getJSONObject("error").getString("code"))
         assertEquals("none", result.getString("effect"))
-        assertEquals("SUGGESTION_SAFETY_BLOCKED", manualClaim?.reasonCode)
-        assertFalse(result.toString().contains("123456"))
-        assertEquals(0, inferenceCalls)
+        assertEquals("MODEL_UNAVAILABLE", manualClaim?.reasonCode)
+        assertEquals(1, inferenceCalls)
         assertEquals(beforeDraft.reviewStatus, database.pendingBankDraftDao().findById(draftId)!!.reviewStatus)
         assertEquals(beforeDraft.reviewRevision, database.pendingBankDraftDao().findById(draftId)!!.reviewRevision)
         assertEquals(beforeClassifications, database.classificationSnapshotDao().findPage(0, 20, 0))
@@ -901,6 +909,53 @@ class AgentToolRuntimeTest {
             beforeLinks,
             queries.linkOperations(LinkOperationQuery(draftId = draftId, bounds = QueryPageRequest(20, 0))).items,
         )
+        assertNull(database.workflowOperationDao().findByKey(operationKey))
+    }
+
+
+    @Test
+    fun `missing local description remains a correction error without invoking Laya`() = runBlocking {
+        val draftId = storeDraft(amount = 28_000L, date = "2026-10-21", memo = "")
+        var inferenceCalls = 0
+        val missingDescriptionCommands = WorkflowCommandService(
+            database = database,
+            clock = SystemLedgerClock,
+            timezoneId = { "Asia/Ho_Chi_Minh" },
+            engine = object : ClassificationEngine {
+                override suspend fun classify(
+                    context: LayaEffectiveContext,
+                    categories: List<CategoryEntity>,
+                ): ClassificationEngineResult {
+                    inferenceCalls += 1
+                    return ClassificationEngineResult.Failed("A blank description must not reach this engine.")
+                }
+            },
+        )
+        val sessionScope = WorkflowCallerScope.AgentSession(scope.scopeId, scope.captureIds, setOf(draftId))
+        val runtime = AgentToolRuntime(
+            commands = missingDescriptionCommands,
+            queries = queries,
+            session = AgentToolSession(sessionScope, boundary, AgentReferenceRegistry(sessionScope.scopeId)),
+            declarations = declarations,
+        )
+        val draft = draftPage(runtime, draftId)
+        val operationKey = "s8.14-empty-local-description"
+        val beforeDraft = database.pendingBankDraftDao().findById(draftId)!!
+        val beforeLedger = database.transactionDao().findAll()
+        val result = runtime.execute(
+            "classify_draft",
+            JSONObject().put("draft_ref", draft.getString("ref")),
+            operationKey,
+        ).envelope
+
+        assertEquals("error", result.getString("outcome"))
+        assertEquals("MISSING_REQUIRED_MEANING", result.getJSONObject("error").getString("code"))
+        assertEquals("none", result.getString("effect"))
+        assertEquals(0, inferenceCalls)
+        assertEquals(beforeDraft.reviewStatus, database.pendingBankDraftDao().findById(draftId)!!.reviewStatus)
+        assertEquals(beforeDraft.reviewRevision, database.pendingBankDraftDao().findById(draftId)!!.reviewRevision)
+        assertEquals(beforeLedger, database.transactionDao().findAll())
+        assertEquals(0L, database.classificationSnapshotDao().findPage(0, 10, 0).size.toLong())
         assertNull(database.workflowOperationDao().findByKey(operationKey))
     }
 

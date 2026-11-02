@@ -4,7 +4,6 @@ import io.github.triet4p.aegisf.data.CategoryEntity
 import io.github.triet4p.aegisf.data.ManualCategoryDecision
 import io.github.triet4p.aegisf.data.TransactionType
 import io.github.triet4p.aegisf.data.decideRememberedBeforeInference
-import io.github.triet4p.aegisf.data.isBlockedForSuggestionSafety
 import io.github.triet4p.aegisf.data.laya.LayaCandidatePlanner
 import io.github.triet4p.aegisf.data.laya.LayaEffectiveContext
 import io.github.triet4p.aegisf.data.laya.LayaTokenizerLoader
@@ -19,19 +18,16 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * The shared suggestion-safety and planner rules that still guard model input.
+ * Consumer-side planner and manual suggestion behavior.
  *
- * S7.6 removed the bank-draft screen's own inference trigger: classification is now scheduled
- * by intake and context changes through the durable queue, and the command boundary applies
- * these rules before the model is asked. The filter keeps ordinary (including Vietnamese)
- * text and blocks only OTP/security-like text and bank reference codes; a saved exact-
- * description rule answers before inference; a category-name match is deterministic; and the
- * manual-entry suggestion machine still stages rather than selects. No multilingual quality
- * is claimed.
+ * S7.6 removed the bank-draft screen's own inference trigger: classification is scheduled
+ * by intake and context changes through the durable queue. A category-name match is
+ * deterministic, saved rules answer before inference, and the manual-entry suggestion
+ * machine stages rather than selects. No multilingual quality is claimed.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
-class BankDraftSuggestionGateTest {
+class BankDraftSuggestionFlowTest {
 
     private fun category(id: Long, name: String, archived: Boolean = false) = CategoryEntity(
         id = id,
@@ -40,35 +36,6 @@ class BankDraftSuggestionGateTest {
         createdAtEpochMillis = 1L,
         updatedAtEpochMillis = 1L,
     )
-
-    @Test
-    fun `ordinary text including Vietnamese is not blocked`() {
-        assertFalse(isBlockedForSuggestionSafety("lunch"))
-        assertFalse(isBlockedForSuggestionSafety("buy lunch"))
-        assertFalse(isBlockedForSuggestionSafety("buy"))
-        assertFalse(isBlockedForSuggestionSafety("Monthly rent"))
-        assertFalse(isBlockedForSuggestionSafety("Electric bill"))
-        assertFalse(isBlockedForSuggestionSafety("an trua"))
-    }
-
-    @Test
-    fun `reference codes stay manual even with English words`() {
-        // Addressed-to/transaction-code wrappers around any phrasing must not reach
-        // inference: the codes would otherwise travel to the model as description.
-        assertTrue(isBlockedForSuggestionSafety("CT DI382K26A0 Lunch at a cafe T5RYKH8N"))
-        assertTrue(isBlockedForSuggestionSafety("T5RYKH8N"))
-        assertTrue(
-            isBlockedForSuggestionSafety(
-                "CT DI:382K26A0 QR - Thanh toan order 26101719; tai iPay",
-            ),
-        )
-    }
-
-    @Test
-    fun `otp-like text never becomes inference input`() {
-        assertTrue(isBlockedForSuggestionSafety("Your OTP is 123456"))
-        assertTrue(isBlockedForSuggestionSafety("m\u00E3 otp 123456"))
-    }
 
     @Test
     fun `shop note matches the shop category without inference`() {

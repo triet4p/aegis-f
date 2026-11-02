@@ -47,6 +47,12 @@ and no release has been tagged or published. Format follows
   provider, privacy and authority limits remain unchanged; the behavioral boundary regression
   proves dispatch stops before effects beyond the configured cap.
 
+- Local Laya now receives raw bank-draft descriptions and eligible event readings, including
+  OTP/security-word text and bank references. Existing emptiness, provenance and size checks
+  remain, and hosted outbound masking is unchanged.
+- Blank local descriptions now produce a correction-required result instead of being reported as
+  a missing local model; genuine inference failures remain `MODEL_UNAVAILABLE`.
+
 
 - Agent observations now carry the application's own user label for each row ("draft #421",
   "event #313"), and a pair observation names the exact event and draft labels it binds, so a
@@ -160,8 +166,6 @@ and no release has been tagged or published. Format follows
   tool-wire smoke coverage; qualification fixtures, scores, gates, and hosted measurement
   counts are unchanged.
 
-- Fixed `classify_draft` to return a manual-review clarification for description safety blocks before
-  local inference, while keeping actual local model failures under `MODEL_UNAVAILABLE`.
 
 ### Added
 

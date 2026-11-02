@@ -150,16 +150,19 @@ not as success.
 
 ## Local Laya, intake and manual work
 
-`classify_draft` reaches the unchanged `WorkflowCommandService.requestClassification` with the
+`classify_draft` reaches `WorkflowCommandService.requestClassification` with the
 authoritative stored description and bound review revision, and the real
 `LayaClassificationEngine`/`LayaInferenceLifecycle`. Prediction stays local, review-only and
 unconfirmed. The executor exposes only suspending calls; it does no blocking work on the caller's
 thread, and nothing in notification intake or manual entry depends on it, so both keep working
 while a hosted turn waits or fails.
 
-Suggestion-safety refusal uses the existing `clarifying`/`await_user` envelope and directs manual
-review. It is distinct from `MODEL_UNAVAILABLE`, which is reserved for an actual local inference
-failure; the blocked description is never rephrased or resubmitted to obtain a suggestion.
+On-device Laya receives raw stored draft descriptions and eligible event readings without
+OTP/security-word or bank-reference filtering. Empty descriptions and the existing event
+provenance and input-budget rules remain. This does not change hosted outbound masking:
+hosted requests still pass through the separate privacy boundary. A local suggestion remains
+review-only and never confirms or writes a transaction. Genuine local inference failures
+remain `MODEL_UNAVAILABLE`.
 
 Actual local Laya is an Android ONNX Runtime session and was **not** run on this host. The pinned
 public `receptron/laya-onnx` bundle is present, and both official desktop ONNX Runtime Java

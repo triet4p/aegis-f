@@ -1,7 +1,6 @@
 package io.github.triet4p.aegisf.data.laya
 
 import io.github.triet4p.aegisf.data.effectiveInputDigest
-import io.github.triet4p.aegisf.data.isBlockedForSuggestionSafety
 
 /**
  * One stored reading that is relevant to a classification request.
@@ -112,9 +111,8 @@ data class LayaContextDecision(
  *   layer supplies them by ascending event id), each separated by a single space;
  * - a reading is added only while the composed text still fits the room the model leaves
  *   for its state, so the composed input is never longer than the model can accept; a
- *   reading that does not fit — or that the safety guard refuses — is left out and reported
- *   in [LayaEffectiveInput.droppedReadings] instead of being silently truncated into the
- *   text;
+ *   reading that does not fit is left out and reported in
+ *   [LayaEffectiveInput.droppedReadings] instead of being silently truncated into the text;
  * - the room is the room every candidate set leaves: the sequence's total budget minus the
  *   largest header the model may build, minus the four structural tokens around the state.
  *   Because the header never exceeds that bound, a composed input that fits the room is
@@ -186,7 +184,7 @@ object LayaEffectiveContextComposer {
         var tokens = primaryTokens
         for (reading in context.eventReadings) {
             val readingText = reading.text.trim()
-            if (readingText.isEmpty() || isBlockedForSuggestionSafety(readingText)) {
+            if (readingText.isEmpty()) {
                 dropped.add(reading)
                 continue
             }

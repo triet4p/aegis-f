@@ -299,3 +299,17 @@ old-snapshot alias is part of this contract.
 
 **Consequences:** Real runs may now dispatch at most 24 calls, adding up to eight calls of latency/cost headroom. The existing 12-turn, output, context, wall-clock, repeated-identical-call, privacy, authority, loaded-tool and scope bounds remain unchanged. Explicit S8.13 qualification limits stay pinned to their historical values; they are not requalified or altered.
 
+
+## [2026-11-02] Pass raw draft and eligible event text to local Laya
+
+**Decision:** Local Laya classification receives bank-draft descriptions and eligible supplemental event readings as raw text, without OTP, security-word, or mixed-alphanumeric reference rejection.
+
+**Alternatives considered:** Retain the local pattern gate; move the local check into a renamed adapter; or apply hosted-style outbound masking before on-device classification.
+
+**Reason:** The user explicitly authorized Laya to read raw text locally. These patterns are not a local authority boundary, and rejecting them prevented legitimate drafts and linked context from reaching the on-device classifier. Hosted egress has a separate privacy contract and is not changed by this decision.
+
+**Consequences:** This supersedes the earlier [2026-11-02] lesson describing the former
+local safety gate and manual envelope. Do not reintroduce a local OTP/security-word/bank-
+reference filter or compatibility shim. Keep unrelated empty-input, event provenance,
+context-size and model-budget rules, and preserve hosted outbound masking and explicit
+financial confirmation.

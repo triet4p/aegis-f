@@ -27,7 +27,6 @@ import io.github.triet4p.aegisf.data.WorkflowOperation
 import io.github.triet4p.aegisf.data.WorkflowOperationQuery
 import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.data.classificationDescription
-import io.github.triet4p.aegisf.data.isBlockedForSuggestionSafety
 import io.github.triet4p.aegisf.privacy.InboundScan
 import io.github.triet4p.aegisf.privacy.MaskedApplicationEffect
 import io.github.triet4p.aegisf.privacy.MaskedPath
@@ -989,22 +988,12 @@ class AgentToolRuntime(
                 }
                 manualClassification("classify_draft", draft, AgentErrorCode.MODEL_UNAVAILABLE)
             }
-            is WorkflowCommandOutcome.NeedsClarification -> {
-                // This outcome exposes prose rather than a reason code; reuse the guard instead of parsing it.
-                if (
-                    result.field == "description" &&
-                    isBlockedForSuggestionSafety(draft.classificationDescription())
-                ) {
-                    safetyBlockedClassification(
-                        tool = "classify_draft",
-                        draft = draft,
-                        subjectRef = draftRef.handle,
-                        field = result.field,
-                    )
-                } else {
-                    manualClassification("classify_draft", draft, AgentErrorCode.MODEL_UNAVAILABLE)
-                }
-            }
+            is WorkflowCommandOutcome.NeedsClarification -> AgentErrorCode.MISSING_REQUIRED_MEANING.asIssue(
+                "$.${fieldPathFor(result.field)}",
+                "domain_field_constraint",
+                "The application needs a grounded value before it can continue.",
+                subjectRef = draftRef.handle,
+            )
             is WorkflowCommandOutcome.Conflict -> throw staleDraft("$.draft_ref", requireDraft(draft.id))
             WorkflowCommandOutcome.NotFound -> subjectUnavailable("$.draft_ref", "The chosen draft is gone.")
             WorkflowCommandOutcome.Cancelled -> throw AgentToolException(
@@ -1054,34 +1043,6 @@ class AgentToolRuntime(
             ),
         )
     }
-
-    private suspend fun safetyBlockedClassification(
-        tool: String,
-        draft: PendingBankDraftEntity,
-        subjectRef: String,
-        field: String,
-    ): AgentToolExecution {
-        val fresh = requireDraft(draft.id)
-        val question = "Would you like to review this draft manually? Its stored description is " +
-            "blocked from local suggestions for safety; do not rephrase or resubmit it to obtain a suggestion."
-        return AgentToolExecution(
-            envelope = AgentEnvelope.clarifying(
-                tool = tool,
-                subjectRef = subjectRef,
-                field = field,
-                question = question,
-            ),
-            effectClaim = AgentEffectClaim.ClassificationManual(
-                draftId = fresh.id,
-                reasonCode = "SUGGESTION_SAFETY_BLOCKED",
-                reviewStatus = fresh.reviewStatus.name,
-                reviewRevision = fresh.reviewRevision,
-            ),
-            clarificationField = field,
-            clarificationQuestion = question,
-        )
-    }
-
 
     // ---- replay_operation ----------------------------------------------------------------
 

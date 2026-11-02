@@ -88,10 +88,14 @@ class WorkflowCommandServiceTest {
         val calls: Int
             get() = asked.get()
 
+        @Volatile
+        var lastContext: LayaEffectiveContext? = null
+
         override suspend fun classify(
             context: LayaEffectiveContext,
             categories: List<CategoryEntity>,
         ): ClassificationEngineResult {
+            lastContext = context
             asked.incrementAndGet()
             onClassify?.invoke()
             gate?.enter()
@@ -2499,30 +2503,41 @@ class WorkflowCommandServiceTest {
     }
 
     @Test
-    fun `text that is blocked for safety never reaches the model`() = runTest {
-        val database = open()
-        try {
-            val commands = commands(database)
-            val draftId = storeDraft(database, "fuel-key", 50_000L)
+    fun `description text with security words and bank references reaches local classification unchanged`() =
+        runTest {
+            val database = open()
+            try {
+                val commands = commands(database)
+                database.categoryDao().insert(
+                    CategoryEntity(
+                        name = "Food",
+                        createdAtEpochMillis = clock.now,
+                        updatedAtEpochMillis = clock.now,
+                    ),
+                )
+                val draftId = storeDraft(database, "fuel-key", 50_000L)
+                val rawDescription = "Your OTP is 123456; securityword 382K26A0; iPhone15"
+                val ledgerBefore = database.transactionDao().findAll()
 
-            val refused = commands.requestClassification(
-                WorkflowCallerScope.User,
-                ClassificationRequest(
-                    idempotencyKey = "classify-1",
-                    draftId = draftId,
-                    description = "Your OTP is 382K26A0",
-                ),
-            )
-            assertTrue(
-                "the blocked text was not refused: $refused",
-                refused is WorkflowCommandOutcome.NeedsClarification,
-            )
-            assertEquals(0, engine.calls)
-            assertNull(database.classificationSnapshotDao().findForDraft(draftId))
-        } finally {
-            database.close()
+                val result = commands.requestClassification(
+                    WorkflowCallerScope.User,
+                    ClassificationRequest(
+                        idempotencyKey = "classify-raw-local",
+                        draftId = draftId,
+                        description = rawDescription,
+                    ),
+                )
+
+                assertTrue("local classification did not settle: $result", result is WorkflowCommandOutcome.Applied)
+                assertEquals(1, engine.calls)
+                assertEquals(rawDescription, engine.lastContext?.primaryText)
+                assertTrue(engine.lastContext?.eventReadings?.isEmpty() == true)
+                assertEquals(ledgerBefore, database.transactionDao().findAll())
+                assertNotNull(database.classificationSnapshotDao().findForDraft(draftId))
+            } finally {
+                database.close()
+            }
         }
-    }
 
     @Test
     fun `a late prediction never replaces a newer context`() = runTest {

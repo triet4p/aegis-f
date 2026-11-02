@@ -98,9 +98,9 @@ The pipeline order is frozen and unchanged:
    `EMPTY_DESCRIPTION`, `NO_ACTIVE_CATEGORIES`, `INVALID_CATEGORY_METADATA`,
    `NO_METADATA_EVIDENCE`, `NO_FIT_CANDIDATES`, `SEQUENCE_UNFIT`,
    `EFFECTIVE_INPUT_OVER_BUDGET` (primary text alone larger than the 316-token room;
-   measured S5.4: 317 refused, 316 admitted; the text is never shortened to fit),
-   plus the narrow OTP/security/reference-code safety blocks, which yield null rather
-   than falling back to another input.
+   measured S5.4: 317 refused, 316 admitted; the text is never shortened to fit).
+   Supplemental readings still follow the existing emptiness, provenance and input-budget
+   rules; OTP/security-word and bank-reference patterns are not local Laya input filters.
 6. The model decision carries the evaluated category ids in evaluated order, their
    calibrated shares, the same-softmax unknown share, and the one sharpness value.
    Direct decisions (remembered rule, explicit correction, metadata match) carry no

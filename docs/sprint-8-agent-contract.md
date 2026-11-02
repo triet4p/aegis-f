@@ -49,10 +49,11 @@ Inspected application surface (behavioral, not aspirational):
   (states `PROPOSED` / `ACCEPTED` / `REJECTED`, one active draft per event),
   `ClassificationSnapshotEntity` (`PredictionSource`, `PredictionStaleReason`), `VndMoney`
   (whole-dong parsing, `checkedAddToTotal`), `ManualDateTime` (`YYYY-MM-DD`, `HH:mm`),
-  `SuggestionSafety` (only OTP/security-like text and bank reference codes are blocked),
   `LayaRuntimeContract` (`MAX_LEN` 512, `HEAD_MAX_LEN` 192, `suggest` review-only,
   `PRIMARY_EXCEEDS_ROOM` refusal), and `LayaEffectiveContextComposer`
-  (`guaranteedRoomTokens = maxLen − headMaxLen − 4`).
+  (`guaranteedRoomTokens = maxLen − headMaxLen − 4`). S8.14 local Laya receives raw draft
+  descriptions and eligible event readings without OTP/security-word/bank-reference filters;
+  hosted outbound masking remains a separate privacy boundary.
 - Evaluation-only instrumented bridge
   (`app/src/androidTest/…/S8WorkflowTrialInstrumentedTest.kt`): isolated in-memory Room,
   trusted `AgentSession("s8.3-isolated-trial", …)` scope, exact dispatch of the five v2

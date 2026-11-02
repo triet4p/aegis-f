@@ -846,15 +846,6 @@ class WorkflowCommandService(
                 ),
             )
         }
-        if (isBlockedForSuggestionSafety(description)) {
-            return releaseWith(
-                hold,
-                WorkflowCommandOutcome.NeedsClarification(
-                    "description",
-                    "The text is blocked for suggestion safety and is never offered to the model.",
-                ),
-            )
-        }
         val effective = snapshots.effectiveContextFor(request.draftId, description)
             ?: return releaseWith(hold, WorkflowCommandOutcome.NotFound)
         val activeCategories = query.categoryCatalog().filterNot { it.archived }
