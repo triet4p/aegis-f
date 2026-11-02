@@ -374,6 +374,19 @@ class WorkflowQueryService(
     )
 
     /**
+     * Reads exactly the session's bounded capture ids in the same newest-first order as a source page.
+     */
+    internal suspend fun sourceExcerptsByIdsNewestFirst(
+        captureIds: Set<Long>,
+    ): List<CaptureMessageEntity> {
+        require(captureIds.size <= QueryPageRequest.MAX_PAGE_SIZE) {
+            "A scoped source read is bounded to one maximum query page."
+        }
+        if (captureIds.isEmpty()) return emptyList()
+        return captureMessageDao.findByIds(captureIds.toList())
+    }
+
+    /**
      * Summarizes the stored interpretation and link states for one bounded set of captures.
      *
      * Counts come from the event and link rows themselves, so an unprocessed note remains

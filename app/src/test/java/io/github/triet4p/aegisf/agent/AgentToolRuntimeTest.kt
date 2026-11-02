@@ -5,6 +5,9 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import io.github.triet4p.aegisf.data.AddCategoryRequest
 import io.github.triet4p.aegisf.data.CategoryEntity
+import io.github.triet4p.aegisf.data.CaptureKind
+import io.github.triet4p.aegisf.data.CaptureMessageEntity
+import io.github.triet4p.aegisf.data.CaptureSourceKind
 import io.github.triet4p.aegisf.data.ClassificationEngine
 import io.github.triet4p.aegisf.data.ClassificationEngineResult
 import io.github.triet4p.aegisf.data.ContextLinkState
@@ -17,6 +20,7 @@ import io.github.triet4p.aegisf.data.LinkOperationQuery
 import io.github.triet4p.aegisf.data.PendingBankDraftEntity
 import io.github.triet4p.aegisf.data.QueryPageRequest
 import io.github.triet4p.aegisf.data.RejectLinkRequest
+import io.github.triet4p.aegisf.data.ReviseCaptureRequest
 import io.github.triet4p.aegisf.data.SaveCaptureRequest
 import io.github.triet4p.aegisf.data.SystemLedgerClock
 import io.github.triet4p.aegisf.data.WorkflowCallerScope
@@ -95,9 +99,90 @@ class AgentToolRuntimeTest {
         assertEquals(11, declarations.size)
     }
 
+    @Test
+    fun `financial confirmation and deletion tools remain unavailable`() = runBlocking {
+        val forbiddenNames = setOf(
+            "confirm_draft",
+            "delete_ledger",
+            "delete_transaction",
+            "delete_draft",
+        )
+        assertTrue(declarations.none { it.name in forbiddenNames })
+        val before = database.transactionDao().findAll()
+        val runtime = runtimeFor(scope)
+        forbiddenNames.forEach { name ->
+            val result = runtime.execute(name, JSONObject(), "forbidden-$name").envelope
+            assertEquals("error", result.getString("outcome"))
+            assertEquals("not_dispatched", result.getString("dispatch"))
+        }
+        assertEquals(before, database.transactionDao().findAll())
+    }
+
+
     @After
     fun tearDown() {
         if (::database.isInitialized) database.close()
+    }
+
+    @Test
+    fun `bounded capture observations follow capture timestamps and keep references bound`() = runBlocking {
+        val timestamps = listOf(1_000L, 5_000L, 2_000L, 4_000L, 3_000L)
+        val captureIds = timestamps.mapIndexed { index, timestamp ->
+            database.captureMessageDao().insert(
+                CaptureMessageEntity(
+                    captureKind = CaptureKind.USER_NOTE,
+                    sourceKind = CaptureSourceKind.USER_QUICK_CAPTURE,
+                    sourceIdentity = "s8.14-observation-order-$index",
+                    bodyText = "synthetic capture $index",
+                    capturedAtEpochMillis = timestamp,
+                    captureTimezone = "UTC",
+                    revision = 0,
+                    originRef = null,
+                ),
+            )
+        }
+        val session = WorkflowCallerScope.AgentSession(scope.scopeId, captureIds.toSet(), emptySet())
+        val registry = AgentReferenceRegistry(session.scopeId)
+        val runtime = AgentToolRuntime(
+            commands = commands,
+            queries = queries,
+            session = AgentToolSession(session, boundary, registry),
+            declarations = declarations,
+        )
+
+        val observations = runtime.initialCaptureObservations(2)
+        val expectedCaptureIds = listOf(captureIds[1], captureIds[3])
+        val observedCaptureIds = observations.map {
+            registry.resolve(it.getString("ref"), AgentReferenceKind.CAPTURE, "$.ref").captureId
+        }
+        assertEquals(expectedCaptureIds, observedCaptureIds)
+
+        val newest = observations.first()
+        val source = selectSource(runtime, newest.getString("ref"), newest.getString("source_text"))
+        val sourceRef = source.getString("source_ref")
+        val newestCaptureId = expectedCaptureIds.first()
+        assertEquals(
+            newestCaptureId,
+            registry.resolve(sourceRef, AgentReferenceKind.SOURCE, "$.source_ref").captureId,
+        )
+
+        val revised = commands.reviseCapture(
+            WorkflowCallerScope.User,
+            ReviseCaptureRequest(
+                idempotencyKey = "s8.14-observation-order-revision",
+                captureId = newestCaptureId,
+                expectedRevision = 0,
+                bodyText = "synthetic revised capture",
+            ),
+        )
+        assertTrue(revised is WorkflowCommandOutcome.Applied)
+        val stale = record(runtime, sourceRef, null, null, "synthetic reading", "amount")
+        assertEquals("STALE_OBSERVATION", stale.getJSONObject("error").getString("code"))
+        assertEquals(
+            newestCaptureId,
+            registry.resolve(sourceRef, AgentReferenceKind.SOURCE, "$.source_ref").captureId,
+        )
+        assertTrue(database.noteEventDao().findForCapture(newestCaptureId).isEmpty())
     }
 
     @Test
@@ -754,6 +839,72 @@ class AgentToolRuntimeTest {
     }
 
     @Test
+    fun blockedClassificationDoesNotCallLayaOrChangeState() = runBlocking {
+        val draftId = storeDraft(
+            amount = 29_000L,
+            date = "2026-10-21",
+            memo = "Bank notice contains OTP 123456",
+        )
+        var inferenceCalls = 0
+        val safetyCommands = WorkflowCommandService(
+            database = database,
+            clock = SystemLedgerClock,
+            timezoneId = { "Asia/Ho_Chi_Minh" },
+            engine = object : ClassificationEngine {
+                override suspend fun classify(
+                    context: LayaEffectiveContext,
+                    categories: List<CategoryEntity>,
+                ): ClassificationEngineResult {
+                    inferenceCalls += 1
+                    return ClassificationEngineResult.Failed("The test engine must not run for a safety block.")
+                }
+            },
+        )
+        val sessionScope = WorkflowCallerScope.AgentSession(scope.scopeId, scope.captureIds, setOf(draftId))
+        val runtime = AgentToolRuntime(
+            commands = safetyCommands,
+            queries = queries,
+            session = AgentToolSession(sessionScope, boundary, AgentReferenceRegistry(sessionScope.scopeId)),
+            declarations = declarations,
+        )
+        val draft = draftPage(runtime, draftId)
+        val operationKey = "s8.14-safety-blocked-classification"
+        val beforeDraft = database.pendingBankDraftDao().findById(draftId)!!
+        val beforeClassifications = database.classificationSnapshotDao().findPage(0, 20, 0)
+        val beforeLedger = database.transactionDao().findAll()
+        val beforeLinks = queries.linkOperations(
+            LinkOperationQuery(draftId = draftId, bounds = QueryPageRequest(20, 0)),
+        ).items
+
+        val execution = runtime.execute(
+            "classify_draft",
+            JSONObject().put("draft_ref", draft.getString("ref")),
+            operationKey,
+        )
+        val result = execution.envelope
+        val manualClaim = execution.effectClaim as? AgentEffectClaim.ClassificationManual
+
+        assertEquals("clarifying", result.getString("outcome"))
+        assertEquals("await_user", result.getJSONObject("control").getString("action"))
+        assertEquals("description", result.getJSONObject("data").getString("field"))
+        assertTrue(result.getJSONObject("data").getString("question").contains("blocked from local suggestions"))
+        assertTrue(result.isNull("error"))
+        assertEquals("none", result.getString("effect"))
+        assertEquals("SUGGESTION_SAFETY_BLOCKED", manualClaim?.reasonCode)
+        assertFalse(result.toString().contains("123456"))
+        assertEquals(0, inferenceCalls)
+        assertEquals(beforeDraft.reviewStatus, database.pendingBankDraftDao().findById(draftId)!!.reviewStatus)
+        assertEquals(beforeDraft.reviewRevision, database.pendingBankDraftDao().findById(draftId)!!.reviewRevision)
+        assertEquals(beforeClassifications, database.classificationSnapshotDao().findPage(0, 20, 0))
+        assertEquals(beforeLedger, database.transactionDao().findAll())
+        assertEquals(
+            beforeLinks,
+            queries.linkOperations(LinkOperationQuery(draftId = draftId, bounds = QueryPageRequest(20, 0))).items,
+        )
+        assertNull(database.workflowOperationDao().findByKey(operationKey))
+    }
+
+    @Test
     fun `local model refusal is a truthful manual state with no fabricated suggestion`() = runBlocking {
         val draftId = storeDraft(amount = 28_000L, date = "2026-10-21")
         val runtime = runtimeFor(
@@ -1338,7 +1489,11 @@ class AgentToolRuntimeTest {
         error("draft $draftId was not on the observed page")
     }
 
-    private suspend fun storeDraft(amount: Long, date: String): Long =
+    private suspend fun storeDraft(
+        amount: Long,
+        date: String,
+        memo: String = "Synthetic bank memo for $amount",
+    ): Long =
         database.pendingBankDraftDao().store(
             PendingBankDraftEntity(
                 deliveryId = "s8.13-pre-draft-$amount-$date",
@@ -1356,7 +1511,7 @@ class AgentToolRuntimeTest {
                 statedTime = "12:30",
                 momentUnresolvedReason = null,
                 memoState = IntakeFieldState.PRESENT,
-                memo = "Synthetic bank memo for $amount",
+                memo = memo,
                 memoUnresolvedReason = null,
                 createdAtEpochMillis = 1_798_000_000_000L,
             ),

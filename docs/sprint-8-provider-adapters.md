@@ -46,9 +46,10 @@ S8.4 draft:
   encoding is the `functionResponse` part in a `user` role turn, and that is what the adapter
   sends. The frozen contract text in `docs/sprint-8-agent-contract.md` §2.1 is intentionally left
   unchanged because it is checkpointed evidence; this document records the correction.
-- Responses chaining is **stateless**: the retained items are resent instead of naming a
-  `previous_response_id`, so no continuation is stored on the gateway. The full `output` list,
-  including reasoning items, is preserved because those items belong to the continuation.
+- Responses chaining is **stateless**: retained items are resent instead of naming a
+  `previous_response_id`, so no continuation is stored on the gateway. Reasoning items retain their
+  required identity and opaque `encrypted_content`; the adapter sends the required `summary: []`
+  field and drops plaintext `content` and `text` from each continuation.
 
 The Chat adapter also deliberately does not retain the gateway's `reasoning_content`: the live
 exchange continues correctly without it, and hidden reasoning must not enter stored conversation
@@ -64,12 +65,11 @@ notation inside it cannot refuse a valid response. A Gemini part with `thought: 
 no `functionCall` to the parsed turn even when its call bytes are schema-valid; only ordinary
 parts dispatch. Answer text and tool-call `arguments`/`args` stay guarded, and the parsed answer
 is checked again before publication and the parsed argument text again before dispatch. Retained
-continuation items keep protocol pairing (`thoughtSignature`, item `id`/`type`/`status`, `call_id`)
-byte-identical, including the opaque Responses `encrypted_content` continuation blob, while plaintext
-reasoning prose (Gemini `thought` text, Chat `reasoning_content`/`reasoning`, Responses `summary`/
-`content`/`text`) is dropped, so a raw literal inside reasoning never rides the next provider request;
-the pairing (`call_id`, `tool_call_id`, Gemini `id`, model/assistant message) is unchanged and
-remains fully valid per protocol. Reasoning is never promoted into answer text.
+continuation items retain protocol pairing (`thoughtSignature`, Responses item `id`/`type`/`status`/
+`call_id`) and opaque `encrypted_content`; the whole item is not byte-identical when a Responses
+reasoning item is reserialized: `summary` is empty and plaintext `content`/`text` are removed.
+Plaintext reasoning therefore never rides the next request, while required pairing remains valid.
+Reasoning is never promoted into answer text.
 
 `continueWithToolResults` also carries the host's issued-token inventory tail and lowers it
 natively after the tool outputs: an extra `role: "user"` message for Chat Completions, an extra

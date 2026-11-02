@@ -841,3 +841,31 @@ uv run python tools/slm/s8_agent_v3_qualification.py assisted-status @invocation
    `"phase": "assisted"`.
 
 Host coordination is required: the instrumentation must stay alive while the device pauses.
+## S8.14 integrated phone smoke
+
+`s814_integrated_phone_smoke.py` builds and tests the actual `MainActivity` on an authorized
+physical Android device, using the isolated S8.14 application package and synthetic data. The
+runner installs with `-r` and never clears app data or targets the base application. Each new run
+gets its own evidence directory with APK/source identity, UI screenshots, per-case state deltas,
+and privacy-sanitized request/response records.
+
+```powershell
+python tools/slm/s814_integrated_phone_smoke.py --device <authorized-device> --capture-only
+python tools/slm/s814_integrated_phone_smoke.py --device <authorized-device> --local-only
+python tools/slm/s814_integrated_phone_smoke.py --device <authorized-device> --hosted-primary-replay-slice
+```
+
+- `--capture-only` uses the actual MainActivity Compose semantics to save a synthetic note and
+  verify that the newest production observation resolves to the same stored source revision. It
+  has no hosted credential channel or provider calls.
+- `--local-only` does not load or deliver a hosted credential. It drives the production UI,
+  persistence and services through controlled transport faults, then verifies offline intake,
+  local Laya, manual entry, Dashboard totals, cancellation and fresh-process recovery.
+- `--hosted-primary-replay-slice` requires explicit task authorization and uses the existing secure
+  host credential loader with a one-shot device channel. It runs only the real hosted primary
+  workflow and its dependent persisted event/link journal replay; clarification, provider-switch,
+  controlled-fault and offline cases are not repeated in this mode.
+- All modes use synthetic fixtures only. Raw evidence omits auth headers and credential values,
+  distinguishes actual HTTP exchanges from controlled transport responses, and retains ordinary
+  failures. Never replace a missing result with a benchmark, service-only stub, forced tool order,
+  or inferred success.

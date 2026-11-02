@@ -86,8 +86,11 @@ internal fun HostedProviderSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text("Hosted agent", style = MaterialTheme.typography.headlineSmall)
-            Text("Requests use the selected HTTPS endpoint and may send locally masked context. " +
-                "Provider terms and network access apply. Manual entry, notification intake and local Laya remain available offline.")
+            Text(
+                "Requests use the selected HTTPS endpoint and may send locally masked context. " +
+                    "Masking reduces direct values but is not anonymity; remaining context may still identify you. " +
+                    "Review the endpoint and provider terms before sending. Manual entry, notification intake and local Laya remain available offline.",
+            )
             if (storeLoadFailed) {
                 Text(
                     "Secure provider settings could not be opened. Existing profiles are preserved; " +

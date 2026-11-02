@@ -75,6 +75,7 @@ import io.github.triet4p.aegisf.data.DraftCandidateQuery
 import io.github.triet4p.aegisf.data.IntakeReviewStatus
 import io.github.triet4p.aegisf.provider.HostedProviderConfig
 import io.github.triet4p.aegisf.provider.HostedProviderSettingsStore
+import io.github.triet4p.aegisf.privacy.MaskingBlockedException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -204,8 +205,11 @@ internal fun QuickCaptureScreen(
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.secondary,
                         )
-                        Text("Hosted requests require internet access and send locally masked context to the selected endpoint. " +
-                            "Without an active provider, Chat remains a local note journal; manual entry and intake work offline.")
+                        Text(
+                            "Hosted requests require internet access and send locally masked context to the selected endpoint. " +
+                                "Masking is not anonymity; remaining context may still identify you. Check the endpoint and provider terms before sending. " +
+                                "Without an active provider, Chat remains a local note journal; manual entry and intake work offline.",
+                        )
                     }
                 }
             }
@@ -287,6 +291,8 @@ internal fun QuickCaptureScreen(
                                                 agentProgress = null
                                             } catch (cancelled: CancellationException) {
                                                 throw cancelled
+                                            } catch (_: MaskingBlockedException) {
+                                                agentProgress = "Privacy protection stopped this request before it was sent. No application change was made."
                                             } catch (_: Exception) {
                                                 agentProgress = "The hosted request could not start. Check provider settings, network access, and the selected workflow scope."
                                             } finally {

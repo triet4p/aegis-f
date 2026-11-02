@@ -450,6 +450,74 @@ class BoundedWorkflowExecutorTest {
         assertEquals(WorkflowRunStopReason.TOOL_CALL_BUDGET, (outcome as WorkflowRunOutcome.Incomplete).reason)
         assertTrue(adapter.toolResultPayloads.isEmpty())
     }
+    @Test
+    fun `default tool-call budget dispatches twenty-four and refuses the next event write`() = runBlocking {
+        val fixture = prepare()
+        lateinit var adapter: ScriptedAdapter
+        val script = scripted()
+        script += {
+            toolTurn(call("select_source", JSONObject()
+                .put("capture_ref", captureRef(adapter))
+                .put("quote", sourceText(adapter))
+                .put("occurrence", 1)))
+        }
+        script += {
+            val selected = lastEnvelope(adapter).getJSONObject("data")
+            val listCalls = listOf("PENDING", "CONFIRMED", "DISMISSED", "ALL")
+                .flatMap { status ->
+                    listOf(false, true).flatMap { duplicatesOnly ->
+                        List(3) {
+                            call("list_drafts", JSONObject()
+                                .put("review_status", status)
+                                .put("duplicates_only", duplicatesOnly)
+                                .put("cursor", JSONObject.NULL))
+                        }
+                    }
+                }
+                .take(22)
+            val anchorCall = call("make_time_anchor", JSONObject()
+                .put("date_ref", valueRef(selected, "date"))
+                .put("time_ref", valueRef(selected, "time"))
+                .put("end_date_ref", JSONObject.NULL)
+                .put("end_time_ref", JSONObject.NULL))
+            toolTurn(anchorCall, *listCalls.toTypedArray())
+        }
+        script += {
+            val selected = JSONObject(adapter.toolResultPayloads[0].single()).getJSONObject("data")
+            val anchor = JSONObject(adapter.toolResultPayloads[1].first())
+                .getJSONObject("data")
+                .getString("anchor_ref")
+            toolTurn(call("record_event", JSONObject()
+                .put("source_ref", selected.getString("source_ref"))
+                .put("summary", "Coffee")
+                .put("amount_ref", valueRef(selected, "amount"))
+                .put("anchor_ref", anchor)
+                .put("merchant_ref", JSONObject.NULL)
+                .put("clarification", "none")))
+        }
+        adapter = ScriptedAdapter(script)
+
+        val outcome = run(fixture, adapter, WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.INTERPRET_EVENTS, WorkflowIntent.SEARCH_DRAFTS),
+            userRequest = "Interpret the note and inspect current draft review states.",
+        ))
+
+        assertTrue(outcome is WorkflowRunOutcome.Incomplete)
+        val incomplete = outcome as WorkflowRunOutcome.Incomplete
+        assertEquals(WorkflowRunStopReason.TOOL_CALL_BUDGET, incomplete.reason)
+        assertEquals(24, incomplete.toolCalls)
+        assertEquals(3, incomplete.turns)
+        assertEquals(3, adapter.generatedCount)
+        assertEquals(2, adapter.toolResultPayloads.size)
+        assertEquals(1, adapter.toolResultPayloads[0].size)
+        assertEquals(23, adapter.toolResultPayloads[1].size)
+        assertTrue(adapter.toolResultPayloads.flatten().all {
+            JSONObject(it).getString("outcome") == "ok"
+        })
+        assertTrue(database.noteEventDao().findForCapture(fixture.captureId).isEmpty())
+        assertEquals(0L, database.workflowOperationDao().countOf("UPDATE_EVENT"))
+        assertTrue(database.transactionDao().findAll().isEmpty())
+    }
 
     @Test
     fun `the context budget stops before any provider request`() = runBlocking {

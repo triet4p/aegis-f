@@ -15,9 +15,10 @@ import java.io.IOException
  * call.
  *
  * This adapter chains **statelessly**: the retained items are resent with the next request
- * instead of naming a server-side `previous_response_id`. The full `output` list (including
- * reasoning items) is retained verbatim because a reasoning item belongs to the continuation;
- * the trade-off is explicit and recorded in `docs/sprint-8-provider-adapters.md`.
+ * instead of naming a server-side `previous_response_id`. Message and function-call items retain
+ * their protocol fields; reasoning items preserve any opaque encrypted state with a required empty
+ * summary, while plaintext reasoning content is omitted. The trade-off is explicit and recorded
+ * in `docs/sprint-8-provider-adapters.md`.
  *
  * A `function_call` item whose status is `incomplete`, or any call from an `incomplete` response,
  * is reported as [ToolCallDisposition.TRUNCATED_TURN] and can never be executed.
@@ -438,23 +439,21 @@ class OpenAiResponsesAdapter internal constructor(
     }
 
     /**
-     * The retained output items with reasoning prose removed but protocol structure intact.
+     * Retained output items with plaintext reasoning removed and required protocol structure intact.
      *
-     * Responses continuation is stateless: the resent items must keep every `type`, `id`,
-     * `call_id`, `status` and pairing field byte-identical so call/result association survives.
-     * A `type: "reasoning"` item keeps its identity and status fields plus the opaque
-     * `encrypted_content` blob verbatim: that blob is provider continuation state, never
-     * plaintext reasoning, and the S8.5 live capture shows continuations must keep their
-     * required items while the Chat live capture proves reasoning prose needs no retention.
-     * Only plaintext reasoning prose (`summary`, `content`, `text`) is dropped so a mapped
-     * raw literal inside reasoning never rides the outbound continuation. Message and
-     * function_call items pass through byte-identical.
+     * Responses continuation is stateless: resent items keep their identity, status, call pairing and
+     * opaque `encrypted_content`. A reasoning item's `summary` array is required by the endpoint even
+     * when empty, so retain that field as an empty array; `content` and `text` are removed. No
+     * plaintext reasoning is sent on the continuation. Message and function_call items pass through
+     * byte-identical.
      */
     private fun scrubbedOutputItems(output: JSONArray): List<JSONObject> =
         (0 until output.length()).mapNotNull { index ->
             val copy = output.optJSONObject(index)?.deepCopy() ?: return@mapNotNull null
             if (copy.optString("type") != "reasoning") return@mapNotNull copy
-            for (key in listOf("summary", "content", "text")) copy.remove(key)
+            copy.put("summary", JSONArray())
+            copy.remove("content")
+            copy.remove("text")
             copy
         }
 

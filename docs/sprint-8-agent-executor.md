@@ -23,9 +23,12 @@ durable attempt and operation journal for retry, reconciliation and process-safe
 - `WorkflowRunRequest` — host-selected `WorkflowIntent`s (which load exactly those runtime
   skills), the trusted user request text and `WorkflowRunLimits`.
 - `WorkflowRunLimits` — `maxTurns`, `maxToolCalls`, `maxContextCharacters`, `maxWallClockMillis`,
-  `maxRepeatedIdenticalCalls`, `maxCaptureObservations`. The generation budget is not set here:
-  it is the host's frozen per-model `HostedGenerationBudget` from S8.5 (the live slice uses 8192
-  output tokens). There is no shared output cap and no retry that would hide truncation.
+  `maxRepeatedIdenticalCalls`, `maxCaptureObservations`. Current production defaults are 12 turns,
+  24 tool calls, 160,000 context characters, 300,000 ms, 3 repeated identical calls and 4 initial
+  capture observations. S8.14 raised only `maxToolCalls` from 16 to 24 after an actual phone trace
+  refused the valid 17th local-Laya call; every other run bound and the generation budget remain
+  unchanged. `HostedGenerationBudget` is the host's frozen per-model budget from S8.5 (the live
+  slice uses 8192 output tokens). There is no shared output cap or retry that hides truncation.
 - Outcomes — `Completed` (answer plus only the effects re-read from application state),
   `Clarifying` (the application asked for a user decision, with a one-shot continuation),
   `Refused` (an application/masking boundary the agent cannot cross) and `Incomplete` (a declared
@@ -97,6 +100,7 @@ mutation verifies against freshly read state:
 | Attached link | the exact pair is `ACCEPTED` with the recorded link id and revision |
 | Laya classification | a non-stale stored snapshot for the draft with the recorded source/category and a prediction time at or after the dispatch, while the draft's review status and revision are unchanged |
 | Laya unavailable/overbudget | the actual draft review status/revision is unchanged and no fabricated snapshot exists |
+| Suggestion-safety refusal | the `description` clarification is returned before local inference; no classification snapshot or workflow operation is recorded and the draft review state is unchanged |
 | Journal replay | the domain replay returned `no_change` for the exact scope/command/digest; `current_effect_matches` is reported separately and a superseded effect is never claimed as current |
 | Operation identity | one durable `workflow_operations` row exists for each applied/no-change mutation key |
 | No unexpected effect | no financial/confirmation/deletion tool exists; the draft stays `PENDING` |
@@ -126,10 +130,10 @@ not as success.
   contributes no tool call even when it carries schema-valid `functionCall` bytes; only
   ordinary parts dispatch. The model's answer and its tool-call arguments stay guarded in the
   decoded body, again in `maskTurnOrBlock` before publication/dispatch, and (arguments) again
-in the tool runtime. Retained continuation items keep protocol pairing (`thoughtSignature`,
-item `id`/`type`/`status`, `call_id`, opaque `encrypted_content`) byte-identical while plaintext
-reasoning prose (`thought` text, Responses `summary`/`content`/`text`) is dropped, so a raw
-literal inside reasoning never rides the next request. Reasoning is never promoted into the answer.
+- Gemini thought signatures and protocol call pairing are retained; Responses item identity/
+  status/call IDs and opaque `encrypted_content` are preserved. A Responses reasoning continuation
+  carries the required empty `summary` array and omits plaintext `content`/`text`; reasoning prose
+  is not replayed or promoted into the answer.
 - Every model turn carries the run's authoritative issued-token inventory
   (`s8-agent-token-inventory/v1`): `SensitiveVault.issuedTokens()` rendered as token plus kind only,
   in mint order, never a raw value or rehydration mapping. The executor appends it to the initial
@@ -152,6 +156,10 @@ authoritative stored description and bound review revision, and the real
 unconfirmed. The executor exposes only suspending calls; it does no blocking work on the caller's
 thread, and nothing in notification intake or manual entry depends on it, so both keep working
 while a hosted turn waits or fails.
+
+Suggestion-safety refusal uses the existing `clarifying`/`await_user` envelope and directs manual
+review. It is distinct from `MODEL_UNAVAILABLE`, which is reserved for an actual local inference
+failure; the blocked description is never rephrased or resubmitted to obtain a suggestion.
 
 Actual local Laya is an Android ONNX Runtime session and was **not** run on this host. The pinned
 public `receptron/laya-onnx` bundle is present, and both official desktop ONNX Runtime Java

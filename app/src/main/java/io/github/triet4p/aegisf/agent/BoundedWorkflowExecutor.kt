@@ -86,7 +86,7 @@ enum class WorkflowRunStopReason {
 /** Hard bounds of one run. */
 data class WorkflowRunLimits(
     val maxTurns: Int = 12,
-    val maxToolCalls: Int = 16,
+    val maxToolCalls: Int = 24,
     val maxContextCharacters: Int = 160_000,
     val maxWallClockMillis: Long = 300_000,
     val maxRepeatedIdenticalCalls: Int = 3,

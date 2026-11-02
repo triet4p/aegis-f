@@ -27,8 +27,8 @@ interface CaptureMessageDao {
     @Query("SELECT * FROM capture_messages ORDER BY id")
     suspend fun findAllIncludingTombstones(): List<CaptureMessageEntity>
 
-    /** The named sources, read by their ids; an empty list reads nothing. */
-    @Query("SELECT * FROM capture_messages WHERE id IN (:ids)")
+    /** The named sources, in the shared newest-capture-first order. */
+    @Query("SELECT * FROM capture_messages WHERE id IN (:ids) ORDER BY capturedAtEpochMillis DESC, id DESC")
     suspend fun findByIds(ids: List<Long>): List<CaptureMessageEntity>
 
     /**

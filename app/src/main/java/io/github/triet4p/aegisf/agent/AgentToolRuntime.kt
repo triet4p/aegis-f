@@ -27,6 +27,7 @@ import io.github.triet4p.aegisf.data.WorkflowOperation
 import io.github.triet4p.aegisf.data.WorkflowOperationQuery
 import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.data.classificationDescription
+import io.github.triet4p.aegisf.data.isBlockedForSuggestionSafety
 import io.github.triet4p.aegisf.privacy.InboundScan
 import io.github.triet4p.aegisf.privacy.MaskedApplicationEffect
 import io.github.triet4p.aegisf.privacy.MaskedPath
@@ -988,7 +989,22 @@ class AgentToolRuntime(
                 }
                 manualClassification("classify_draft", draft, AgentErrorCode.MODEL_UNAVAILABLE)
             }
-            is WorkflowCommandOutcome.NeedsClarification -> manualClassification("classify_draft", draft, AgentErrorCode.MODEL_UNAVAILABLE)
+            is WorkflowCommandOutcome.NeedsClarification -> {
+                // This outcome exposes prose rather than a reason code; reuse the guard instead of parsing it.
+                if (
+                    result.field == "description" &&
+                    isBlockedForSuggestionSafety(draft.classificationDescription())
+                ) {
+                    safetyBlockedClassification(
+                        tool = "classify_draft",
+                        draft = draft,
+                        subjectRef = draftRef.handle,
+                        field = result.field,
+                    )
+                } else {
+                    manualClassification("classify_draft", draft, AgentErrorCode.MODEL_UNAVAILABLE)
+                }
+            }
             is WorkflowCommandOutcome.Conflict -> throw staleDraft("$.draft_ref", requireDraft(draft.id))
             WorkflowCommandOutcome.NotFound -> subjectUnavailable("$.draft_ref", "The chosen draft is gone.")
             WorkflowCommandOutcome.Cancelled -> throw AgentToolException(
@@ -1003,24 +1019,28 @@ class AgentToolRuntime(
         draft: PendingBankDraftEntity,
         code: AgentErrorCode,
     ): AgentToolExecution {
+        val issue = if (code == AgentErrorCode.INPUT_OVER_BUDGET) {
+            AgentIssue(
+                "$.draft_ref",
+                "input_fits_local_budget",
+                null,
+                "The stored description exceeds the local model's input budget. It was not shortened.",
+            )
+        } else {
+            AgentIssue(
+                "$.draft_ref",
+                "local_model_available",
+                null,
+                "The local Laya model did not produce a suggestion. Review remains manual.",
+            )
+        }
         val fresh = requireDraft(draft.id)
         val observation = draftObservation(fresh)
         return AgentToolExecution(
             envelope = AgentEnvelope.error(
                 tool = tool,
                 code = code,
-                issues = listOf(
-                    AgentIssue(
-                        "$.draft_ref",
-                        if (code == AgentErrorCode.INPUT_OVER_BUDGET) "input_fits_local_budget" else "local_model_available",
-                        null,
-                        if (code == AgentErrorCode.INPUT_OVER_BUDGET) {
-                            "The stored description exceeds the local model's input budget. It was not shortened."
-                        } else {
-                            "The local Laya model did not produce a suggestion. Review remains manual."
-                        },
-                    ),
-                ),
+                issues = listOf(issue),
                 dispatch = "dispatched",
                 effect = "none",
                 observations = listOf(observation),
@@ -1034,6 +1054,34 @@ class AgentToolRuntime(
             ),
         )
     }
+
+    private suspend fun safetyBlockedClassification(
+        tool: String,
+        draft: PendingBankDraftEntity,
+        subjectRef: String,
+        field: String,
+    ): AgentToolExecution {
+        val fresh = requireDraft(draft.id)
+        val question = "Would you like to review this draft manually? Its stored description is " +
+            "blocked from local suggestions for safety; do not rephrase or resubmit it to obtain a suggestion."
+        return AgentToolExecution(
+            envelope = AgentEnvelope.clarifying(
+                tool = tool,
+                subjectRef = subjectRef,
+                field = field,
+                question = question,
+            ),
+            effectClaim = AgentEffectClaim.ClassificationManual(
+                draftId = fresh.id,
+                reasonCode = "SUGGESTION_SAFETY_BLOCKED",
+                reviewStatus = fresh.reviewStatus.name,
+                reviewRevision = fresh.reviewRevision,
+            ),
+            clarificationField = field,
+            clarificationQuestion = question,
+        )
+    }
+
 
     // ---- replay_operation ----------------------------------------------------------------
 
@@ -1331,10 +1379,17 @@ class AgentToolRuntime(
     // ---- Initial observations (host-only) ------------------------------------------------
 
     /** The bounded capture observations the first prompt carries. */
-    suspend fun initialCaptureObservations(limit: Int): List<JSONObject> =
-        scope.captureIds.sorted().take(limit).mapNotNull { captureId ->
-            runCatching { captureObservation(requireCapture(captureId)) }.getOrNull()
+    suspend fun initialCaptureObservations(limit: Int): List<JSONObject> {
+        if (limit <= 0 || scope.captureIds.isEmpty()) return emptyList()
+        val captures = queries.sourceExcerptsByIdsNewestFirst(scope.captureIds)
+        val observations = ArrayList<JSONObject>(minOf(limit, captures.size))
+        for (capture in captures) {
+            if (observations.size >= limit) break
+            if (capture.tombstone || capture.bodyText == null) continue
+            runCatching { captureObservation(capture) }.getOrNull()?.let(observations::add)
         }
+        return observations
+    }
 
     /** The bounded draft page the first prompt carries for a draft-dependent workflow. */
     suspend fun initialDraftObservation(): JSONObject? =

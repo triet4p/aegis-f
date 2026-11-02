@@ -15,10 +15,11 @@ import org.robolectric.annotation.Config
 /**
  * The Responses adapter's observable contract.
  *
- * Fixtures follow the verified typed-item shape: `output` holds a preserved reasoning item and a
- * `function_call` item with `call_id` and a JSON-string `arguments`; the result is a
- * `function_call_output` item. Truncated items, `incomplete`/`failed`/`cancelled` statuses,
- * missing identities and unanswerable call ids are each reported as their own outcome.
+ * Fixtures follow the verified typed-item shape: `output` holds a reasoning item whose opaque state
+ * is preserved while plaintext summary/content is removed, and a `function_call` item with `call_id`
+ * and a JSON-string `arguments`; the result is a `function_call_output` item. Truncated items,
+ * `incomplete`/`failed`/`cancelled` statuses, missing identities and unanswerable call ids are each
+ * reported as their own outcome.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -104,9 +105,11 @@ class OpenAiResponsesAdapterTest {
     }
 
     @Test
-    fun `continuation resends retained items and supplies one output per call id`() = runBlocking {
-        val transport = FakeTransport(
-            ProviderFixtures.reply(functionCallReply()),
+    fun `continuation satisfies the required summary field without forwarding reasoning prose`() = runBlocking {
+        val privateReasoning = "SYNTHETIC_PRIVATE_REASONING"
+        val transport = SummarySchemaTransport(
+            privateReasoning,
+            ProviderFixtures.reply(privateReasoningFunctionCallReply()),
             ProviderFixtures.reply(
                 """
                 {"model":"gpt-6-luna","status":"completed","output":[
@@ -125,16 +128,21 @@ class OpenAiResponsesAdapterTest {
         )
         val finalTurn = ProviderFixtures.turn(adapter.generate(next, listOf(ProviderFixtures.echoTool)))
 
+        assertEquals(HostedTurnFinish.Complete, finalTurn.finish)
         assertNull(finalTurn.conversation)
 
-        val input = transport.requestJson(1).getJSONArray("input")
+        val continuationRequest = transport.requestJson(1)
+        val input = continuationRequest.getJSONArray("input")
         assertEquals(4, input.length())
         assertEquals("user", input.getJSONObject(0).getString("role"))
-        assertEquals("rs_1", input.getJSONObject(1).getString("id"))
-        assertFalse("reasoning prose must not ride the continuation", input.getJSONObject(1).has("summary"))
-        assertFalse("reasoning summaries must not ride the continuation", input.getJSONObject(1).has("content"))
-        assertEquals("opaque continuation state stays verbatim", "opaque-reasoning", input.getJSONObject(1).getString("encrypted_content"))
-        assertFalse("reasoning item must not gain invented fields", input.getJSONObject(1).has("status"))
+        val reasoning = input.getJSONObject(1)
+        assertEquals("rs_1", reasoning.getString("id"))
+        assertTrue(reasoning.has("summary"))
+        assertEquals(0, reasoning.getJSONArray("summary").length())
+        assertFalse(reasoning.has("content"))
+        assertFalse(reasoning.has("text"))
+        assertEquals("opaque-reasoning", reasoning.getString("encrypted_content"))
+        assertFalse(transport.requests[1].body.contains(privateReasoning))
         val output = input.getJSONObject(3)
         assertEquals("function_call_output", output.getString("type"))
         assertEquals("call_1", output.getString("call_id"))
@@ -340,6 +348,53 @@ class OpenAiResponsesAdapterTest {
         return ProviderFixtures.failure(
             adapter.generate(adapter.begin("system", "probe"), listOf(ProviderFixtures.echoTool)),
         )
+    }
+
+
+    private fun privateReasoningFunctionCallReply(): String = """
+        {"id":"resp_1","object":"response","model":"gpt-6-luna","status":"completed","output":[
+          {"id":"rs_1","type":"reasoning",
+           "summary":[{"type":"summary_text","text":"SYNTHETIC_PRIVATE_REASONING"}],
+           "content":"SYNTHETIC_PRIVATE_REASONING content","text":"SYNTHETIC_PRIVATE_REASONING text",
+           "encrypted_content":"opaque-reasoning"},
+          {"id":"fc_1","type":"function_call","status":"completed","name":"probe_echo",
+           "call_id":"call_1","arguments":"{\"value\":\"ALPHA-17\"}"}],
+         "usage":{"input_tokens":178,"output_tokens":22,"total_tokens":200,
+           "output_tokens_details":{"reasoning_tokens":0},"input_tokens_details":{"cached_tokens":0}}}
+    """.trimIndent()
+
+    private class SummarySchemaTransport(
+        private val privateReasoning: String,
+        vararg responses: HostedHttpResponse,
+    ) : HttpTransport {
+        val requests = mutableListOf<HostedHttpRequest>()
+        private val queuedResponses = responses.toMutableList()
+
+        override suspend fun post(request: HostedHttpRequest): HostedHttpResponse {
+            requests += request
+            if (requests.size == 2) {
+                val input = JSONObject(request.body).getJSONArray("input")
+                val reasoning = (0 until input.length())
+                    .map(input::getJSONObject)
+                    .firstOrNull { it.optString("type") == "reasoning" }
+                val summary = reasoning?.optJSONArray("summary")
+                if (summary == null) {
+                    return ProviderFixtures.reply(
+                        """{"error":{"type":"invalid_request_error","code":"missing_required_parameter","param":"input[1].summary"}}""",
+                        status = 400,
+                    )
+                }
+                if (summary.length() != 0 || request.body.contains(privateReasoning)) {
+                    return ProviderFixtures.reply(
+                        """{"error":{"type":"invalid_request_error","code":"invalid_value","param":"input[1].summary"}}""",
+                        status = 400,
+                    )
+                }
+            }
+            return queuedResponses.removeAt(0)
+        }
+
+        fun requestJson(index: Int): JSONObject = JSONObject(requests[index].body)
     }
 
     private fun functionCallReply(): String = """

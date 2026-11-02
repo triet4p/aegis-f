@@ -289,3 +289,13 @@ old-snapshot alias is part of this contract.
 **Alternatives considered:** Adding a new merchant value-alias tool or API; loosening the scorer safety stop for present-but-wrong merchants; rewriting frozen fixtures with new merchant cases.
 **Reason:** The host already accepts the correct handle (exact merchant-substring source alias); the gap is purely model-facing guidance, and the scorer correctly treats a wrong present merchant as a financial-safety stop. New APIs, gate loosening or fixture rewrites would widen the contract instead of closing the guidance gap.
 **Consequences:** The skill catalog version moves 3 to 4 and the tool-schema digest moves with the description text; all consumers must migrate together. No new training examples enter the frozen suites and no old batch is rescored.
+## [2026-11-01] Raise the default workflow tool-call cap to 24
+
+**Decision:** Set the production `WorkflowRunLimits.maxToolCalls` default to 24 and leave every other run, provider, privacy, and authority limit unchanged.
+
+**Alternatives considered:** Keep the observed default of 16; add a per-task/per-test override; raise the limit by more than eight calls; or change the turn, output-token, wall-clock, repeated-call, or context bounds.
+
+**Reason:** In one authorized physical-phone run, the production workflow stored the exact event and accepted link without a ledger mutation, then refused the requested local Laya call as `TOOL_CALL_BUDGET` after 16 dispatched calls; the valid classification request was call 17. The selected app preset still used its unchanged 8192-token output budget and the hosted exchanges returned HTTP 200. Main approved 24 as bounded completion headroom; a per-test override would conceal production behavior, and no broader budget change was authorized.
+
+**Consequences:** Real runs may now dispatch at most 24 calls, adding up to eight calls of latency/cost headroom. The existing 12-turn, output, context, wall-clock, repeated-identical-call, privacy, authority, loaded-tool and scope bounds remain unchanged. Explicit S8.13 qualification limits stay pinned to their historical values; they are not requalified or altered.
+

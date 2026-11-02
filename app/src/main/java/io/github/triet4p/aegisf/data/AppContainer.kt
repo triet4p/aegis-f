@@ -14,6 +14,7 @@ import io.github.triet4p.aegisf.privacy.MaskedPromptBoundary
 import io.github.triet4p.aegisf.privacy.SensitiveVault
 import io.github.triet4p.aegisf.provider.HostedAdapters
 import io.github.triet4p.aegisf.provider.HostedProviderConfig
+import io.github.triet4p.aegisf.provider.HttpTransport
 import io.github.triet4p.aegisf.provider.UrlConnectionHttpTransport
 import java.util.UUID
 import java.io.File
@@ -165,6 +166,9 @@ class AppContainer(context: Context) {
         HostedProviderSettingsStore(appContext)
     }
 
+    /** Production hosted transport; instrumentation may wrap it without replacing the workflow. */
+    internal var hostedHttpTransport: HttpTransport = UrlConnectionHttpTransport()
+
     /** Durable hosted-run metadata remains separate from conversations and business data. */
     val agentRunHistory: AgentRunHistory by lazy { AgentRunHistory(database) }
 
@@ -177,7 +181,7 @@ class AppContainer(context: Context) {
         config: HostedProviderConfig,
     ): WorkflowRunHost {
         val boundary = MaskedPromptBoundary(SensitiveVault(scope.scopeId))
-        val adapter = HostedAdapters.create(config, UrlConnectionHttpTransport())
+        val adapter = HostedAdapters.create(config, hostedHttpTransport)
         return WorkflowRunHost(
             scope = scope,
             boundary = boundary,

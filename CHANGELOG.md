@@ -7,6 +7,11 @@ and no release has been tagged or published. Format follows
 
 ## [Unreleased]
 ### Added
+- Added a bounded S8.14 physical-phone integration runner for the actual app UI. Its credential-free
+  local mode exercises recovery and offline work; the separately selected
+  `--hosted-primary-replay-slice` runs only the real hosted primary workflow and its persisted
+  local event/link journal replay. Each run retains synthetic requests/results, app screenshots,
+  state deltas, and exact source/APK identity without auth headers or credential values.
 
 - Added assisted PASS@2 qualification. After a frozen-rubric first failure, the same phone run
   can receive exactly one host-authored user message and continue from the same chat history,
@@ -37,6 +42,11 @@ and no release has been tagged or published. Format follows
   and recovery keeps its initial-failure denominator (for example 1 of 4 failures = 25%).
 
 ### Changed
+- Raised the production workflow's default tool-call ceiling from 16 to 24 after a physical-phone
+  run reached a legitimate 17th local-Laya request that the old cap refused. All other run,
+  provider, privacy and authority limits remain unchanged; the behavioral boundary regression
+  proves dispatch stops before effects beyond the configured cap.
+
 
 - Agent observations now carry the application's own user label for each row ("draft #421",
   "event #313"), and a pair observation names the exact event and draft labels it binds, so a
@@ -61,6 +71,16 @@ and no release has been tagged or published. Format follows
   recorded scores are preserved and are not regraded.
 
 ### Fixed
+- Fixed Responses continuation construction to preserve required protocol state, send an empty
+  `summary` array, and omit plaintext reasoning `content`/`text`. Consumer-visible schema/privacy
+  regression coverage and a real phone exchange verify the continuation no longer fails on the
+  required summary field.
+- Fixed capture-source observations to use the existing newest-first capture ordering while keeping
+  each reference bound to its scope and source revision; a revision race still refuses stale writes.
+
+- The capture-only diagnostic and hosted primary now share the same actual Compose semantics-guided
+  save action; it targets the input whose subtree contains the visible label, saves through the
+  real UI, then confirms that the newest source observation resolves to that exact saved revision.
 - Fixed the fresh assisted qualification batch so the already-approved no-fail-fast policy applies
   without a retained prefix: a case-level rubric verdict, including a tentative duplicate-link
   proposal, is recorded with its actual effects and the next independent case still runs. Credential
@@ -139,6 +159,9 @@ and no release has been tagged or published. Format follows
   changes with the corrected instruction. Added local adapter regression and Gemini/OpenAI
   tool-wire smoke coverage; qualification fixtures, scores, gates, and hosted measurement
   counts are unchanged.
+
+- Fixed `classify_draft` to return a manual-review clarification for description safety blocks before
+  local inference, while keeping actual local model failures under `MODEL_UNAVAILABLE`.
 
 ### Added
 

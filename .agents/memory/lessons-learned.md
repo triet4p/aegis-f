@@ -361,3 +361,10 @@ and allow only the exact validated external report rather than opening a blanket
 **Root cause:** The `select_source`/`record_event` guidance and the loaded `event-reading` examples taught only whole-occurrence selection with a null merchant; nothing told the model that only an explicitly named seller-or-place counterparty is a merchant and that a product/item/activity description must stay null.
 **Fix / workaround:** Focus the tool descriptions and the skill fewshots on the counterparty distinction: a second `select_source` on the exact explicitly named seller-or-place substring supplies `merchant_ref`; a product/item/activity description is never promoted; an absent or uncertain merchant stays null with clarification `none`. Provenance still only proves the substring, never its semantic role.
 **Watch out for:** Span validation passing does not mean the field is semantically correct. Any new fewshot must use novel synthetic wording, never frozen case text, and must cover absent, explicit and uncertain merchant cases without inventing refs.
+
+## [2026-11-02] Suggestion-safety refusal appeared as local model unavailability
+
+**Symptom:** `classify_draft` returned `MODEL_UNAVAILABLE` for a `NeedsClarification(description, ...)` result even though suggestion safety had refused the description before inference.
+**Root cause:** The runtime treated every classification clarification as a failed or unavailable model request.
+**Fix / workaround:** Reuse `isBlockedForSuggestionSafety` to distinguish the pre-inference refusal, return the existing `clarifying`/`await_user` manual-review envelope, and reserve `MODEL_UNAVAILABLE` for actual inference failures.
+**Watch out for:** `NeedsClarification.reason` is human-readable; do not branch on its complete prose or weaken the safety classifier to force a prediction.

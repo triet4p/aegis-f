@@ -11,7 +11,7 @@ opt-in notification review inbox — every bank-derived record still requires th
   delete — with no product-imposed count limit.
 - **Entries:** expenses, income, and internal transfers, recorded manually with amount, type, date,
   time, optional description, and a category where applicable.
-- **Storage:** a local Room/SQLite database on the device; nothing leaves the phone.
+- **Storage and privacy:** Ledger records, notes, drafts, and run history are kept in the on-device Room/SQLite database. Hosted requests are opt-in: when you explicitly start a run, selected context may be sent to the configured HTTPS endpoint after on-device masking. Masking reduces direct values, but is not anonymity; remaining context may still identify you.
 
 ## What the app does today
 
@@ -22,17 +22,9 @@ opt-in notification review inbox — every bank-derived record still requires th
   destinations. At 1.3× system font scale, all four tab labels remain on one line. Switching
   destinations or going back keeps unsaved form input and list filters, and the open destination,
   route and draft survive process recreation.
-- **Chat / Quick Capture** — a persistent local journal, not a fake chat. Any nonblank text saves
-  as a source-backed note with a timestamp and stored unresolved/linked status. Each capture can
-  hold multiple editable event interpretations tied to exact, user-selected source excerpts.
-  Bounded pending-draft browsing lets you explicitly attach, permanently reject, or unlink context;
-  missing or multiple candidates are never selected automatically, stale source conflicts stay
-  visible, and link decisions never change a bank-stated amount. An unmatched event can open a
-  prefilled Manual form with its saved-note/event provenance; it becomes a ledger record only after
-  you explicitly save it, so cash or other entries never wait for a notification match. History
-  edits and deletes follow source revision rules; deletion leaves a text-free provenance tombstone,
-  clears derived context and active links, and does not change the ledger. No notification access
-  or model setup is needed; no assistant reply, automatic match or financial record is created.
+- **Chat / Quick Capture** — a persistent local journal and an optional hosted workflow. Saving a note is local and does not send it or create a ledger record. Captures can hold multiple editable event interpretations tied to exact source excerpts. Bounded pending-draft browsing lets you explicitly attach, permanently reject, or unlink context; missing or multiple candidates are never selected automatically, stale source conflicts stay visible, and link decisions never change a bank-stated amount. An unmatched event can open a prefilled Manual form with its saved-note/event provenance; it becomes a ledger record only after you explicitly save it.
+  When you explicitly start a hosted run, selected notes, drafts, and tool results are masked on-device before being sent to the endpoint shown in Settings. The assistant can interpret notes, search drafts, attach only eligible links, request a local Laya review, or ask one visible clarification. It cannot confirm or dismiss a bank draft, delete a ledger record, or create a financial record; review and confirmation remain separate user actions. A failed run stays visibly incomplete with retry/manual options, and cancellation does not roll back an effect already recorded. Local notes, intake, Manual entry, and Laya remain available without hosted inference.
+- **Hosted provider privacy disclosure** — before sending, Chat and provider settings warn that the selected HTTPS endpoint receives locally masked context and that masking is not anonymity. Review the endpoint and its terms before starting a request.
 - **Manual → Record a transaction** — amount, type (expense, income, internal transfer), date (`YYYY-MM-DD`),
   time (`HH:mm`, device time zone), optional description, and a category. Starting from an unmatched
   note event pre-fills the stated amount, date, description and provenance reference; nothing is
