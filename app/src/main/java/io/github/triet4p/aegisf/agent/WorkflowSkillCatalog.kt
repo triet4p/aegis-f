@@ -105,8 +105,8 @@ class WorkflowSkillCatalog private constructor(
     }
 
     companion object {
-        const val ASSET_NAME = "s8_agent_runtime_skills_v7.json"
-        const val SCHEMA = "aegis-f-s8-agent-runtime-skills/v7"
+        const val ASSET_NAME = "s8_agent_runtime_skills_v8.json"
+        const val SCHEMA = "aegis-f-s8-agent-runtime-skills/v8"
 
         private val EXPECTED_IDS = WorkflowSkillId.entries.associateBy(WorkflowSkillId::wireId)
         private val EXPECTED_VERSIONS = mapOf(
@@ -129,13 +129,18 @@ class WorkflowSkillCatalog private constructor(
             // spellings) is resolved by the host from the capture's own recorded local date and
             // zone, while a period word stays a date clarification.
             WorkflowSkillId.EVENT_READING to 8,
-            WorkflowSkillId.DRAFT_SEARCH to 1,
+            // Version 2 uses event-bound candidate retrieval, app-ranked evidence and explicit
+            // incomplete-scope outcomes; receipt time, category choice and model certainty never
+            // establish identity.
+            WorkflowSkillId.DRAFT_SEARCH to 2,
             // Version 2 states that eligibility governs attachment only: an ambiguous pair may
             // still be recorded as one tentative proposal before the user is asked to choose.
             // Version 3 grounds user-visible narration: every observation carries the application's
             // own user_label and a pair observation names the exact event/draft labels it binds, so a
             // candidate question copies the proposed row's label instead of inferring it from order.
-            WorkflowSkillId.LINK_EVENT_DRAFT to 3,
+            // Version 4 binds retrieval to the selected event and preserves the distinction between
+            // candidate outcomes and the later attachment decision.
+            WorkflowSkillId.LINK_EVENT_DRAFT to 4,
             // Version 1 of the hosted category workflow: the model chooses one existing
             // category from the draft's own current choices and submits it through the
             // ordinary draft-review update. There is no classifier, translation hop or

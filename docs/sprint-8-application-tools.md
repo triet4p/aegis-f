@@ -10,16 +10,16 @@ declarations. The executor loads only the declarations the selected skills requi
 
 ## Closed catalog and selective loading
 
-The one runtime declaration file is `tools/slm/s8_agent_tools_v7.json`
-(`aegis-f-s8-agent-tools/v7`). Its contract marker is `aegis-agent-interface/7`. It contains exactly
-these eleven tools, each with a flat argument object, `additionalProperties: false`, and every
-named field listed in `required`:
+The one active runtime declaration file is `tools/slm/s8_agent_tools_v8.json`
+(`aegis-f-s8-agent-tools/v8`), contract `aegis-agent-interface/8`. It contains eleven closed
+tools with flat argument objects and `additionalProperties: false`. Every required field is
+declared in `required`; `list_drafts.event_ref` is its one optional event-bound query field.
 
 | Tool | Arguments | Kind |
 | --- | ---: | --- |
 | `observe` | 1 | read |
 | `select_source` | 3 | pure preparation |
-| `list_drafts` | 3 | read |
+| `list_drafts` | 3 required (+ optional `event_ref`) | read |
 | `make_time_anchor` | 4 | pure preparation |
 | `record_event` | 6 | atomic business mutation |
 | `inspect_link` | 2 | read/evidence evaluation |
@@ -92,12 +92,29 @@ neither computes the date nor asks for it again. A period word (`this morning`, 
 it a date clarification instead of a fabricated day. A capture that records no usable instant or
 zone resolves nothing and asks for the absolute date.
 
-`list_drafts` returns one bounded host-sized page (10 rows) of the authorized stored drafts, the
-filter-bound `next_cursor`, and `scope_exhausted`. `review_status` is a required non-null enum
-(`PENDING`, `CONFIRMED`, `DISMISSED`, `ALL`); `ALL` disables only the review-state filter. A cursor
-binds the scope, filters and ordered row revisions; reuse with different filters, or after the page
-changed, returns `CURSOR_STALE` with a fresh cursor rather than silently skipping or repeating
-rows. A possible-duplicate flag is not proof of a duplicate.
+`list_drafts` returns one bounded host-sized page (10 rows), a filter-bound `next_cursor`, and
+`scope_exhausted`. `review_status` remains a required non-null enum (`PENDING`, `CONFIRMED`,
+`DISMISSED`, `ALL`); `ALL` disables only the review-state filter. Optional `event_ref` binds the
+read to one current event alias and requires `PENDING` plus `duplicates_only=false`. Event-bound
+retrieval uses the event's stated day or interval, available amount and normalized merchant
+evidence, and applies explicit pending-draft corrections before comparison. Known amount, time or
+merchant conflicts exclude a row; missing fields remain missing evidence, not a conflict or proof.
+The bank's parsed transaction date/time is distinct from notification receipt time
+(`postedAtEpochMillis`), which is not read as purchase time. Ranking is exact amount, event-time
+compatibility, exact merchant, point-time distance as ordering only, then creation time and id;
+category choice and model certainty are never inputs. Account and event transaction type are
+`UNKNOWN` because the event does not store them; neither is inferred from bank name or direction.
+The result reports `MISSING`, `UNIQUE`, `AMBIGUOUS`, `CONFLICTING` or `INCOMPLETE`, plus per-row
+evidence and rationale. It distinguishes `candidate_set_complete_within_granted_scope` (every
+authorized id was evaluated), `candidate_page_complete` (whether the item page needs `next_cursor`),
+and `pending_database_complete_at_recheck` (the initial pending page was complete and a bounded
+current pending-id recheck found every pending id inside the grant). The app currently grants at
+most its first 32 pending draft ids to a hosted session. Fresh pending ids outside that grant or
+another bounded current page make `pending_database_complete_at_recheck` false, even if zero or
+one compatible granted rows are visible. Those rows remain useful, but the outcome is
+`INCOMPLETE`; `UNIQUE` or `MISSING` cannot be claimed database-wide. `scope_exhausted` is false
+when candidate pages remain or the pending database recheck is incomplete. Cursors page candidate
+results within the grant and never widen it. A possible-duplicate flag is not proof of a duplicate.
 
 ## Atomic event recording
 
@@ -214,14 +231,13 @@ candidate answer.
 
 ## Assets, identity and affected consumers
 
-`tools/slm/s8_agent_tools_v5.json` and `tools/slm/s8_agent_runtime_skills_v5.json` are the current
-runtime inputs copied into the Android assets by `app/build.gradle.kts`; historical S8.13
-qualification fixtures retain their pinned v4 assets. `AgentToolDeclarations` and
-`WorkflowSkillCatalog` validate schema markers, closed tool/skill IDs, versions and required
-content at load time. The five current skills are `event-reading/7`, `draft-search/1`,
-`link-event-draft/3`, `local-review/2` and `explicit-operation-replay/1`; each names its tools,
-prerequisites, ordered steps, branches, recovery guidance, synthetic examples and completion
-condition.
+`tools/slm/s8_agent_tools_v8.json` and `tools/slm/s8_agent_runtime_skills_v8.json` are the current
+runtime inputs copied into Android assets by `app/build.gradle.kts`; older versioned assets remain
+historical. `AgentToolDeclarations` and `WorkflowSkillCatalog` validate schema markers, closed
+tool/skill IDs, versions and required content at load time. The five current skills are
+`event-reading/8`, `draft-search/2`, `link-event-draft/4`, `draft-review/1` and
+`explicit-operation-replay/1`; each names its tools, prerequisites, ordered steps, branches,
+recovery guidance, synthetic examples and completion condition.
 
 The stable cache identity (`AgentContextManager.cacheKey`) includes the protocol, endpoint host,
 model, generation budget, interface contract, the canonical selected tool-schema digest, the

@@ -1,5 +1,6 @@
 package io.github.triet4p.aegisf.data
 
+import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -61,6 +62,7 @@ class WorkflowQueryService(
     private val contextLinkDao = database.contextLinkDao()
     private val reviewQueueDao = database.reviewQueueDao()
     private val workflowOperationDao = database.workflowOperationDao()
+    private val linkEvidencePolicy = LinkEvidencePolicy(database)
 
     // --- Categories ---------------------------------------------------------
 
@@ -522,6 +524,45 @@ class WorkflowQueryService(
             ),
             bounds = query.bounds,
         )
+
+    /**
+     * Retrieves event-compatible pending drafts from the already-granted, bounded id set.
+     *
+     * All returned candidates are evaluated within that id set. In the same Room transaction,
+     * a separate bounded recheck decides whether the initial grant also covers
+     * every currently pending id; a fresh pending id outside the grant or another page keeps
+     * the result INCOMPLETE. This never widens session authority or reads notification receipt
+     * time.
+     */
+    suspend fun matchDraftCandidates(
+        eventId: Long,
+        authorizedDraftIds: Set<Long>,
+        pendingDatabaseComplete: Boolean,
+    ): DraftCandidateMatchSet? = database.withTransaction {
+        require(authorizedDraftIds.size <= QueryPageRequest.MAX_PAGE_SIZE) {
+            "An event candidate read is bounded by the shared maximum of " +
+                "${QueryPageRequest.MAX_PAGE_SIZE} granted draft ids."
+        }
+        val event = noteEventDao.findById(eventId) ?: return@withTransaction null
+        val drafts = if (authorizedDraftIds.isEmpty()) {
+            emptyList()
+        } else {
+            pendingBankDraftDao.findPendingByIds(authorizedDraftIds.toList())
+        }
+        val pendingNow = draftCandidates(
+            DraftCandidateQuery(
+                reviewStatus = IntakeReviewStatus.PENDING,
+                bounds = QueryPageRequest(
+                    limit = (authorizedDraftIds.size + 1).coerceAtMost(QueryPageRequest.MAX_PAGE_SIZE),
+                ),
+            ),
+        )
+        val pendingIdsStillGranted = pendingNow.items.all { it.id in authorizedDraftIds }
+        val verifiedPendingDatabaseComplete =
+            pendingDatabaseComplete && !pendingNow.hasMore && pendingIdsStillGranted
+        linkEvidencePolicy.candidateMatches(event, drafts, verifiedPendingDatabaseComplete)
+    }
+
 
     /** One stored draft as a live stream, so a review screen sees its own decisions. */
     fun observeDraftCandidate(draftId: Long): Flow<PendingBankDraftEntity?> =

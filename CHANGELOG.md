@@ -8,6 +8,13 @@ and no release has been tagged or published. Format follows
 ## [Unreleased]
 
 ### Added
+- Event-bound `list_drafts` reads app-ranked pending candidates from only the draft ids already
+  granted to the session, using event day/interval, amount and merchant evidence plus explicit
+  user corrections. It distinguishes parsed transaction date/time from notification receipt time,
+  excludes known incompatible evidence, and leaves account and event transaction type `UNKNOWN`
+  when unavailable. Candidate ordering is deterministic and cannot select a category or authorize
+  a link. A first-page scope or new pending rows outside the granted ids remain `INCOMPLETE`;
+  compatible in-scope rows are still returned, but cannot imply `UNIQUE` or `MISSING`.
 - A note can state its day relative to when it was written. `select_source` now offers one
   `relative_date` alias for each day word inside the selected occurrence (`today`, `yesterday`,
   `the day before yesterday`, `tomorrow`, `the day after tomorrow`, and the Vietnamese spellings

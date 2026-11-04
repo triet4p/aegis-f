@@ -1685,9 +1685,16 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         val scopes = claims.filterIsInstance<AgentNoEffectClaim.DraftScope>()
         val exhausted = scopes.lastOrNull { it.scopeExhausted }
         val sameFilter = exhausted?.let { last ->
-            scopes.filter { it.reviewStatus == last.reviewStatus && it.duplicatesOnly == last.duplicatesOnly }
+            scopes.filter {
+                it.reviewStatus == last.reviewStatus &&
+                    it.duplicatesOnly == last.duplicatesOnly &&
+                    it.eventId == last.eventId &&
+                    it.eventRevision == last.eventRevision
+            }
         }.orEmpty()
         val scopeIds = sameFilter.flatMap { it.draftIds }.distinct().sorted()
+        val scopeRevisions = sameFilter.flatMap { it.draftRevisionById.entries }
+            .associate { it.key to it.value }
         val scopeComplete = exhausted != null &&
             run.runtime.verifyNoEffect(
                 AgentNoEffectClaim.DraftScope(
@@ -1695,12 +1702,16 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                     duplicatesOnly = exhausted.duplicatesOnly,
                     draftIds = scopeIds,
                     scopeExhausted = true,
+                    draftRevisionById = scopeRevisions,
+                    eventId = exhausted.eventId,
+                    eventRevision = exhausted.eventRevision,
                 ),
             )
         if (scopeComplete && exhausted != null) {
             if (WorkflowIntent.SEARCH_DRAFTS in run.request.intents &&
                 WorkflowIntent.SEARCH_DRAFTS !in satisfied &&
-                scopeIds.isEmpty()
+                scopeIds.isEmpty() &&
+                exhausted.eventId == null
             ) {
                 settled[WorkflowIntent.SEARCH_DRAFTS] = WorkflowVerifiedEffect.NoEffect.EmptySearch(
                     intent = WorkflowIntent.SEARCH_DRAFTS,

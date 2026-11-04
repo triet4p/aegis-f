@@ -248,6 +248,56 @@ data class DraftCandidateQuery(
     val onlyPossibleDuplicates: Boolean = false,
     val bounds: QueryPageRequest,
 )
+/** The app's deterministic result for one event-to-draft retrieval query. */
+enum class DraftCandidateMatchOutcome {
+    /** The available fields do not establish a match or an incompatible draft. */
+    MISSING,
+
+    /** Exactly one candidate has the required matching financial/time evidence. */
+    UNIQUE,
+
+    /** At least two pending drafts remain compatible with the stated evidence. */
+    AMBIGUOUS,
+
+    /** Every observed pending draft conflicts with at least one stated evidence field. */
+    CONFLICTING,
+
+    /** Initial grant/current pending-id recheck is incomplete, so database-wide absence or uniqueness is unproved. */
+    INCOMPLETE,
+}
+
+/** The state of one supported evidence dimension in a candidate result. */
+enum class DraftCandidateEvidenceState {
+    MATCH,
+    CONFLICT,
+    MISSING,
+}
+
+/** One pending draft that is compatible with the event's available evidence. */
+data class DraftCandidateMatch(
+    val draft: PendingBankDraftEntity,
+    val amount: DraftCandidateEvidenceState,
+    val transactionTime: DraftCandidateEvidenceState,
+    val merchant: DraftCandidateEvidenceState,
+    /** Absolute wall-clock minute distance for a same-day point anchor; ordering only. */
+    val pointTimeDistanceMinutes: Int?,
+    /** Fixed, user-readable reasons for the row's position; contains no model score. */
+    val rankingRationale: List<String>,
+)
+
+/** The deterministic candidate set, complete within the already-granted draft ids. */
+data class DraftCandidateMatchSet(
+    val eventId: Long,
+    val eventRevision: Int,
+    val outcome: DraftCandidateMatchOutcome,
+    val candidates: List<DraftCandidateMatch>,
+    val conflictingDraftCount: Int,
+    /** Separate from candidate-set completeness: the current pending database also fit the grant. */
+    val pendingDatabaseComplete: Boolean,
+    /** Fixed rationale for the result, independent of model certainty or category choice. */
+    val rankingRationale: List<String>,
+)
+
 
 /** Which order a review-queue read returns the pending drafts in. */
 enum class ReviewQueueOrder {

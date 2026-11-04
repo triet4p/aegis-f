@@ -4,6 +4,15 @@ import io.github.triet4p.aegisf.data.CaptureEventQuery
 import io.github.triet4p.aegisf.data.CaptureMessageEntity
 import io.github.triet4p.aegisf.data.ContextLinkState
 import io.github.triet4p.aegisf.data.DraftCandidateQuery
+import io.github.triet4p.aegisf.data.DraftCandidateEvidenceState
+import io.github.triet4p.aegisf.data.DraftCandidateMatch
+import io.github.triet4p.aegisf.data.DraftCandidateMatchOutcome
+import io.github.triet4p.aegisf.data.DraftCandidateMatchSet
+import io.github.triet4p.aegisf.data.effectiveCandidateAmount
+import io.github.triet4p.aegisf.data.effectiveCandidateDate
+import io.github.triet4p.aegisf.data.effectiveCandidateDescription
+import io.github.triet4p.aegisf.data.effectiveCandidateTime
+import io.github.triet4p.aegisf.data.IntakeFieldState
 import io.github.triet4p.aegisf.data.IntakeReviewStatus
 import io.github.triet4p.aegisf.data.LinkEligibility
 import io.github.triet4p.aegisf.data.LinkOperation
@@ -373,11 +382,35 @@ class AgentToolRuntime(
             )
         }
         val duplicatesOnly = arguments.getBoolean("duplicates_only")
+        val eventReference = optionalReference(arguments, "event_ref", AgentReferenceKind.EVENT, "$.event_ref")
+        val event = eventReference?.let { reference ->
+            val current = requireEvent(reference.eventId)
+            if (reference.eventRevision != null && reference.eventRevision != current.revision) {
+                throw staleFrom("$.event_ref", requireCapture(current.captureId))
+            }
+            if (reviewStatus != IntakeReviewStatus.PENDING || duplicatesOnly) {
+                throw AgentToolException(
+                    AgentErrorCode.SCHEMA_INVALID,
+                    "$.event_ref",
+                    "pending_candidate_query",
+                    JSONObject()
+                        .put("review_status", IntakeReviewStatus.PENDING.name)
+                        .put("duplicates_only", false),
+                    "An event-bound candidate query always reads every eligible pending draft.",
+                )
+            }
+            current
+        }
         val cursorValue = optionalString(arguments, "cursor")
-        val filter = DraftFilter(reviewStatus, duplicatesOnly)
+        val filter = DraftFilter(
+            reviewStatus = reviewStatus,
+            duplicatesOnly = duplicatesOnly,
+            eventId = event?.id,
+            eventRevision = event?.revision,
+        )
         val scan = visibleDrafts(filter)
         val visible = scan.rows
-        val signature = draftSignature(filter, visible)
+        val signature = draftSignature(filter, visible, scan.matchSet)
         val startOffset = if (cursorValue == null) {
             0
         } else {
@@ -398,21 +431,41 @@ class AgentToolRuntime(
         val nextOffset = startOffset + page.size
         val more = nextOffset < visible.size
         val nextCursor = if (more) issueDraftCursor(signature, filter, startOffset = nextOffset) else null
-        val rows = page.map { draftObservation(it) }
+        val matchRanks = scan.matchSet?.candidates
+            ?.mapIndexed { index, match -> match.draft.id to (index + 1 to match) }
+            ?.toMap()
+            .orEmpty()
+        val rows = page.map { draft ->
+            draftObservation(draft).also { observation ->
+                matchRanks[draft.id]?.let { (rank, match) ->
+                    observation.put("match_evidence", candidateMatchObservation(match, rank))
+                }
+            }
+        }
+        val data = JSONObject()
+            .put("items", JSONArray(rows))
+            .put("page_size", DRAFT_PAGE_SIZE)
+            .put("next_cursor", nextCursor ?: JSONObject.NULL)
+            .put("scope_exhausted", !more && !scan.truncated)
+        scan.matchSet?.let {
+            data.put(
+                "match",
+                candidateMatchSetObservation(it, candidatePageComplete = !more),
+            )
+        }
         return AgentToolExecution(
             envelope = AgentEnvelope.ok(
                 tool = "list_drafts",
-                data = JSONObject()
-                    .put("items", JSONArray(rows))
-                    .put("page_size", DRAFT_PAGE_SIZE)
-                    .put("next_cursor", nextCursor ?: JSONObject.NULL)
-                    .put("scope_exhausted", !more && !scan.truncated),
+                data = data,
             ),
             noEffectClaim = AgentNoEffectClaim.DraftScope(
                 reviewStatus = reviewStatus?.name,
                 duplicatesOnly = duplicatesOnly,
-                draftIds = page.map { it.id },
+                draftIds = visible.map { it.id },
                 scopeExhausted = !more && !scan.truncated,
+                draftRevisionById = visible.associate { it.id to it.reviewRevision },
+                eventId = event?.id,
+                eventRevision = event?.revision,
             ),
         )
     }
@@ -1597,8 +1650,27 @@ class AgentToolRuntime(
                     null -> null
                     else -> IntakeReviewStatus.entries.firstOrNull { it.name == raw } ?: return false
                 }
-                val scan = visibleDrafts(DraftFilter(status, claim.duplicatesOnly))
-                scan.rows.map { it.id }.sorted() == claim.draftIds.sorted()
+                if (claim.eventId != null) {
+                    val event = queries.noteEvent(claim.eventId) ?: return false
+                    if (event.revision != claim.eventRevision) return false
+                }
+                val scan = try {
+                    visibleDrafts(
+                        DraftFilter(
+                            reviewStatus = status,
+                            duplicatesOnly = claim.duplicatesOnly,
+                            eventId = claim.eventId,
+                            eventRevision = claim.eventRevision,
+                        ),
+                    )
+                } catch (_: AgentToolException) {
+                    return false
+                }
+                val currentIds = scan.rows.map { it.id }.sorted()
+                val currentRevisions = scan.rows.associate { it.id to it.reviewRevision }
+                currentIds == claim.draftIds.sorted() &&
+                    currentRevisions == claim.draftRevisionById &&
+                    (!claim.scopeExhausted || !scan.truncated)
             }
 
             is AgentNoEffectClaim.PairInspection -> {
@@ -1748,6 +1820,10 @@ class AgentToolRuntime(
     }
 
     private suspend fun draftObservation(draft: PendingBankDraftEntity): JSONObject {
+        val amount = effectiveCandidateAmount(draft)
+        val transactionDate = effectiveCandidateDate(draft)
+        val transactionTime = effectiveCandidateTime(draft)
+        val description = effectiveCandidateDescription(draft)
         val catalog = queries.categoryCatalog()
         val catalogRevision = categoryCatalogRevision(catalog)
         val handle = registry.nextHandle()
@@ -1788,12 +1864,51 @@ class AgentToolRuntime(
             .put("review_revision", draft.reviewRevision)
             .put("review_status", draft.reviewStatus.name)
             .put("bank", mask(draft.bank))
-            .put("amount", maskAmount(draft.amountVnd))
-            .put("stated_date", maskDate(draft.statedDate))
-            .put("stated_time", maskDate(draft.statedTime))
-            .put("memo", draft.memo?.let { mask(it) } ?: JSONObject.NULL)
-            .put("description", mask(draft.workingDescription()))
-            .put("possible_duplicate", draft.possibleDuplicateOfDraftId != null)
+            .put("amount", maskAmount(amount))
+            .put(
+                "amount_source",
+                if (draft.reviewAmountText != null) {
+                    "USER_CORRECTION"
+                } else if (draft.amountState == IntakeFieldState.PRESENT) {
+                    "BANK_PARSED"
+                } else {
+                    draft.amountState.name
+                },
+            )
+            .put("transaction_date", maskDate(transactionDate))
+            .put(
+                "transaction_date_source",
+                if (draft.reviewDateText != null) {
+                    "USER_CORRECTION"
+                } else if (draft.momentState == IntakeFieldState.PRESENT) {
+                    "BANK_PARSED"
+                } else {
+                    draft.momentState.name
+                },
+            )
+            .put("transaction_time", maskDate(transactionTime))
+            .put(
+                "transaction_time_source",
+                if (draft.reviewTimeText != null) {
+                    "USER_CORRECTION"
+                } else if (draft.momentState == IntakeFieldState.PRESENT) {
+                    "BANK_PARSED"
+                } else {
+                    draft.momentState.name
+                },
+            )
+            .put("memo", draft.memo?.takeIf { draft.memoState == IntakeFieldState.PRESENT }?.let { mask(it) } ?: JSONObject.NULL)
+            .put("description", description?.let { mask(it) } ?: JSONObject.NULL)
+            .put(
+                "description_source",
+                if (draft.reviewMemoEdited) {
+                    "USER_CORRECTION"
+                } else if (draft.memoState == IntakeFieldState.PRESENT) {
+                    "BANK_PARSED"
+                } else {
+                    draft.memoState.name
+                },
+            )
             .put("category_resolved", draft.reviewCategoryResolved)
             .put(
                 "selected_category",
@@ -1803,6 +1918,54 @@ class AgentToolRuntime(
             .put("category_choices", choices)
     }
 
+    private fun candidateMatchObservation(
+        match: DraftCandidateMatch,
+        rank: Int,
+    ): JSONObject = JSONObject()
+        .put("rank", rank)
+        .put("amount", match.amount.wireValue())
+        .put("transaction_time_compatibility", match.transactionTime.wireValue())
+        .put("merchant", match.merchant.wireValue())
+        .put("time_proximity_ordering_only", match.pointTimeDistanceMinutes != null)
+        .put("ranking_rationale", JSONArray(match.rankingRationale))
+        .put("unknown_dimensions", JSONArray(listOf("account", "transaction_type")))
+
+    private fun candidateMatchSetObservation(
+        matchSet: DraftCandidateMatchSet,
+        candidatePageComplete: Boolean,
+    ): JSONObject =
+        JSONObject()
+            .put("outcome", matchSet.outcome.wireValue())
+            .put("candidate_count", matchSet.candidates.size)
+            .put("conflicting_count", matchSet.conflictingDraftCount)
+            .put("candidate_set_complete_within_granted_scope", true)
+            .put("candidate_page_complete", candidatePageComplete)
+            .put("pending_database_complete_at_recheck", matchSet.pendingDatabaseComplete)
+            .put(
+                "scope_note",
+                if (matchSet.pendingDatabaseComplete) {
+                    "The bounded current pending-id recheck found every pending draft inside this session's grant."
+                } else {
+                    "The initial grant was incomplete, or the bounded current pending-id recheck found fresh/out-of-grant pending ids or another page. Candidate rows are complete only within the granted ids; the pending database remains incomplete."
+                },
+            )
+            .put("receipt_time_used", false)
+            .put("unknown_dimensions", JSONArray(listOf("account", "transaction_type")))
+            .put("ranking_rationale", JSONArray(matchSet.rankingRationale))
+
+    private fun DraftCandidateEvidenceState.wireValue(): String = when (this) {
+        DraftCandidateEvidenceState.MATCH -> "match"
+        DraftCandidateEvidenceState.CONFLICT -> "conflict"
+        DraftCandidateEvidenceState.MISSING -> "missing"
+    }
+
+    private fun DraftCandidateMatchOutcome.wireValue(): String = when (this) {
+        DraftCandidateMatchOutcome.MISSING -> "missing"
+        DraftCandidateMatchOutcome.UNIQUE -> "unique"
+        DraftCandidateMatchOutcome.AMBIGUOUS -> "ambiguous"
+        DraftCandidateMatchOutcome.CONFLICTING -> "conflicting"
+        DraftCandidateMatchOutcome.INCOMPLETE -> "incomplete"
+    }
     /**
      * One fresh draft observation plus the masked readings of its accepted links.
      *
@@ -2238,26 +2401,58 @@ class AgentToolRuntime(
                 scopeId = scope.scopeId,
                 cursorSignature = signature,
                 cursorOffset = startOffset,
-                display = "${filter.reviewStatus?.name ?: "ALL"}:${filter.duplicatesOnly}",
+                display = buildString {
+                    append(filter.reviewStatus?.name ?: "ALL").append(':').append(filter.duplicatesOnly)
+                    filter.eventId?.let { append(":event-").append(it).append('@').append(filter.eventRevision) }
+                },
             ),
         )
 
-    private fun draftSignature(filter: DraftFilter, visible: List<PendingBankDraftEntity>): String =
-        sha256Hex(
-            buildString {
-                append(scope.scopeId).append('|')
-                append(filter.reviewStatus?.name ?: "ALL").append('|')
-                append(filter.duplicatesOnly).append('|')
-                visible.forEach { append(it.id).append(':').append(it.reviewRevision).append(';') }
-            },
-        )
+    private fun draftSignature(
+        filter: DraftFilter,
+        visible: List<PendingBankDraftEntity>,
+        matchSet: DraftCandidateMatchSet? = null,
+    ): String = sha256Hex(
+        buildString {
+            append(scope.scopeId).append('|')
+            append(filter.reviewStatus?.name ?: "ALL").append('|')
+            append(filter.duplicatesOnly).append('|')
+            append(scope.draftScopeComplete).append('|')
+            append(filter.eventId).append(':').append(filter.eventRevision).append('|')
+            matchSet?.let {
+                append(it.outcome.name).append(':')
+                append(it.conflictingDraftCount).append(':')
+                append(it.pendingDatabaseComplete).append('|')
+            }
+            visible.forEach { append(it.id).append(':').append(it.reviewRevision).append(';') }
+        },
+    )
 
     private suspend fun visibleDrafts(filter: DraftFilter): DraftScan {
-        if (scope.draftIds.isEmpty()) return DraftScan(emptyList(), truncated = false)
+        if (filter.eventId != null) {
+            val event = queries.noteEvent(filter.eventId)
+                ?: return DraftScan(emptyList(), truncated = true)
+            if (event.revision != filter.eventRevision) {
+                throw staleFrom("$.event_ref", requireCapture(event.captureId))
+            }
+            val matchSet = queries.matchDraftCandidates(
+                eventId = filter.eventId,
+                authorizedDraftIds = scope.draftIds,
+                pendingDatabaseComplete = scope.draftScopeComplete,
+            ) ?: return DraftScan(emptyList(), truncated = true)
+            return DraftScan(
+                rows = matchSet.candidates.map { it.draft },
+                truncated = !matchSet.pendingDatabaseComplete,
+                matchSet = matchSet,
+            )
+        }
+        if (scope.draftIds.isEmpty()) {
+            return DraftScan(emptyList(), truncated = !scope.draftScopeComplete)
+        }
         val visible = mutableListOf<PendingBankDraftEntity>()
         var offset = 0
         var pages = 0
-        var truncated = false
+        var truncated = !scope.draftScopeComplete
         while (true) {
             if (pages >= MAX_SCAN_PAGES) {
                 truncated = true
@@ -2275,7 +2470,7 @@ class AgentToolRuntime(
             if (!page.hasMore) break
             offset = page.nextOffset ?: break
         }
-        return DraftScan(visible, truncated)
+        return DraftScan(rows = visible, truncated = truncated)
     }
 
     private suspend fun issueOperationRef(
@@ -2676,11 +2871,14 @@ class AgentToolRuntime(
     private data class DraftScan(
         val rows: List<PendingBankDraftEntity>,
         val truncated: Boolean,
+        val matchSet: DraftCandidateMatchSet? = null,
     )
 
     private data class DraftFilter(
         val reviewStatus: IntakeReviewStatus?,
         val duplicatesOnly: Boolean,
+        val eventId: Long? = null,
+        val eventRevision: Int? = null,
     )
 
     private companion object {
@@ -2702,7 +2900,7 @@ private fun AgentErrorCode.asIssue(
 
 /** Reads the single canonical declaration file copied from tools/slm at build time. */
 object AgentToolDeclarations {
-    const val ASSET_NAME = "s8_agent_tools_v7.json"
+    const val ASSET_NAME = "s8_agent_tools_v8.json"
 
     fun load(open: (String) -> java.io.InputStream): List<HostedToolDeclaration> {
         val root = JSONObject(open(ASSET_NAME).bufferedReader().use { it.readText() })

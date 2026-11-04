@@ -32,9 +32,15 @@ import io.github.triet4p.aegisf.data.WorkflowCommandOutcome
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.data.workingDescription
+import io.github.triet4p.aegisf.data.BankDraftReviewEdits
+import io.github.triet4p.aegisf.data.BankDraftReviewResult
+import io.github.triet4p.aegisf.data.TransactionEntity
+import io.github.triet4p.aegisf.data.TransactionType
 import io.github.triet4p.aegisf.privacy.MaskedPromptBoundary
 import io.github.triet4p.aegisf.privacy.SensitiveVault
 import io.github.triet4p.aegisf.provider.HostedToolDeclaration
+import java.time.LocalDateTime
+import java.time.ZoneId
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
@@ -854,6 +860,656 @@ class AgentToolRuntimeTest {
     }
 
     @Test
+    fun `event draft retrieval ranks parsed evidence honors corrections and excludes terminal rows`() = runBlocking {
+        val eventCaptureId = storeCapture("s9.2-merchant-event", MERCHANT_TEXT)
+        val receiptAfterMidnight = LocalDateTime.parse("2026-10-22T00:15")
+            .atZone(ZoneId.of("Asia/Ho_Chi_Minh"))
+            .toInstant()
+            .toEpochMilli()
+        val delayed = storeDraft(
+            amount = 28_000L,
+            date = "2026-10-21",
+            time = "12:29",
+            memo = "Highlands Coffee",
+            postedAtEpochMillis = receiptAfterMidnight,
+        )
+        val nearby = storeDraft(
+            amount = 28_000L,
+            date = "2026-10-21",
+            time = "12:35",
+            memo = "Highlands Market",
+        )
+        val corrected = storeDraft(
+            amount = 99_000L,
+            date = "2026-10-22",
+            time = "20:00",
+            memo = "Circle K",
+            direction = IntakeDirection.CREDIT,
+        )
+        assertEquals(
+            BankDraftReviewResult.Saved(1),
+            database.bankDraftReviewDao().saveReview(
+                corrected,
+                expectedRevision = 0,
+                edits = BankDraftReviewEdits(
+                    amountText = "28000",
+                    dateText = "2026-10-21",
+                    timeText = "12:32",
+                    memoText = "Highlands Shop",
+                    type = TransactionType.EXPENSE,
+                    categoryId = null,
+                    categoryResolved = true,
+                ),
+            ),
+        )
+        val missing = storeDraft(
+            amount = null,
+            date = null,
+            time = null,
+            memo = "Highlands purchase with missing amount and time",
+        )
+        val tied = storeDraft(
+            amount = 28_000L,
+            date = "2026-10-21",
+            time = "12:29",
+            memo = "Highlands Cafe",
+        )
+        val wrongAmount = storeDraft(
+            amount = 29_000L,
+            date = "2026-10-21",
+            time = "12:30",
+            memo = "Highlands Coffee",
+        )
+        val wrongDate = storeDraft(
+            amount = 28_000L,
+            date = "2026-10-22",
+            time = "12:30",
+            memo = "Highlands Coffee",
+        )
+        val wrongMerchant = storeDraft(
+            amount = 28_000L,
+            date = "2026-10-21",
+            time = "12:30",
+            memo = "Circle K",
+        )
+        val confirmed = storeDraft(
+            amount = 28_000L,
+            date = "2026-10-21",
+            time = "12:30",
+            memo = "Highlands confirmed",
+        )
+        val confirmation = database.bankDraftReviewDao().confirm(
+            id = confirmed,
+            expectedRevision = 0,
+            edits = BankDraftReviewEdits(
+                amountText = "28000",
+                dateText = "2026-10-21",
+                timeText = "12:30",
+                memoText = "Highlands confirmed",
+                type = TransactionType.EXPENSE,
+                categoryId = null,
+                categoryResolved = true,
+            ),
+            transaction = TransactionEntity(
+                type = TransactionType.EXPENSE,
+                amountVnd = 28_000L,
+                occurredAtEpochMillis = receiptAfterMidnight,
+                description = "Highlands confirmed",
+                createdAtEpochMillis = receiptAfterMidnight,
+                updatedAtEpochMillis = receiptAfterMidnight,
+            ),
+        )
+        assertTrue(confirmation is BankDraftReviewResult.Confirmed)
+        val dismissed = storeDraft(
+            amount = 28_000L,
+            date = "2026-10-21",
+            time = "12:30",
+            memo = "Highlands dismissed",
+        )
+        assertEquals(BankDraftReviewResult.Dismissed, database.bankDraftReviewDao().dismiss(dismissed))
+
+        val draftIds = setOf(
+            delayed, nearby, corrected, missing, tied, wrongAmount, wrongDate, wrongMerchant,
+            confirmed, dismissed,
+        )
+        val runtime = runtimeFor(
+            WorkflowCallerScope.AgentSession(scope.scopeId, setOf(eventCaptureId), draftIds),
+        )
+        val capture = observeCapture(runtime, eventCaptureId)
+        val occurrence = selectSource(
+            runtime,
+            capture.getString("ref"),
+            capture.getString("source_text").substringBefore(';').trim(),
+        )
+        val merchant = selectSource(runtime, capture.getString("ref"), "Highlands")
+        val anchor = makeAnchor(
+            runtime,
+            valueRef(occurrence, "date"),
+            valueRef(occurrence, "time"),
+        )
+        val recorded = record(
+            runtime,
+            occurrence.getString("source_ref"),
+            valueRef(occurrence, "amount"),
+            anchor,
+            "Lunch purchase",
+            "none",
+            merchantRef = merchant.getString("source_ref"),
+        )
+        assertEquals("ok", recorded.getString("outcome"))
+        val eventRef = recorded.getJSONObject("data").getJSONObject("event").getString("ref")
+        val arguments = JSONObject()
+            .put("event_ref", eventRef)
+            .put("review_status", "PENDING")
+            .put("duplicates_only", false)
+            .put("cursor", JSONObject.NULL)
+
+        val first = runtime.execute("list_drafts", arguments, "read-only").envelope
+            .getJSONObject("data")
+        val match = first.getJSONObject("match")
+        assertEquals("ambiguous", match.getString("outcome"))
+        assertEquals(5, match.getInt("candidate_count"))
+        assertEquals(3, match.getInt("conflicting_count"))
+        assertTrue(match.getBoolean("candidate_set_complete_within_granted_scope"))
+        assertTrue(match.getBoolean("candidate_page_complete"))
+        assertTrue(match.getBoolean("pending_database_complete_at_recheck"))
+        assertFalse(match.getBoolean("receipt_time_used"))
+        assertEquals(
+            setOf("account", "transaction_type"),
+            (0 until match.getJSONArray("unknown_dimensions").length())
+                .map { match.getJSONArray("unknown_dimensions").getString(it) }
+                .toSet(),
+        )
+
+        val items = first.getJSONArray("items")
+        val labels = (0 until items.length()).map { items.getJSONObject(it).getString("user_label") }
+        assertEquals(
+            listOf(tied, delayed, corrected, nearby, missing).map { "draft #$it" },
+            labels,
+        )
+        val excludedLabels = listOf(wrongAmount, wrongDate, wrongMerchant, confirmed, dismissed)
+            .map { "draft #$it" }
+            .toSet()
+        assertTrue(labels.none { it in excludedLabels })
+        assertTrue(first.getBoolean("scope_exhausted"))
+        val correctedEvidence = (0 until items.length())
+            .map { items.getJSONObject(it) }
+            .single { it.getString("user_label") == "draft #$corrected" }
+            .getJSONObject("match_evidence")
+        assertEquals("match", correctedEvidence.getString("amount"))
+        assertEquals("match", correctedEvidence.getString("transaction_time_compatibility"))
+        assertEquals("match", correctedEvidence.getString("merchant"))
+
+        val repeated = runtime.execute("list_drafts", arguments, "read-only").envelope
+            .getJSONObject("data")
+            .getJSONArray("items")
+        assertEquals(
+            labels,
+            (0 until repeated.length()).map { repeated.getJSONObject(it).getString("user_label") },
+        )
+        assertEquals("CREDIT", database.pendingBankDraftDao().findById(corrected)!!.direction.name)
+    }
+
+    @Test
+    fun `missing event merchant leaves equal amount nearby purchases ambiguous`() = runBlocking {
+        val receiptAfterMidnight = LocalDateTime.parse("2026-10-22T00:15")
+            .atZone(ZoneId.of("Asia/Ho_Chi_Minh"))
+            .toInstant()
+            .toEpochMilli()
+        val closer = storeDraft(
+            amount = 28_000L,
+            date = "2026-10-21",
+            time = "12:29",
+            memo = "Highlands Coffee",
+            postedAtEpochMillis = receiptAfterMidnight,
+        )
+        val farther = storeDraft(
+            amount = 28_000L,
+            date = "2026-10-21",
+            time = "12:35",
+            memo = "Circle K",
+            postedAtEpochMillis = receiptAfterMidnight,
+        )
+        val runtime = runtimeFor(
+            WorkflowCallerScope.AgentSession(scope.scopeId, scope.captureIds, setOf(closer, farther)),
+        )
+        val capture = observeCapture(runtime)
+        val source = selectSource(runtime, capture.getString("ref"), capture.getString("source_text"))
+        val recorded = record(
+            runtime,
+            source.getString("source_ref"),
+            valueRef(source, "amount"),
+            makeAnchor(runtime, valueRef(source, "date"), valueRef(source, "time")),
+            "Lunch purchase",
+            "none",
+        )
+        val eventRef = recorded.getJSONObject("data").getJSONObject("event").getString("ref")
+        val data = runtime.execute(
+            "list_drafts",
+            JSONObject()
+                .put("event_ref", eventRef)
+                .put("review_status", "PENDING")
+                .put("duplicates_only", false)
+                .put("cursor", JSONObject.NULL),
+            "read-only",
+        ).envelope.getJSONObject("data")
+        val match = data.getJSONObject("match")
+        assertEquals("ambiguous", match.getString("outcome"))
+        assertEquals(2, match.getInt("candidate_count"))
+        assertTrue(match.getBoolean("pending_database_complete_at_recheck"))
+        assertFalse(match.getBoolean("receipt_time_used"))
+        assertTrue(data.getBoolean("scope_exhausted"))
+
+        val items = data.getJSONArray("items")
+        val labels = (0 until items.length())
+            .map { items.getJSONObject(it).getString("user_label") }
+        assertEquals(listOf("draft #$closer", "draft #$farther"), labels)
+        for (index in 0 until items.length()) {
+            val evidence = items.getJSONObject(index).getJSONObject("match_evidence")
+            assertEquals("match", evidence.getString("amount"))
+            assertEquals("match", evidence.getString("transaction_time_compatibility"))
+            assertEquals("missing", evidence.getString("merchant"))
+            assertTrue(evidence.getBoolean("time_proximity_ordering_only"))
+        }
+        val repeated = runtime.execute(
+            "list_drafts",
+            JSONObject()
+                .put("event_ref", eventRef)
+                .put("review_status", "PENDING")
+                .put("duplicates_only", false)
+                .put("cursor", JSONObject.NULL),
+            "read-only",
+        ).envelope.getJSONObject("data").getJSONArray("items")
+        assertEquals(
+            labels,
+            (0 until repeated.length()).map { repeated.getJSONObject(it).getString("user_label") },
+        )
+    }
+
+
+    @Test
+    fun `event candidate pagination is stable and cursor-bound to the event`() = runBlocking {
+        val eventCaptureId = storeCapture("s9.2-page-events", TWO_TEXT)
+        val draftIds = (1..12).map { index ->
+            storeDraft(
+                amount = 15_000L,
+                date = "2026-10-21",
+                memo = "Page purchase $index",
+            )
+        }
+        val runtime = runtimeFor(
+            WorkflowCallerScope.AgentSession(scope.scopeId, setOf(eventCaptureId), draftIds.toSet()),
+        )
+        val capture = observeCapture(runtime, eventCaptureId)
+        val maskedSource = capture.getString("source_text")
+        val firstSource = selectSource(
+            runtime,
+            capture.getString("ref"),
+            maskedSource.substringBefore(" | ").trim(),
+        )
+        val secondSource = selectSource(
+            runtime,
+            capture.getString("ref"),
+            maskedSource.substringAfter(" | ").trim(),
+        )
+        val firstEvent = record(
+            runtime,
+            firstSource.getString("source_ref"),
+            valueRef(firstSource, "amount"),
+            makeAnchor(runtime, valueRef(firstSource, "date"), null),
+            "Coffee purchase",
+            "none",
+        ).getJSONObject("data").getJSONObject("event")
+        val secondEvent = record(
+            runtime,
+            secondSource.getString("source_ref"),
+            valueRef(secondSource, "amount"),
+            makeAnchor(runtime, valueRef(secondSource, "date"), null),
+            "Taxi purchase",
+            "none",
+        ).getJSONObject("data").getJSONObject("event")
+
+        val firstPage = runtime.execute(
+            "list_drafts",
+            JSONObject()
+                .put("event_ref", firstEvent.getString("ref"))
+                .put("review_status", "PENDING")
+                .put("duplicates_only", false)
+                .put("cursor", JSONObject.NULL),
+            "read-only",
+        ).envelope.getJSONObject("data")
+        assertEquals("ambiguous", firstPage.getJSONObject("match").getString("outcome"))
+        assertEquals(12, firstPage.getJSONObject("match").getInt("candidate_count"))
+        assertEquals(10, firstPage.getJSONArray("items").length())
+        val firstPageMatch = firstPage.getJSONObject("match")
+        assertTrue(firstPageMatch.getBoolean("candidate_set_complete_within_granted_scope"))
+        assertFalse(firstPageMatch.getBoolean("candidate_page_complete"))
+        assertTrue(firstPageMatch.getBoolean("pending_database_complete_at_recheck"))
+        val cursor = firstPage.getString("next_cursor")
+
+        val secondPage = runtime.execute(
+            "list_drafts",
+            JSONObject()
+                .put("event_ref", firstEvent.getString("ref"))
+                .put("review_status", "PENDING")
+                .put("duplicates_only", false)
+                .put("cursor", cursor),
+            "read-only",
+        ).envelope.getJSONObject("data")
+        assertEquals(2, secondPage.getJSONArray("items").length())
+        assertTrue(secondPage.getJSONObject("match").getBoolean("candidate_page_complete"))
+        assertTrue(secondPage.getBoolean("scope_exhausted"))
+        val expectedLabels = draftIds.sortedDescending().map { "draft #$it" }
+        assertEquals(
+            expectedLabels.take(10),
+            (0 until firstPage.getJSONArray("items").length())
+                .map { firstPage.getJSONArray("items").getJSONObject(it).getString("user_label") },
+        )
+        assertEquals(
+            expectedLabels.drop(10),
+            (0 until secondPage.getJSONArray("items").length())
+                .map { secondPage.getJSONArray("items").getJSONObject(it).getString("user_label") },
+        )
+
+        val stale = runtime.execute(
+            "list_drafts",
+            JSONObject()
+                .put("event_ref", secondEvent.getString("ref"))
+                .put("review_status", "PENDING")
+                .put("duplicates_only", false)
+                .put("cursor", cursor),
+            "read-only",
+        ).envelope
+        assertEquals("CURSOR_STALE", stale.getJSONObject("error").getString("code"))
+    }
+
+
+    @Test
+    fun `missing draft evidence stays missing instead of becoming unique or conflicting`() = runBlocking {
+        val missing = storeDraft(amount = null, date = null, time = null, memo = null)
+        val runtime = runtimeFor(
+            WorkflowCallerScope.AgentSession(scope.scopeId, scope.captureIds, setOf(missing)),
+        )
+        val capture = observeCapture(runtime)
+        val source = selectSource(runtime, capture.getString("ref"), capture.getString("source_text"))
+        val recorded = record(
+            runtime,
+            source.getString("source_ref"),
+            valueRef(source, "amount"),
+            makeAnchor(runtime, valueRef(source, "date"), valueRef(source, "time")),
+            "Lunch purchase",
+            "none",
+        )
+        val eventRef = recorded.getJSONObject("data").getJSONObject("event").getString("ref")
+        val data = runtime.execute(
+            "list_drafts",
+            JSONObject()
+                .put("event_ref", eventRef)
+                .put("review_status", "PENDING")
+                .put("duplicates_only", false)
+                .put("cursor", JSONObject.NULL),
+            "read-only",
+        ).envelope.getJSONObject("data")
+
+        assertEquals("missing", data.getJSONObject("match").getString("outcome"))
+        assertEquals(1, data.getJSONObject("match").getInt("candidate_count"))
+        assertEquals(0, data.getJSONObject("match").getInt("conflicting_count"))
+        val evidence = data.getJSONArray("items").getJSONObject(0).getJSONObject("match_evidence")
+        assertEquals("missing", evidence.getString("amount"))
+        assertEquals("missing", evidence.getString("transaction_time_compatibility"))
+        assertTrue(data.getBoolean("scope_exhausted"))
+    }
+
+    @Test
+    fun `conflicting outcome requires known incompatible evidence in a complete scope`() = runBlocking {
+        val wrongAmount = storeDraft(
+            amount = 29_000L,
+            date = "2026-10-21",
+            time = "12:30",
+            memo = "Synthetic purchase",
+        )
+        val runtime = runtimeFor(
+            WorkflowCallerScope.AgentSession(scope.scopeId, scope.captureIds, setOf(wrongAmount)),
+        )
+        val capture = observeCapture(runtime)
+        val source = selectSource(runtime, capture.getString("ref"), capture.getString("source_text"))
+        val recorded = record(
+            runtime,
+            source.getString("source_ref"),
+            valueRef(source, "amount"),
+            makeAnchor(runtime, valueRef(source, "date"), valueRef(source, "time")),
+            "Lunch purchase",
+            "none",
+        )
+        val eventRef = recorded.getJSONObject("data").getJSONObject("event").getString("ref")
+        val data = runtime.execute(
+            "list_drafts",
+            JSONObject()
+                .put("event_ref", eventRef)
+                .put("review_status", "PENDING")
+                .put("duplicates_only", false)
+                .put("cursor", JSONObject.NULL),
+            "read-only",
+        ).envelope.getJSONObject("data")
+
+        assertEquals("conflicting", data.getJSONObject("match").getString("outcome"))
+        assertEquals(0, data.getJSONObject("match").getInt("candidate_count"))
+        assertEquals(1, data.getJSONObject("match").getInt("conflicting_count"))
+        assertTrue(data.getBoolean("scope_exhausted"))
+    }
+    @Test
+    fun `cross-midnight event interval uses parsed transaction date and time`() = runBlocking {
+        val eventCaptureId = storeCapture("s9.2-midnight-event", MIDNIGHT_INTERVAL_TEXT)
+        val before = storeDraft(
+            amount = 28_000L,
+            date = "2026-10-21",
+            time = "23:49",
+            memo = "Coffee before",
+        )
+        val inside = storeDraft(
+            amount = 28_000L,
+            date = "2026-10-22",
+            time = "00:10",
+            memo = "Coffee purchase",
+            postedAtEpochMillis = LocalDateTime.parse("2026-10-22T00:30")
+                .atZone(ZoneId.of("Asia/Ho_Chi_Minh"))
+                .toInstant()
+                .toEpochMilli(),
+        )
+        val after = storeDraft(
+            amount = 28_000L,
+            date = "2026-10-22",
+            time = "00:21",
+            memo = "Coffee after",
+        )
+        val runtime = runtimeFor(
+            WorkflowCallerScope.AgentSession(
+                scope.scopeId,
+                setOf(eventCaptureId),
+                setOf(before, inside, after),
+            ),
+        )
+        val capture = observeCapture(runtime, eventCaptureId)
+        val source = selectSource(runtime, capture.getString("ref"), capture.getString("source_text"))
+        val dates = valueRefs(source, "date")
+        val times = valueRefs(source, "time")
+        val anchor = makeIntervalAnchor(runtime, dates[0], times[0], dates[1], times[1])
+        assertEquals("ok", anchor.getString("outcome"))
+        val recorded = record(
+            runtime,
+            source.getString("source_ref"),
+            valueRef(source, "amount"),
+            anchor.getJSONObject("data").getString("anchor_ref"),
+            "Coffee purchase",
+            "none",
+        )
+        assertEquals("ok", recorded.getString("outcome"))
+        val eventRef = recorded.getJSONObject("data").getJSONObject("event").getString("ref")
+        val data = runtime.execute(
+            "list_drafts",
+            JSONObject()
+                .put("event_ref", eventRef)
+                .put("review_status", "PENDING")
+                .put("duplicates_only", false)
+                .put("cursor", JSONObject.NULL),
+            "read-only",
+        ).envelope.getJSONObject("data")
+        assertEquals("unique", data.getJSONObject("match").getString("outcome"))
+        assertEquals(1, data.getJSONObject("match").getInt("candidate_count"))
+        assertEquals(2, data.getJSONObject("match").getInt("conflicting_count"))
+        assertEquals("draft #$inside", data.getJSONArray("items").getJSONObject(0).getString("user_label"))
+        assertTrue(data.getBoolean("scope_exhausted"))
+    }
+
+    @Test
+    fun `incomplete pending scope preserves useful candidates without claiming unique or missing`() = runBlocking {
+        val outsidePage = storeDraft(
+            amount = 28_000L,
+            date = "2026-10-21",
+            time = "12:30",
+            memo = "Target purchase outside the first page",
+        )
+        val visibleMatch = storeDraft(
+            amount = 28_000L,
+            date = "2026-10-21",
+            time = "12:30",
+            memo = "Visible matching purchase",
+        )
+        val visibleConflicts = (1..31).map { index ->
+            storeDraft(
+                amount = 30_000L + index,
+                date = "2026-10-21",
+                time = "12:30",
+                memo = "Conflicting purchase $index",
+            )
+        }
+        val allIds = listOf(outsidePage, visibleMatch) + visibleConflicts
+        // With the deterministic newest-first query, the oldest (outsidePage) is beyond the first 32.
+        val firstPageIds = allIds.drop(1).toSet()
+        val session = WorkflowCallerScope.AgentSession(
+            scopeId = scope.scopeId,
+            captureIds = scope.captureIds,
+            draftIds = firstPageIds,
+            draftScopeComplete = false,
+        )
+        val runtime = runtimeFor(session)
+        val capture = observeCapture(runtime)
+        val source = selectSource(runtime, capture.getString("ref"), capture.getString("source_text"))
+        val recorded = record(
+            runtime,
+            source.getString("source_ref"),
+            valueRef(source, "amount"),
+            makeAnchor(runtime, valueRef(source, "date"), valueRef(source, "time")),
+            "Lunch purchase",
+            "none",
+        )
+        val eventRef = recorded.getJSONObject("data").getJSONObject("event").getString("ref")
+        val arguments = JSONObject()
+            .put("event_ref", eventRef)
+            .put("review_status", "PENDING")
+            .put("duplicates_only", false)
+            .put("cursor", JSONObject.NULL)
+        val data = runtime.execute("list_drafts", arguments, "read-only").envelope.getJSONObject("data")
+        val match = data.getJSONObject("match")
+        assertEquals("incomplete", match.getString("outcome"))
+        assertEquals(1, match.getInt("candidate_count"))
+        assertTrue(match.getBoolean("candidate_set_complete_within_granted_scope"))
+        assertTrue(match.getBoolean("candidate_page_complete"))
+        assertFalse(match.getBoolean("pending_database_complete_at_recheck"))
+        assertTrue(match.getString("scope_note").contains("initial grant was incomplete"))
+        assertFalse(data.getBoolean("scope_exhausted"))
+        assertEquals(
+            "draft #$visibleMatch",
+            data.getJSONArray("items").getJSONObject(0).getString("user_label"),
+        )
+
+        val noCandidateSession = runtimeFor(
+            WorkflowCallerScope.AgentSession(
+                scopeId = scope.scopeId,
+                captureIds = scope.captureIds,
+                draftIds = visibleConflicts.toSet(),
+            ),
+        )
+        val freshCapture = observeCapture(noCandidateSession)
+        val freshEvent = freshCapture.getJSONArray("events").getJSONObject(0).getString("ref")
+        val noMatch = noCandidateSession.execute(
+            "list_drafts",
+            JSONObject()
+                .put("event_ref", freshEvent)
+                .put("review_status", "PENDING")
+                .put("duplicates_only", false)
+                .put("cursor", JSONObject.NULL),
+            "read-only",
+        ).envelope.getJSONObject("data")
+        val incompleteResult = noMatch.getJSONObject("match")
+        assertEquals("incomplete", incompleteResult.getString("outcome"))
+        assertEquals(0, incompleteResult.getInt("candidate_count"))
+        assertTrue(incompleteResult.getBoolean("candidate_set_complete_within_granted_scope"))
+        assertTrue(incompleteResult.getBoolean("candidate_page_complete"))
+        assertFalse(incompleteResult.getBoolean("pending_database_complete_at_recheck"))
+        assertFalse(noMatch.getBoolean("scope_exhausted"))
+    }
+
+    @Test
+    fun `fresh pending rows outside an otherwise complete grant prevent a unique claim`() = runBlocking {
+        val visible = storeDraft(
+            amount = 28_000L,
+            date = "2026-10-21",
+            time = "12:30",
+            memo = "Visible purchase",
+        )
+        val runtime = runtimeFor(
+            WorkflowCallerScope.AgentSession(
+                scopeId = scope.scopeId,
+                captureIds = scope.captureIds,
+                draftIds = setOf(visible),
+                draftScopeComplete = true,
+            ),
+        )
+        val capture = observeCapture(runtime)
+        val source = selectSource(runtime, capture.getString("ref"), capture.getString("source_text"))
+        val recorded = record(
+            runtime,
+            source.getString("source_ref"),
+            valueRef(source, "amount"),
+            makeAnchor(runtime, valueRef(source, "date"), valueRef(source, "time")),
+            "Lunch purchase",
+            "none",
+        )
+        assertEquals("ok", recorded.getString("outcome"))
+        val eventRef = recorded.getJSONObject("data").getJSONObject("event").getString("ref")
+        // This matching draft arrives after the session grant was created and is not authorized.
+        storeDraft(
+            amount = 28_000L,
+            date = "2026-10-21",
+            time = "12:30",
+            memo = "Fresh pending purchase",
+        )
+
+        val data = runtime.execute(
+            "list_drafts",
+            JSONObject()
+                .put("event_ref", eventRef)
+                .put("review_status", "PENDING")
+                .put("duplicates_only", false)
+                .put("cursor", JSONObject.NULL),
+            "read-only",
+        ).envelope.getJSONObject("data")
+        val match = data.getJSONObject("match")
+        assertEquals("incomplete", match.getString("outcome"))
+        assertEquals(1, match.getInt("candidate_count"))
+        assertTrue(match.getBoolean("candidate_set_complete_within_granted_scope"))
+        assertTrue(match.getBoolean("candidate_page_complete"))
+        assertFalse(match.getBoolean("pending_database_complete_at_recheck"))
+        assertTrue(match.getString("scope_note").contains("fresh/out-of-grant pending ids"))
+        assertFalse(data.getBoolean("scope_exhausted"))
+        assertEquals(
+            "draft #$visible",
+            data.getJSONArray("items").getJSONObject(0).getString("user_label"),
+        )
+    }
+
+    @Test
     fun `same day intervals follow chronological order and reject reversed ends`() = runBlocking {
         val saved = commands.saveCapture(
             WorkflowCallerScope.User,
@@ -1318,27 +1974,34 @@ class AgentToolRuntimeTest {
     }
 
     private suspend fun storeDraft(
-        amount: Long,
-        date: String,
-        memo: String = "Synthetic bank memo for $amount",
+        amount: Long?,
+        date: String?,
+        memo: String? = "Synthetic bank memo for $amount",
+        time: String? = "12:30",
+        postedAtEpochMillis: Long = 1_798_000_000_000L,
+        direction: IntakeDirection = IntakeDirection.DEBIT,
+        amountState: IntakeFieldState = if (amount == null) IntakeFieldState.MISSING else IntakeFieldState.PRESENT,
+        momentState: IntakeFieldState =
+            if (date == null && time == null) IntakeFieldState.MISSING else IntakeFieldState.PRESENT,
+        memoState: IntakeFieldState = if (memo == null) IntakeFieldState.MISSING else IntakeFieldState.PRESENT,
     ): Long =
         database.pendingBankDraftDao().store(
             PendingBankDraftEntity(
-                deliveryId = "s8.13-pre-draft-$amount-$date",
+                deliveryId = "s8.13-pre-draft-${sequence.incrementAndGet()}-$amount-$date",
                 sourcePackage = "synthetic.fixture",
                 notificationKey = null,
-                postedAtEpochMillis = 1_798_000_000_000L,
+                postedAtEpochMillis = postedAtEpochMillis,
                 bank = "Fixture bank",
                 parseStatus = IntakeParseStatus.PARSED,
-                amountState = IntakeFieldState.PRESENT,
+                amountState = amountState,
                 amountVnd = amount,
                 amountUnresolvedReason = null,
-                direction = IntakeDirection.DEBIT,
-                momentState = IntakeFieldState.PRESENT,
+                direction = direction,
+                momentState = momentState,
                 statedDate = date,
-                statedTime = "12:30",
+                statedTime = time,
                 momentUnresolvedReason = null,
-                memoState = IntakeFieldState.PRESENT,
+                memoState = memoState,
                 memo = memo,
                 memoUnresolvedReason = null,
                 createdAtEpochMillis = 1_798_000_000_000L,
@@ -1402,6 +2065,8 @@ class AgentToolRuntimeTest {
         const val SOURCE_TEXT = "Lunch 28,000 VND on 2026-10-21 at 12:30"
         const val MERCHANT_TEXT =
             "Lunch 28,000 VND at Highlands on 2026-10-21 at 12:30; taxi 65,000 VND on 2026-10-21 at 13:05."
+        const val MIDNIGHT_INTERVAL_TEXT =
+            "Coffee 28,000 VND 2026-10-21 23:50 to 2026-10-22 00:20"
         const val TWO_TEXT = "Coffee 15,000 VND on 2026-10-21 | Taxi 40,000 VND on 2026-10-21"
         const val INTERVAL_TEXT = "Meeting 2026-10-21 from 09:00 to 17:00"
         const val EQUAL_INTERVAL_TEXT = "Standup 2026-10-21 09:00 to 09:00"

@@ -1,5 +1,9 @@
 package io.github.triet4p.aegisf.data
 
+import io.github.triet4p.aegisf.ui.ManualDateTime
+import java.text.Normalizer
+import java.util.Locale
+
 /**
  * Whether the app's own facts prove one association between a note event and a bank draft.
  *
@@ -131,19 +135,92 @@ data class TrustedLinkEvidence(
 }
 
 /**
- * Computes the app's own evidence about one proposed association.
+ * Computes the app's evidence for both candidate retrieval and later link eligibility.
  *
- * The policy is deliberately narrow and never scores: it compares the stated amount and the
- * stated day, and it asks whether the app's own stored drafts hold exactly one candidate
- * and whether that draft is free of an uncertain duplicate. It never compares a merchant
- * with a bank memo, never weighs one field above another, and never turns a similarity into
- * an identity: an association the app cannot prove stays the user's decision.
+ * [candidateMatches] returns a deterministic, evidence-ranked view of pending drafts already
+ * authorized and read through the bounded query path. Its amount, interval and merchant facts
+ * are retrieval evidence only: it neither chooses a candidate nor changes attachment policy.
+ * [evidenceFor] remains the narrower attachment check, comparing exact amount/day and stored
+ * competition; merchant similarity and ranking never authorize an association.
  */
 internal class LinkEvidencePolicy(
     private val database: LedgerDatabase,
 ) {
     private val draftDao = database.pendingBankDraftDao()
     private val captureDao = database.captureMessageDao()
+
+    /**
+     * Ranks only pending rows already read by the bounded, trusted candidate query.
+     *
+     * It is retrieval evidence, not a write decision: ranking is deterministic and never
+     * turns proximity, category choice, or model certainty into identity.
+     */
+    fun candidateMatches(
+        event: NoteEventEntity,
+        drafts: List<PendingBankDraftEntity>,
+        pendingDatabaseComplete: Boolean,
+    ): DraftCandidateMatchSet {
+        val hasSearchEvidence =
+            event.amountVnd != null || event.anchorDate != null || !event.merchant.isNullOrBlank()
+        if (!hasSearchEvidence) {
+            return DraftCandidateMatchSet(
+                eventId = event.id,
+                eventRevision = event.revision,
+                outcome = if (pendingDatabaseComplete) {
+                    DraftCandidateMatchOutcome.MISSING
+                } else {
+                    DraftCandidateMatchOutcome.INCOMPLETE
+                },
+                candidates = emptyList(),
+                conflictingDraftCount = 0,
+                pendingDatabaseComplete = pendingDatabaseComplete,
+                rankingRationale = MATCH_RANKING_RATIONALE,
+            )
+        }
+
+        val matches = mutableListOf<DraftCandidateMatch>()
+        var conflicts = 0
+        var sufficientMatches = 0
+        for (draft in drafts) {
+            if (draft.reviewStatus != IntakeReviewStatus.PENDING || draft.confirmedTransactionId != null) {
+                continue
+            }
+            val assessment = assessDraftCandidate(event, draft)
+            if (assessment.conflicting) {
+                conflicts += 1
+            } else {
+                matches += assessment.match
+                if (assessment.sufficientEvidence) sufficientMatches += 1
+            }
+        }
+
+        matches.sortWith(
+            compareByDescending<DraftCandidateMatch> { it.amount == DraftCandidateEvidenceState.MATCH }
+                .thenByDescending { it.transactionTime == DraftCandidateEvidenceState.MATCH }
+                .thenByDescending { it.merchant == DraftCandidateEvidenceState.MATCH }
+                .thenBy { it.pointTimeDistanceMinutes ?: Int.MAX_VALUE }
+                .thenByDescending { it.draft.createdAtEpochMillis }
+                .thenByDescending { it.draft.id },
+        )
+
+        val outcome = when {
+            !pendingDatabaseComplete -> DraftCandidateMatchOutcome.INCOMPLETE
+            matches.size > 1 -> DraftCandidateMatchOutcome.AMBIGUOUS
+            matches.isEmpty() && conflicts > 0 -> DraftCandidateMatchOutcome.CONFLICTING
+            matches.isEmpty() -> DraftCandidateMatchOutcome.MISSING
+            sufficientMatches == 1 -> DraftCandidateMatchOutcome.UNIQUE
+            else -> DraftCandidateMatchOutcome.MISSING
+        }
+        return DraftCandidateMatchSet(
+            eventId = event.id,
+            eventRevision = event.revision,
+            outcome = outcome,
+            candidates = matches,
+            conflictingDraftCount = conflicts,
+            pendingDatabaseComplete = pendingDatabaseComplete,
+            rankingRationale = MATCH_RANKING_RATIONALE,
+        )
+    }
 
     /**
      * The evidence about the association between one reading and one draft.
@@ -183,6 +260,205 @@ internal class LinkEvidencePolicy(
         )
     }
 }
+
+private data class CandidateAssessment(
+    val match: DraftCandidateMatch,
+    val conflicting: Boolean,
+    val sufficientEvidence: Boolean,
+)
+
+private fun assessDraftCandidate(
+    event: NoteEventEntity,
+    draft: PendingBankDraftEntity,
+): CandidateAssessment {
+    val effectiveAmount = effectiveCandidateAmount(draft)
+    val amountState = when {
+        event.amountVnd == null || effectiveAmount == null -> DraftCandidateEvidenceState.MISSING
+        event.amountVnd == effectiveAmount -> DraftCandidateEvidenceState.MATCH
+        else -> DraftCandidateEvidenceState.CONFLICT
+    }
+
+    val effectiveDate = effectiveCandidateDate(draft)
+    val effectiveTime = effectiveCandidateTime(draft)
+    val startDate = event.anchorDate
+    val endDate = event.intervalEndDate
+    val hasInterval = endDate != null
+    val intervalUsesClock = hasInterval &&
+        (event.anchorTime != null || event.intervalEndTime != null)
+    val timeState = when {
+        startDate == null || effectiveDate == null -> DraftCandidateEvidenceState.MISSING
+        hasInterval && intervalUsesClock && effectiveTime == null -> DraftCandidateEvidenceState.MISSING
+        hasInterval && intervalUsesClock -> {
+            val start = "$startDate ${event.anchorTime ?: "00:00"}"
+            val end = "${endDate!!} ${event.intervalEndTime ?: "23:59"}"
+            val transaction = "$effectiveDate ${effectiveTime!!}"
+            if (transaction >= start && transaction <= end) {
+                DraftCandidateEvidenceState.MATCH
+            } else {
+                DraftCandidateEvidenceState.CONFLICT
+            }
+        }
+        hasInterval -> {
+            if (effectiveDate >= startDate && effectiveDate <= endDate!!) {
+                DraftCandidateEvidenceState.MATCH
+            } else {
+                DraftCandidateEvidenceState.CONFLICT
+            }
+        }
+        effectiveDate == startDate -> DraftCandidateEvidenceState.MATCH
+        else -> DraftCandidateEvidenceState.CONFLICT
+    }
+
+    val eventMerchant = event.merchant?.let(::normalizedMerchantPhrase)?.takeIf { it.isNotEmpty() }
+    val draftMerchant = effectiveCandidateDescription(draft)
+        ?.let(::normalizedMerchantPhrase)
+        ?.takeIf { it.isNotEmpty() }
+    val merchantState = when {
+        eventMerchant == null || draftMerchant == null -> DraftCandidateEvidenceState.MISSING
+        draftMerchant.containsPhrase(eventMerchant) -> DraftCandidateEvidenceState.MATCH
+        else -> DraftCandidateEvidenceState.CONFLICT
+    }
+
+    val pointDistance = if (
+        !hasInterval && event.anchorTime != null && effectiveTime != null &&
+        effectiveDate == startDate
+    ) {
+        kotlin.math.abs(minutesAfterMidnight(event.anchorTime) - minutesAfterMidnight(effectiveTime))
+    } else {
+        null
+    }
+    val conflicting = amountState == DraftCandidateEvidenceState.CONFLICT ||
+        timeState == DraftCandidateEvidenceState.CONFLICT ||
+        merchantState == DraftCandidateEvidenceState.CONFLICT
+    val sufficientEvidence = event.normalizedText != null && event.unresolvedReason == null &&
+        event.amountVnd != null && amountState == DraftCandidateEvidenceState.MATCH &&
+        startDate != null && timeState == DraftCandidateEvidenceState.MATCH
+
+    val rationale = buildList {
+        add(
+            when (amountState) {
+                DraftCandidateEvidenceState.MATCH -> "The available amount evidence agrees exactly."
+                DraftCandidateEvidenceState.MISSING -> "Amount evidence is missing on one or both sides."
+                DraftCandidateEvidenceState.CONFLICT -> "The stated amounts conflict."
+            },
+        )
+        add(
+            when {
+                timeState == DraftCandidateEvidenceState.MATCH && hasInterval ->
+                    "The parsed bank transaction time is inside the event's stated interval."
+                timeState == DraftCandidateEvidenceState.MATCH ->
+                    "The parsed bank transaction date matches the event's stated day."
+                timeState == DraftCandidateEvidenceState.MISSING ->
+                    "Transaction-time evidence is missing on one or both sides."
+                else -> "The parsed bank transaction time is outside the stated event interval."
+            },
+        )
+        add(
+            when (merchantState) {
+                DraftCandidateEvidenceState.MATCH -> "The event's named merchant appears as a complete phrase in the effective bank description."
+                DraftCandidateEvidenceState.MISSING -> "Merchant evidence is missing on one or both sides."
+                DraftCandidateEvidenceState.CONFLICT -> "The stated merchant and effective bank description conflict."
+            },
+        )
+        if (pointDistance != null) {
+            add("Transaction-time proximity orders candidates only; it does not establish identity.")
+        }
+        add("Notification receipt time is not used.")
+        add("Event account and transaction type are UNKNOWN because this event stores neither; bank name and draft direction are not substitutes.")
+        add("Category choice and model certainty are not ranking inputs.")
+    }
+    return CandidateAssessment(
+        match = DraftCandidateMatch(
+            draft = draft,
+            amount = amountState,
+            transactionTime = timeState,
+            merchant = merchantState,
+            pointTimeDistanceMinutes = pointDistance,
+            rankingRationale = rationale,
+        ),
+        conflicting = conflicting,
+        sufficientEvidence = sufficientEvidence,
+    )
+}
+
+internal fun effectiveCandidateAmount(draft: PendingBankDraftEntity): Long? {
+    val correction = draft.reviewAmountText
+    if (correction != null) {
+        return try {
+            VndMoney.parseManualAmount(correction)
+        } catch (_: LedgerValidationException) {
+            null
+        }
+    }
+    return draft.amountVnd.takeIf { draft.amountState == IntakeFieldState.PRESENT }
+}
+
+internal fun effectiveCandidateDate(draft: PendingBankDraftEntity): String? {
+    val correction = draft.reviewDateText
+    val value = if (correction != null) {
+        correction
+    } else {
+        draft.statedDate.takeIf { draft.momentState == IntakeFieldState.PRESENT } ?: return null
+    }
+    return value.takeIf { ManualDateTime.dateError(it) == null }
+}
+
+internal fun effectiveCandidateTime(draft: PendingBankDraftEntity): String? {
+    val correction = draft.reviewTimeText
+    val value = if (correction != null) {
+        correction
+    } else {
+        draft.statedTime.takeIf { draft.momentState == IntakeFieldState.PRESENT } ?: return null
+    }
+    return value.takeIf { ManualDateTime.timeError(it) == null }
+}
+
+internal fun effectiveCandidateDescription(draft: PendingBankDraftEntity): String? {
+    val value = if (draft.reviewMemoEdited) {
+        draft.reviewMemo
+    } else {
+        draft.memo.takeIf { draft.memoState == IntakeFieldState.PRESENT }
+    }
+    return value?.trim()?.takeIf { it.isNotEmpty() }
+}
+
+private fun normalizedMerchantPhrase(value: String): String {
+    val decomposed = Normalizer.normalize(value.lowercase(Locale.ROOT), Normalizer.Form.NFD)
+    return buildString(decomposed.length) {
+        var separatorPending = false
+        for (character in decomposed) {
+            val type = Character.getType(character)
+            if (
+                type == Character.NON_SPACING_MARK.toInt() ||
+                type == Character.COMBINING_SPACING_MARK.toInt() ||
+                type == Character.ENCLOSING_MARK.toInt()
+            ) {
+                continue
+            }
+            if (character.isLetterOrDigit()) {
+                if (separatorPending && isNotEmpty()) append(' ')
+                append(character)
+                separatorPending = false
+            } else {
+                separatorPending = true
+            }
+        }
+    }
+}
+
+private fun String.containsPhrase(phrase: String): Boolean =
+    " $this ".contains(" $phrase ")
+
+private fun minutesAfterMidnight(time: String): Int =
+    (time[0] - '0') * 600 + (time[1] - '0') * 60 +
+        (time[3] - '0') * 10 + (time[4] - '0')
+
+private val MATCH_RANKING_RATIONALE = listOf(
+    "Rank exact amount evidence, then event-time compatibility, then exact merchant evidence.",
+    "For a point-time event, parsed transaction-time distance orders otherwise tied rows only; it cannot establish identity.",
+    "Break remaining ties by draft creation time descending, then draft id descending.",
+    "Event account and transaction type are UNKNOWN; neither bank name nor draft direction provides a comparison.",
+)
 
 /** The marker every app-computed link evidence starts with. */
 internal const val LINK_EVIDENCE_MARKER = "AEGIS-LINK-EVIDENCE/1"

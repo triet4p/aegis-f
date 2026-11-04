@@ -1,0 +1,341 @@
+{
+  "schema": "aegis-f-s8-agent-runtime-skills/v8",
+  "contract": "aegis-agent-interface/8",
+  "skills": [
+    {
+      "skill_id": "event-reading",
+      "skill_version": 8,
+      "trigger": "The user asks to interpret or correct captured occurrences.",
+      "tools": [
+        "observe",
+        "select_source",
+        "make_time_anchor",
+        "record_event",
+        "ask_user"
+      ],
+      "prerequisites": [
+        "Trusted host scope grants the capture; the initial observation or observe returns current capture/event aliases and masked source text.",
+        "Every reference, view offset and value alias comes from a current observation. Aliases are opaque and are never constructed, reused across runs or parsed.",
+        "Capture-page value aliases are display-only. record_event and make_time_anchor accept value aliases issued by select_source for the selected occurrence, or by a clarification linked to that exact subject; a capture-page alias is not occurrence evidence.",
+        "A masked value select_source returns in values is present evidence: pass its alias. A value alias is a neutral opaque identity with only a lexical shape hint (numeric, text or alphanumeric); the shape is not a type and never makes a value an amount, a date or an account. Choose the alias whose meaning fits the argument (amount_ref, date_ref, time_ref) and the host parses and validates the underlying value locally for that argument. Never ask the user to repeat, retype or unmask a value the source states; ask only when the required role is genuinely absent or the evidence is genuinely ambiguous.",
+        "A numeric shape is not a role: one sentence can state a price and an account number, both numeric. Choose the value the sentence makes the amount (for example the one after a price or payment word) and do not ask merely because another numeric value exists; clarify only when the role itself is genuinely ambiguous.",
+        "A merchant is a source handle, not a value alias and not prose. When the occurrence names its seller or place as the transaction counterparty, select that exact merchant substring with select_source in the same capture and pass the returned source alias as merchant_ref; it must lie inside the recorded occurrence's span. A product, item or activity description is not a merchant. Leave merchant_ref null when the occurrence states no counterparty, or when the candidate wording is uncertain; an absent or uncertain optional merchant is normal, not clarification-required and not a failed reading by itself.",
+        "A date-only anchor is complete without a time. A time needs its grounded date. When the occurrence states its day relative to the note (today, yesterday, the day before yesterday, tomorrow, the day after tomorrow, or the Vietnamese spelling of one of those days), select_source also returns a relative_date alias for that exact wording inside the selection: pass that alias as make_time_anchor date_ref and the host resolves the calendar date from the capture's own recorded local date and zone, so never compute, state or ask for that date. A period word (this morning, last night, this week) or any unlisted relative wording is not one day: record no anchor for it and ask for an absolute date.",
+        "The clarification field names the exact temporal component the source or user leaves unresolved; it is not a prerequisite you inferred. When the source says the clock time is not remembered, the unresolved component is time (clarification time) even though the date is also absent. The summary keeps that same meaning: never restate a missing clock time as a missing date. A supplied time still needs its grounded date before an anchor is stored."
+      ],
+      "tool_order": [
+        "Inspect the authorized capture/current events and identify each distinct source-grounded occurrence; do not manufacture one for a no-match request.",
+        "Select the exact source quote for one occurrence. Use the value aliases select_source returned for that occurrence, choosing the ones whose meaning fits amount_ref/date_ref/time_ref; when an anchor is needed, build it with make_time_anchor from those grounded aliases. Never pass a capture-page value alias as occurrence evidence. When the selection returned a relative_date alias for a day word the occurrence states, use that alias as the anchor's date instead of asking the user for the date.",
+        "If that occurrence names its seller or place as the transaction counterparty, select the exact merchant substring from the same capture with select_source and keep its source alias for merchant_ref. Record only a counterparty the selected occurrence explicitly names; never promote its product, item or activity description, never retype, translate or infer a merchant, and never reuse another occurrence's merchant alias.",
+        "Decide what is truly unresolved. Null optional merchant, date or time is normal; unresolved does not mean 'not every field is populated'.",
+        "Record one atomic reading. For several occurrences, repeat with an independent source alias for each; never reuse another occurrence's values.",
+        "On a stale error, observe, reselect and reassess. On a field error, use the named constraint and available aliases. Stop at a privacy or authority refusal.",
+        "If the occurrence or its meaning is ungrounded, ask before writing. If a grounded partial reading is useful, record known fields and then ask its primary clarification.",
+        "Finish only when each requested event is verified, or report pending clarification, no-match or a partial outcome truthfully."
+      ],
+      "branches": {
+        "normal": "A complete occurrence uses the source alias and the neutral value aliases select_source issued for it, chosen for amount_ref/date_ref/time_ref (or an anchor make_time_anchor built from those grounded aliases), with clarification none. An explicitly named seller-or-place counterparty is recorded by passing the source alias select_source issued for that exact merchant substring; an occurrence that names no counterparty, or whose candidate wording is uncertain, leaves merchant_ref null with clarification none, and that null is not an error. A stated day word uses the relative_date alias select_source issued for it as the anchor's date; the host, not the model, resolves that day from the capture.",
+        "clarification": "A grounded but incomplete occurrence is stored with missing values null and the matching clarification field, then followed by one focused ask_user question. The field is the component the source or user actually leaves unresolved: when the clock time is not remembered it is time, even if the date is also ungrounded, and never date in its place. The stored summary preserves that component and meaning.",
+        "no_match": "Report that no supported occurrence was found; do not create a reading.",
+        "error": "On error, use the actual code, path and constraint. STALE_OBSERVATION means observe and reassess; SOURCE_QUOTE_NOT_FOUND means reselect exact text; MISSING_REQUIRED_MEANING means correct or ask.",
+        "retry": "Never resend the same failed call blindly. A correction uses fresh observations and is a new request; exact replay is only via a recorded operation alias."
+      },
+      "error_recovery": {
+        "stale_observation": "Observe the fresh capture, select the current quote and decide again; never force the old reading onto new text.",
+        "reference_kind_mismatch": "Use a value alias issued by select_source for the selected occurrence or by its linked clarification, and choose the value that parses for the argument named by the error. A capture-page value alias is display-only. For merchant_ref the accepted handle is a source alias for an exact seller-or-place substring named as the counterparty inside the recorded occurrence; a product, item or activity description is never accepted there.",
+        "missing_required_meaning": "Preserve a grounded partial reading and ask for the genuinely missing amount, or correct a genuinely wrong selection. A value the masked source states and select_source returns as an alias is not missing; pass that alias.",
+        "privacy_refusal": "Stop hosted work. Do not retry another spelling, raw value or unmasked fallback.",
+        "temporal_constraint": "Use only grounded temporal components: an absolute date value alias, or the relative_date alias select_source issued for a day word inside the selected occurrence. The host refuses rather than borrowing a day or zone; when the capture records no local date and zone, or the wording names a period, ask for the absolute date."
+      },
+      "examples": [
+        {
+          "given": "observe issues capture alias cap_a for an occurrence whose captured line describes only an activity, an amount and a date, and names no seller or place; its capture-page value aliases are display-only and no event exists yet. select_source on the exact occurrence quote returns src_a together with that occurrence's own neutral value aliases (one chosen as the amount, one as the date/time); make_time_anchor on the temporal ones returns anchor_a.",
+          "arguments": {
+            "source_ref": "src_a",
+            "summary": "Afternoon workbook purchase",
+            "amount_ref": "amt_a",
+            "anchor_ref": "anchor_a",
+            "merchant_ref": null,
+            "clarification": "none"
+          },
+          "expected": "One verified reading with interpreted status, merchant null and no merchant question. The activity wording stays in the summary; it is never promoted into merchant_ref. The amount and anchor aliases are the ones select_source/the anchor helper issued for src_a, never the capture-page aliases."
+        },
+        {
+          "given": "select_source on the exact quote 'Harbor-side noodle lunch' returns src_b with no value alias whose value parses as an amount.",
+          "arguments": {
+            "source_ref": "src_b",
+            "summary": "Harbor-side noodle lunch",
+            "amount_ref": null,
+            "anchor_ref": null,
+            "merchant_ref": null,
+            "clarification": "amount"
+          },
+          "expected": "One grounded partial reading pending clarification; follow with ask_user about the amount. Never infer zero and never promote the dish wording into merchant_ref."
+        },
+        {
+          "given": "The selected occurrence explicitly names its seller as the transaction counterparty. select_source on the occurrence quote returns src_c with its neutral value aliases, and a second select_source on that exact seller-or-place substring inside the same occurrence returns src_merchant bound to the same capture revision; make_time_anchor from the occurrence aliases returns anchor_c.",
+          "arguments": {
+            "source_ref": "src_c",
+            "summary": "Evening meal",
+            "amount_ref": "amt_c",
+            "anchor_ref": "anchor_c",
+            "merchant_ref": "src_merchant",
+            "clarification": "none"
+          },
+          "expected": "One verified reading that stores the explicitly named counterparty, with interpreted status and no ledger row. merchant_ref is the source alias for that exact seller-or-place substring, never retyped merchant prose, and the extra selection creates no second event."
+        },
+        {
+          "given": "The captured line mentions a possible place word, but the wording is uncertain about whether it is the seller or only describes the item. select_source on the exact occurrence quote returns src_d with its neutral value aliases; make_time_anchor from the occurrence aliases returns anchor_d.",
+          "arguments": {
+            "source_ref": "src_d",
+            "summary": "Morning pastry purchase",
+            "amount_ref": "amt_d",
+            "anchor_ref": "anchor_d",
+            "merchant_ref": null,
+            "clarification": "none"
+          },
+          "expected": "One verified reading with interpreted status and merchant null. An uncertain candidate is left null rather than guessed; absence or uncertainty of the optional merchant alone is neither clarification-required nor a failed reading."
+        },
+        {
+          "given": "The captured line states an amount and that the clock time cannot be recalled, and gives no date. select_source on the exact occurrence quote returns src_e with its neutral value aliases; only the value that parses as the amount is present, and no date or time value is grounded.",
+          "arguments": {
+            "source_ref": "src_e",
+            "summary": "Bus fare; clock time not remembered",
+            "amount_ref": "amt_e",
+            "anchor_ref": null,
+            "merchant_ref": null,
+            "clarification": "time"
+          },
+          "expected": "One grounded partial reading with amount stored, both temporal fields null and clarification time, followed by ask_user field time about the clock time. Do not answer a missing clock time by asking for the date instead, and do not rewrite the summary as a missing date."
+        },
+        {
+          "given": "The occurrence states 'yesterday' and a clock time but no absolute date. select_source on the exact occurrence quote returns src_f with that occurrence's neutral value aliases and one relative_date alias rel_f for that day word; make_time_anchor on rel_f and the grounded time value returns anchor_f.",
+          "arguments": {
+            "source_ref": "src_f",
+            "summary": "Coffee yesterday",
+            "amount_ref": "amt_f",
+            "anchor_ref": "anchor_f",
+            "merchant_ref": null,
+            "clarification": "none"
+          },
+          "expected": "One verified reading whose stored date is the capture's own local day shifted by that day word's offset, carrying the stated clock time and the capture's recorded zone. The model never states that calendar date and never asks the user for it; a period word such as 'this morning' is not a day word and stays a date clarification instead."
+        }
+      ],
+      "completion": "Each requested occurrence has a verified current reading, or the run reports pending clarification, no-match or a partial outcome truthfully."
+    },
+    {
+      "skill_id": "draft-search",
+      "skill_version": 2,
+      "trigger": "The user asks to find stored drafts or gather bounded candidates.",
+      "tools": [
+        "list_drafts",
+        "observe",
+        "ask_user"
+      ],
+      "prerequisites": [
+        "The host grants draft scope; model text never widens it. Event-bound results separately report whether the full candidate set was evaluated within granted ids, whether more candidate pages remain, and whether the bounded current pending-id recheck covers every pending draft; fresh/out-of-grant rows remain incomplete.",
+        "For a specific note occurrence, use its current event alias from observe as event_ref with review_status=PENDING, duplicates_only=false and the host-issued cursor. The query reads only already-granted pending draft ids.",
+        "Event-bound retrieval uses the stored event day/interval, amount and exact normalized merchant evidence, applying explicit pending-draft corrections first. The parsed bank transaction time is separate from notification receipt time; receipt time, category choice and model certainty never establish identity.",
+        "Account and event transaction type remain UNKNOWN when the event does not store them; bank name and draft direction are not substitutes. Read the app's outcome and ranking rationale rather than inferring a score."
+      ],
+      "tool_order": [
+        "For a general inbox request, use list_drafts with the user's actual review-state/duplicate filters; do not imply it matched a note event.",
+        "For event candidates, observe the exact event if needed and pass its current alias as event_ref with review_status=PENDING, duplicates_only=false and cursor JSON null.",
+        "Read the host's candidate outcome, per-row match evidence, ranking rationale, candidate_set_complete_within_granted_scope, candidate_page_complete, pending_database_complete_at_recheck and scope_exhausted state. A candidate rank orders evidence only; it never chooses an identity.",
+        "Follow next_cursor only when candidate_page_complete is false; keep the same event alias and filters. If pending_database_complete_at_recheck is false, disclose the bound and never claim unique or missing."
+      ],
+      "branches": {
+        "normal": "Present the returned rows and the app-owned match outcome with uncertainty intact. UNIQUE is evidence only and does not propose or attach a link.",
+        "clarification": "For AMBIGUOUS or MISSING evidence, ask for the missing fact or the user's choice; do not choose the nearest candidate as identity.",
+        "no_match": "Report CONFLICTING only when no granted candidate is compatible and all observed rows conflict. Report MISSING only for insufficient evidence or no compatible rows when pending_database_complete_at_recheck is true. INCOMPLETE is neither absence nor uniqueness.",
+        "error": "A stale cursor or event revision means restart from a fresh observation; never skip or repeat rows silently.",
+        "retry": "A changed event or query needs a fresh observation and current cursor, not a constructed offset."
+      },
+      "error_recovery": {
+        "cursor_stale": "Use the returned fresh cursor or restart from the first page with the same event alias and filters.",
+        "scope_refusal": "Do not probe another identifier; use only host-granted event and draft references.",
+        "incomplete_scope": "Disclose that the initial grant was incomplete or the bounded current pending-id recheck found fresh/out-of-grant pending ids or another page. The candidate set is complete only within granted ids; do not report unique or missing or try to widen the session.",
+        "privacy_refusal": "Stop hosted work."
+      },
+      "examples": [
+        {
+          "given": "observe returns event alias evt_a for an event with a stated day and amount; list_drafts returns two compatible pending rows with equal amounts and nearby parsed transaction times.",
+          "arguments": {
+            "review_status": "PENDING",
+            "duplicates_only": false,
+            "cursor": null,
+            "event_ref": "evt_a"
+          },
+          "expected": "Both rows remain candidates; outcome is ambiguous. The closer transaction time may order them but does not establish identity, and notification receipt time is unused."
+        },
+        {
+          "given": "The first candidate page has one compatible row, candidate_set_complete_within_granted_scope is true, but pending_database_complete_at_recheck is false because the initial grant had more pending ids or a fresh pending id appeared outside it.",
+          "arguments": {
+            "review_status": "PENDING",
+            "duplicates_only": false,
+            "cursor": null,
+            "event_ref": "evt_a"
+          },
+          "expected": "The app reports incomplete, not unique or missing. The returned candidate set covers granted ids only; disclose that other current pending ids may be outside this session."
+        }
+      ],
+      "completion": "Return the app's actual bounded candidates, match outcome, ranking rationale and completeness, or state exactly which missing evidence or scope bound prevents a conclusion. Retrieval never implies a link mutation."
+    },
+    {
+      "skill_id": "link-event-draft",
+      "skill_version": 4,
+      "trigger": "The user asks to propose or attach an event-draft association.",
+      "tools": [
+        "observe",
+        "list_drafts",
+        "inspect_link",
+        "propose_link",
+        "attach_link",
+        "ask_user"
+      ],
+      "prerequisites": [
+        "Use current event and draft aliases from observations in the trusted scope.",
+        "First call list_drafts with the selected event_ref, review_status=PENDING, duplicates_only=false and the host-issued cursor. Use only its app-computed candidate evidence; explicit draft corrections take precedence.",
+        "The candidate evidence distinguishes parsed bank transaction date/time from notification receipt time. Receipt-time proximity, category choice and model certainty never establish identity; account and transaction type remain UNKNOWN if not stored for the event.",
+        "Do not claim unique or missing when pending_database_complete_at_recheck is false or candidate_page_complete/scope_exhausted is false. A ranking is deterministic ordering only, not authority to choose a row.",
+        "After selecting a current candidate, inspect the exact event/draft pair. Attachment is allowed only for the exact inspected eligible pair when requested; the agent never supplies an override.",
+        "Every observation carries the application's own user_label for the exact row. Copy it from the observation used; never infer an id from list order."
+      ],
+      "tool_order": [
+        "Observe the current event and retrieve its bounded pending candidates with list_drafts(event_ref=event_alias).",
+        "Read the app's outcome and each candidate's amount, transaction-time and merchant evidence. If pending_database_complete_at_recheck is false, disclose the pending-id bound and stop short of a database-wide match/no-match claim; if the page is incomplete, follow its cursor. If evidence is missing or conflicting, do not force a pair.",
+        "When multiple compatible candidates remain, treat them as ambiguous regardless of rank and ask the user to distinguish them. Never use receipt time or proximity alone as identity.",
+        "For a unique candidate or a user-selected candidate, inspect its actual trusted pair evidence. A retrieval result does not replace inspect_link or change attachment policy.",
+        "If only a tentative proposal was requested, propose and stop after the verified proposal. Attach only when the user requested it and the exact proposal is currently eligible; no ledger confirmation is implied."
+      ],
+      "branches": {
+        "normal": "Inspect, propose only when requested, verify the proposal revision, and attach only the exact eligible proposal the user authorized.",
+        "clarification": "Ask which compatible candidate the user means; never choose by category, model certainty, receipt time, or ranking alone.",
+        "no_match": "Leave state unchanged and report the actual missing, conflicting, incomplete, or ineligible outcome without claiming more than the complete authorized scope supports.",
+        "error": "A denied, stale or missing pair is not attachment; use the returned reason and fresh observation.",
+        "retry": "After a repairable stale result, reinspect the current event and candidate query; changed requests are new commands."
+      },
+      "error_recovery": {
+        "link_ineligible": "Do not attach. Report the stable reason code and leave the decision to the user.",
+        "stale_observation": "Observe the pair and event again, rerun bounded candidate retrieval and reinspect; reassess or ask if evidence changed.",
+        "incomplete_scope": "Do not claim a unique/no-match result or attach when the pending database recheck is incomplete. State that the initial pending-id grant was incomplete, or the bounded recheck found fresh/out-of-grant ids or another page.",
+        "user_decision_required": "Stop at the application boundary; an agent cannot override.",
+        "privacy_refusal": "Stop hosted work."
+      },
+      "examples": [
+        {
+          "given": "observe issues event alias evt_a; event-bound list_drafts returns one candidate and outcome unique in a complete scope. inspect_link for that exact alias pair returns eligible.",
+          "arguments": {
+            "event_ref": "evt_a",
+            "review_status": "PENDING",
+            "duplicates_only": false,
+            "cursor": null
+          },
+          "expected": "The app's unique retrieval result is evidence, not an attachment. Inspect the exact pair and mutate only after the user's requested proposal/attachment path."
+        },
+        {
+          "given": "Two event candidates have the same amount and nearby transaction times; notification receipt times differ.",
+          "arguments": {
+            "event_ref": "evt_a",
+            "review_status": "PENDING",
+            "duplicates_only": false,
+            "cursor": null
+          },
+          "expected": "The result stays ambiguous; time proximity only orders rows, receipt time is unused, and the user chooses."
+        }
+      ],
+      "completion": "A fresh application observation shows the intended proposal, or the exact pair ACCEPTED only when attachment was requested and the app permits it. Candidate retrieval is read-only; no ledger row exists."
+    },
+    {
+      "skill_id": "draft-review",
+      "skill_version": 1,
+      "trigger": "The user asks to categorize, review or suggest a category for a stored bank draft.",
+      "tools": [
+        "list_drafts",
+        "observe",
+        "update_draft_review",
+        "ask_user"
+      ],
+      "prerequisites": [
+        "The host grants the draft and returns its current review revision, masked description, accepted linked readings and current category_choices with one opaque reference per active category.",
+        "Only an existing category from those choices may be chosen; never invent a category, name one that was not offered, or supply a probability."
+      ],
+      "tool_order": [
+        "Identify the actual draft; clarify when several are plausible.",
+        "Call observe on the selected current draft and read its description, linked_context readings and category_choices.",
+        "Choose exactly one offered category whose meaning fits the draft and its linked context, or ask the user when the evidence genuinely supports none of them.",
+        "Call update_draft_review with that draft ref and the chosen category ref from the same observation.",
+        "Report the stored category and that the draft remains pending; confirmation stays the user's decision."
+      ],
+      "branches": {
+        "normal": "Report the actually stored category as review state; the draft stays pending and no ledger row is written.",
+        "clarification": "Ask which draft the user meant, or which category fits when the current choices leave the draft genuinely ambiguous.",
+        "no_match": "Report that no current category fits; offer to add a category in the app. Never invent or approximate one.",
+        "error": "Report the actual stale/refused/unavailable state without a substitute category or fabricated probability.",
+        "retry": "A stale draft review revision or changed category catalog means observe the current draft and reassess; never bypass the change."
+      },
+      "error_recovery": {
+        "stale_observation": "Observe the current draft and its current category_choices, then choose again only from that fresh observation.",
+        "schema_invalid": "Pass only aliases: a draft ref and one category ref issued by the same current observation.",
+        "missing_required_meaning": "Ask the user which category fits; do not guess or create one.",
+        "user_decision_required": "Only the user can confirm or dismiss the draft; report the saved review state and stop."
+      },
+      "examples": [
+        {
+          "given": "observe(draft_a) returns description 'BÃ¡nh mÃ¬ Phá»‘' with linked_context text 'Mua bÃ¡nh mÃ¬ sÃ¡ng nay' and category_choices [Foods, Transport].",
+          "arguments": {
+            "draft_ref": "draft_a",
+            "category_ref": "<Foods category ref from the same observation>"
+          },
+          "expected": "Foods is stored as the draft's review category; the draft remains pending and no ledger row is written."
+        },
+        {
+          "given": "observe(draft_b) returns category_choices [Foods, Transport] and a description that fits neither.",
+          "expected": "Ask the user rather than saving a category that does not fit; no category or probability is fabricated."
+        }
+      ],
+      "completion": "A fresh draft observation shows the chosen existing category stored and the draft still pending; no ledger record exists."
+    },
+    {
+      "skill_id": "explicit-operation-replay",
+      "skill_version": 1,
+      "trigger": "The user explicitly requests repeat/idempotence verification, or host recovery selects a settled replayable operation.",
+      "tools": [
+        "observe",
+        "replay_operation"
+      ],
+      "prerequisites": [
+        "A recorded operation alias exists from this run or was re-established by the host from the journal.",
+        "A failed validation has no successful operation to replay."
+      ],
+      "tool_order": [
+        "Identify the actual recorded operation alias.",
+        "Call replay_operation with that exact alias. Never reconstruct prior arguments or copy a new entity revision.",
+        "Report the actual unchanged result, the same journal identity and current effect verification separately.",
+        "If the user's meaning changed, return to the parent workflow with fresh observations as a new correction, not a replay."
+      ],
+      "branches": {
+        "normal": "Report replayed=true, journal no_change and whether the original effect still exists now.",
+        "clarification": "Ask which recorded operation the user means if several exist.",
+        "no_match": "Report that no recorded operation is available in scope; do not invent a receipt.",
+        "error": "Pending or unknown receipts require host reconciliation; never claim success.",
+        "retry": "Do not create a new mutation key to make a lost-reference retry succeed."
+      },
+      "error_recovery": {
+        "operation_pending": "Stop and report pending; the host reconciles.",
+        "effect_unknown": "Stop and report unknown; never claim a success receipt.",
+        "reference_unavailable": "Report that the receipt cannot be re-established; retention or deletion may have revoked it."
+      },
+      "examples": [
+        {
+          "given": "A previous verified mutation returned operation alias op_a.",
+          "arguments": {
+            "operation_ref": "op_a"
+          },
+          "expected": "Journal no_change with the same operation identity and a separate current-effect check."
+        }
+      ],
+      "completion": "The actual journal replay result and current effect verification are reported separately; no extra business row was created."
+    }
+  ]
+}

@@ -29,17 +29,19 @@ object AgentInterface {
      * v7 adds the local deterministic relative-day alias: a day word inside the selected
      * occurrence is resolved by the host from the capture's own recorded local date and zone,
      * so the model never computes, states or asks for that calendar date.
+     * v8 adds event-bound pending-draft retrieval with app-owned amount, transaction-time and
+     * merchant evidence; incomplete session scopes stay explicit and cannot imply absence.
      */
-    const val CONTRACT: String = "aegis-agent-interface/7"
+    const val CONTRACT: String = "aegis-agent-interface/8"
 
     /** Declaration schema identity; changing semantics changes the cache identity. */
-    const val TOOL_SCHEMA: String = "aegis-f-s8-agent-tools/v7"
+    const val TOOL_SCHEMA: String = "aegis-f-s8-agent-tools/v8"
 
     /** Bundled skill schema identity. */
-    const val SKILL_SCHEMA: String = "aegis-f-s8-agent-runtime-skills/v7"
+    const val SKILL_SCHEMA: String = "aegis-f-s8-agent-runtime-skills/v8"
 
     /** Version of the authored runtime examples bundled with the skills. */
-    const val EXAMPLES_VERSION: String = "s8-agent-examples/6"
+    const val EXAMPLES_VERSION: String = "s8-agent-examples/8"
 
     /** Extraction provenance label the host records for model-derived readings. */
     const val EXTRACTION_VERSION: String = "agent-interface/5"
@@ -386,12 +388,15 @@ data class AgentToolExecution(
  * [AgentToolRuntime.verifyNoEffect] re-reads the application state behind every field.
  */
 sealed interface AgentNoEffectClaim {
-    /** One bounded draft page read under the declared filter over the trusted scope. */
+    /** One bounded trusted-scope draft set read under the declared filter. */
     data class DraftScope(
         val reviewStatus: String?,
         val duplicatesOnly: Boolean,
         val draftIds: List<Long>,
         val scopeExhausted: Boolean,
+        val draftRevisionById: Map<Long, Int> = emptyMap(),
+        val eventId: Long? = null,
+        val eventRevision: Int? = null,
     ) : AgentNoEffectClaim
 
     /** One inspected event/draft pair and the eligibility the stored evidence actually gave. */

@@ -258,16 +258,18 @@ internal fun QuickCaptureScreen(
                                             try {
                                                 val provider = hostedProviderSettingsStore.active()
                                                     ?: error("No active hosted provider. Configure one in Dashboard settings.")
-                                                val pendingDrafts = queryService.draftCandidates(
+                                                val pendingDraftPage = queryService.draftCandidates(
                                                     DraftCandidateQuery(
                                                         reviewStatus = IntakeReviewStatus.PENDING,
                                                         bounds = QueryPageRequest(limit = 32, offset = 0),
                                                     ),
-                                                ).items
+                                                )
+                                                val pendingDrafts = pendingDraftPage.items
                                                 val sessionScope = WorkflowCallerScope.AgentSession(
                                                     scopeId = "chat-${UUID.randomUUID()}",
                                                     captureIds = captures.map { it.id }.toSet(),
                                                     draftIds = pendingDrafts.map { it.id }.toSet(),
+                                                    draftScopeComplete = !pendingDraftPage.hasMore,
                                                 )
                                                 val runRequest = WorkflowRunRequest(
                                                     intents = selectedIntents,

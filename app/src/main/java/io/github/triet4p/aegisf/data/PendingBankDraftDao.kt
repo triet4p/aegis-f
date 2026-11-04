@@ -127,6 +127,19 @@ abstract class PendingBankDraftDao {
         offset: Int,
     ): List<PendingBankDraftEntity>
 
+    /**
+     * The pending drafts in a caller-supplied, bounded id set.
+     *
+     * The primary-key lookup keeps an event-specific retrieval inside the host-granted
+     * session scope; it never scans drafts the session was not granted.
+     */
+    @Query(
+        "SELECT * FROM pending_bank_drafts WHERE id IN (:draftIds) " +
+            "AND reviewStatus = 'PENDING' AND confirmedTransactionId IS NULL " +
+            "ORDER BY createdAtEpochMillis DESC, id DESC",
+    )
+    abstract suspend fun findPendingByIds(draftIds: List<Long>): List<PendingBankDraftEntity>
+
     /** One stored draft, as a live stream, so a review screen sees its own edits. */
     @Query("SELECT * FROM pending_bank_drafts WHERE id = :id")
     abstract fun observeById(id: Long): Flow<PendingBankDraftEntity?>

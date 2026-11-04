@@ -36,6 +36,8 @@ sealed interface WorkflowCallerScope {
         override val scopeId: String,
         val captureIds: Set<Long>,
         val draftIds: Set<Long>,
+        /** Whether the bounded session's draft-ID page covered every pending draft. */
+        val draftScopeComplete: Boolean = true,
     ) : WorkflowCallerScope
 }
 

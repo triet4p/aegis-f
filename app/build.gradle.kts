@@ -9,8 +9,8 @@ plugins {
 val s8AgentRuntimeAssetDir = layout.buildDirectory.dir("generated/s8-agent-runtime/assets")
 val copyS8AgentRuntimeAssets by tasks.registering(Copy::class) {
     from(
-        rootProject.file("tools/slm/s8_agent_tools_v7.json"),
-        rootProject.file("tools/slm/s8_agent_runtime_skills_v7.json"),
+        rootProject.file("tools/slm/s8_agent_tools_v8.json"),
+        rootProject.file("tools/slm/s8_agent_runtime_skills_v8.json"),
     )
     into(s8AgentRuntimeAssetDir)
 }

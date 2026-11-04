@@ -254,24 +254,34 @@ equality/ordering/relative-time relations survive; unknown tokens and mapping fa
 are refused; rehydrated commands carry exact integer VND, dates/times and spans.
 
 Allowed tools for the agent (closed set): the eleven task-relevant operations in the current
-production declaration `tools/slm/s8_agent_tools_v7.json` (`aegis-f-s8-agent-tools/v7`, contract
-`aegis-agent-interface/7`) — `observe`, `select_source`, `list_drafts`, `make_time_anchor`,
+production declaration `tools/slm/s8_agent_tools_v8.json` (`aegis-f-s8-agent-tools/v8`, contract
+`aegis-agent-interface/8`) — `observe`, `select_source`, `list_drafts`, `make_time_anchor`,
 `record_event`, `inspect_link`, `propose_link`, `attach_link`, `update_draft_review`,
-`replay_operation`, and `ask_user`. Only the subset the host-selected skills require is
-loaded for a run; an unloaded tool is neither offered nor executable. Model arguments are
-flat primitives and host-issued opaque references, never raw sensitive scalars, revisions,
-operation keys, scope or override flags. An `observe(draft)` observation carries the current
-active `category_choices`; `update_draft_review` submits exactly one of those category
-references through the ordinary draft-review mutation. The host rechecks the draft review
-revision, the category's live assignability and the catalog digest the choice was observed
-against, stores only the category field, and leaves the draft pending. No local classifier,
-translation input or fabricated probability exists. The historical S8.13 qualification
-fixture remains pinned to its copied v4 declaration. The frozen `tools/slm/s8_agent_tools.json`
-v1 and `s8_agent_tools_v2.json` v2 evaluation schemas remain unchanged historical inputs and
-are not loaded by the production Android runtime. There is explicitly **no** financial
-confirmation, deletion, arbitrary SQL, shell, arbitrary filesystem access, general plugin
-system, or device automation tool. Unknown tools, `execute_sql`, `confirm`/`delete` shapes,
-and caller-supplied evidence fields never reach the API.
+`replay_operation`, and `ask_user`. Only the subset the host-selected skills require is loaded
+for a run; an unloaded tool is neither offered nor executable. Model arguments are flat
+primitives and host-issued opaque references, never raw sensitive scalars, revisions, operation
+keys, scope or override flags. `list_drafts` optionally accepts the current event alias as
+`event_ref`; that path is pending-only and uses only the already-granted draft ids. It compares
+event-stated amount, day/interval and merchant evidence against parsed bank transaction date/time
+and explicit draft corrections, never notification receipt time, category choice or model
+certainty. Match status and deterministic ranking remain evidence only. The result declares
+`INCOMPLETE` when the bounded session does not include every pending id, so it cannot imply
+`UNIQUE` or `MISSING`; event account and transaction type are `UNKNOWN` when the event stores
+neither. Bank name and draft direction are not substitutes; no account/type field is fabricated
+to improve matching.
+
+An `observe(draft)` observation carries the current active `category_choices`;
+`update_draft_review` submits exactly one of those category references through the ordinary
+draft-review mutation. The host rechecks the draft review revision, the category's live
+assignability and the catalog digest the choice was observed against, stores only the category
+field, and leaves the draft pending. Category selection is review metadata, never event-match or
+financial-confirmation evidence. No local classifier, translation input or fabricated probability
+exists. The historical S8.13 qualification fixture remains pinned to its copied v4 declaration.
+The frozen `tools/slm/s8_agent_tools.json` v1 and `s8_agent_tools_v2.json` v2 evaluation schemas
+remain unchanged historical inputs and are not loaded by the production Android runtime. There is
+explicitly **no** financial confirmation, deletion, arbitrary SQL, shell, arbitrary filesystem
+access, general plugin system, or device automation tool. Unknown tools, `execute_sql`,
+`confirm`/`delete` shapes, and caller-supplied evidence fields never reach the API.
 
 ### 5.1 Skill shape (versioned, bundled)
 
@@ -283,32 +293,36 @@ observable condition that ends it). The runtime loads relevant instructions per 
 never every workflow on every turn. Stable deterministic transitions belong in code;
 judgment and ambiguity stay with the model/user. Bundled skills for this contract:
 
-- `event-reading/7` — grounded occurrence interpretation, atomic recording, explicitly named counterparty source selection, exact neutral value references and clarification;
-- `draft-search/1` — bounded candidate reads;
-- `link-event-draft/3` — inspect, propose and policy-gated attach;
+- `event-reading/8` — grounded occurrence interpretation, atomic recording, explicitly named counterparty source selection, exact neutral value references and clarification;
+- `draft-search/2` — event-bound, bounded candidate reads with evidence outcomes and explicit incomplete scope;
+- `link-event-draft/4` — inspect, propose and policy-gated attach using bounded event candidates;
 - `draft-review/1` — choose one current existing category and submit it through the ordinary draft-review update;
 - `explicit-operation-replay/1` — exact journal-backed replay of a recorded operation.
 
 ### 5.2 Trusted scope, revision and idempotency ownership
 
 - **Scope** comes from trusted runtime/application state: `WorkflowCallerScope.User`
-  (user screens) or `WorkflowCallerScope.AgentSession(scopeId, captureIds, draftIds)`
-  (the granted captures/drafts of this run). Scope is supplied by host code, never read
-  from model arguments, request bodies, notes, memos, or stored category names. Targets
+  (user screens) or `WorkflowCallerScope.AgentSession(scopeId, captureIds, draftIds, draftScopeComplete)`
+  (the granted captures/drafts of this run plus whether the initial bounded pending-id page was
+  complete). Scope is supplied by host code, never read from model arguments, request bodies,
+  notes, memos, or stored category names. Event-bound reads may use only those granted draft ids;
+  an incomplete set remains explicit and cannot imply missing or unique candidates. Targets
   outside scope are refused (`CALLER_SCOPE`) before anything is read or written, and the
   refusal is identical whether or not the named row exists.
 - **References and revisions** come from fresh scoped observations. Every model-facing
   reference is a host-issued opaque alias bound to the observation's scope and
   capture/event/draft/link/review revisions; the model cannot supply or construct one.
   `expectedEventRevision == null` is a transactional assertion that the selected span still
-  holds no reading, while a non-null value requires exactly that revision. The agent Laya
-  path binds the observed review revision through the draft reference. Stale bindings are
-  `STALE_OBSERVATION`, never silent overwrite. A changed span that overlaps an existing
+  holds no reading, while a non-null value requires exactly that revision. The hosted
+  draft-review path binds the observed review revision through the draft reference; category
+  choice is review metadata and never contributes to event-candidate evidence. Stale bindings
+  are `STALE_OBSERVATION`, never silent overwrite. A changed span that overlaps an existing
   reading is refused as `STALE_OBSERVATION` rather than stored as a second reading — the event
   write transaction re-checks the overlap atomically, so a competing writer cannot create it
-  between observation and insert — and a correction may not null a stored amount, temporal anchor
-  or merchant without passing that field's observed alias; source-boundary rewriting and explicit
-  field removal are unsupported and become clarification/manual review. Initial link revision is 0.
+  between observation and insert — and a correction may not null a stored amount, temporal
+  anchor or merchant without passing that field's observed alias; source-boundary rewriting and
+  explicit field removal are unsupported and become clarification/manual review. Initial link
+  revision is 0.
 - **Idempotency keys** are minted by the trusted runtime (non-blank, ≤ 128 chars, no
   control characters); exact tool-plus-argument calls reuse their mapped identity, while
   corrected arguments receive a distinct host identity. Durable attempts retain their
