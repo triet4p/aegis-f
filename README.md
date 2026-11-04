@@ -73,22 +73,17 @@ opt-in notification review inbox — every bank-derived record still requires th
 - **Local persistence** — the ledger survives closing the app, swiping it away from the recent-apps
   view, and force-stopping it. The manual ledger does not require a model file, login, network, or
   bank integration. Bank-notification access is optional and off by default.
-- **Dashboard → Settings → Model setup (optional)** — the page reports whether the
-  pinned model is missing, corrupt/incompatible, or locally verified. It can import the three
-  pinned export files from a user-selected folder, streams them into app-private storage while
-  checking their exact sizes and SHA-256 hashes, and publishes only after the local ONNX runtime
-  probe succeeds. Model acquisition is an explicit user transfer; the app does not download
-  weights or use a network for inference. Manual recording works without a model, and provisioning
-  never creates or changes a ledger record. Check and import cancellation stays
-  visibly busy until the active file or native runtime operation finishes;
-  incomplete staging is discarded without replacing the installed model. The
-  user-only import steps are in
-  [developer setup §7](docs/developer-setup.md#7-user-run-s43-local-model-provisioning).
-  The S4.9 physical-device evaluation recorded 7/8 labeled top choices, both no-fit cases
-  correctly returned unknown, but the name-only shortlist recalled only 1/6 positive categories
-  with 206 active categories. Keep suggestions optional and review-only; confidence is not an
-  accuracy guarantee, and manual fallback remains essential. See the
-  [sanitized evaluation](artifacts/sprint-4/workers/S4.9-A1.md).
+- **Historical model evaluation (removed by CAT1)** — active Laya runtime, provisioning,
+  translation, and any on-device classifier were removed by the hosted-category cutover
+  (checkpoint `165376fe`); no model file, import, or provisioning step is required to build,
+  install, or use the app. Manual recording, intake, review, dashboard, and hosted category
+  selection through `update_draft_review` work without a local model. The S4.9 on-device
+  evaluation (7/8 labeled top choices, both no-fit cases returned unknown; name-only
+  shortlist 1/6 with 206 active categories) and the historical tooling remain evidence only:
+  see [sanitized evaluation](artifacts/sprint-4/workers/S4.9-A1.md), [tools/laya/README.md](tools/slm/README.md),
+  and [hosted category cutover](docs/hosted-category-cutover.md). Historical local-model setup
+  commands are no longer current; use [developer setup](docs/developer-setup.md) for the
+  supported build path.
 - **Bank notification setup, filtering, parsing, and pending drafts (opt-in, no
   auto-confirmation)** — the **Dashboard → Settings → Bank notification settings** page shows whether
   system notification access is granted, whether the listener is connected, and which
@@ -321,46 +316,6 @@ developer setup guide rather than uninstalling the app.
 
 ## Status
 
-- **Sprint 1 — command-line build and physical device: complete**, delivered and published to
-  `origin/main`.
-- **Sprint 2 — VND ledger and user-defined categories: complete and accepted**, including the
-  user-run offline, force-stop persistence, and month-boundary checks on the physical phone. Its
-  delivery commit is local only and has not been pushed.
-- Host-side unit tests pass (185 tests, 0 failures, 0 skipped; no emulator or
-  device). Room-backed tests cover persistence across close/reopen, exact VND
-  boundaries and refusals, category history, filters, month-edge summary
-  inclusion, notification intake and pending-draft persistence, review
-  transitions, and listener lifecycle recovery. S4.5 adds cancellation,
-  latest-pending, serialization, and release/reopen races plus a real listener
-  callback-to-Room insert while controlled inference is blocked; that overlap
-  uses an in-memory Room database and is not a disk-reopen or device UI result.
-  `ManualCategorySuggestionMachineTest` has eleven regressions for explicit
-  acceptance, remembered-rule precedence/no-inference, pattern misses, late
-  rule-result rejection after form/category changes, manual/ignored choices,
-  archived-category fallback, stale snapshots, no-fit/unavailable outcomes,
-  and out-of-order completion.
-  `RememberedCategoryRulePersistenceTest` proves exact-pattern isolation,
-  close/reopen persistence, current-name resolution after rename, archive
-  invalidation, explicit removal, and no ledger writes. Host checks do not render
-  Compose or exercise Android-native inference. A task-scoped S4.7-A2 phone check
-  verified the remembered-rule reopen, explicit-use/removal, punctuation-isolated
-  no-hit, and normal no-fit fallback paths without saving a transaction; see
-  [worker evidence](artifacts/sprint-4/workers/S4.7-A2.md).
-- **Sprint 3 — bank notifications to reviewable drafts: under way.** The opt-in access/allowlist
-  setup, the privacy-first intake filter (package checked before any content is read, OTP and
-  security messages, group summaries, and empty or fully redacted payloads discarded), parsing
-  of the supported VietinBank format into its stated amount, direction, timestamp, and description,
-  pending-draft persistence (explicit parse/review states, bank/source provenance, and a
-  draft-to-ledger link, with drafts recovered after restart and excluded from summaries),
-  conservative deduplication (exact post replays are idempotent, distinct posts remain separate,
-  possible duplicates are linked rather than merged), review inbox with explicit type choice,
-  corrections, dismissal, and atomic confirmation, and listener lifecycle recovery (current-active
-  reconciliation after reconnect, revoked-vs-disconnected status, one supported rebind request)
-  are built, and S3.8 exercised the whole chain end to end on the host — a real listener callback
-  through the privacy filter and the parser, into the real Room drafts, then explicit review and
-  atomic confirmation producing exactly one ledger record and one month total, with replay,
-  possible-duplicate, rejection, and reopen cases — and documented the supported format and the
-  limits above. Real-bank verification on the phone (a notification delivered naturally, screen
-  lock, restart, OEM behavior, on-device revocation) is still user-run and pending, as is the
-  independent privacy/intake review of this evidence. Milestone M3 is in
-  progress; M4–M6 remain pending — see [docs/PLAN.md](docs/PLAN.md).
+- **Current:** Sprints 1–7 complete and user-accepted; Sprint 8 technical gates and CAT1 passed (consolidated owner experience acceptance still separate); Sprint 9 complete through S9.4 (checkpoints `9d44632`, `b395038`, `e0e6bbc`, `e660b63`); S9.5+ not started; Sprint 10 planned. Schema version 17; local pending-draft scan cap 500; hosted first-32 grant unchanged; incomplete scopes cannot auto-attach. Accepted host suite: 551 tests, 0 failures, 3 skips (S9.2/S9.4 evidence, not rerun in this docs sync). Authority: [docs/PLAN.md](docs/PLAN.md), [docs/sprint-plans/sprint-9.md](docs/sprint-plans/sprint-9.md).
+- **Historical (not current build state):** Sprint 1 published to `origin/main`; Sprint 2 delivery commit local-only; Sprint 4 host suite 185 tests/0 failures/0 skips, `ManualCategorySuggestionMachineTest`, `RememberedCategoryRulePersistenceTest`, and the S4.7-A2 phone check; S4.9 evaluation/tooling. Active Laya runtime/provisioning/translation and any on-device classifier were removed by CAT1 (checkpoint `165376fe`); current review ordering is unresolved data/link conflicts, then drafts missing a category, then ready drafts (no confidence-ranked active queue). See linked artifacts under `artifacts/`.
+- Host checks do not render Compose or exercise Android-native inference. Hosted category selection and review remain opt-in; offline manual/intake/review/dashboard remain usable without a hosted provider.
