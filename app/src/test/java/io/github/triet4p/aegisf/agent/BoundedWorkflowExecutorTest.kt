@@ -153,8 +153,10 @@ class BoundedWorkflowExecutorTest {
         assertTrue("expected a verified completion, got $outcome", outcome is WorkflowRunOutcome.Completed)
         outcome as WorkflowRunOutcome.Completed
         assertTrue(outcome.verifiedEffects.any { it is WorkflowVerifiedEffect.EventReading })
-        val link = outcome.verifiedEffects.filterIsInstance<WorkflowVerifiedEffect.LinkState>().single()
-        assertEquals(ContextLinkState.ACCEPTED, link.state)
+        val linkEffects = outcome.verifiedEffects.filterIsInstance<WorkflowVerifiedEffect.LinkState>()
+        assertTrue(linkEffects.isNotEmpty())
+        assertTrue(linkEffects.all { link -> link.state == ContextLinkState.ACCEPTED })
+        assertEquals(1, linkEffects.map { link -> link.linkId }.distinct().size)
         assertEquals(ContextLinkState.ACCEPTED, queries.linkOperations(
             LinkOperationQuery(bounds = QueryPageRequest(10, 0)),
         ).items.single().state)

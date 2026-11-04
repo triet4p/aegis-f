@@ -47,6 +47,7 @@ open class IntakeRepository(
 ) {
     private val draftDao = database.pendingBankDraftDao()
     private val captureMessageDao = database.captureMessageDao()
+    private val arrivalReconciliation = ArrivalReconciliationCoordinator(database, clock)
 
     /**
      * Parses [content] deterministically and stores it as a pending draft, returning the id of
@@ -98,8 +99,13 @@ open class IntakeRepository(
             if (draft.parseStatus == IntakeParseStatus.PARSED) {
                 storeBankEvidenceReference(storedDraftId, draft)
             }
+            val storedDraft = checkNotNull(draftDao.findById(storedDraftId)) {
+                "A stored notification draft could not be re-read."
+            }
+            arrivalReconciliation.enqueueDraft(storedDraftId, storedDraft.reviewRevision)
             storedDraftId
         }
+        arrivalReconciliation.resumePending()
         return draftId
     }
 

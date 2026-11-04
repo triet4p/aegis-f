@@ -26,7 +26,7 @@ import org.robolectric.annotation.Config
  * kept no agent run state); every older row, identity, and confirmed total survives.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [34], application = android.app.Application::class)
 class AgentRunMigrationTest {
     private lateinit var context: Context
 

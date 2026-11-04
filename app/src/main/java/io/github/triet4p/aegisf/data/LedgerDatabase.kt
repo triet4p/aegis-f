@@ -44,6 +44,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ContextLinkEntity::class,
         ClassificationSnapshotEntity::class,
         WorkflowOperationEntity::class,
+        ArrivalReconciliationOperationEntity::class,
         AgentRunEntity::class,
         AgentRunAttemptEntity::class,
         AgentConversationEntity::class,
@@ -82,6 +83,10 @@ abstract class LedgerDatabase : RoomDatabase() {
     /** The durable record of the preparation commands and their idempotency keys. */
     abstract fun workflowOperationDao(): WorkflowOperationDao
 
+    /** Durable note/draft arrival work, resumed from this process's startup path. */
+    abstract fun arrivalReconciliationOperationDao(): ArrivalReconciliationOperationDao
+
+
     /** The durable identity and lifecycle of one agent run; user-visible history. */
     abstract fun agentRunDao(): AgentRunDao
 
@@ -95,7 +100,7 @@ abstract class LedgerDatabase : RoomDatabase() {
     abstract fun agentTraceDao(): AgentTraceDao
 
     companion object {
-        const val VERSION = 16
+        const val VERSION = 17
 
         /** File name of the on-device database. */
         const val NAME = "aegis-ledger.db"
@@ -863,6 +868,42 @@ abstract class LedgerDatabase : RoomDatabase() {
                 )
             }
         }
+        /** Version 16 to 17 adds durable arrival work and user-edited reading protection. */
+        val MIGRATION_16_17: Migration = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `note_events` ADD COLUMN `userEdited` INTEGER NOT NULL DEFAULT 0",
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `arrival_reconciliation_operations` (" +
+                        "`operationId` TEXT NOT NULL, " +
+                        "`triggerKind` TEXT NOT NULL, " +
+                        "`eventId` INTEGER, " +
+                        "`expectedEventRevision` INTEGER, " +
+                        "`expectedCaptureRevision` INTEGER, " +
+                        "`draftId` INTEGER, " +
+                        "`expectedDraftReviewRevision` INTEGER, " +
+                        "`cursorEventId` INTEGER NOT NULL, " +
+                        "`state` TEXT NOT NULL, " +
+                        "`outcome` TEXT, " +
+                        "`createdAtEpochMillis` INTEGER NOT NULL, " +
+                        "`linkedAny` INTEGER NOT NULL, " +
+                        "`incompleteAny` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`operationId`))",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS " +
+                        "`index_arrival_reconciliation_operations_state_createdAtEpochMillis` " +
+                        "ON `arrival_reconciliation_operations` (`state`, `createdAtEpochMillis`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS " +
+                        "`index_arrival_reconciliation_operations_triggerKind_createdAtEpochMillis` " +
+                        "ON `arrival_reconciliation_operations` (`triggerKind`, `createdAtEpochMillis`)",
+                )
+            }
+        }
+
 
         /** Builds the production database on the app's real file directory. */
         fun build(context: Context): LedgerDatabase =
@@ -883,6 +924,7 @@ abstract class LedgerDatabase : RoomDatabase() {
                     MIGRATION_13_14,
                     MIGRATION_14_15,
                     MIGRATION_15_16,
+                    MIGRATION_16_17,
                 )
                 .build()
 

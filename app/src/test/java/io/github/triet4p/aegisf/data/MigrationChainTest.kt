@@ -43,7 +43,7 @@ import java.util.TimeZone
  * migrates successfully once the injected defect is gone.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [34], application = android.app.Application::class)
 class MigrationChainTest {
 
     private val zone = TimeZone.getTimeZone("Asia/Ho_Chi_Minh")

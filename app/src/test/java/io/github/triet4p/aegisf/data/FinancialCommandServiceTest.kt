@@ -91,6 +91,33 @@ class FinancialCommandServiceTest {
         ),
     )
 
+    private suspend fun storeUnreconciledDraft(
+        database: LedgerDatabase,
+        key: String,
+        postedAt: Long,
+    ): Long = database.pendingBankDraftDao().store(
+        PendingBankDraftEntity(
+            deliveryId = draftDeliveryId(BANK_PACKAGE, key, postedAt),
+            sourcePackage = BANK_PACKAGE,
+            notificationKey = key,
+            postedAtEpochMillis = postedAt,
+            bank = "VietinBank",
+            parseStatus = IntakeParseStatus.PARSED,
+            amountState = IntakeFieldState.PRESENT,
+            amountVnd = 50_000L,
+            amountUnresolvedReason = null,
+            direction = IntakeDirection.DEBIT,
+            momentState = IntakeFieldState.PRESENT,
+            statedDate = "2026-10-16",
+            statedTime = "07:38",
+            momentUnresolvedReason = null,
+            memoState = IntakeFieldState.PRESENT,
+            memo = "........",
+            memoUnresolvedReason = null,
+            createdAtEpochMillis = clock.nowEpochMillis(),
+        ),
+    )
+
     private fun edits(
         type: TransactionType? = TransactionType.EXPENSE,
         amountText: String = "50000",
@@ -951,7 +978,7 @@ class FinancialCommandServiceTest {
         val database = open()
         val eventId = storeNoteEvent(database)
         val event = database.noteEventDao().findById(eventId)!!
-        val draftId = storeDraft(database, key = "key-early", postedAt = POSTED_AT)
+        val draftId = storeUnreconciledDraft(database, key = "key-early", postedAt = POSTED_AT)
         // The link is proposed while the note is still unrecorded.
         val proposed = commands(database).proposeLink(
             WorkflowCallerScope.User,

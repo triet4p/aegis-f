@@ -333,3 +333,13 @@ financial confirmation.
 **Reason:** The owner explicitly chose to use the already-required hosted model for contextual category selection after the real linked bread-note trials still produced NO_FIT with English translation. A larger on-device model adds phone runtime requirements without the desired workflow simplification.
 
 **Consequences:** Supersedes the active Laya and translation architecture above, without rewriting historical evidence. Remove obsolete runtime, provisioning, classification tools and model-specific UI/contracts in a clean cutover; preserve existing owner data and historical qualification results. Supply the hosted model with current category choices and validate its proposed existing category locally, including scope and revision. Category assignment remains review state, not authorization to Confirm a ledger transaction. Hosted masking, complete token reminders, tool/public-response guards and full local session traces remain required.
+
+## [2026-11-04] Store arrival reconciliation in a dedicated Room operation queue
+
+**Decision:** Store note/draft arrival reconciliation in `arrival_reconciliation_operations` with stable revision-bound identities and a persisted cursor for bounded draft-triggered event scans; keep the generic command journal's immutable outcome contract unchanged.
+
+**Alternatives considered:** Reuse `workflow_operations` by overloading its payload digest or change-summary columns with scan cursors and mutable arrival state; rescan all unmatched events from the beginning on every process start.
+
+**Reason:** A notification arrival may need to scan unmatched events in multiple bounded pages, and a process interruption must resume from the last page committed with its link effects. The command journal records one immutable command outcome and has no typed scan cursor, while restarting a full scan would repeat unbounded work rather than coalesce a persisted request.
+
+**Consequences:** Event/draft writes and their pending arrival identities commit together; each page, link effects, and cursor/completion state commit together. Future arrival paths must retain stable event/draft operation identities and expected revisions, preserve the persisted cursor, and use the existing complete-scope trusted-link boundary.

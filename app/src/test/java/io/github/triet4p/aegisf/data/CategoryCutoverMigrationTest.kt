@@ -23,7 +23,7 @@ import org.robolectric.annotation.Config
  * hosted-choice column without inventing a decision for old rows.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [34], application = android.app.Application::class)
 class CategoryCutoverMigrationTest {
 
     private lateinit var context: Context
@@ -35,14 +35,14 @@ class CategoryCutoverMigrationTest {
     }
 
     @Test
-    fun `version 15 keeps historical predictions and drops only the local queue`() {
+    fun `version 15 keeps history, drops local work, and adds arrival work`() {
         writeVersion15Database()
 
         val database = LedgerDatabase.build(context)
         try {
             val raw = database.openHelper.writableDatabase
             assertEquals(
-                16L,
+                LedgerDatabase.VERSION.toLong(),
                 raw.query("PRAGMA user_version").use { cursor ->
                     check(cursor.moveToFirst())
                     cursor.getLong(0)
@@ -52,6 +52,16 @@ class CategoryCutoverMigrationTest {
                 0,
                 raw.query("SELECT count(*) FROM sqlite_master WHERE type = 'table' " +
                     "AND name = 'classification_work'").use { cursor ->
+                    check(cursor.moveToFirst())
+                    cursor.getInt(0)
+                },
+            )
+            assertEquals(
+                1,
+                raw.query(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' " +
+                        "AND name = 'arrival_reconciliation_operations'",
+                ).use { cursor ->
                     check(cursor.moveToFirst())
                     cursor.getInt(0)
                 },

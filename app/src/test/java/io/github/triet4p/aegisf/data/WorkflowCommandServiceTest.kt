@@ -2,7 +2,6 @@ package io.github.triet4p.aegisf.data
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import io.github.triet4p.aegisf.notification.PermittedNotificationContent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -1317,21 +1316,31 @@ class WorkflowCommandServiceTest {
         database: LedgerDatabase,
         key: String,
         amountVnd: Long,
-    ): Long = IntakeRepository(database, clock).storePermitted(
-        sourcePackage = BANK_PACKAGE,
-        notificationKey = key,
-        postedAtEpochMillis = POSTED_AT + key.length,
-        content = PermittedNotificationContent(
-            title = "Transaction notice",
-            text = listOf(
-                "VietinBank: 16/10/2026 07:38",
-                "TK: account-redacted",
-                "GD: -$amountVnd VND",
-                "ND: $BANK_MEMO",
-            ).joinToString("\n"),
-            bigText = null,
-        ),
-    )
+    ): Long {
+        val postedAt = POSTED_AT + key.length
+        return database.pendingBankDraftDao().store(
+            PendingBankDraftEntity(
+                deliveryId = draftDeliveryId(BANK_PACKAGE, key, postedAt),
+                sourcePackage = BANK_PACKAGE,
+                notificationKey = key,
+                postedAtEpochMillis = postedAt,
+                bank = "VietinBank",
+                parseStatus = IntakeParseStatus.PARSED,
+                amountState = IntakeFieldState.PRESENT,
+                amountVnd = amountVnd,
+                amountUnresolvedReason = null,
+                direction = IntakeDirection.DEBIT,
+                momentState = IntakeFieldState.PRESENT,
+                statedDate = "2026-10-16",
+                statedTime = "07:38",
+                momentUnresolvedReason = null,
+                memoState = IntakeFieldState.PRESENT,
+                memo = BANK_MEMO,
+                memoUnresolvedReason = null,
+                createdAtEpochMillis = clock.nowEpochMillis(),
+            ),
+        )
+    }
 
     private data class LinkedCaptureFixture(
         val captureId: Long,

@@ -30,7 +30,7 @@ import org.robolectric.annotation.Config
  * the version-13 rows intact, so a schema problem can never delete the user's history.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [34], application = android.app.Application::class)
 class AgentTraceMigrationTest {
     private lateinit var context: Context
 

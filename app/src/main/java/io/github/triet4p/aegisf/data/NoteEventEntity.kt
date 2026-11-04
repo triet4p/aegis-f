@@ -1,5 +1,6 @@
 package io.github.triet4p.aegisf.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -138,6 +139,9 @@ data class NoteEventEntity(
      * occurrence is no longer recorded, so the note may be recorded again.
      */
     val resolvedTransactionId: Long? = null,
+    /** The stored interpretation was explicitly written or edited by the user. */
+    @ColumnInfo(defaultValue = "0")
+    val userEdited: Boolean = false,
     /** When the event was recorded as a ledger record; null while it is unresolved. */
     val resolvedAtEpochMillis: Long? = null,
 )

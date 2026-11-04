@@ -24,7 +24,7 @@ import org.robolectric.annotation.Config
  * total, not against an empty database.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [34], application = android.app.Application::class)
 class WorkflowOperationMigrationTest {
     private lateinit var context: Context
 

@@ -26,7 +26,7 @@ import org.robolectric.annotation.Config
  * and the exact confirmed total, not against an empty database.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [34], application = android.app.Application::class)
 class FinancialCommandMigrationTest {
     private lateinit var context: Context
 

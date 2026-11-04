@@ -31,7 +31,7 @@ import org.robolectric.annotation.Config
  * computes, so the draft still recognizes its own post afterwards instead of duplicating it.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [34], application = android.app.Application::class)
 class PendingBankDraftMigrationTest {
 
     private class FixedLedgerClock : LedgerClock {

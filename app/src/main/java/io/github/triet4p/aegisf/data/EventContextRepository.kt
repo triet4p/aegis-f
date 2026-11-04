@@ -67,9 +67,12 @@ sealed interface NoteEventWriteResult {
 
     /** The reading was refused, and the named field says why. */
     data class Invalid(val field: NoteEventField, val reason: String) : NoteEventWriteResult
-
     /** A user accepted a link for this event, so its reading is not replaced implicitly. */
     data object AcceptedLink : NoteEventWriteResult
+
+
+    /** A generated reading may not overwrite an interpretation the user explicitly edited. */
+    data object UserEdited : NoteEventWriteResult
 }
 
 /** Observable outcomes of one link decision. */
@@ -165,6 +168,7 @@ internal class EventContextRepository(
         interpretation: NoteEventInterpretation,
         extractionVersion: String,
         expectedEventRevision: Int? = null,
+        userEdited: Boolean = false,
     ): NoteEventWriteResult = database.withTransaction {
         val capture = captureDao.findById(captureId)
             ?: return@withTransaction NoteEventWriteResult.NotFound
@@ -236,6 +240,9 @@ internal class EventContextRepository(
         } else if (existing == null || existing.revision != expectedEventRevision) {
             return@withTransaction NoteEventWriteResult.Changed
         }
+        if (existing?.userEdited == true && !userEdited) {
+            return@withTransaction NoteEventWriteResult.UserEdited
+        }
         val status = interpretationStatus(
             eventId = existing?.id,
             unresolved = unresolvedReason != null,
@@ -260,6 +267,7 @@ internal class EventContextRepository(
             revision = existing?.revision ?: 0,
             sourceRevision = capture.revision,
             createdAtEpochMillis = existing?.createdAtEpochMillis ?: clock.nowEpochMillis(),
+            userEdited = userEdited || existing?.userEdited == true,
         )
         if (existing == null) {
             val eventId = eventDao.insert(reading)
@@ -286,6 +294,7 @@ internal class EventContextRepository(
                 unresolvedReason = reading.unresolvedReason,
                 status = reading.status.name,
                 sourceRevision = reading.sourceRevision,
+                userEdited = reading.userEdited,
             )
             if (updated == 1) {
                 NoteEventWriteResult.Revised(existing.id, existing.revision + 1)
@@ -576,5 +585,5 @@ private fun NoteEventEntity.sameReading(other: NoteEventEntity): Boolean =
         anchorTimezone == other.anchorTimezone &&
         intervalEndDate == other.intervalEndDate &&
         intervalEndTime == other.intervalEndTime &&
-        extractionVersion == other.extractionVersion &&
-        unresolvedReason == other.unresolvedReason
+        unresolvedReason == other.unresolvedReason &&
+        userEdited == other.userEdited

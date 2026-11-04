@@ -552,9 +552,10 @@ internal fun QuickCaptureScreen(
                     ) {
                         Text("Availability", fontWeight = FontWeight.SemiBold)
                         Text(
-                            "Quick Capture does not run model extraction or matching. " +
-                                "Manual recording remains available; saving a note never creates " +
-                                "a financial record.",
+                            "Quick Capture does not run model extraction. When an event interpretation " +
+                                "or permitted bank notification arrives, complete unique evidence may " +
+                                "link them; ambiguous or incomplete evidence stays for review. Saving " +
+                                "a note never creates a financial record.",
                             style = MaterialTheme.typography.bodyMedium,
                         )
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -236,16 +236,21 @@ class AgentMaskedValueUsabilityTest {
     fun `a uniquely matching draft is provable and a competing same-day amount is ambiguous`() =
         runBlocking {
             val captureId = insertCapture(ownerNote, ownerInstant)
+            val scopeId = "pt2-link-${sequence.incrementAndGet()}"
+            val recordingScope = WorkflowCallerScope.AgentSession(
+                scopeId,
+                setOf(captureId),
+                emptySet(),
+            )
+            val boundary = MaskedPromptBoundary(SensitiveVault(scopeId))
+            // Isolate hosted evidence inspection: no pending draft exists when the event arrives.
+            val eventId = recordOwnerEvent(recordingScope, boundary, captureId)
             val draftId = insertDraft(amountVnd = 10_000, date = "2026-11-02", time = "10:46", memo = "BANH MI PHO")
             val scope = WorkflowCallerScope.AgentSession(
-                "pt2-link-${sequence.incrementAndGet()}",
+                scopeId,
                 setOf(captureId),
                 setOf(draftId),
             )
-            val boundary = MaskedPromptBoundary(SensitiveVault(scope.scopeId))
-            // The event is recorded through the same trusted masked interface; the app's own
-            // link evidence then decides the pair.
-            val eventId = recordOwnerEvent(scope, boundary, captureId)
             val unique = commands.inspectLinkEvidence(scope, eventId, draftId)
             assertEquals(LinkEligibility.ELIGIBLE, unique?.eligibility)
             assertNull(unique?.reason)

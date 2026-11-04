@@ -23,6 +23,7 @@ and no release has been tagged or published. Format follows
   asks for the resulting calendar date, and a capture without a recorded instant or usable zone
   resolves nothing. A period word (`this morning`, `last night`, `this week`) is not one calendar
   day, so it still becomes a date clarification instead of a guessed day.
+- Note event interpretations and permitted bank notifications now reconcile when either arrives. Only a complete, unique evidence match is linked automatically; ambiguous or incomplete evidence remains for review, and stale revisions, rejected links, and dismissed drafts are not resurrected. Replayed arrivals coalesce into durable bounded work that resumes after restart, while re-extraction preserves event identity and user-edited interpretations without changing sources, draft amounts, or ledger records.
 
 ### Changed
 - Hosted draft-category selection replaces the on-device classifier. A draft observation carries
@@ -40,6 +41,7 @@ and no release has been tagged or published. Format follows
   bounded recheck of the pending-draft scope. An incomplete search cannot authorize automatic
   attachment; users can still resolve ambiguous suggestions explicitly and undo an accepted link
   without changing note text, bank evidence or ledger records.
+  The separate local arrival scan applies the same rule within the shared 500-row page; larger inboxes remain incomplete, and it never widens the hosted first-32-id grant.
 
 ### Removed
 - Removed the Laya local classifier and its English translation bridge from the active app:

@@ -166,6 +166,9 @@ attachment. Ambiguous proposals remain unaccepted for the user to resolve; the u
 one candidate, choose another, or unlink an accepted association using its current revision. No
 tool rewrites amounts/dates to force eligibility.
 
+`ArrivalReconciliationCoordinator` is a separate local system path, not a hosted-session grant. It reads at most one shared pending-draft page (currently 500 rows) for each note/draft arrival, then rechecks that every pending draft fits that bounded page before it can attach. A larger inbox remains `INCOMPLETE`. The hosted `AgentSession` still receives only the first 32 ids, and reconciliation never widens that grant. Durable operations store expected revisions and paged cursors so process restart resumes the same bounded work; ambiguous, rejected, dismissed, resolved, or stale items are not auto-attached.
+
+
 `update_draft_review(draft_ref, category_ref)` is the ordinary draft-review update restricted to
 the category field. `observe(draft)` carries the current active `category_choices`, each an opaque
 category reference bound to the draft's review revision and the catalog digest it was observed

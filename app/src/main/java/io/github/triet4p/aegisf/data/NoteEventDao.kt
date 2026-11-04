@@ -111,6 +111,7 @@ abstract class NoteEventDao {
             "unresolvedReason = :unresolvedReason, " +
             "status = :status, " +
             "sourceRevision = :sourceRevision, " +
+            "userEdited = :userEdited, " +
             "revision = revision + 1 " +
             "WHERE id = :id AND revision = :expectedRevision",
     )
@@ -131,6 +132,7 @@ abstract class NoteEventDao {
         unresolvedReason: String?,
         status: String,
         sourceRevision: Int,
+        userEdited: Boolean,
     ): Int
 
     /**
@@ -151,6 +153,7 @@ abstract class NoteEventDao {
             "intervalEndTime = NULL, " +
             "unresolvedReason = :reason, " +
             "status = :status, " +
+            "userEdited = 0, " +
             "revision = revision + 1 " +
             "WHERE id = :id",
     )
@@ -224,4 +227,27 @@ abstract class NoteEventDao {
             "AND context_links.state IN ('PROPOSED', 'ACCEPTED'))",
     )
     abstract suspend fun findUnrecordedById(eventId: Long): NoteEventEntity?
+    /**
+     * One bounded page of complete, source-current events with no active draft or ledger record.
+     *
+     * Rejected links do not hide an event: their refusal remains visible to [EventContextRepository]
+     * when a later arrival attempts the same pair.
+     */
+    @Query(
+        "SELECT note_events.* FROM note_events " +
+            "INNER JOIN capture_messages ON capture_messages.id = note_events.captureId " +
+            "WHERE note_events.id > :afterEventId AND " +
+            "note_events.resolvedTransactionId IS NULL AND " +
+            "note_events.normalizedText IS NOT NULL AND " +
+            "note_events.unresolvedReason IS NULL AND " +
+            "note_events.sourceRevision = capture_messages.revision AND " +
+            "capture_messages.tombstone = 0 AND NOT EXISTS (" +
+            "SELECT 1 FROM context_links WHERE context_links.eventId = note_events.id " +
+            "AND context_links.state IN ('PROPOSED', 'ACCEPTED')) " +
+            "ORDER BY note_events.id ASC LIMIT :limit",
+    )
+    abstract suspend fun findUnmatchedForReconciliation(
+        afterEventId: Long,
+        limit: Int,
+    ): List<NoteEventEntity>
 }

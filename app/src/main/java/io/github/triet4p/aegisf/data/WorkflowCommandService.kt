@@ -65,8 +65,8 @@ class WorkflowCommandService(
     private val events = EventContextRepository(database = database, clock = clock)
     /** The app's own evidence about a proposed association; never read from a request. */
     private val linkEvidence = LinkEvidencePolicy(database)
-    /** The trusted bounded candidate read used to gate another caller's automatic attachment. */
-    private val queries = WorkflowQueryService(database)
+    private val arrivalReconciliation = ArrivalReconciliationCoordinator(database, clock)
+    private val automaticAttachmentPolicy = AutomaticAttachmentPolicy(database)
     /** The app's rules for the fields a financial write stores; one rule, one place. */
     private val rules = FinancialFieldRules(categoryDao)
     /** The ledger's own writes; they are reachable only through this boundary. */
@@ -77,6 +77,11 @@ class WorkflowCommandService(
         captureMessageDao = captureDao,
         clock = clock,
     )
+
+    /** Resumes durable arrival work left pending by a process interruption. */
+    internal suspend fun resumePendingArrivalReconciliation() {
+        arrivalReconciliation.resumePending()
+    }
 
     // --- Captures -----------------------------------------------------------
 
@@ -241,64 +246,96 @@ class WorkflowCommandService(
     suspend fun updateEventInterpretation(
         scope: WorkflowCallerScope,
         request: UpdateEventRequest,
-    ): WorkflowCommandOutcome = runCommand(
-        scope = scope,
-        command = COMMAND_UPDATE_EVENT,
-        idempotencyKey = request.idempotencyKey,
-        payload = listOf(
-            COMMAND_UPDATE_EVENT,
-            request.captureId.toString(),
-            request.expectedCaptureRevision.toString(),
-            request.expectedEventRevision?.toString(),
-            request.extractionVersion,
-            request.interpretation.spanStart.toString(),
-            request.interpretation.spanEnd.toString(),
-            request.interpretation.normalizedText,
-            request.interpretation.amountVnd?.toString(),
-            request.interpretation.merchant,
-            request.interpretation.timeAnchor?.date,
-            request.interpretation.timeAnchor?.time,
-            request.interpretation.timeAnchor?.timezoneId,
-            request.interpretation.timeAnchor?.intervalEndDate,
-            request.interpretation.timeAnchor?.intervalEndTime,
-            request.interpretation.unresolvedReason,
-        ),
-        authorize = { authorizeCapture(scope, request.captureId) },
-    ) {
-        when (
-            val result = events.recordEvent(
-                captureId = request.captureId,
-                expectedCaptureRevision = request.expectedCaptureRevision,
-                interpretation = request.interpretation,
-                extractionVersion = request.extractionVersion,
-                expectedEventRevision = request.expectedEventRevision,
-            )
+    ): WorkflowCommandOutcome {
+        val outcome = runCommand(
+            scope = scope,
+            command = COMMAND_UPDATE_EVENT,
+            idempotencyKey = request.idempotencyKey,
+            payload = listOf(
+                COMMAND_UPDATE_EVENT,
+                request.captureId.toString(),
+                request.expectedCaptureRevision.toString(),
+                request.expectedEventRevision?.toString(),
+                request.extractionVersion,
+                request.interpretation.spanStart.toString(),
+                request.interpretation.spanEnd.toString(),
+                request.interpretation.normalizedText,
+                request.interpretation.amountVnd?.toString(),
+                request.interpretation.merchant,
+                request.interpretation.timeAnchor?.date,
+                request.interpretation.timeAnchor?.time,
+                request.interpretation.timeAnchor?.timezoneId,
+                request.interpretation.timeAnchor?.intervalEndDate,
+                request.interpretation.timeAnchor?.intervalEndTime,
+                request.interpretation.unresolvedReason,
+            ),
+            authorize = { authorizeCapture(scope, request.captureId) },
         ) {
-            is NoteEventWriteResult.Stored -> WorkflowCommandOutcome.Applied(
-                WorkflowChange.EventStored(result.eventId, result.revision),
-            )
-            is NoteEventWriteResult.Revised -> WorkflowCommandOutcome.Applied(
-                WorkflowChange.EventRevised(result.eventId, result.revision),
-            )
-            NoteEventWriteResult.NoChange -> WorkflowCommandOutcome.NoChange(
-                change = storedEventOf(request)?.let { WorkflowChange.EventStored(it.id, it.revision) },
-                detail = "The same reading is already stored for that span.",
-            )
-            NoteEventWriteResult.NotFound -> WorkflowCommandOutcome.NotFound
-            NoteEventWriteResult.Changed -> WorkflowCommandOutcome.Conflict(
-                "The capture or interpretation changed under the caller.",
-            )
-            NoteEventWriteResult.SourceDeleted -> WorkflowCommandOutcome.Denied(
-                WorkflowDenialReason.ALREADY_DELETED,
-            )
-            is NoteEventWriteResult.Invalid -> WorkflowCommandOutcome.NeedsClarification(
-                result.field.name,
-                result.reason,
-            )
-            NoteEventWriteResult.AcceptedLink -> WorkflowCommandOutcome.Denied(
-                WorkflowDenialReason.USER_DECISION_REQUIRED,
-            )
+            when (
+                val result = events.recordEvent(
+                    captureId = request.captureId,
+                    expectedCaptureRevision = request.expectedCaptureRevision,
+                    interpretation = request.interpretation,
+                    extractionVersion = request.extractionVersion,
+                    expectedEventRevision = request.expectedEventRevision,
+                    userEdited = scope is WorkflowCallerScope.User,
+                )
+            ) {
+                is NoteEventWriteResult.Stored -> {
+                    arrivalReconciliation.enqueueEvent(
+                        result.eventId,
+                        result.revision,
+                        request.expectedCaptureRevision,
+                    )
+                    WorkflowCommandOutcome.Applied(
+                        WorkflowChange.EventStored(result.eventId, result.revision),
+                    )
+                }
+                is NoteEventWriteResult.Revised -> {
+                    arrivalReconciliation.enqueueEvent(
+                        result.eventId,
+                        result.revision,
+                        request.expectedCaptureRevision,
+                    )
+                    WorkflowCommandOutcome.Applied(
+                        WorkflowChange.EventRevised(result.eventId, result.revision),
+                    )
+                }
+                NoteEventWriteResult.NoChange -> {
+                    val stored = storedEventOf(request)
+                    stored?.let {
+                        arrivalReconciliation.enqueueEvent(it.id, it.revision, it.sourceRevision)
+                    }
+                    WorkflowCommandOutcome.NoChange(
+                        change = stored?.let { event ->
+                            WorkflowChange.EventStored(event.id, event.revision)
+                        },
+                        detail = "The same reading is already stored for that span.",
+                    )
+                }
+                NoteEventWriteResult.NotFound -> WorkflowCommandOutcome.NotFound
+                NoteEventWriteResult.Changed -> WorkflowCommandOutcome.Conflict(
+                    "The capture or interpretation changed under the caller.",
+                )
+                NoteEventWriteResult.SourceDeleted -> WorkflowCommandOutcome.Denied(
+                    WorkflowDenialReason.ALREADY_DELETED,
+                )
+                is NoteEventWriteResult.Invalid -> WorkflowCommandOutcome.NeedsClarification(
+                    result.field.name,
+                    result.reason,
+                )
+                NoteEventWriteResult.AcceptedLink -> WorkflowCommandOutcome.Denied(
+                    WorkflowDenialReason.USER_DECISION_REQUIRED,
+                )
+                NoteEventWriteResult.UserEdited -> WorkflowCommandOutcome.Denied(
+                    WorkflowDenialReason.USER_DECISION_REQUIRED,
+                )
+            }
         }
+        if (outcome is WorkflowCommandOutcome.Applied || outcome is WorkflowCommandOutcome.NoChange) {
+            arrivalReconciliation.resumePending()
+        }
+        return outcome
     }
 
     // --- Context links ------------------------------------------------------
@@ -1782,28 +1819,12 @@ class WorkflowCommandService(
         scope: WorkflowCallerScope.AgentSession,
         link: ContextLinkEntity,
     ): WorkflowCommandOutcome? {
-        val event = eventDao.findById(link.eventId)
-            ?: return WorkflowCommandOutcome.Denied(WorkflowDenialReason.ATTACH_POLICY)
-        val draft = draftDao.findById(link.draftId)
-            ?: return WorkflowCommandOutcome.Denied(WorkflowDenialReason.ATTACH_POLICY)
-        if (scope.draftIds.size > QueryPageRequest.MAX_PAGE_SIZE) {
-            return WorkflowCommandOutcome.Denied(WorkflowDenialReason.ATTACH_POLICY)
-        }
-        val candidateSearch = queries.matchDraftCandidates(
-            eventId = event.id,
+        val current = automaticAttachmentPolicy.trustedEvidence(
+            eventId = link.eventId,
+            draftId = link.draftId,
             authorizedDraftIds = scope.draftIds,
             pendingDatabaseComplete = scope.draftScopeComplete,
         ) ?: return WorkflowCommandOutcome.Denied(WorkflowDenialReason.ATTACH_POLICY)
-        if (!candidateSearch.pendingDatabaseComplete ||
-            draft.reviewStatus != IntakeReviewStatus.PENDING ||
-            draft.confirmedTransactionId != null
-        ) {
-            return WorkflowCommandOutcome.Denied(WorkflowDenialReason.ATTACH_POLICY)
-        }
-        val current = linkEvidence.evidenceFor(event, draft)
-        if (current.verdict != LinkEvidenceVerdict.UNIQUE) {
-            return WorkflowCommandOutcome.Denied(WorkflowDenialReason.ATTACH_POLICY)
-        }
         if (!isTrustedLinkEvidence(link.evidence)) {
             return WorkflowCommandOutcome.Denied(WorkflowDenialReason.ATTACH_POLICY)
         }

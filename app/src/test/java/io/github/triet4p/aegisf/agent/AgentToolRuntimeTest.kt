@@ -631,18 +631,24 @@ class AgentToolRuntimeTest {
 
     @Test
     fun `eligible link proposes attaches and an exact replay is unchanged`() = runBlocking {
-        val draftId = storeDraft(amount = 28_000L, date = "2026-10-21")
-        val runtime = runtimeFor(
-            WorkflowCallerScope.AgentSession(scope.scopeId, scope.captureIds, setOf(draftId)),
-        )
-        val capture = observeCapture(runtime)
+        val recordingRegistry = AgentReferenceRegistry(scope.scopeId)
+        val recordingRuntime = runtimeFor(scope, recordingRegistry)
+        val capture = observeCapture(recordingRuntime)
         val maskedSource = capture.getString("source_text")
-        val source = selectSource(runtime, capture.getString("ref"), maskedSource)
+        val source = selectSource(recordingRuntime, capture.getString("ref"), maskedSource)
         val recorded = record(
-            runtime, source.getString("source_ref"), valueRef(source, "amount"),
-            makeAnchor(runtime, valueRef(source, "date"), null), "Lunch", "none",
+            recordingRuntime, source.getString("source_ref"), valueRef(source, "amount"),
+            makeAnchor(recordingRuntime, valueRef(source, "date"), null), "Lunch", "none",
         )
         val event = recorded.getJSONObject("data").getJSONObject("event")
+        // Keep this manual tool-policy scenario separate from the production arrival smoke.
+        val draftId = storeDraft(amount = 28_000L, date = "2026-10-21")
+        val toolScope = WorkflowCallerScope.AgentSession(
+            scope.scopeId,
+            scope.captureIds,
+            setOf(draftId),
+        )
+        val runtime = runtimeFor(toolScope, recordingRegistry)
         val draft = draftPage(runtime, draftId)
 
         val inspected = runtime.execute(
@@ -688,19 +694,24 @@ class AgentToolRuntimeTest {
 
     @Test
     fun `observations carry the application row labels a user-visible question must copy`() = runBlocking {
-        val draftId = storeDraft(amount = 28_000L, date = "2026-10-21")
-        val runtime = runtimeFor(
-            WorkflowCallerScope.AgentSession(scope.scopeId, scope.captureIds, setOf(draftId)),
-        )
-        val capture = observeCapture(runtime)
-        val source = selectSource(runtime, capture.getString("ref"), capture.getString("source_text"))
+        val recordingRegistry = AgentReferenceRegistry(scope.scopeId)
+        val recordingRuntime = runtimeFor(scope, recordingRegistry)
+        val capture = observeCapture(recordingRuntime)
+        val source = selectSource(recordingRuntime, capture.getString("ref"), capture.getString("source_text"))
         val recorded = record(
-            runtime, source.getString("source_ref"), valueRef(source, "amount"),
-            makeAnchor(runtime, valueRef(source, "date"), null), "Lunch", "none",
+            recordingRuntime, source.getString("source_ref"), valueRef(source, "amount"),
+            makeAnchor(recordingRuntime, valueRef(source, "date"), null), "Lunch", "none",
         )
         val event = recorded.getJSONObject("data").getJSONObject("event")
         val storedEventId = database.noteEventDao().findForCapture(captureId).single().id
         assertEquals("event #$storedEventId", event.getString("user_label"))
+        val draftId = storeDraft(amount = 28_000L, date = "2026-10-21")
+        val toolScope = WorkflowCallerScope.AgentSession(
+            scope.scopeId,
+            scope.captureIds,
+            setOf(draftId),
+        )
+        val runtime = runtimeFor(toolScope, recordingRegistry)
         val draft = draftPage(runtime, draftId)
         assertEquals("draft #$draftId", draft.getString("user_label"))
 
@@ -1793,14 +1804,17 @@ class AgentToolRuntimeTest {
         return (saved.change as WorkflowChange.CaptureSaved).captureId
     }
 
-    private fun runtimeFor(sessionScope: WorkflowCallerScope.AgentSession): AgentToolRuntime =
+    private fun runtimeFor(
+        sessionScope: WorkflowCallerScope.AgentSession,
+        registry: AgentReferenceRegistry = AgentReferenceRegistry(sessionScope.scopeId),
+    ): AgentToolRuntime =
         AgentToolRuntime(
             commands = commands,
             queries = queries,
             session = AgentToolSession(
                 scope = sessionScope,
                 boundary = boundary,
-                registry = AgentReferenceRegistry(sessionScope.scopeId),
+                registry = registry,
             ),
             declarations = declarations,
         )
