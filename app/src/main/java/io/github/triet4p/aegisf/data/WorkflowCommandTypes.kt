@@ -420,6 +420,8 @@ data class SelectDraftCategoryRequest(
     val draftId: Long,
     val expectedReviewRevision: Int,
     val categoryId: Long,
+    val expectedContextRevision: String? = null,
+    val expectedCatalogRevision: String? = null,
 )
 
 /**

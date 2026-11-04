@@ -105,6 +105,30 @@ class ReviewQueueTest {
     }
 
     @Test
+    fun `saved category never outranks unresolved link or bank data`() = runTest {
+        val fixture = seedQueue()
+        val categoryId = requireNotNull(database.pendingBankDraftDao().findById(fixture.ready)!!.reviewCategoryId)
+        val commands = WorkflowCommandService(database, clock = clock)
+        for (draftId in listOf(fixture.proposedLink, fixture.unresolvedAmount)) {
+            val draft = database.pendingBankDraftDao().findById(draftId)!!
+            val result = commands.selectDraftCategory(
+                WorkflowCallerScope.User,
+                SelectDraftCategoryRequest("queue-category-$draftId", draftId, draft.reviewRevision, categoryId),
+            )
+            assertTrue(result is WorkflowCommandOutcome.Applied)
+        }
+        val entries = pageOfAll(ReviewQueueQuery(bounds = QueryPageRequest(LIST_PAGE_SIZE)))
+        val byId = entries.associateBy { it.draft.id }
+        assertEquals(ReviewQueueGroup.NEEDS_DECISION, byId.getValue(fixture.proposedLink).group)
+        assertEquals(ReviewQueueGroup.NEEDS_DECISION, byId.getValue(fixture.unresolvedAmount).group)
+        assertTrue(entries.indexOf(byId.getValue(fixture.proposedLink)) < entries.indexOf(byId.getValue(fixture.noCategory)))
+        assertTrue(entries.indexOf(byId.getValue(fixture.unresolvedAmount)) < entries.indexOf(byId.getValue(fixture.ready)))
+        assertEquals(categoryId, byId.getValue(fixture.proposedLink).draft.reviewCategoryId)
+        assertEquals(categoryId, byId.getValue(fixture.unresolvedAmount).draft.reviewCategoryId)
+        assertTrue(database.transactionDao().findAll().isEmpty())
+    }
+
+    @Test
     fun `a page boundary never skips or repeats a waiting draft`() = runTest {
         val fixture = seedQueue()
         val pageSize = 3

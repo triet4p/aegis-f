@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -607,6 +608,15 @@ class WorkflowQueryService(
         )
     }
 
+    /** Bounded page membership, so newly conflicting off-page rows can enter the visible page. */
+    fun observeReviewQueueIds(query: ReviewQueueQuery): Flow<QueryPage<Long>> =
+        reviewQueueDao.observeOrderPage(
+            chronological = if (query.order == ReviewQueueOrder.CHRONOLOGICAL) 1 else 0,
+            excludingDraftId = query.excludingDraftId,
+            limit = query.bounds.limit + 1,
+            offset = query.bounds.offset,
+        ).map { rows -> pageOf(rows.map { it.draftId }, query.bounds) }.distinctUntilChanged()
+
     /**
      * One pending draft's queue entry by stable id, or null when it is no longer waiting.
      *
@@ -618,6 +628,10 @@ class WorkflowQueryService(
         val draft = pendingBankDraftDao.findById(draftId) ?: return null
         return row.toQueueEntry(draft)
     }
+
+    /** Current queue state for one visible row, without watching or replacing the whole page. */
+    fun observeReviewQueueEntry(draftId: Long): Flow<ReviewQueueEntry?> =
+        reviewQueueDao.observeOrderRow(draftId).map { reviewQueueEntry(draftId) }.distinctUntilChanged()
 
     /**
      * How many stored bank drafts are in one review state, as a live count.
@@ -689,6 +703,20 @@ class WorkflowQueryService(
      * the text it was made against; review can then say that its excerpt is no longer
      * current instead of presenting old text as the source.
      */
+    internal suspend fun draftContextSnapshot(draftId: Long): Pair<List<DraftContextLink>, String?> =
+        database.withTransaction {
+            val page = draftContextLinks(draftId, QueryPageRequest(QueryPageRequest.MAX_PAGE_SIZE, 0))
+            val digest = if (page.hasMore) null else canonicalDependencyDigest(page.items.flatMap {
+                listOf(
+                    it.linkId.toString(), it.state.name, it.revision.toString(),
+                    it.eventId.toString(), it.eventRevision?.toString(),
+                    it.captureId?.toString(), it.captureRevision?.toString(),
+                    it.eventSourceRevision?.toString(), it.sourceCurrent.toString(),
+                )
+            })
+            page.items to digest
+        }
+
     suspend fun draftContextLinks(
         draftId: Long,
         bounds: QueryPageRequest,

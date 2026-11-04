@@ -3,15 +3,26 @@ package io.github.triet4p.aegisf.ui
 import android.content.Context
 import androidx.compose.runtime.saveable.SaverScope
 import androidx.test.core.app.ApplicationProvider
+import io.github.triet4p.aegisf.data.CategoryEntity
 import io.github.triet4p.aegisf.data.IntakeDirection
 import io.github.triet4p.aegisf.data.IntakeFieldState
 import io.github.triet4p.aegisf.data.IntakeParseStatus
 import io.github.triet4p.aegisf.data.LedgerDatabase
 import io.github.triet4p.aegisf.data.PendingBankDraftEntity
 import io.github.triet4p.aegisf.data.ReviewQueueOrder
+import io.github.triet4p.aegisf.data.SelectDraftCategoryRequest
+import io.github.triet4p.aegisf.data.WorkflowCallerScope
+import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.data.draftDeliveryId
 import io.github.triet4p.aegisf.data.reviewCommands
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -25,13 +36,9 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * The focus behavior of the review inbox: what the user sees stays what they were reading.
- *
- * The holder is exercised against the real database, so the assertions are about observable
- * behavior — a stored row that changed elsewhere does not reorder the shown page, an explicit
- * refresh applies it, a new order starts at the first page, a page that lost its rows steps back
- * instead of showing an empty page, and next-work advances to the oldest decision still waiting
- * without the app ever jumping on its own.
+ * Review inbox focus and bounded visible-row refresh against the real database.
+ * Changed rows update without navigation; a changed queue group re-reads the current page so
+ * uncertainty-first order and page boundaries remain correct.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -55,7 +62,7 @@ class ReviewQueueFocusTest {
     }
 
     @Test
-    fun `a reviewed row does not move the page until the user refreshes`() = runTest {
+    fun `a decided visible row refreshes its page without changing the chosen order`() = runTest {
         val fixture = seedQueue()
         val focus = ReviewQueueFocus(query, pageSize = 2)
         focus.refresh()
@@ -67,22 +74,91 @@ class ReviewQueueFocusTest {
             focus.page!!.items.map { it.draft.id },
         )
 
-        // The first conflict is reviewed elsewhere. That changes the queue; it may not change
-        // what is on screen while the user reads it.
+        // A visible row decided elsewhere refreshes this page without navigating.
         reviewCommands(database).dismissDraft(fixture.conflictA)
-        assertEquals(
-            listOf(fixture.conflictA, fixture.conflictB),
-            focus.page!!.items.map { it.draft.id },
-        )
-
-        // The explicit refresh is what applies it.
-        focus.refresh()
+        focus.updateVisibleEntry(fixture.conflictA, query.reviewQueueEntry(fixture.conflictA))
+        assertEquals(ReviewQueueOrder.UNCERTAINTY_FIRST, focus.order)
         assertEquals(0, focus.pageIndex)
         assertEquals(
             listOf(fixture.conflictB, fixture.needA),
             focus.page!!.items.map { it.draft.id },
         )
         assertTrue(focus.page!!.hasMore)
+    }
+
+    @Test
+    fun `a changed visible conflict refreshes its category without moving unrelated rows`() = runBlocking {
+        val fixture = seedQueue()
+        val focus = ReviewQueueFocus(query, pageSize = 2)
+        focus.refresh()
+        val untouched = focus.page!!.items[1]
+        val categoryId = database.categoryDao().insert(
+            CategoryEntity(name = "Fuel", createdAtEpochMillis = BASE_INSTANT, updatedAtEpochMillis = BASE_INSTANT),
+        )
+        val draft = database.pendingBankDraftDao().findById(fixture.conflictA)!!
+        val updates = Channel<io.github.triet4p.aegisf.data.ReviewQueueEntry?>(Channel.UNLIMITED)
+        val collector = launch(Dispatchers.Default) {
+            query.observeReviewQueueEntry(draft.id).collect { updates.send(it) }
+        }
+        withTimeout(5_000) { updates.receive() }
+        WorkflowCommandService(database).selectDraftCategory(
+            WorkflowCallerScope.User,
+            SelectDraftCategoryRequest("visible-category", draft.id, draft.reviewRevision, categoryId),
+        )
+        val changed = withTimeout(5_000) {
+            var entry = updates.receive()
+            while (entry?.draft?.reviewCategoryId != categoryId) entry = updates.receive()
+            entry
+        }
+        collector.cancel()
+        focus.updateVisibleEntry(draft.id, changed)
+        assertEquals(listOf(fixture.conflictA, fixture.conflictB), focus.page!!.items.map { it.draft.id })
+        assertEquals(categoryId, focus.page!!.items[0].draft.reviewCategoryId)
+        assertEquals(untouched, focus.page!!.items[1])
+        assertEquals(0, focus.pageIndex)
+    }
+
+    @Test
+    fun `a visible category change reorders only the current page without changing focus`() = runTest {
+        val fixture = seedQueue()
+        val focus = ReviewQueueFocus(query, pageSize = 2)
+        focus.refresh()
+        focus.nextPage()
+        assertEquals(listOf(fixture.needA, fixture.needB), focus.page!!.items.map { it.draft.id })
+        val categoryId = database.categoryDao().insert(
+            CategoryEntity(name = "Food", createdAtEpochMillis = BASE_INSTANT, updatedAtEpochMillis = BASE_INSTANT),
+        )
+        val draft = database.pendingBankDraftDao().findById(fixture.needA)!!
+        WorkflowCommandService(database).selectDraftCategory(
+            WorkflowCallerScope.User,
+            SelectDraftCategoryRequest("visible-ready", draft.id, draft.reviewRevision, categoryId),
+        )
+        focus.updateVisibleEntry(draft.id, query.reviewQueueEntry(draft.id))
+        assertEquals(1, focus.pageIndex)
+        assertEquals(ReviewQueueOrder.UNCERTAINTY_FIRST, focus.order)
+        assertEquals(listOf(fixture.needB, fixture.readyEarly), focus.page!!.items.map { it.draft.id })
+    }
+
+    @Test
+    fun `an off page conflict enters the visible page in priority order`() = runTest {
+        val fixture = seedQueue()
+        val focus = ReviewQueueFocus(query, pageSize = 2)
+        focus.refresh()
+        assertEquals(listOf(fixture.conflictA, fixture.conflictB), focus.page!!.items.map { it.draft.id })
+        val prior = database.pendingBankDraftDao().findById(fixture.readyEarly)!!
+        database.pendingBankDraftDao().store(
+            prior.copy(
+                id = 0, deliveryId = "new-duplicate", possibleDuplicateOfDraftId = prior.id,
+                createdAtEpochMillis = BASE_INSTANT + 100,
+            ),
+        )
+        val pageIds = focus.observePageIds()
+        val next = withContext(Dispatchers.Default) {
+            withTimeout(5_000) { pageIds.first { it.items.firstOrNull() == fixture.readyEarly } }
+        }
+        focus.updatePageMembership(next)
+        assertEquals(listOf(fixture.readyEarly, fixture.conflictA), focus.page!!.items.map { it.draft.id })
+        assertEquals(0, focus.pageIndex)
     }
 
     @Test

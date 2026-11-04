@@ -343,3 +343,13 @@ financial confirmation.
 **Reason:** A notification arrival may need to scan unmatched events in multiple bounded pages, and a process interruption must resume from the last page committed with its link effects. The command journal records one immutable command outcome and has no typed scan cursor, while restarting a full scan would repeat unbounded work rather than coalesce a persisted request.
 
 **Consequences:** Event/draft writes and their pending arrival identities commit together; each page, link effects, and cursor/completion state commit together. Future arrival paths must retain stable event/draft operation identities and expected revisions, preserve the persisted cursor, and use the existing complete-scope trusted-link boundary.
+
+## [2026-11-04] Bind hosted category writes to draft context snapshots
+
+**Decision:** Bind a hosted category choice to the issuing draft observation and compare its context revision fingerprint and catalog digest inside the ordinary category command's transaction.
+
+**Alternatives considered:** Increment the draft review revision on every linked source or event change, or check context only in the agent adapter before the write.
+
+**Reason:** Context may change independently of draft review fields, and a check outside the write transaction leaves a race between validation and persistence. A bounded fingerprint retains the independent revision owners while making stale context a command conflict.
+
+**Consequences:** Hosted writes require a complete context snapshot and a category alias from the same observation. More than 500 links refuses a hosted category write rather than treating a partial snapshot as current; user-owned manual review remains available.

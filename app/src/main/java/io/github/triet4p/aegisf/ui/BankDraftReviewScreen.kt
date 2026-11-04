@@ -89,6 +89,7 @@ import io.github.triet4p.aegisf.data.UnlinkLinkRequest
 import io.github.triet4p.aegisf.data.UnrecordedNoteEvent
 import io.github.triet4p.aegisf.data.VndMoney
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -122,16 +123,12 @@ fun BankDraftReviewScreen(
         }
     }
     val scope = rememberCoroutineScope()
-    // The inbox shows the review queue in the order the frozen policy sets: drafts whose link
-    // or bank data still needs a decision first, then drafts that still need a category, then
-    // drafts ready for confirm or dismiss. The chronological override orders the same drafts
-    // by arrival. The holder keeps the shown rows a snapshot, so nothing reorders the list
-    // while the user reads it; the explicit Refresh, order and next-work actions replace it.
+    // Keep the chosen page and order, updating only displayed drafts whose stored state changed.
+    // A group change re-reads this bounded page to preserve conflict-first order.
     val focus = rememberSaveable(queryService, saver = ReviewQueueFocus.saver(queryService)) {
         ReviewQueueFocus(queryService)
     }
-    // The rows are read when the inbox is opened and when the user comes back from a draft
-    // (a navigation refresh), never because a score changed somewhere else.
+    // The inbox is initially read when opened and when returning from a draft.
     LaunchedEffect(focus, draftId) {
         if (draftId == null) focus.refresh()
     }
@@ -141,6 +138,25 @@ fun BankDraftReviewScreen(
         queryService.observeDraftCandidateCount(IntakeReviewStatus.PENDING)
     }.collectAsState(initial = null)
     val queueEntries = focus.page?.items.orEmpty()
+    LaunchedEffect(focus, draftId, focus.order, focus.pageIndex) {
+        if (draftId == null) {
+            focus.observePageIds().collect { focus.updatePageMembership(it) }
+        }
+    }
+    val visibleDraftIds = queueEntries.map { it.draft.id }
+    LaunchedEffect(focus, draftId, visibleDraftIds) {
+        if (draftId == null) {
+            coroutineScope {
+                visibleDraftIds.forEach { id ->
+                    launch {
+                        queryService.observeReviewQueueEntry(id).collect { entry ->
+                            focus.updateVisibleEntry(id, entry)
+                        }
+                    }
+                }
+            }
+        }
+    }
     // The drafts that share their evidence with the listed ones: a possible duplicate is
     // kept and shown beside its partner, and the partner may already have been reviewed.
     val relatedFlow = remember(queryService, queueEntries) {
@@ -306,8 +322,7 @@ private fun InboxContent(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        // Reading is an explicit action: the list below stays as it was read, so a score
-        // that changed elsewhere cannot move a draft while the user reads it.
+        // Explicit refresh still lets the user re-read the current page on demand.
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -317,7 +332,7 @@ private fun InboxContent(
                 text = if (reading) {
                     "Reading the review queue…"
                 } else {
-                    "This order stays as read until you refresh."
+                    "Visible drafts update when their review state changes."
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -26,6 +26,12 @@ and no release has been tagged or published. Format follows
 - Note event interpretations and permitted bank notifications now reconcile when either arrives. Only a complete, unique evidence match is linked automatically; ambiguous or incomplete evidence remains for review, and stale revisions, rejected links, and dismissed drafts are not resurrected. Replayed arrivals coalesce into durable bounded work that resumes after restart, while re-extraction preserves event identity and user-edited interpretations without changing sources, draft amounts, or ledger records.
 
 ### Changed
+- Hosted review now receives each affected draft's own accepted, current note context and category
+  choices during the same user-started workflow. A changed note, link, draft or category catalog
+  invalidates an older category choice; selecting a category never resolves a link conflict or
+  confirms a transaction.
+- Visible review rows now follow stored review changes; when a draft changes priority, the current
+  page is refreshed in conflict-first order without changing the selected order or opening a draft.
 - Hosted draft-category selection replaces the on-device classifier. A draft observation carries
   the current active category choices, and the hosted workflow submits one existing category
   through the ordinary draft-review update; the host validates the draft review revision, the

@@ -1433,6 +1433,108 @@ class WorkflowCommandServiceTest {
     }
 
     @Test
+    fun `editing linked context invalidates an in flight category choice`() = runTest {
+        val database = open()
+        try {
+            val commands = commands(database)
+            val fixture = linkedCaptureFixture(commands, database, "category-context")
+            val draftId = database.contextLinkDao().findForEvent(fixture.acceptedEventId).single().draftId
+            val draft = database.pendingBankDraftDao().findById(draftId)!!
+            val categoryId = database.categoryDao().insert(
+                CategoryEntity(name = "Fuel", createdAtEpochMillis = CAPTURE_TIME, updatedAtEpochMillis = CAPTURE_TIME),
+            )
+            val query = WorkflowQueryService(database)
+            val contextRevision = query.draftContextSnapshot(draftId).second
+            val catalogRevision = categoryCatalogRevision(query.categoryCatalog())
+            val capture = database.captureMessageDao().findById(fixture.captureId)!!
+            val revised = commands.reviseCapture(
+                WorkflowCallerScope.User,
+                ReviseCaptureRequest("category-context-edit", fixture.captureId, capture.revision, "Changed note"),
+            )
+            assertTrue(revised is WorkflowCommandOutcome.Applied)
+            val outcome = commands.selectDraftCategory(
+                WorkflowCallerScope.AgentSession("category-context", setOf(fixture.captureId), setOf(draftId)),
+                SelectDraftCategoryRequest(
+                    "category-context-write", draftId, draft.reviewRevision, categoryId,
+                    contextRevision, catalogRevision,
+                ),
+            )
+            assertTrue(outcome is WorkflowCommandOutcome.Conflict)
+            assertNull(database.pendingBankDraftDao().findById(draftId)!!.reviewCategoryId)
+            assertTrue(database.transactionDao().findAll().isEmpty())
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun `unlinking context invalidates an in flight category choice`() = runTest {
+        val database = open()
+        try {
+            val commands = commands(database)
+            val fixture = linkedCaptureFixture(commands, database, "category-unlink")
+            val link = database.contextLinkDao().findForEvent(fixture.acceptedEventId).single()
+            val draft = database.pendingBankDraftDao().findById(link.draftId)!!
+            val categoryId = database.categoryDao().insert(
+                CategoryEntity(name = "Fuel", createdAtEpochMillis = CAPTURE_TIME, updatedAtEpochMillis = CAPTURE_TIME),
+            )
+            val query = WorkflowQueryService(database)
+            val contextRevision = query.draftContextSnapshot(draft.id).second
+            val catalogRevision = categoryCatalogRevision(query.categoryCatalog())
+            val unlink = commands.unlinkLink(
+                WorkflowCallerScope.User,
+                UnlinkLinkRequest("category-unlink-action", fixture.acceptedEventId, draft.id, link.revision),
+            )
+            assertTrue(unlink is WorkflowCommandOutcome.Applied)
+            val outcome = commands.selectDraftCategory(
+                WorkflowCallerScope.AgentSession("category-unlink", setOf(fixture.captureId), setOf(draft.id)),
+                SelectDraftCategoryRequest(
+                    "category-unlink-write", draft.id, draft.reviewRevision, categoryId,
+                    contextRevision, catalogRevision,
+                ),
+            )
+            assertTrue(outcome is WorkflowCommandOutcome.Conflict)
+            assertNull(database.pendingBankDraftDao().findById(draft.id)!!.reviewCategoryId)
+            assertTrue(database.transactionDao().findAll().isEmpty())
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun `newer user category is not overwritten by an older hosted choice`() = runTest {
+        val database = open()
+        try {
+            val commands = commands(database)
+            val draftId = storeDraft(database, "user-category-race", 50_000L)
+            val fuel = database.categoryDao().insert(
+                CategoryEntity(name = "Fuel", createdAtEpochMillis = CAPTURE_TIME, updatedAtEpochMillis = CAPTURE_TIME),
+            )
+            val food = database.categoryDao().insert(
+                CategoryEntity(name = "Food", createdAtEpochMillis = CAPTURE_TIME, updatedAtEpochMillis = CAPTURE_TIME),
+            )
+            val draft = database.pendingBankDraftDao().findById(draftId)!!
+            val query = WorkflowQueryService(database)
+            val context = query.draftContextSnapshot(draftId).second
+            val catalog = categoryCatalogRevision(query.categoryCatalog())
+            val userChoice = commands.selectDraftCategory(
+                WorkflowCallerScope.User,
+                SelectDraftCategoryRequest("user-category", draftId, draft.reviewRevision, food),
+            )
+            assertTrue(userChoice is WorkflowCommandOutcome.Applied)
+            val oldChoice = commands.selectDraftCategory(
+                WorkflowCallerScope.AgentSession("category-race", emptySet(), setOf(draftId)),
+                SelectDraftCategoryRequest("old-agent-category", draftId, draft.reviewRevision, fuel, context, catalog),
+            )
+            assertTrue(oldChoice is WorkflowCommandOutcome.Conflict)
+            assertEquals(food, database.pendingBankDraftDao().findById(draftId)!!.reviewCategoryId)
+            assertTrue(database.transactionDao().findAll().isEmpty())
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
     fun `the hosted workflow saves an existing category without confirming the draft`() = runTest {
         val database = open()
         try {
@@ -1451,6 +1553,9 @@ class WorkflowCommandServiceTest {
                 captureIds = emptySet(),
                 draftIds = setOf(draftId),
             )
+            val queries = WorkflowQueryService(database)
+            val contextRevision = queries.draftContextSnapshot(draftId).second
+            val catalogRevision = categoryCatalogRevision(queries.categoryCatalog())
 
             val applied = commands.selectDraftCategory(
                 scope = scope,
@@ -1459,6 +1564,8 @@ class WorkflowCommandServiceTest {
                     draftId = draftId,
                     expectedReviewRevision = stored.reviewRevision,
                     categoryId = categoryId,
+                    expectedContextRevision = contextRevision,
+                    expectedCatalogRevision = catalogRevision,
                 ),
             )
             assertTrue("the category was not stored: $applied", applied is WorkflowCommandOutcome.Applied)
@@ -1480,6 +1587,8 @@ class WorkflowCommandServiceTest {
                     draftId = draftId,
                     expectedReviewRevision = stored.reviewRevision,
                     categoryId = categoryId,
+                    expectedContextRevision = contextRevision,
+                    expectedCatalogRevision = catalogRevision,
                 ),
             )
             assertEquals(
@@ -1500,6 +1609,8 @@ class WorkflowCommandServiceTest {
                     draftId = draftId,
                     expectedReviewRevision = after.reviewRevision,
                     categoryId = categoryId,
+                    expectedContextRevision = contextRevision,
+                    expectedCatalogRevision = categoryCatalogRevision(queries.categoryCatalog()),
                 ),
             )
             assertEquals(

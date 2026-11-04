@@ -2,6 +2,7 @@ package io.github.triet4p.aegisf.data
 
 import androidx.room.Dao
 import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 
 /**
  * One pending draft's place in the review queue: the ordering facts, without the draft row
@@ -55,12 +56,25 @@ abstract class ReviewQueueDao {
         offset: Int,
     ): List<ReviewQueueRow>
 
+    /** Watches the bounded ordered ids for the currently visible page. */
+    @Query(REVIEW_QUEUE_PAGE_SQL)
+    abstract fun observeOrderPage(
+        chronological: Int,
+        excludingDraftId: Long?,
+        limit: Int,
+        offset: Int,
+    ): Flow<List<ReviewQueueRow>>
+
     /** One pending draft's queue facts by stable id. */
     @Query(REVIEW_QUEUE_ENTRY_SQL)
     abstract suspend fun findOrderRow(
         draftId: Long,
         excludingDraftId: Long? = null,
     ): ReviewQueueRow?
+
+    /** Observes queue facts for one displayed draft. */
+    @Query(REVIEW_QUEUE_ENTRY_SQL)
+    abstract fun observeOrderRow(draftId: Long, excludingDraftId: Long? = null): Flow<ReviewQueueRow?>
 
     /** The stored drafts named by one queue page, in any order. */
     @Query("SELECT * FROM pending_bank_drafts WHERE id IN (:draftIds)")

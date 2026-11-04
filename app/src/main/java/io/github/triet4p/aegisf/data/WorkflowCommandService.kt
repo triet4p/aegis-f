@@ -735,6 +735,8 @@ class WorkflowCommandService(
             request.draftId.toString(),
             request.expectedReviewRevision.toString(),
             request.categoryId.toString(),
+            request.expectedContextRevision,
+            request.expectedCatalogRevision,
         ),
         authorize = {
             if (!scope.mayTouchDraft(request.draftId)) {
@@ -754,6 +756,16 @@ class WorkflowCommandService(
         }
         if (draft.reviewRevision != request.expectedReviewRevision) {
             return@runCommand WorkflowCommandOutcome.Conflict("The draft changed under the caller.")
+        }
+        if (scope is WorkflowCallerScope.AgentSession) {
+            val query = WorkflowQueryService(database)
+            if (request.expectedContextRevision == null ||
+                request.expectedContextRevision != query.draftContextSnapshot(request.draftId).second ||
+                request.expectedCatalogRevision == null ||
+                request.expectedCatalogRevision != categoryCatalogRevision(query.categoryCatalog())
+            ) {
+                return@runCommand WorkflowCommandOutcome.Conflict("The draft context or category catalog changed.")
+            }
         }
         if (!rules.categoryAssignable(request.categoryId)) {
             return@runCommand WorkflowCommandOutcome.Denied(

@@ -2023,6 +2023,28 @@ class AgentToolRuntimeTest {
         )
 
     @Test
+    fun `category choice from another draft observation is refused`() = runBlocking {
+        val first = storeDraft(amount = 28_000L, date = "2026-10-21")
+        val second = storeDraft(amount = 29_000L, date = "2026-10-21")
+        commands.addCategory(
+            WorkflowCallerScope.User,
+            AddCategoryRequest(idempotencyKey = "foreign-choice-category", name = "Food"),
+        )
+        val session = WorkflowCallerScope.AgentSession(scope.scopeId, scope.captureIds, setOf(first, second))
+        val runtime = runtimeFor(session)
+        val firstObservation = draftPage(runtime, first)
+        val secondObservation = draftPage(runtime, second)
+        val foreignChoice = secondObservation.getJSONArray("category_choices").getJSONObject(0).getString("ref")
+        val result = runtime.execute(
+            "update_draft_review",
+            JSONObject().put("draft_ref", firstObservation.getString("ref")).put("category_ref", foreignChoice),
+            "foreign-choice",
+        ).envelope
+        assertEquals("error", result.getString("outcome"))
+        assertNull(database.pendingBankDraftDao().findById(first)!!.reviewCategoryId)
+    }
+
+    @Test
     fun `the hosted workflow saves one offered category without confirming the draft`() = runBlocking {
         val draftId = storeDraft(amount = 28_000L, date = "2026-10-21")
         val added = commands.addCategory(

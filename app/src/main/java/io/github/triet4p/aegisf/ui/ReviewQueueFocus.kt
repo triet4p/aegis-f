@@ -15,14 +15,11 @@ import io.github.triet4p.aegisf.data.ReviewQueueQuery
 import io.github.triet4p.aegisf.data.WorkflowQueryService
 
 /**
- * The review queue the inbox shows: which order, which page, and the rows read when the user
- * last read them.
+ * The review queue the inbox shows: which order, which page, and the rows currently shown.
  *
- * The rows are a **snapshot**, not a live stream. Only [refresh], [setOrder], the page actions
- * and [nextWork] replace them, so a stored score that changes while the user reads can never
- * reorder the list and never moves a draft under the user's finger. That is the whole point of
- * the holder: the ordering is a decision the user makes (the order control) or refreshes, not
- * something the app lets change by itself.
+ * Visible rows refresh individually. When one changes group or leaves the queue, the bounded
+ * current page is re-read so conflict-first ordering and page boundaries remain authoritative.
+ * That never changes the selected order or opens a different draft.
  *
  * The holder also keeps the paging rules: a new order starts at the first page, a page that
  * lost its rows steps back to the nearest page that still holds some, and [nextWork] answers
@@ -49,9 +46,39 @@ internal class ReviewQueueFocus(
     var reading by mutableStateOf(false)
         private set
 
+    private var readGeneration = 0L
+
     /** Re-reads the current order at the current page. */
     suspend fun refresh() {
         read(order, pageIndex)
+    }
+
+    /** Watches only the current page boundary and its next-page sentinel. */
+    fun observePageIds() = queryService.observeReviewQueueIds(query(order, pageIndex))
+
+    /** An off-page change may alter which rows belong on this page. */
+    suspend fun updatePageMembership(ids: QueryPage<Long>) {
+        val current = page ?: return
+        if (ids.offset != current.offset) return
+        if (ids.items != current.items.map { it.draft.id } || ids.hasMore != current.hasMore) {
+            read(order, pageIndex)
+        }
+    }
+
+    /** Refreshes only a visible changed row, re-reading its page when its sort position changes. */
+    suspend fun updateVisibleEntry(draftId: Long, updated: ReviewQueueEntry?) {
+        val current = page ?: return
+        val index = current.items.indexOfFirst { it.draft.id == draftId }
+        if (index < 0) return
+        val previous = current.items[index]
+        if (updated == previous) return
+        if (updated == null || updated.group != previous.group) {
+            read(order, pageIndex)
+        } else {
+            val rows = current.items.toMutableList()
+            rows[index] = updated
+            page = current.copy(items = rows)
+        }
     }
 
     /** Switches the order and starts it at the first page, never at an offset in the old one. */
@@ -91,18 +118,23 @@ internal class ReviewQueueFocus(
     }
 
     private suspend fun read(order: ReviewQueueOrder, startPageIndex: Int) {
+        val generation = ++readGeneration
         reading = true
-        var index = startPageIndex
-        var loaded = queryService.reviewQueue(query(order, index))
-        // A page that lost its rows steps back to the nearest page that still holds some, so
-        // the inbox never shows an empty page in the middle of the list.
-        while (loaded.items.isEmpty() && index > 0) {
-            index -= 1
-            loaded = queryService.reviewQueue(query(order, index))
+        try {
+            var index = startPageIndex
+            var loaded = queryService.reviewQueue(query(order, index))
+            // A page that lost its rows steps back to the nearest page that still has rows.
+            while (loaded.items.isEmpty() && index > 0) {
+                index -= 1
+                loaded = queryService.reviewQueue(query(order, index))
+            }
+            if (generation == readGeneration) {
+                pageIndex = index
+                page = loaded
+            }
+        } finally {
+            if (generation == readGeneration) reading = false
         }
-        pageIndex = index
-        page = loaded
-        reading = false
     }
 
     private fun query(order: ReviewQueueOrder, pageIndex: Int): ReviewQueueQuery =

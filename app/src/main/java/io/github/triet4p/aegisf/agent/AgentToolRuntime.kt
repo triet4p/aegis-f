@@ -842,6 +842,11 @@ class AgentToolRuntime(
                 )
             }
             val observation = eventObservation(row)
+            val affectedDrafts = queries.linkOperations(
+                LinkOperationQuery(eventId = row.id, bounds = QueryPageRequest(MAX_DRAFT_CONTEXT_LINKS, 0)),
+            ).items.filter { it.state == ContextLinkState.ACCEPTED && it.draftId in scope.draftIds }
+                .mapNotNull { queries.draftCandidate(it.draftId) }
+                .map { draftContextObservation(it) }
             val operationRef = issueOperationRef(operationKey, eventId = row.id, draftId = null)
             val verified = changeRevision(change) == null || changeRevision(change) == row.revision
             AgentToolExecution(
@@ -852,7 +857,7 @@ class AgentToolRuntime(
                         .put("clarification", clarification)
                         .put("clarification_pending", clarification != "none")
                         .put("change", changeJson(change)),
-                    observations = listOf(observation),
+                    observations = listOf(observation) + affectedDrafts,
                     effect = if (result is WorkflowCommandOutcome.Applied) "applied" else "unchanged",
                     verified = verified,
                     operationRef = operationRef,
@@ -977,7 +982,7 @@ class AgentToolRuntime(
                         .put("proposal_ref", pair.getString("ref"))
                         .put("state", link.state.name)
                         .put("already_attached", true),
-                    observations = listOf(pair),
+                    observations = listOf(pair, draftContextObservation(draft)),
                     effect = "unchanged",
                     verified = true,
                 ),
@@ -1044,7 +1049,11 @@ class AgentToolRuntime(
                             .put("revision", link.revision))
                         .put("pair", pair)
                         .put("change", changeJson(change)),
-                    observations = listOf(pair),
+                    observations = if (link.state == ContextLinkState.ACCEPTED) {
+                        listOf(pair, draftContextObservation(requireDraft(draft.id)))
+                    } else {
+                        listOf(pair)
+                    },
                     effect = if (result is WorkflowCommandOutcome.Applied) "applied" else "unchanged",
                     verified = true,
                     operationRef = operationRef,
@@ -1105,6 +1114,12 @@ class AgentToolRuntime(
             AgentReferenceKind.CATEGORY,
             "$.category_ref",
         )
+        if (categoryRef.linkedSubjectKey != draftRef.handle) {
+            throw AgentToolException(
+                AgentErrorCode.REFERENCE_SCOPE_REFUSED, "$.category_ref", "category_from_same_draft_observation",
+                message = "Choose a category from this draft's current observation.",
+            )
+        }
         val categoryId = categoryRef.categoryId
             ?: throw AgentToolException(
                 AgentErrorCode.REFERENCE_UNAVAILABLE,
@@ -1128,6 +1143,8 @@ class AgentToolRuntime(
                 draftId = draft.id,
                 expectedReviewRevision = draftRef.draftReviewRevision ?: draft.reviewRevision,
                 categoryId = categoryId,
+                expectedContextRevision = draftRef.draftContextRevision,
+                expectedCatalogRevision = categoryRef.categoryCatalogRevision,
             ),
         )
         return when (result) {
@@ -1826,6 +1843,7 @@ class AgentToolRuntime(
         val description = effectiveCandidateDescription(draft)
         val catalog = queries.categoryCatalog()
         val catalogRevision = categoryCatalogRevision(catalog)
+        val (contextLinks, contextRevision) = queries.draftContextSnapshot(draft.id)
         val handle = registry.nextHandle()
         val ref = registry.issue(
             AgentReference(
@@ -1835,6 +1853,7 @@ class AgentToolRuntime(
                 subjectId = draft.id,
                 draftId = draft.id,
                 draftReviewRevision = draft.reviewRevision,
+                draftContextRevision = contextRevision,
                 display = mask(draft.workingDescription()),
             ),
         )
@@ -1848,12 +1867,29 @@ class AgentToolRuntime(
                     subjectId = category.id,
                     categoryId = category.id,
                     categoryCatalogRevision = catalogRevision,
+                    linkedSubjectKey = handle,
                 ),
             )
             choices.put(
                 JSONObject()
                     .put("ref", categoryRef)
                     .put("name", category.name),
+            )
+        }
+        val linkedContext = JSONArray()
+        for (link in contextLinks) {
+            if (link.state != ContextLinkState.ACCEPTED || !link.sourceCurrent ||
+                link.captureId !in scope.captureIds
+            ) continue
+            val reading = link.readingText ?: link.excerpt
+            linkedContext.put(
+                JSONObject()
+                    .put("event_id", link.eventId)
+                    .put("user_label", "event #${link.eventId}")
+                    .put("text", reading?.let { mask(it) } ?: JSONObject.NULL)
+                    .put("amount", maskAmount(link.amountVnd))
+                    .put("date", maskDate(link.anchorDate))
+                    .put("merchant", link.merchant?.let { mask(it) } ?: JSONObject.NULL),
             )
         }
         val chosen = draft.reviewCategoryId?.let { id -> catalog.firstOrNull { it.id == id } }
@@ -1916,6 +1952,8 @@ class AgentToolRuntime(
                     ?: JSONObject.NULL,
             )
             .put("category_choices", choices)
+            .put("linked_context", linkedContext)
+            .put("linked_context_count", linkedContext.length())
     }
 
     private fun candidateMatchObservation(
@@ -1973,30 +2011,8 @@ class AgentToolRuntime(
      * passes through the same local masking boundary as the draft's own description. A link
      * in any other state is not context and is not shown as though it were.
      */
-    private suspend fun draftContextObservation(draft: PendingBankDraftEntity): JSONObject {
-        val observation = draftObservation(draft)
-        val linkedContext = JSONArray()
-        val links = queries.draftContextLinks(
-            draftId = draft.id,
-            bounds = QueryPageRequest(MAX_DRAFT_CONTEXT_LINKS, 0),
-        )
-        for (link in links.items) {
-            if (link.state != ContextLinkState.ACCEPTED) continue
-            val reading = link.readingText ?: link.excerpt
-            linkedContext.put(
-                JSONObject()
-                    .put("event_id", link.eventId)
-                    .put("user_label", "event #${link.eventId}")
-                    .put("text", reading?.let { mask(it) } ?: JSONObject.NULL)
-                    .put("amount", maskAmount(link.amountVnd))
-                    .put("date", maskDate(link.anchorDate))
-                    .put("merchant", link.merchant?.let { mask(it) } ?: JSONObject.NULL),
-            )
-        }
-        return observation
-            .put("linked_context", linkedContext)
-            .put("linked_context_count", linkedContext.length())
-    }
+    private suspend fun draftContextObservation(draft: PendingBankDraftEntity): JSONObject =
+        draftObservation(draft)
 
     private suspend fun pairObservation(
         event: NoteEventEntity,

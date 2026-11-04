@@ -388,3 +388,23 @@ and allow only the exact validated external report rather than opening a blanket
 **Fix / workaround:** Before a non-user attach, rerun the bounded `WorkflowQueryService.matchDraftCandidates` recheck and refuse automatic attachment unless `pendingDatabaseComplete` is true and the target remains pending; then retain the existing current, unique, revision-bound `TrustedLinkEvidence` policy. Retrieval ranking and merchant similarity remain non-authoritative.
 
 **Watch out for:** A first-32 grant or a newly arrived pending row can leave one visible amount/day match while hiding another competitor. Pair evidence must not bypass the grant's `INCOMPLETE` state.
+
+## [2026-11-04] Draft category aliases could cross observations
+
+**Symptom:** A hosted category alias issued for one draft was accepted with a different draft's reference, and an observed category could outlive changes to linked note context.
+
+**Root cause:** Category references carried the catalog digest but not the issuing draft observation; the mutation compared draft review revision and category availability but not link, event, or capture revisions.
+
+**Fix / workaround:** Bind each category alias to its issuing draft handle and compare a bounded context fingerprint and catalog digest within the command transaction before saving review state.
+
+**Watch out for:** Link and source revisions change independently of the draft review revision. A pre-write adapter check alone cannot prevent a context change between validation and the database write.
+
+## [2026-11-04] Windows Robolectric named databases failed to open during journal setup
+
+**Symptom:** A full JVM run and a serial targeted run failed with `SQLiteCantOpenDatabaseException` in `setJournalMode` for named test databases; other tests passed and both disks had ample free space.
+
+**Root cause:** Not isolated. Both long default temporary paths and daemon environment/lifecycle remain possible; changing two conditions together prevents attributing the failure to either one.
+
+**Fix / workaround:** Run Gradle with `--no-daemon` and `TEMP`/`TMP` set to the short `F:\s95tmp` directory. Under those conditions the targeted class and the full 556-test suite passed (three assumed live tests skipped).
+
+**Watch out for:** Robolectric embeds long test names in temporary directory paths. Do not change production startup or globally suppress tests merely to hide this host-specific failure.

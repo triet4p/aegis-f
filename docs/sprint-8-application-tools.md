@@ -64,6 +64,20 @@ span or from a clarification linked to that exact subject; the host parses the v
 argument's role. Capture-page value aliases are display-only; `make_time_anchor` refuses them,
 so a grounded anchor is built from the selected occurrence's value aliases.
 
+Draft observations include only current accepted context from captures in the session's grant.
+When event recording reconciles an accepted link or a link is accepted in the active run, the
+affected in-scope draft is observed again with its own masked context and active choices. A category
+alias belongs to that exact draft observation. The category command compares draft, linked
+event/source/link revisions and the live catalog inside its write transaction; a changed context
+or catalog requires a fresh observation. A draft with more than 500 context links cannot use an
+incomplete context snapshot for hosted category writes. These review-only writes never confirm a
+transaction or settle an unresolved link.
+
+Visible review rows update from their own current queue entries. A bounded page-membership
+observation also detects when an off-page draft becomes urgent. A group or membership change
+re-reads only the current page to keep conflict-first order and page boundaries correct; the
+selected order and open draft are not changed.
+
 `select_source(capture_ref, quote, occurrence)` requires a nonblank exact contiguous copy of the
 current masked source, preserves complete masked tokens, verifies the occurrence index and token
 boundaries, and translates the masked UTF-16 span through the session vault to original-source

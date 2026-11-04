@@ -124,6 +124,8 @@ data class AgentReference(
     val categoryId: Long? = null,
     /** The category catalog digest the choice was observed against. */
     val categoryCatalogRevision: String? = null,
+    /** Context fingerprint from the exact draft observation that issued this reference. */
+    val draftContextRevision: String? = null,
     val linkId: Long? = null,
     val linkRevision: Int? = null,
     /** The state of the observed event/draft link. */

@@ -122,6 +122,9 @@ object AgentContextManager {
         appendLine("never invent a category, translate in order to classify, or reuse a choice from another draft observation.")
         appendLine("category_choice_rule: pass one category reference issued by the same fresh draft observation to")
         appendLine("update_draft_review. A stale draft revision or changed catalog is refused; observe again.")
+        appendLine("When the allowed workflow saves or accepts a link, use the affected draft observation's")
+        appendLine("linked_context and category_choices for its category review; do not copy context between drafts.")
+        appendLine("A changed link, source, event or catalog invalidates the old observation. A category never resolves link uncertainty.")
         appendLine("A saved category is review state only and never confirms the draft or writes a ledger record.")
         appendLine("masking_repair_rule: one masking refusal is repairable by the HOST only — when a complete response carried a masked-value form this session never issued, the host discards that whole response, appends one fixed shape-only notice and re-issues the same turn once. You never retry a privacy refusal with another spelling, raw value, endpoint or fallback model, and a second refusal or any foreign-token, raw-literal or decoded-sensitive finding stays terminal.")
     }
