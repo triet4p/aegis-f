@@ -158,9 +158,13 @@ operation identity per occurrence; a failure on the second occurrence never roll
 policy the attachment mutation uses, and returns `pair_ref`, masked evidence and `unique`,
 `ambiguous` or `ineligible` with a reason. `propose_link(pair_ref)` stores the observed tentative
 pair and can succeed for a pair that is not attachable. `attach_link(proposal_ref)` rechecks the
-revision and evidence inside the real mutation and always invokes the non-override agent path; the
-model no longer supplies `userOverride`. Ambiguous, ineligible, stale or refused pairs are never
-attached, and no tool rewrites amounts/dates to force eligibility.
+link revision and trusted pair evidence inside the real mutation and always invokes the
+non-override agent path; the current bounded search must also confirm that the complete pending
+scope is still within the grant. Candidate retrieval ranking and merchant similarity do not
+replace the local attachment-evidence policy. An incomplete search never authorizes automatic
+attachment. Ambiguous proposals remain unaccepted for the user to resolve; the user can reject
+one candidate, choose another, or unlink an accepted association using its current revision. No
+tool rewrites amounts/dates to force eligibility.
 
 `update_draft_review(draft_ref, category_ref)` is the ordinary draft-review update restricted to
 the category field. `observe(draft)` carries the current active `category_choices`, each an opaque

@@ -332,10 +332,12 @@ judgment and ambiguity stay with the model/user. Bundled skills for this contrac
   same key with a different caller/request is `Conflict`. A started claim is held before
   model work and released only when that work really ends.
 - **Link evidence** is computed by the app (`TrustedLinkEvidence`, `UNIQUE` vs
-  `AMBIGUOUS`); callers state no evidence. Only the user may attach an ambiguous link;
-  an agent attach needs still-current `UNIQUE` evidence bound to the exact
-  source/event/draft/revisions. Rejections are durable and user-only
-  (`USER_DECISION_REQUIRED`); refused pairs stay refused.
+  `AMBIGUOUS`); callers state no evidence. An agent attach needs still-current `UNIQUE`
+  pair evidence bound to the exact source/event/draft/revisions and a current bounded
+  pending-scope recheck that confirms the grant covers every pending draft. Retrieval
+  ranking and merchant similarity do not replace the app's attachment evidence.
+  `INCOMPLETE` never permits automatic attachment. Only the user may resolve ambiguity;
+  rejections are durable and user-only (`USER_DECISION_REQUIRED`), and refused pairs stay refused.
 - **Draft category** is review state only. The hosted workflow may save one existing,
   assignable category on a draft in its own scope through the ordinary draft-review update;
   the operation validates the observed review revision and the live catalog and never

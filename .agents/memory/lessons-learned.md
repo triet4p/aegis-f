@@ -378,3 +378,13 @@ and allow only the exact validated external report rather than opening a blanket
 **Fix / workaround:** Add `WorkflowSkillId.LINK_EVENT_DRAFT to 3` to the expected-version map so the loader enforces the bundled link skill's current version.
 
 **Watch out for:** When adding or versioning any skill asset, update the runtime's expected-version map for every `WorkflowSkillId`; the loader uses `getValue`, not a permissive fallback.
+
+## [2026-11-04] Incomplete draft grants could still authorize a unique link
+
+**Symptom:** A hosted session's candidate search correctly returned `INCOMPLETE`, but attaching its single visible candidate still changed the link to `ACCEPTED`.
+
+**Root cause:** The agent attachment boundary checked only the stored pair's `TrustedLinkEvidence`; it never rechecked whether the session's bounded pending-draft grant still covered every pending draft. Pair uniqueness could therefore be mistaken for candidate-set completeness.
+
+**Fix / workaround:** Before a non-user attach, rerun the bounded `WorkflowQueryService.matchDraftCandidates` recheck and refuse automatic attachment unless `pendingDatabaseComplete` is true and the target remains pending; then retain the existing current, unique, revision-bound `TrustedLinkEvidence` policy. Retrieval ranking and merchant similarity remain non-authoritative.
+
+**Watch out for:** A first-32 grant or a newly arrived pending row can leave one visible amount/day match while hiding another competitor. Pair evidence must not bypass the grant's `INCOMPLETE` state.

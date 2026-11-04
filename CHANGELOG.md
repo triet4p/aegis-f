@@ -34,6 +34,13 @@ and no release has been tagged or published. Format follows
   unresolved conflicts stay first, then drafts without a chosen category, then drafts ready for
   confirm or dismiss, with the existing chronological override.
 
+### Fixed
+
+- Hosted link attachment now requires unique current app-computed pair evidence and a complete
+  bounded recheck of the pending-draft scope. An incomplete search cannot authorize automatic
+  attachment; users can still resolve ambiguous suggestions explicitly and undo an accepted link
+  without changing note text, bank evidence or ledger records.
+
 ### Removed
 - Removed the Laya local classifier and its English translation bridge from the active app:
   inference runtime, ONNX Runtime dependency, tokenizer/calibration assets, model provisioning,

@@ -65,6 +65,8 @@ class WorkflowCommandService(
     private val events = EventContextRepository(database = database, clock = clock)
     /** The app's own evidence about a proposed association; never read from a request. */
     private val linkEvidence = LinkEvidencePolicy(database)
+    /** The trusted bounded candidate read used to gate another caller's automatic attachment. */
+    private val queries = WorkflowQueryService(database)
     /** The app's rules for the fields a financial write stores; one rule, one place. */
     private val rules = FinancialFieldRules(categoryDao)
     /** The ledger's own writes; they are reachable only through this boundary. */
@@ -404,8 +406,8 @@ class WorkflowCommandService(
         if (link.revision != request.expectedRevision) {
             return@runCommand WorkflowCommandOutcome.Conflict("The link changed under the caller.")
         }
-        if (scope !is WorkflowCallerScope.User) {
-            attachPolicyRefusal(link)?.let { refusal -> return@runCommand refusal }
+        if (scope is WorkflowCallerScope.AgentSession) {
+            attachPolicyRefusal(scope, link)?.let { refusal -> return@runCommand refusal }
         }
         when (
             val result = events.acceptLink(
@@ -1770,20 +1772,34 @@ class WorkflowCommandService(
      * Why another caller may not attach this link, or null when the app's own policy
      * accepts it.
      *
-     * The policy is the app's evidence, not the caller's word: the proposal must carry
-     * evidence this app computed, the app's facts about the pair must still prove one
-     * association, and that evidence must still be the evidence the proposal was made on.
-     * A link whose evidence is a reason somebody stated, or one whose facts have moved on
-     * since the proposal, is not attached by another caller: it stays proposed, and the
-     * user decides.
+     * The proposal must carry trusted evidence this app computed, the exact pair evidence
+     * must still support one association, and the app's current bounded search must confirm
+     * the complete pending-draft scope. Retrieval ranking and merchant similarity do not
+     * replace the narrower local attachment policy. In particular, an INCOMPLETE scope
+     * never authorizes automatic attachment, even if one visible pair otherwise looks unique.
      */
     private suspend fun attachPolicyRefusal(
+        scope: WorkflowCallerScope.AgentSession,
         link: ContextLinkEntity,
     ): WorkflowCommandOutcome? {
         val event = eventDao.findById(link.eventId)
             ?: return WorkflowCommandOutcome.Denied(WorkflowDenialReason.ATTACH_POLICY)
         val draft = draftDao.findById(link.draftId)
             ?: return WorkflowCommandOutcome.Denied(WorkflowDenialReason.ATTACH_POLICY)
+        if (scope.draftIds.size > QueryPageRequest.MAX_PAGE_SIZE) {
+            return WorkflowCommandOutcome.Denied(WorkflowDenialReason.ATTACH_POLICY)
+        }
+        val candidateSearch = queries.matchDraftCandidates(
+            eventId = event.id,
+            authorizedDraftIds = scope.draftIds,
+            pendingDatabaseComplete = scope.draftScopeComplete,
+        ) ?: return WorkflowCommandOutcome.Denied(WorkflowDenialReason.ATTACH_POLICY)
+        if (!candidateSearch.pendingDatabaseComplete ||
+            draft.reviewStatus != IntakeReviewStatus.PENDING ||
+            draft.confirmedTransactionId != null
+        ) {
+            return WorkflowCommandOutcome.Denied(WorkflowDenialReason.ATTACH_POLICY)
+        }
         val current = linkEvidence.evidenceFor(event, draft)
         if (current.verdict != LinkEvidenceVerdict.UNIQUE) {
             return WorkflowCommandOutcome.Denied(WorkflowDenialReason.ATTACH_POLICY)
