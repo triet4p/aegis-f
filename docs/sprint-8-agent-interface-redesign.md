@@ -213,12 +213,12 @@ Example first page: `{"review_status":"PENDING","duplicates_only":false,"cursor"
 
 | Field | Type | Meaning and source |
 | --- | --- | --- |
-| `date_ref` | string | Required same-scope DATE reference grounded in selected source or explicit linked user clarification. |
+| `date_ref` | string | Required same-scope DATE reference grounded in the selected source or an explicit linked user clarification, or a `relative_date` alias for a day word inside that selection (S9.1). |
 | `time_ref` | string or null | TIME reference for start wall-clock time, or null for date-only. |
 | `end_date_ref` | string or null | Explicit DATE reference for interval end; null for no interval. Cannot precede start. |
 | `end_time_ref` | string or null | Explicit TIME reference for interval end; requires both end date and start time. |
 
-Reject inconsistent interval/order; do not repair by swapping endpoints. Zone comes from trusted capture policy only for a timed anchor; a date-only anchor has no zone. No raw date/time arithmetic or relative-date resolver is added. “Yesterday” without an available exact target reference leads to clarification, not a fabricated date. Supplying a reference is not proof it belongs to the event; `record_event` rechecks provenance.
+Reject inconsistent interval/order; do not repair by swapping endpoints. Zone comes from trusted capture policy only for a timed anchor; a date-only anchor has no zone. S8 added no raw date/time arithmetic and no relative-date resolver: “Yesterday” then led to clarification, not a fabricated date. S9.1 delivered the separate local deterministic resolver for a day word the occurrence states — `today`, `yesterday`, `the day before yesterday`, `tomorrow`, `the day after tomorrow` and their Vietnamese spellings — exposed as a host-issued `relative_date` alias and resolved from the capture's own recorded local date and zone; a period word still leads to clarification. Supplying a reference is not proof it belongs to the event; `record_event` rechecks provenance.
 
 Examples: date-only `{"date_ref":"date_a","time_ref":null,"end_date_ref":null,"end_time_ref":null}`; timed `{"date_ref":"date_a","time_ref":"time_a","end_date_ref":null,"end_time_ref":null}`. Returns `anchor_ref` plus masked selected components. Errors identify `$.end_time_ref`, for example, with constraint `requires_end_date_and_start_time`; no rehydrated temporal value in the error.
 
@@ -675,7 +675,7 @@ No tests, smoke runs, provider requests or device checks were executed for this 
 - **Reference registry complexity:** fewer model mistakes, more host lifecycle logic. Keep one bounded registry with typed descriptors, not a generic workflow framework or parallel database. Verify memory/retention behavior rather than promise it is free.
 - **Tool/turn count:** catalog grows to eleven; extraction may require an extra selection/anchor turn. Load task-specific subsets, reuse safe observed anchors, and do not add preparation tools when a host already has the answer. Actual model latency must be measured; no claim this is faster yet.
 - **Six-argument event write:** retained deliberately for atomic coherent semantics. Revisit only if measured errors justify a narrower intent-specific API; do not impose a three-argument rule by wrapping JSON or splitting writes.
-- **Relative time:** exact target-reference requirement remains; a future local deterministic relative-date resolver is a separate feature decision. Do not make a date case pass by silently inventing such a resolver.
+- **Relative time:** S8 shipped the exact target-reference requirement and left the local deterministic relative-date resolver to a separate feature decision. S9.1 delivered that resolver for a closed set of day words, anchored to the capture's own recorded instant and zone and exposed as a host-issued `relative_date` alias; a period word, an unlisted wording or a capture without a usable instant/zone still clarifies. Never make a date case pass by inventing a day or borrowing another zone.
 - **Reference persistence/replay:** the proposed narrow journal replay API avoids raw payload persistence but changes the wire definition of replay. Owner must approve its new evaluation mapping before implementation/qualification; original literal-payload results remain unchanged.
 - **Partial writes:** useful source-backed partial event is allowed, but not a fabricated occurrence. Meaning ambiguity and correction of existing fields need explicit host rules and regression proof.
 - **Stable pagination:** cursor does not magically give consistency. Choose and test either revision-bound restart or an actual bounded snapshot at implementation; do not present offset results as a snapshot.

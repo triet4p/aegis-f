@@ -7,6 +7,16 @@ and no release has been tagged or published. Format follows
 
 ## [Unreleased]
 
+### Added
+- A note can state its day relative to when it was written. `select_source` now offers one
+  `relative_date` alias for each day word inside the selected occurrence (`today`, `yesterday`,
+  `the day before yesterday`, `tomorrow`, `the day after tomorrow`, and the Vietnamese spellings
+  of those days), and the host resolves it against that capture's own recorded local date and zone
+  both when the anchor is assembled and when the reading is stored. The model never states or
+  asks for the resulting calendar date, and a capture without a recorded instant or usable zone
+  resolves nothing. A period word (`this morning`, `last night`, `this week`) is not one calendar
+  day, so it still becomes a date clarification instead of a guessed day.
+
 ### Changed
 - Hosted draft-category selection replaces the on-device classifier. A draft observation carries
   the current active category choices, and the hosted workflow submits one existing category

@@ -324,6 +324,12 @@ class AgentToolRuntime(
             quote = quote,
             eventId = existing?.id,
         )
+        val relativeDates = relativeDateRefs(
+            captureId = capture.id,
+            sourceKey = sourceRefKey(sourceStart, sourceEnd, capture.id),
+            quote = quote,
+            eventId = existing?.id,
+        )
         val anchors = existing?.let { event -> anchorsFor(event, capture.id, sourceRefKey(sourceStart, sourceEnd, capture.id)) }.orEmpty()
         val eventObservation = existing?.let { eventObservation(it) }
         // Selecting an occurrence that already has a verified reading is truthful evidence that
@@ -339,6 +345,7 @@ class AgentToolRuntime(
             .put("capture_revision", capture.revision)
             .put("event", eventObservation ?: JSONObject.NULL)
             .put("values", JSONArray(values))
+            .put("relative_dates", JSONArray(relativeDates))
             .put("anchors", JSONArray(anchors))
         return AgentToolExecution(
             envelope = AgentEnvelope.ok(
@@ -413,7 +420,11 @@ class AgentToolRuntime(
     // ---- make_time_anchor ----------------------------------------------------------------
 
     private suspend fun makeTimeAnchor(arguments: JSONObject): AgentToolExecution {
-        val date = registry.resolve(arguments.getString("date_ref"), AgentReferenceKind.VALUE, "$.date_ref")
+        val date = registry.resolveAny(
+            arguments.getString("date_ref"),
+            setOf(AgentReferenceKind.VALUE, AgentReferenceKind.RELATIVE_DATE),
+            "$.date_ref",
+        )
         val time = optionalReference(arguments, "time_ref", AgentReferenceKind.VALUE, "$.time_ref")
         val endDate = optionalReference(arguments, "end_date_ref", AgentReferenceKind.VALUE, "$.end_date_ref")
         val endTime = optionalReference(arguments, "end_time_ref", AgentReferenceKind.VALUE, "$.end_time_ref")
@@ -432,10 +443,11 @@ class AgentToolRuntime(
             )
         }
         // A day/month value that states no year resolves only against the trusted calendar year
-        // of the capture it was read from; the app never borrows a year on its own.
-        val referenceYear = captureIds.singleOrNull()
+        // of the capture it was read from; the app never borrows a year on its own. A day word
+        // such as "yesterday" resolves only against that capture's own recorded local date and
+        // zone, because nothing else says which day the note meant.
+        val referenceCapture = captureIds.singleOrNull()
             ?.let { captureId -> runCatching { requireCapture(captureId) }.getOrNull() }
-            ?.let(::captureReferenceYear)
         if (!bindingCompatible(date, time) || !bindingCompatible(date, endDate) || !bindingCompatible(date, endTime)) {
             AgentErrorCode.REFERENCE_KIND_MISMATCH.asIssue(
                 "$","same_occurrence_binding",
@@ -444,9 +456,9 @@ class AgentToolRuntime(
         }
         // The model chose these values for date/time arguments; the host parses each one locally
         // and refuses the argument when the chosen value is not the needed temporal value.
-        val dateText = parseDateValue(date, referenceYear, "$.date_ref")
+        val dateText = parseDateValue(date, referenceCapture, "$.date_ref")
         val timeText = time?.let { parseTimeValue(it, "$.time_ref") }
-        val endDateText = endDate?.let { parseDateValue(it, referenceYear, "$.end_date_ref") }
+        val endDateText = endDate?.let { parseDateValue(it, referenceCapture, "$.end_date_ref") }
         val endTimeText = endTime?.let { parseTimeValue(it, "$.end_time_ref") }
         if (endDateText != null && endDateText < dateText) {
             AgentErrorCode.TEMPORAL_CONSTRAINT.asIssue(
@@ -477,12 +489,15 @@ class AgentToolRuntime(
                 scopeId = scope.scopeId,
                 captureId = captureIds.single(),
                 dateToken = date.valueToken,
+                // A relative day word is evidence of one day, not a stored date value: the
+                // offset travels with the anchor and is resolved again at the write.
+                dateRelativeDayOffset = date.relativeDayOffset,
                 timeToken = time?.valueToken,
                 endDateToken = endDate?.valueToken,
                 endTimeToken = endTime?.valueToken,
                 linkedSubjectKey = key,
                 display = buildString {
-                    append(date.valueToken)
+                    append(date.valueToken ?: date.display.orEmpty())
                     time?.valueToken?.let { append(' ').append(it) }
                     endDate?.valueToken?.let { append("..").append(it) }
                     endTime?.valueToken?.let { append(' ').append(it) }
@@ -491,7 +506,7 @@ class AgentToolRuntime(
         )
         val data = JSONObject()
             .put("anchor_ref", anchorRef)
-            .put("date", date.valueToken ?: JSONObject.NULL)
+            .put("date", date.valueToken ?: date.display ?: JSONObject.NULL)
             .put("time", time?.valueToken ?: JSONObject.NULL)
             .put("end_date", endDate?.valueToken ?: JSONObject.NULL)
             .put("end_time", endTime?.valueToken ?: JSONObject.NULL)
@@ -502,9 +517,14 @@ class AgentToolRuntime(
     }
 
     /** The stored date the model selected for a temporal argument, or a repairable refusal. */
-    private fun parseDateValue(reference: AgentReference, referenceYear: Int?, path: String): String =
-        try {
-            boundary.vault.parseDate(requireNotNull(reference.valueToken), referenceYear)
+    private fun parseDateValue(
+        reference: AgentReference,
+        capture: CaptureMessageEntity?,
+        path: String,
+    ): String = when (reference.kind) {
+        AgentReferenceKind.RELATIVE_DATE -> resolveRelativeDay(reference, capture, path)
+        else -> try {
+            boundary.vault.parseDate(requireNotNull(reference.valueToken), capture?.let(::captureReferenceYear))
         } catch (_: TokenValidationException) {
             throw AgentToolException(
                 AgentErrorCode.TEMPORAL_CONSTRAINT,
@@ -514,6 +534,66 @@ class AgentToolRuntime(
                     "Choose the grounded date value or ask.",
             )
         }
+    }
+
+    /**
+     * The calendar date a selected relative-day alias names, resolved from the capture itself.
+     *
+     * The capture's recorded instant and zone are the only trusted reference for "yesterday";
+     * when either is missing the alias stays unresolved and the user is asked for an absolute
+     * date rather than the host borrowing the device's current day or another zone's.
+     */
+    private fun resolveRelativeDay(
+        reference: AgentReference,
+        capture: CaptureMessageEntity?,
+        path: String,
+    ): String {
+        val offset = reference.relativeDayOffset
+            ?: throw AgentToolException(
+                AgentErrorCode.TEMPORAL_CONSTRAINT,
+                path,
+                "relative_day_alias_from_selected_occurrence",
+                message = "That alias carries no day word. Select the occurrence again and use its relative date alias.",
+            )
+        return resolveRelativeDay(offset, capture, path)
+    }
+
+    private fun resolveRelativeDay(
+        offset: Int,
+        capture: CaptureMessageEntity?,
+        path: String,
+    ): String {
+        val referenceDate = capture?.let(::captureReferenceDate)
+            ?: throw AgentToolException(
+                AgentErrorCode.TEMPORAL_CONSTRAINT,
+                path,
+                "capture_records_local_date_and_zone",
+                message = "The capture records no local date and zone, so a relative day cannot be " +
+                    "resolved. Ask for the absolute date instead of guessing one.",
+            )
+        return RelativeDayExpressions.resolve(referenceDate, offset)
+            ?: throw AgentToolException(
+                AgentErrorCode.TEMPORAL_CONSTRAINT,
+                path,
+                "relative_day_states_one_calendar_day",
+                message = "The relative day could not be resolved to one calendar day. Ask for the absolute date.",
+            )
+    }
+
+    /**
+     * The stored date an assembled anchor names: either a masked value token or the day offset
+     * of a relative day word, resolved against the same capture the anchor was bound to.
+     */
+    private fun resolveAnchorDate(
+        anchor: AgentReference?,
+        capture: CaptureMessageEntity,
+        path: String,
+    ): String? {
+        anchor ?: return null
+        anchor.dateToken?.let { token -> return rehydrateAnchorDate(token, captureReferenceYear(capture), path) }
+        val offset = anchor.dateRelativeDayOffset ?: return null
+        return resolveRelativeDay(offset, capture, path)
+    }
 
     /** The wall-clock time the model selected for a temporal argument, or a repairable refusal. */
     private fun parseTimeValue(reference: AgentReference, path: String): String =
@@ -634,7 +714,7 @@ class AgentToolRuntime(
             }
         }
         val referenceYear = captureReferenceYear(capture)
-        val anchorDate = anchor?.dateToken?.let { rehydrateAnchorDate(it, referenceYear, "$.anchor_ref") }
+        val anchorDate = resolveAnchorDate(anchor, capture, "$.anchor_ref")
         val anchorTime = anchor?.timeToken?.let { parseAnchorTime(it, "$.anchor_ref") }
         val intervalEndDate = anchor?.endDateToken?.let {
             rehydrateAnchorDate(it, referenceYear, "$.anchor_ref")
@@ -1948,7 +2028,9 @@ class AgentToolRuntime(
             )
         }
         if (current.amountVnd != null && amount == null) erased("$.amount_ref", "amount")
-        if (current.anchorDate != null && anchor?.dateToken == null) erased("$.anchor_ref", "date")
+        val hasStatedDate = anchor != null &&
+            (anchor.dateToken != null || anchor.dateRelativeDayOffset != null)
+        if (current.anchorDate != null && !hasStatedDate) erased("$.anchor_ref", "date")
         if (current.anchorTime != null && anchor?.timeToken == null) erased("$.anchor_ref", "time")
         if (current.intervalEndDate != null && anchor?.endDateToken == null) erased("$.anchor_ref", "interval end date")
         if (current.intervalEndTime != null && anchor?.endTimeToken == null) erased("$.anchor_ref", "interval end time")
@@ -2094,6 +2176,42 @@ class AgentToolRuntime(
                 .put("display", match.value)
         }
         return values
+    }
+
+    /**
+     * Issues one alias for every relative-day expression inside the selected quote.
+     *
+     * The expression is found in the *selected* masked text, so the alias can only name a day
+     * word the model actually selected. The handle carries the bounded day offset and is bound
+     * to the same occurrence key as that selection's value aliases; the anchor the model builds
+     * from it is therefore occurrence evidence, and the calendar date is resolved locally from
+     * the capture's own recorded local date and zone.
+     */
+    private fun relativeDateRefs(
+        captureId: Long,
+        sourceKey: String,
+        quote: String,
+        eventId: Long?,
+    ): List<JSONObject> = RelativeDayExpressions.findIn(quote).map { relative ->
+        val handle = registry.nextHandle()
+        val ref = registry.issue(
+            AgentReference(
+                handle = handle,
+                kind = AgentReferenceKind.RELATIVE_DATE,
+                scopeId = scope.scopeId,
+                subjectId = eventId,
+                captureId = captureId,
+                eventId = eventId,
+                display = relative.surface,
+                linkedSubjectKey = sourceKey,
+                relativeDayOffset = relative.dayOffset,
+            ),
+        )
+        JSONObject()
+            .put("ref", ref)
+            .put("kind", AgentReferenceKind.RELATIVE_DATE.wire)
+            .put("text", relative.surface)
+            .put("day_offset", relative.dayOffset)
     }
 
     private fun occurrences(text: String, quote: String): List<IntRange> {
@@ -2308,6 +2426,16 @@ class AgentToolRuntime(
             ?: TimeZone.getDefault()
         return Calendar.getInstance(zone).apply { timeInMillis = instant }.get(Calendar.YEAR)
     }
+
+    /**
+     * The capture's own local calendar day, `YYYY-MM-DD`, read in the zone it recorded.
+     *
+     * This is the only trusted reference for a day word such as "yesterday": it is derived from
+     * the note's own stored instant, never from the current clock and never from a zone the
+     * capture did not state. Null when either fact is missing, so the day stays unresolved.
+     */
+    private fun captureReferenceDate(capture: CaptureMessageEntity): String? =
+        RelativeDayExpressions.localDate(capture.capturedAtEpochMillis, capture.captureTimezone)
 
     private fun rehydrateAnchorDate(token: String, referenceYear: Int?, path: String): String =
         try {
@@ -2574,7 +2702,7 @@ private fun AgentErrorCode.asIssue(
 
 /** Reads the single canonical declaration file copied from tools/slm at build time. */
 object AgentToolDeclarations {
-    const val ASSET_NAME = "s8_agent_tools_v6.json"
+    const val ASSET_NAME = "s8_agent_tools_v7.json"
 
     fun load(open: (String) -> java.io.InputStream): List<HostedToolDeclaration> {
         val root = JSONObject(open(ASSET_NAME).bufferedReader().use { it.readText() })

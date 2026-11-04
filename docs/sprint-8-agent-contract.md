@@ -192,9 +192,11 @@ The boundary MUST:
 - Retain the exact semantics the workflow reasons about: **integer VND** (whole dong,
   `VndMoney` parsing/addition, no rounding or currency conversion), **dates/times**
   (`YYYY-MM-DD` / `HH:mm`, trusted host timezone only when a start time is stated,
-  relative-date resolution only from an explicit user/trusted reference with an available
-  same-session date-shaped token; otherwise clarify, and no timezone on a date-only
-  anchor), **source spans** (exact offsets into stored text),
+  relative-day resolution only from the note's own recorded capture instant and zone
+  through the host-issued `relative_date` alias of a day word inside the selected
+  occurrence; a period word, an unlisted wording, or a capture with no recorded instant or
+  zone is clarified rather than guessed, and a date-only anchor has no timezone),
+  **source spans** (exact offsets into stored text),
   and the relations the workflow needs (equality, ordering, relative-time ordering).
   Tokenization that destroys those relationships is not an acceptable implementation.
 - **Opaque value identity, not literal-type identity.** Every detected value is masked as
@@ -252,8 +254,8 @@ equality/ordering/relative-time relations survive; unknown tokens and mapping fa
 are refused; rehydrated commands carry exact integer VND, dates/times and spans.
 
 Allowed tools for the agent (closed set): the eleven task-relevant operations in the current
-production declaration `tools/slm/s8_agent_tools_v6.json` (`aegis-f-s8-agent-tools/v6`, contract
-`aegis-agent-interface/6`) — `observe`, `select_source`, `list_drafts`, `make_time_anchor`,
+production declaration `tools/slm/s8_agent_tools_v7.json` (`aegis-f-s8-agent-tools/v7`, contract
+`aegis-agent-interface/7`) — `observe`, `select_source`, `list_drafts`, `make_time_anchor`,
 `record_event`, `inspect_link`, `propose_link`, `attach_link`, `update_draft_review`,
 `replay_operation`, and `ask_user`. Only the subset the host-selected skills require is
 loaded for a run; an unloaded tool is neither offered nor executable. Model arguments are

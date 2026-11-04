@@ -105,8 +105,8 @@ class WorkflowSkillCatalog private constructor(
     }
 
     companion object {
-        const val ASSET_NAME = "s8_agent_runtime_skills_v6.json"
-        const val SCHEMA = "aegis-f-s8-agent-runtime-skills/v6"
+        const val ASSET_NAME = "s8_agent_runtime_skills_v7.json"
+        const val SCHEMA = "aegis-f-s8-agent-runtime-skills/v7"
 
         private val EXPECTED_IDS = WorkflowSkillId.entries.associateBy(WorkflowSkillId::wireId)
         private val EXPECTED_VERSIONS = mapOf(
@@ -124,7 +124,11 @@ class WorkflowSkillCatalog private constructor(
             // lexical shape hint, role chosen by the tool argument and parsed locally; a numeric
             // shape is not a type, and a price plus an account number in one sentence is not
             // inherently ambiguous.
-            WorkflowSkillId.EVENT_READING to 7,
+            // Version 8 adds the local deterministic relative-day alias: a day word inside the
+            // selected occurrence ("yesterday", "the day before yesterday", the Vietnamese
+            // spellings) is resolved by the host from the capture's own recorded local date and
+            // zone, while a period word stays a date clarification.
+            WorkflowSkillId.EVENT_READING to 8,
             WorkflowSkillId.DRAFT_SEARCH to 1,
             // Version 2 states that eligibility governs attachment only: an ambiguous pair may
             // still be recorded as one tentative proposal before the user is asked to choose.

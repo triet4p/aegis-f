@@ -66,13 +66,17 @@ object AgentContextManager {
      * authorize a field; the model chooses the meaning by passing the value alias to a
      * role-specific argument, and the host parses/validates it locally for that argument.
      */
-    const val CONTEXT_BLOCK_VERSION = "s8-agent-context/v11"
+    const val CONTEXT_BLOCK_VERSION = "s8-agent-context/v12"
 
     /**
      * v11 removes the on-device classifier and its translation hop. A draft observation carries
      * the application's current category choices as opaque references; the model chooses one
      * existing category and submits it through the ordinary draft-review update. The saved
      * category is review-only and never confirms the draft.
+     *
+     * v12 adds the relative-day rule: a day word the selected occurrence states is host-resolved
+     * from that capture's own recorded local date and zone, so the model neither computes the
+     * date nor asks for it again, while a period word stays a clarification.
      */
 
     /** Version of the host-authored issued-token inventory; wording/shape changes mint a new one. */
@@ -107,6 +111,10 @@ object AgentContextManager {
         appendLine("not a type; pass it to the argument whose meaning fits and the host parses it locally.")
 
         appendLine("reference_rule: references are opaque host-issued aliases bound to one observation's revisions; never parse, construct or reuse one across runs, and re-observe instead of refreshing a stale binding.")
+        appendLine("relative_date_rule: a relative_date alias names one day word inside the selected")
+        appendLine("occurrence; the host resolves it from that capture's own recorded local date and zone.")
+        appendLine("Never compute, state or ask for that calendar date. A period word is not one day:")
+        appendLine("record no anchor for it and ask for an absolute date instead.")
         appendLine("mutation_identity_rule: mutation identities and the recorded operation receipt are host-owned; never supply or request one.")
         appendLine("replay_evidence_rule: exact replay is the recorded operation alias only; report the journal no_change result and current effect verification separately.")
         appendLine("repair_rule: repair only errors whose control permits it, using fresh authoritative masked observations. Terminal errors stop hosted work.")

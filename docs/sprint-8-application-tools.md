@@ -10,8 +10,8 @@ declarations. The executor loads only the declarations the selected skills requi
 
 ## Closed catalog and selective loading
 
-The one runtime declaration file is `tools/slm/s8_agent_tools_v6.json`
-(`aegis-f-s8-agent-tools/v6`). Its contract marker is `aegis-agent-interface/6`. It contains exactly
+The one runtime declaration file is `tools/slm/s8_agent_tools_v7.json`
+(`aegis-f-s8-agent-tools/v7`). Its contract marker is `aegis-agent-interface/7`. It contains exactly
 these eleven tools, each with a flat argument object, `additionalProperties: false`, and every
 named field listed in `required`:
 
@@ -49,8 +49,11 @@ validated local observation. Runtime handles are never parsed for meaning, never
 matching regex alone, and never cross an authorized session boundary. The bounded registry is
 scoped to the run, holds at most 512 handles, evicts the oldest, and is never persisted; after a
 restart the host re-establishes observations and old aliases are not current. Reference kinds are
-`capture`, `source`, neutral `value`, `anchor`, `draft`, `category`, `event`, `pair`,
-`proposal`, `operation` and pagination `cursor`; each field states and enforces its expected kind.
+`capture`, `source`, neutral `value`, `relative_date`, `anchor`, `draft`, `category`, `event`,
+`pair`, `proposal`, `operation` and pagination `cursor`; each field states and enforces its expected
+kind. A `relative_date` handle is not a value: it names one day word the host found inside the
+selected occurrence, carries only that word's bounded day offset, and is accepted only as a
+temporal component, which the host resolves from the capture's own recorded local date and zone.
 
 A handle binds the observation it came from: scope, capture/event/link/review revisions, exact
 source coordinates, the complete masked typed token, or the recorded operation identity. Mutations
@@ -65,8 +68,9 @@ so a grounded anchor is built from the selected occurrence's value aliases.
 current masked source, preserves complete masked tokens, verifies the occurrence index and token
 boundaries, and translates the masked UTF-16 span through the session vault to original-source
 offsets. It returns `source_ref`, the copied quote, any existing `event_ref` at those coordinates,
-the occurrence's value handles and safe pre-existing anchors. There is no fuzzy matching, ellipsis
-expansion or guessed offset. A span whose source changed is refused as stale. It is also how an
+the occurrence's value handles, the day words inside that selection and safe pre-existing anchors.
+There is no fuzzy matching, ellipsis expansion or guessed offset. A span whose source changed is
+refused as stale. It is also how an
 explicitly named counterparty becomes evidence: a second selection on that exact seller-or-place
 substring inside the same capture returns a source handle accepted only as `merchant_ref`, so an
 explicitly named counterparty is recorded from source instead of retyped, while an occurrence that
@@ -77,6 +81,16 @@ activity description is not a merchant.
 requires its date; an interval end date cannot precede the start; an interval end time requires
 both a grounded end date and a start time; endpoints are never swapped. A date-only anchor has no
 zone, while a timed anchor carries the trusted capture-policy zone.
+
+`date_ref` also accepts a `relative_date` alias from `select_source`. The selection's own
+`relative_dates` list carries one alias per day word it found, with that word's bounded offset:
+`today`, `yesterday`, `the day before yesterday`, `tomorrow`, `the day after tomorrow` and the
+Vietnamese spellings of those days. The host resolves the calendar date from the capture's own
+recorded instant and zone — never from the current clock, never from another zone — so the model
+neither computes the date nor asks for it again. A period word (`this morning`, `last night`,
+`this week`, a bare `mai`/`mốt`/`qua`) names a range and stays out of the vocabulary, which leaves
+it a date clarification instead of a fabricated day. A capture that records no usable instant or
+zone resolves nothing and asks for the absolute date.
 
 `list_drafts` returns one bounded host-sized page (10 rows) of the authorized stored drafts, the
 filter-bound `next_cursor`, and `scope_exhausted`. `review_status` is a required non-null enum

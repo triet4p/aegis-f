@@ -40,6 +40,8 @@ import io.github.triet4p.aegisf.provider.HostedToolResult
 import io.github.triet4p.aegisf.provider.HostedTurn
 import io.github.triet4p.aegisf.provider.HostedTurnFinish
 import io.github.triet4p.aegisf.provider.ToolCallDisposition
+import java.time.Instant
+import java.time.ZoneId
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
@@ -165,6 +167,133 @@ class BoundedWorkflowExecutorTest {
         assertTrue(adapter.egress().none { it.contains("09:15") })
         assertEquals(WorkflowRunState.COMPLETED, outcome.trace.last().state)
     }
+
+    @Test
+    fun `a stated day word is resolved from the capture and both purchases stay traceable`() =
+        runBlocking {
+            val source = "Coffee 15,000 VND yesterday at 08:10 | Taxi 40,000 VND on 2026-10-21 at 13:05"
+            val fixture = prepare(source)
+            val capture = queries.sourceExcerpt(fixture.captureId)!!
+            lateinit var adapter: ScriptedAdapter
+            val script = scripted()
+            script += {
+                toolTurn(
+                    call(
+                        "select_source",
+                        JSONObject()
+                            .put("capture_ref", captureRef(adapter))
+                            .put("quote", sourceText(adapter).substringBefore(" | ").trim())
+                            .put("occurrence", 1),
+                    ),
+                )
+            }
+            script += {
+                val selected = lastEnvelope(adapter).getJSONObject("data")
+                toolTurn(
+                    call(
+                        "make_time_anchor",
+                        JSONObject()
+                            .put(
+                                "date_ref",
+                                selected.getJSONArray("relative_dates").getJSONObject(0).getString("ref"),
+                            )
+                            .put("time_ref", valueRef(selected, "time"))
+                            .put("end_date_ref", JSONObject.NULL)
+                            .put("end_time_ref", JSONObject.NULL),
+                    ),
+                )
+            }
+            script += {
+                val selected = previousEnvelope(adapter, 2).getJSONObject("data")
+                toolTurn(
+                    call(
+                        "record_event",
+                        JSONObject()
+                            .put("source_ref", selected.getString("source_ref"))
+                            .put("summary", "Coffee")
+                            .put("amount_ref", valueRef(selected, "amount"))
+                            .put("anchor_ref", lastEnvelope(adapter).getJSONObject("data").getString("anchor_ref"))
+                            .put("merchant_ref", JSONObject.NULL)
+                            .put("clarification", "none"),
+                    ),
+                )
+            }
+            script += {
+                toolTurn(
+                    call(
+                        "select_source",
+                        JSONObject()
+                            .put("capture_ref", captureRef(adapter))
+                            .put("quote", sourceText(adapter).substringAfter(" | ").trim())
+                            .put("occurrence", 1),
+                    ),
+                )
+            }
+            script += {
+                val selected = lastEnvelope(adapter).getJSONObject("data")
+                toolTurn(
+                    call(
+                        "make_time_anchor",
+                        JSONObject()
+                            .put("date_ref", valueRef(selected, "date"))
+                            .put("time_ref", valueRef(selected, "time"))
+                            .put("end_date_ref", JSONObject.NULL)
+                            .put("end_time_ref", JSONObject.NULL),
+                    ),
+                )
+            }
+            script += {
+                val selected = previousEnvelope(adapter, 2).getJSONObject("data")
+                toolTurn(
+                    call(
+                        "record_event",
+                        JSONObject()
+                            .put("source_ref", selected.getString("source_ref"))
+                            .put("summary", "Taxi")
+                            .put("amount_ref", valueRef(selected, "amount"))
+                            .put("anchor_ref", lastEnvelope(adapter).getJSONObject("data").getString("anchor_ref"))
+                            .put("merchant_ref", JSONObject.NULL)
+                            .put("clarification", "none"),
+                    ),
+                )
+            }
+            script += { complete("Stored both readings; the first day came from the note's own capture.") }
+            adapter = ScriptedAdapter(script)
+
+            val outcome = run(
+                fixture,
+                adapter,
+                WorkflowRunRequest(
+                    intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
+                    userRequest = "Interpret the synthetic note.",
+                ),
+            )
+
+            assertTrue("expected a verified completion, got $outcome", outcome is WorkflowRunOutcome.Completed)
+            outcome as WorkflowRunOutcome.Completed
+            assertEquals(2, outcome.verifiedEffects.filterIsInstance<WorkflowVerifiedEffect.EventReading>().size)
+            val rows = database.noteEventDao().findForCapture(fixture.captureId).sortedBy { it.spanStart }
+            assertEquals(2, rows.size)
+            assertEquals("Coffee 15,000 VND yesterday at 08:10", source.substring(rows[0].spanStart, rows[0].spanEnd))
+            assertEquals("Taxi 40,000 VND on 2026-10-21 at 13:05", source.substring(rows[1].spanStart, rows[1].spanEnd))
+            val captureDay = Instant.ofEpochMilli(capture.capturedAtEpochMillis!!)
+                .atZone(ZoneId.of(capture.captureTimezone!!))
+                .toLocalDate()
+            assertEquals(captureDay.minusDays(1).toString(), rows[0].anchorDate)
+            assertEquals("08:10", rows[0].anchorTime)
+            assertEquals("2026-10-21", rows[1].anchorDate)
+            assertEquals("13:05", rows[1].anchorTime)
+            assertEquals("Asia/Ho_Chi_Minh", rows[0].anchorTimezone)
+            assertTrue(
+                "the relative-day rule reaches the hosted prompt",
+                adapter.prompts.first().contains("relative_date_rule"),
+            )
+            assertTrue(
+                "a masked value never leaves the device raw",
+                adapter.egress().none { it.contains("15,000") || it.contains("2026-10-21") },
+            )
+            assertTrue("extraction is not money", database.transactionDao().findAll().isEmpty())
+        }
 
     @Test
     fun `raw hidden response blocks a valid event write before dispatch`() = runBlocking {

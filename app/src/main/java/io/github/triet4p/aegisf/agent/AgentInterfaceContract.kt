@@ -26,20 +26,23 @@ object AgentInterface {
      * v6 removes on-device classification and translation: the hosted workflow chooses one
      * of the draft's current categories and submits it through the ordinary draft-review
      * update, with no separate classifier or translation round-trip.
+     * v7 adds the local deterministic relative-day alias: a day word inside the selected
+     * occurrence is resolved by the host from the capture's own recorded local date and zone,
+     * so the model never computes, states or asks for that calendar date.
      */
-    const val CONTRACT: String = "aegis-agent-interface/6"
+    const val CONTRACT: String = "aegis-agent-interface/7"
 
     /** Declaration schema identity; changing semantics changes the cache identity. */
-    const val TOOL_SCHEMA: String = "aegis-f-s8-agent-tools/v6"
+    const val TOOL_SCHEMA: String = "aegis-f-s8-agent-tools/v7"
 
     /** Bundled skill schema identity. */
-    const val SKILL_SCHEMA: String = "aegis-f-s8-agent-runtime-skills/v6"
+    const val SKILL_SCHEMA: String = "aegis-f-s8-agent-runtime-skills/v7"
 
     /** Version of the authored runtime examples bundled with the skills. */
-    const val EXAMPLES_VERSION: String = "s8-agent-examples/5"
+    const val EXAMPLES_VERSION: String = "s8-agent-examples/6"
 
     /** Extraction provenance label the host records for model-derived readings. */
-    const val EXTRACTION_VERSION: String = "agent-interface/4"
+    const val EXTRACTION_VERSION: String = "agent-interface/5"
 
     /** The complete closed model-facing catalog; a run loads only the selected subset. */
     val TOOL_NAMES: Set<String> = setOf(
@@ -63,13 +66,27 @@ object AgentInterface {
  * A value handle is deliberately one neutral kind: it names a masked value the model saw, and
  * nothing about what that value means. The role comes from the tool argument the model passes
  * it to (`amount_ref`, `date_ref`, `time_ref`), and the runtime parses, validates and binds the
- * underlying value locally for that argument. There is no amount/date/time reference kind and
- * therefore no way for a spelling to pre-authorize a semantic field.
+ * underlying value locally for that argument. There is no amount/date/time value kind and
+ * therefore no way for a spelling to pre-authorize a semantic field. A
+ * [AgentReferenceKind.RELATIVE_DATE] alias is the one exception, and it is not a value: the
+ * host found that day word inside the selected source, so it carries no masked value and
+ * authorizes only a temporal component, which the host still resolves from the capture's own
+ * recorded local date and zone.
  */
 enum class AgentReferenceKind(val wire: String) {
     CAPTURE("capture"),
     SOURCE("source"),
     VALUE("value"),
+
+    /**
+     * One exact day word inside a selected occurrence, such as "yesterday".
+     *
+     * It is not a value kind and it authorizes no semantic field: the host found the wording
+     * in the selected source, knows only its bounded day offset, and resolves the actual date
+     * from the capture's own recorded local date and zone. It is usable as a temporal
+     * component of an anchor and as nothing else.
+     */
+    RELATIVE_DATE("relative_date"),
     DRAFT("draft"),
     ANCHOR("anchor"),
     CATEGORY("category"),
@@ -117,6 +134,13 @@ data class AgentReference(
     val valueToken: String? = null,
     /** Masked display text for a source/anchor/clarification reference. */
     val display: String? = null,
+    /**
+     * The day offset of a [AgentReferenceKind.RELATIVE_DATE] alias from the capture's own
+     * local date; the host resolves it, never the model.
+     */
+    val relativeDayOffset: Int? = null,
+    /** The day offset an assembled anchor's date rests on, when it used a relative alias. */
+    val dateRelativeDayOffset: Int? = null,
     val origin: AgentReferenceOrigin = AgentReferenceOrigin.OBSERVATION,
     /** The binding key of the subject a clarification answer is linked to. */
     val linkedSubjectKey: String? = null,

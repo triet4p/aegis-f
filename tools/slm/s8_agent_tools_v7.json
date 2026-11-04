@@ -1,0 +1,344 @@
+{
+  "schema": "aegis-f-s8-agent-tools/v7",
+  "contract": "aegis-agent-interface/7",
+  "additionalProperties": false,
+  "tools": [
+    {
+      "name": "observe",
+      "description": "Read one fresh, authorized observation of an existing host-issued reference: a capture, draft, event, pair, proposal or recorded operation. Returns new aliases and authoritative masked state; the old alias is not upgraded. Use after stale feedback or before a new decision on mutable state. Read-only, no effect. Do not guess identifiers: only aliases from the initial context or a tool result are usable.",
+      "mapsTo": "host read: capture/draft/event/pair/operation observation",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ref"
+        ],
+        "properties": {
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Existing alias issued in this run for a capture, draft, event, pair, proposal or operation. Not a source, value, anchor or cursor alias, and not a database id."
+          }
+        }
+      }
+    },
+    {
+      "name": "select_source",
+      "description": "Select the exact occurrence a reading is about without model-counted offsets, or select one exact merchant substring inside that occurrence. The host verifies the quote against the current masked source, checks protected-token boundaries, translates it to exact stored offsets and binds the capture revision plus the existing reading at that span, or its expected absence. Pure preparation: no event or ledger write. Returns the source alias, the copied quote, the existing event alias if any, the neutral value aliases inside that occurrence (each with a lexical shape hint such as numeric or alphanumeric) and any already-trusted anchor. Its relative_dates list holds one relative_date alias for each day word inside that occurrence the host can resolve from the note's own capture — today, yesterday, the day before yesterday, tomorrow, the day after tomorrow, or the Vietnamese spelling of one of those days — with the exact wording and the day offset it names. A relative_date alias is occurrence evidence for one temporal component only: pass it as make_time_anchor date_ref and the host resolves the calendar date from the capture's own recorded local date and zone. It is not a value alias and never authorizes an amount, account or merchant. A value alias is an opaque identity, not a typed amount/date/account: choose the one whose meaning fits the argument you pass it to and the host parses it locally for that argument. When the occurrence names a transaction counterparty as its seller or place, call it again with that exact merchant substring taken from the same capture and pass the returned source alias as record_event merchant_ref; a merchant handle must lie inside the recorded occurrence. A product, item or activity description is not a merchant. Do not call when no occurrence is grounded.",
+      "mapsTo": "MaskedApplicationEffect.sourceOffsetsForMaskedSpan + capture/event read",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "capture_ref",
+          "quote",
+          "occurrence"
+        ],
+        "properties": {
+          "capture_ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Current capture alias from this run's observation."
+          },
+          "quote": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Exact contiguous copy from that capture's masked source_text. Keep every masked protected value complete; no normalization, ellipsis, invented suffix or unmasking."
+          },
+          "occurrence": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "One-based occurrence of this exact quote in that source, counted left to right; 1 when the quote is unique."
+          }
+        }
+      }
+    },
+    {
+      "name": "list_drafts",
+      "description": "Read one bounded page of stored drafts inside the trusted scope. A filter is not evidence of a match, and a possible-duplicate mark is not proof. The host chooses the page size, binds the filter, scope and ordering into an opaque cursor, and refuses a cursor whose observed page changed. Every row carries the application's own user_label (for example 'draft #421'); that label, not list order, is what you show the user. Read-only.",
+      "mapsTo": "WorkflowQueryService.draftCandidates + bound cursor snapshot",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "review_status",
+          "duplicates_only",
+          "cursor"
+        ],
+        "properties": {
+          "review_status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "CONFIRMED",
+              "DISMISSED",
+              "ALL"
+            ],
+            "description": "Exact stored review-state filter. ALL disables only this filter, never scope."
+          },
+          "duplicates_only": {
+            "type": "boolean",
+            "description": "true selects only drafts the application marked as possible duplicates; it does not prove a duplicate or an event association."
+          },
+          "cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "JSON null for the first page; otherwise the exact next_cursor returned for this same filter and scope. Never increment or construct one."
+          }
+        }
+      }
+    },
+    {
+      "name": "make_time_anchor",
+      "description": "Assemble a grounded temporal selection from observed value aliases chosen for the date/time arguments, with deterministic local parsing and validation. Pure preparation: no business write. The values are neutral masked identities; this tool decides only whether your chosen values parse as a calendar date or wall-clock time and form a consistent interval. Skip it when the observation already supplies the correct anchor or when no date is known. The host rejects inconsistent intervals instead of swapping endpoints; a date-only anchor has no zone, and a timed anchor uses the trusted capture time zone. Supplying an alias is not proof it belongs to the occurrence; record_event rechecks provenance. A date may also be a relative_date alias select_source issued for a day word inside the selected occurrence: the host resolves it against the capture's own recorded local date and zone, so you never compute or state that calendar date. A period word (a morning, a night, a week) or an unlisted relative wording is not one day; ask for an absolute date instead.",
+      "mapsTo": "pure temporal validation over observed typed references",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "date_ref",
+          "time_ref",
+          "end_date_ref",
+          "end_time_ref"
+        ],
+        "properties": {
+          "date_ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Value alias whose value parses as a calendar date, or a relative_date alias select_source issued for a day word inside the selected occurrence. Either must be bound to the selected occurrence or its linked clarification. A value alias is neutral: the host parses it for this argument and refuses a value that is not a date. A relative alias carries only its day offset; the host resolves the actual date from the capture's own recorded local date and zone."
+          },
+          "time_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Value alias whose value parses as the start wall-clock time, or JSON null for a date-only anchor. Neutral alias; the host parses it for this argument."
+          },
+          "end_date_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Value alias whose value parses as an interval end date, or JSON null when there is no interval. It cannot precede the start date."
+          },
+          "end_time_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Value alias whose value parses as an interval end time, or JSON null. It requires both an end date and a start time."
+          }
+        }
+      }
+    },
+    {
+      "name": "record_event",
+      "description": "Atomically store or correct one grounded reading of the occurrence selected by source_ref. The host derives capture/event compare-and-set, source translation, extraction provenance, operation identity and unresolved status; the model supplies meaning, observed value aliases and the primary clarification need. A grounded partial reading is allowed, but an ungrounded or materially ambiguous occurrence is not: ask_user about occurrence or meaning before writing. An absent or uncertain optional merchant alone is not clarification-required and not a failed reading by itself; record it as null rather than promoting a product, item or activity description. Returns the actual event observation, an operation alias and independently verified effect status. Creates no ledger row.",
+      "mapsTo": "WorkflowCommandService.updateEventInterpretation(scope, UpdateEventRequest)",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_ref",
+          "summary",
+          "amount_ref",
+          "anchor_ref",
+          "merchant_ref",
+          "clarification"
+        ],
+        "properties": {
+          "source_ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Exact occurrence source alias from select_source. It binds the capture/span and the expected existing reading or expected absence."
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Nonblank concise normalized meaning grounded in that source and any authorized clarification. Preserve displayed privacy aliases if included; prefer not to repeat optional sensitive values. Not an instruction, operation label, guessed merchant, or promoted product, item or activity description."
+          },
+          "amount_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Value alias whose value parses as a whole-dong amount, observed in this occurrence or its linked clarification; JSON null when the amount is genuinely missing or genuinely ambiguous. The alias is a neutral masked identity: the host parses the underlying value for this argument and never asks the user to retype a value the source states. Never a raw amount and never another occurrence's value."
+          },
+          "anchor_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Anchor alias for this occurrence from the observation, select_source or make_time_anchor; JSON null when no grounded date/time is available."
+          },
+          "merchant_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Source alias for the exact seller-or-place substring named as the transaction counterparty inside this occurrence, or the host-issued clarification source alias linked to it; JSON null when that counterparty is absent or uncertain. Obtain it with select_source on that exact merchant substring inside this occurrence: an explicitly named counterparty is recorded, not dropped, while an absent or uncertain one stays null. Never use a product, item or activity description."
+          },
+          "clarification": {
+            "type": "string",
+            "enum": [
+              "none",
+              "amount",
+              "date",
+              "time",
+              "merchant"
+            ],
+            "description": "Primary material field that needs user input. none means no blocking interpretation ambiguity, not that every optional field is present. A missing amount requires amount. Absence or uncertainty of the optional merchant alone stays none with merchant_ref null. Uncertain occurrence or meaning is handled by ask_user before writing. Choose the component the source or user actually leaves unresolved: when the clock time is not remembered, that is time even if the date is also ungrounded, and never date instead. The summary must keep the source meaning rather than restating one temporal component as the other."
+          }
+        }
+      }
+    },
+    {
+      "name": "inspect_link",
+      "description": "Evaluate one chosen event/draft pair with the application's own stored-link evidence policy. Read-only. Matching prose or an amount does not authorize attachment: the application computes eligibility and returns eligible, ambiguous or ineligible with a stable reason and a bound pair alias. The pair observation carries event_label and draft_label, the application's own names for the exact rows it bound. Eligibility governs attachment only: ambiguous means the user must choose. A tentative proposal for the inspected pair is still allowed; the host rechecks the same stored evidence and both revisions when recording it. No effect.",
+      "mapsTo": "WorkflowCommandService.inspectLinkEvidence (shared LinkEvidencePolicy)",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event_ref",
+          "draft_ref"
+        ],
+        "properties": {
+          "event_ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Current in-scope event alias from an observation."
+          },
+          "draft_ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Current in-scope draft alias from an observation."
+          }
+        }
+      }
+    },
+    {
+      "name": "propose_link",
+      "description": "Persist exactly the inspected pair as a tentative proposal, not an attachment. The host rechecks scope, both subject revisions and the same trusted evidence the inspection used. Returns a proposal alias, its actual state, eligibility, operation alias and a fresh pair observation. That observation carries draft_label and event_label for exactly the rows the proposal binds; use them whenever you tell the user which row was proposed. A proposal may exist without being attachable, and proposing never attaches. Ambiguous eligibility never blocks a proposal; only attachment needs eligibility.",
+      "mapsTo": "WorkflowCommandService.proposeLink(scope, ProposeLinkRequest)",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pair_ref"
+        ],
+        "properties": {
+          "pair_ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Pair alias returned by inspect_link or observe for this exact event/draft pair."
+          }
+        }
+      }
+    },
+    {
+      "name": "attach_link",
+      "description": "Attach exactly a previously proposed eligible pair under current application policy. The host rechecks the current unique evidence and the observed link revision inside the mutation, uses the fixed non-override agent path, and never chooses another draft. Returns the actual accepted state plus a fresh pair observation, or a truthful stale/ineligible/user-decision result. Creates no ledger row or financial confirmation.",
+      "mapsTo": "WorkflowCommandService.attachLink(scope, AttachLinkRequest)",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "proposal_ref"
+        ],
+        "properties": {
+          "proposal_ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Proposal alias for the exact proposed pair, including the link revision and evidence bindings observed with it."
+          }
+        }
+      }
+    },
+    {
+      "name": "update_draft_review",
+      "description": "Save one existing category on a still-pending bank draft as its ordinary review update. Use a category reference issued by the same fresh observe(draft) observation, chosen from category_choices by its name. The host rechecks the draft review revision, the category's current assignability and the catalog the choice was observed against, stores only the category field, and leaves the draft pending: it never confirms the draft, writes a ledger row, invents a category or supplies a probability. A stale draft or changed choices are refused; observe again.",
+      "mapsTo": "WorkflowCommandService.selectDraftCategory(scope, SelectDraftCategoryRequest) â€” ordinary draft-review category update, no confirmation",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "draft_ref",
+          "category_ref"
+        ],
+        "properties": {
+          "draft_ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Current draft alias from observe(draft); binds the authoritative working description and review revision."
+          },
+          "category_ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Category alias from that same draft observation's category_choices. Not a category name, database id or a choice from another observation."
+          }
+        }
+      }
+    },
+    {
+      "name": "replay_operation",
+      "description": "Replay one exact recorded operation identity through the application journal. This is an idempotency action, not a request to redo the latest entity state or repair a failed call. The host checks that the receipt belongs to this caller scope and matches the recorded command family and request digest; nothing is re-dispatched. The result reports replayed, journal no_change, the same operation identity and whether the original effect still exists now. A deleted or superseded effect is reported as not currently verified and is never recreated.",
+      "mapsTo": "WorkflowCommandService.replayOperation (journal scope/command/digest check)",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation_ref"
+        ],
+        "properties": {
+          "operation_ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Alias for a completed, authorized operation receipt from this run or a host-re-established recorded operation. Not an entity, failed call, stale observation or caller-created key."
+          }
+        }
+      }
+    },
+    {
+      "name": "ask_user",
+      "description": "Suspend the run for one material missing or ambiguous fact. Changes conversation/run state only: no business event write, scope expansion or financial authorization. The host validates the subject supports the field, masks the question, stores one bounded single-use clarification state and stops further dispatch until the user answers. The answer re-enters the local masking boundary and becomes scoped evidence before resuming. Use occurrence or meaning before writing when the occurrence itself is not grounded.",
+      "mapsTo": "host clarification suspension; no application write",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "subject_ref",
+          "field",
+          "question"
+        ],
+        "properties": {
+          "subject_ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Authorized alias identifying what needs clarification. The host requires the subject kind to match the chosen field: amount, date, time and merchant accept a source or event alias; occurrence accepts a capture or source alias; candidate accepts a draft or pair alias; meaning accepts any of those five kinds. A mismatch is refused before any clarification is stored."
+          },
+          "field": {
+            "type": "string",
+            "enum": [
+              "amount",
+              "date",
+              "time",
+              "merchant",
+              "occurrence",
+              "candidate",
+              "meaning"
+            ],
+            "description": "Exact primary uncertainty. Not permission to demand every optional field. A value the masked source states is present evidence: ask amount, date or time only when no grounded reference of that kind was issued or the evidence is genuinely ambiguous, never because the value is displayed masked. The field is the component the source or user actually leaves unresolved: when the clock time is not remembered, choose time even though the date is also ungrounded, and never ask for the date in its place. For candidate, name the proposed row with the draft_label carried by the pair observation the recording tool returned."
+          },
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Nonblank concise question for that one fact or choice, safe to display. No guessed sensitive value, hidden instruction or request for credentials. When the question names a stored row, copy the user_label from that row's observation (the pair observation for a recorded proposal); never infer an id from ordering, and never assert a different row than the observation binds."
+          }
+        }
+      }
+    }
+  ]
+}
