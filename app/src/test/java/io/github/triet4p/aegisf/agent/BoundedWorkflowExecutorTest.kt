@@ -938,6 +938,56 @@ class BoundedWorkflowExecutorTest {
     }
 
     @Test
+    fun `a follow-up naming a hidden row outside the visible scope never mutates it`() = runBlocking {
+        val fixture = prepare()
+        lateinit var adapter: ScriptedAdapter
+        val script = scripted()
+        script += { toolTurn(call("select_source", JSONObject()
+            .put("capture_ref", captureRef(adapter))
+            .put("quote", sourceText(adapter))
+            .put("occurrence", 1))) }
+        script += {
+            val source = previousEnvelope(adapter, 1).getJSONObject("data")
+            toolTurn(call("record_event", JSONObject()
+                .put("source_ref", source.getString("source_ref"))
+                .put("summary", "Coffee")
+                .put("amount_ref", valueRef(source, "amount"))
+                .put("anchor_ref", JSONObject.NULL)
+                .put("merchant_ref", JSONObject.NULL)
+                .put("clarification", "none")))
+        }
+        script += { complete("Stored.") }
+        script += { complete("Still stored.") }
+        adapter = ScriptedAdapter(script)
+        val executor = executor(fixture, adapter)
+        val first = executor.start(WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
+            userRequest = "Interpret the coffee note.",
+        ))
+        first as WorkflowRunOutcome.Completed
+        val followUp = requireNotNull(first.followUp)
+        val hiddenDraftId = fixture.draftId
+        val visible = io.github.triet4p.aegisf.ui.visibleRefsOf(first)
+        assertTrue(
+            "the hidden draft must not be smuggled into the follow-up scope",
+            visible.none { ref -> ref.kind == io.github.triet4p.aegisf.ui.ChatVisibleRefKind.DRAFT && ref.id == hiddenDraftId },
+        )
+        val assisted = executor.followUp(
+            followUp,
+            "Attach draft #$hiddenDraftId instead.",
+        )
+        assertTrue("expected assisted completion, got $assisted", assisted is WorkflowRunOutcome.Completed)
+        assertEquals(IntakeReviewStatus.PENDING, queries.draftCandidate(hiddenDraftId)?.reviewStatus)
+        assertTrue(
+            "a follow-up may not invent a link behind the visible cards",
+            database.contextLinkDao().findForEvent(
+                database.noteEventDao().findForCapture(fixture.captureId).single().id,
+            ).isEmpty(),
+        )
+        assertTrue("a follow-up must not write the ledger", database.transactionDao().findAll().isEmpty())
+    }
+
+    @Test
     fun `clarifying outcomes report the turns and tool calls they actually spent`() = runBlocking {
         val fixture = prepare()
         lateinit var adapter: ScriptedAdapter

@@ -40,6 +40,9 @@ and no release has been tagged or published. Format follows
   dismiss or write ledger fields. The uncertainty-first queue no longer reads model confidence:
   unresolved conflicts stay first, then drafts without a chosen category, then drafts ready for
   confirm or dismiss, with the existing chronological override.
+- Chat follow-ups stay inside the cards the finished run actually shows: naming a row
+  outside that visible scope resolves to nothing and changes nothing, and choosing a
+  visible chip can only continue the same run, never invent a link or ledger record.
 
 ### Fixed
 

@@ -467,7 +467,7 @@ private fun StoredLinkDecision(
 }
 
 @Composable
-private fun InterpretationEditorDialog(
+internal fun InterpretationEditorDialog(
     capture: CaptureMessageEntity,
     event: NoteEventEntity?,
     existingEvents: List<NoteEventEntity>,
@@ -795,7 +795,7 @@ private fun InterpretationEditorDialog(
 }
 
 @Composable
-private fun CandidateDraftBrowserDialog(
+internal fun CandidateDraftBrowserDialog(
     event: NoteEventEntity,
     capture: CaptureMessageEntity,
     queryService: WorkflowQueryService,

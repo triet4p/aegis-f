@@ -72,7 +72,6 @@ import io.github.triet4p.aegisf.agent.WorkflowRunOutcome
 import io.github.triet4p.aegisf.agent.WorkflowRunProgress
 import io.github.triet4p.aegisf.agent.WorkflowRunProgressSink
 import io.github.triet4p.aegisf.agent.WorkflowRunRequest
-import io.github.triet4p.aegisf.agent.WorkflowVerifiedEffect
 import io.github.triet4p.aegisf.data.DraftCandidateQuery
 import io.github.triet4p.aegisf.data.IntakeReviewStatus
 import io.github.triet4p.aegisf.provider.HostedProviderConfig
@@ -147,18 +146,22 @@ internal fun QuickCaptureScreen(
         historyLoading = true
         historyError = null
         try {
-            val page = queryService.sourceExcerpts(
-                SourceQuery(
-                    kind = CaptureKind.USER_NOTE,
-                    sourceKind = CaptureSourceKind.USER_QUICK_CAPTURE,
-                    state = SourceState.ACTIVE,
-                    bounds = QueryPageRequest(limit = LIST_PAGE_SIZE, offset = historyOffset),
-                ),
-            )
+            val page = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                queryService.sourceExcerpts(
+                    SourceQuery(
+                        kind = CaptureKind.USER_NOTE,
+                        sourceKind = CaptureSourceKind.USER_QUICK_CAPTURE,
+                        state = SourceState.ACTIVE,
+                        bounds = QueryPageRequest(limit = LIST_PAGE_SIZE, offset = historyOffset),
+                    ),
+                )
+            }
             if (page.items.isEmpty() && historyOffset > 0) {
                 historyOffset = (historyOffset - LIST_PAGE_SIZE).coerceAtLeast(0)
             } else {
-                val summaries = queryService.captureContextSummaries(page.items.map { it.id })
+                val summaries = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    queryService.captureContextSummaries(page.items.map { it.id })
+                }
                 captures = page.items
                 contextSummaries = summaries
                 hasMore = page.hasMore
@@ -294,6 +297,11 @@ internal fun QuickCaptureScreen(
                                                 )
                                                 agentRunState.runId = admitted.runId
                                                 agentRunState.executor = executor
+                                                agentRunState.lastScope = sessionScope
+                                                agentRunState.lastPrompt = prompt
+                                                agentRunState.lastIntents = selectedIntents
+                                                agentRunState.followUpSelection = null
+                                                agentRunState.followUpInput = ""
                                                 agentRunState.progress = "Generating with ${provider.name} · ${provider.model}…"
                                                 agentRunState.outcome = executor.startTracked(
                                                     admitted = admitted,
@@ -305,10 +313,8 @@ internal fun QuickCaptureScreen(
                                                         onNote = { agentRunState.streamNote = it },
                                                     ),
                                                 )
+                                                agentRunState.followUp = agentRunState.outcome?.followUp
                                                 agentRunState.continuation = (agentRunState.outcome as? WorkflowRunOutcome.Clarifying)?.continuation
-                                                agentRunState.progress = null
-                                            } catch (cancelled: CancellationException) {
-                                                throw cancelled
                                             } catch (_: MaskingBlockedException) {
                                                 agentRunState.progress = "Privacy protection stopped this request before it was sent. No application change was made."
                                             } catch (_: Exception) {
@@ -355,24 +361,19 @@ internal fun QuickCaptureScreen(
                             }
                         }
                         when (val outcome = agentRunState.outcome) {
-                            is WorkflowRunOutcome.Completed -> {
-                                Text(outcome.answer, style = MaterialTheme.typography.bodyMedium)
-                                val noEffects = outcome.verifiedEffects
-                                    .filterIsInstance<WorkflowVerifiedEffect.NoEffect>()
-                                val changes = outcome.verifiedEffects
-                                    .filterNot { it is WorkflowVerifiedEffect.NoEffect }
-                                Text(
-                                    when {
-                                        noEffects.isNotEmpty() && changes.isEmpty() ->
-                                            "Verified result: no application change. " +
-                                                noEffects.joinToString { it.toString() }
-                                        outcome.verifiedEffects.isEmpty() -> "Verified application changes: none."
-                                        else -> "Verified application changes: " +
-                                            changes.joinToString { it.toString() }
-                                    },
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                            }
+                            is WorkflowRunOutcome.Completed -> ChatOutcomeSection(
+                                outcome = outcome,
+                                agentRunState = agentRunState,
+                                agentRunScope = agentRunScope,
+                                queryService = queryService,
+                                commandService = commandService,
+                                onRecordEvent = onRecordEvent,
+                                onContextChanged = { agentRunState.projectionRevision += 1 },
+                                onRetry = { prompt, _ ->
+                                    agentPrompt = prompt
+                                    agentRunState.progress = "Retry the request above to start a new run with the same prompt."
+                                },
+                            )
                             is WorkflowRunOutcome.Clarifying -> {
                                 Text("Clarification needed: ${outcome.question}")
                                 OutlinedTextField(
@@ -409,6 +410,7 @@ internal fun QuickCaptureScreen(
                                                         ),
                                                     )
                                                     agentRunState.continuation = (agentRunState.outcome as? WorkflowRunOutcome.Clarifying)?.continuation
+                                                    agentRunState.followUp = agentRunState.outcome?.followUp
                                                     clarificationAnswer = ""
                                                     agentRunState.progress = if (agentRunState.outcome == null) {
                                                         "The clarification could not be resumed (the run stayed on its current attempt). Start a new request with a fresh prompt."
@@ -416,6 +418,8 @@ internal fun QuickCaptureScreen(
                                                 } catch (cancelled: CancellationException) {
                                                     throw cancelled
                                                 } catch (exception: Exception) {
+                                                    val consumed = exception is IllegalStateException || exception is IllegalArgumentException
+                                                    if (consumed) agentRunState.continuation = null
                                                     agentRunState.progress = "The clarification could not be resumed (${exception::class.simpleName ?: "error"}). The run stayed on its current attempt; try Continue once more or start a new request."
                                                 } finally {
                                                     agentRunState.busy = false
@@ -428,9 +432,18 @@ internal fun QuickCaptureScreen(
                                 ) { Text("Continue") }
                             }
                             is WorkflowRunOutcome.Refused -> Text("Request refused: ${outcome.reason}", color = MaterialTheme.colorScheme.error)
-                            is WorkflowRunOutcome.Incomplete -> Text(
-                                "Run incomplete: ${outcome.reason}. You can retry or continue manually.",
-                                color = MaterialTheme.colorScheme.error,
+                            is WorkflowRunOutcome.Incomplete -> ChatOutcomeSection(
+                                outcome = outcome,
+                                agentRunState = agentRunState,
+                                agentRunScope = agentRunScope,
+                                queryService = queryService,
+                                commandService = commandService,
+                                onRecordEvent = onRecordEvent,
+                                onContextChanged = { agentRunState.projectionRevision += 1 },
+                                onRetry = { prompt, _ ->
+                                    agentPrompt = prompt
+                                    agentRunState.progress = "Retry the request above to start a new run with the same prompt."
+                                },
                             )
                             null -> Unit
                         }
@@ -604,7 +617,9 @@ internal fun QuickCaptureScreen(
 
 
             items(captures, key = { it.id }) { capture ->
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     QuickCaptureHistoryCard(
                         capture = capture,
                         context = contextSummaries[capture.id],

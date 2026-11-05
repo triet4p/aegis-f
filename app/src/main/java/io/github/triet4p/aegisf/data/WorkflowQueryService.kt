@@ -351,6 +351,10 @@ class WorkflowQueryService(
 
     // --- Sources ------------------------------------------------------------
 
+    /** The durable lifecycle state of one agent run, or null when never admitted. */
+    suspend fun runState(runId: String): String? =
+        database.agentRunDao().findByRunId(runId)?.state
+
     /** One capture by stable id; caller authorization must precede this read. */
     suspend fun sourceExcerpt(captureId: Long): CaptureMessageEntity? =
         captureMessageDao.findById(captureId)

@@ -6,8 +6,11 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import io.github.triet4p.aegisf.agent.BoundedWorkflowExecutor
+import io.github.triet4p.aegisf.agent.WorkflowIntent
 import io.github.triet4p.aegisf.agent.WorkflowRunContinuation
+import io.github.triet4p.aegisf.agent.WorkflowRunFollowUp
 import io.github.triet4p.aegisf.agent.WorkflowRunOutcome
+import io.github.triet4p.aegisf.data.WorkflowCallerScope
 import kotlinx.coroutines.Job
 
 /**
@@ -35,4 +38,13 @@ internal class ChatAgentRunState {
     var streamNote by mutableStateOf<String?>(null)
     var clarificationAnswer by mutableStateOf("")
     var projectionRevision by mutableIntStateOf(0)
+    /** Single-use assisted follow-up authority minted by the settled outcome, if any. */
+    var followUp by mutableStateOf<WorkflowRunFollowUp?>(null)
+    /** Trusted session scope of the last sent run; bounds retry and visible references. */
+    var lastScope by mutableStateOf<WorkflowCallerScope.AgentSession?>(null)
+    var lastPrompt by mutableStateOf<String?>(null)
+    var lastIntents by mutableStateOf<Set<WorkflowIntent>>(emptySet())
+    var followUpInput by mutableStateOf("")
+    /** Explicit visible reference chosen to disambiguate a follow-up; null while ambiguous. */
+    var followUpSelection by mutableStateOf<String?>(null)
 }
