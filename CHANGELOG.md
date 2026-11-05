@@ -51,6 +51,16 @@ and no release has been tagged or published. Format follows
 
 ### Fixed
 
+- Hosted workflows now send OpenAI-compatible function schemas the provider can read as nullable:
+  an optional reference is declared with the JSON Schema type `["string", "null"]` instead of an
+  OpenAPI-only `nullable` flag that the tool schema dialect ignores. A model that previously had
+  to spell the omitted reference as the text `null` — which the host correctly refuses as an
+  unknown reference — can now send a real JSON null and continue the workflow. Gemini schemas
+  keep their native `nullable` form.
+- English notes that write dong with the bare `d` shorthand (for example `50000d` or `50,000d`)
+  now mask the whole amount and read it as a whole-dong amount. The ungrouped form used to be
+  treated as a bank-code-like value, so the hosted workflow could not save it as an amount, and
+  the grouped form was not masked at all; the Vietnamese `đ`/`VND` spellings are unchanged.
 - Hosted link attachment now requires unique current app-computed pair evidence and a complete
   bounded recheck of the pending-draft scope. An incomplete search cannot authorize automatic
   attachment; users can still resolve ambiguous suggestions explicitly and undo an accepted link

@@ -319,6 +319,14 @@ class SensitiveVault(
             val group = match.groups[1] ?: continue
             add(group.range, group.value, group.value.filter { it.isDigit() }, IssuedValueShape.NUMERIC)
         }
+        // The bare "d"/"D" dong shorthand an English note uses ("50000d", "50,000d"). The whole
+        // surface is masked so the unit cannot remain beside a token, and the canonical is the
+        // whole-dong digits so the amount role resolves it locally. A bare form needs four digits
+        // so a duration such as "3d" is not reclassified as money; the grouped form is already
+        // unambiguous.
+        for (match in DONG_D_SUFFIX_PATTERN.findAll(text)) {
+            add(match.range, match.value, match.value.filter { it.isDigit() }, IssuedValueShape.NUMERIC)
+        }
         for (match in ACCOUNT_HINT_PATTERN.findAll(text)) {
             val group = match.groups[1] ?: continue
             add(group.range, group.value, group.value, IssuedValueShape.NUMERIC)
@@ -458,6 +466,8 @@ class SensitiveVault(
         private val GROUPED_NUMBER_PATTERN = Regex("\\b\\d{1,3}(?:[.,]\\d{3})+\\b")
         private val UNIT_AMOUNT_PATTERN =
             Regex("(?i)(\\d{1,3}(?:[.,]\\d{3})+|\\d+)(?![.,]\\d)\\s*(?:VND|₫|đồng|dong|đ)(?![\\p{L}])")
+        private val DONG_D_SUFFIX_PATTERN =
+            Regex("(?i)(?<![\\p{L}\\d])(\\d{1,3}(?:[.,]\\d{3})+|\\d{4,})\\s*d(?![\\p{L}\\d])")
         private val ACCOUNT_HINT_PATTERN =
             Regex("(?i)(?:\\baccount(?:\\s+ending)?|\\bending)\\s*:?\\s*#?\\s*(\\d{4,})")
         private val BARE_DIGITS_PATTERN = Regex("\\b\\d{4,}\\b")

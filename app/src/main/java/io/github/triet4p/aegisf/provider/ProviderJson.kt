@@ -163,7 +163,7 @@ internal object ProviderJson {
         schema.keys().forEach { key ->
             when (key) {
                 "\$defs", "\$schema", "\$id" -> Unit
-                "type" -> applySingleType(lowered, schema.opt("type"), uppercase = false)
+                "type" -> applySingleType(lowered, schema.opt("type"), uppercase = false, nullAsTypeUnion = true)
                 "enum" -> lowered.put("enum", lowercaseEnum(schema.optJSONArray("enum"), stringsOnly = false) ?: JSONArray())
                 "properties" -> lowered.put("properties", lowerSchemaMap(schema.optJSONObject("properties"), ::lowerForOpenAi))
                 "items" -> lowered.put("items", lowerItems(schema.opt("items"), ::lowerForOpenAi))
@@ -175,10 +175,20 @@ internal object ProviderJson {
         return lowered
     }
 
+    /**
+     * Lowers one declared `type` into the provider's schema dialect.
+     *
+     * Gemini's `Schema` object takes one uppercase type plus `nullable: true`. An
+     * OpenAI-compatible `parameters` value is plain JSON Schema, where `nullable` is not a
+     * keyword at all: a property declared `["string", "null"]` must keep both types as a JSON
+     * Schema type array, otherwise the model is told the field is a required string and has to
+     * spell an absent optional value as text.
+     */
     private fun applySingleType(
         target: JSONObject,
         declared: Any?,
         uppercase: Boolean,
+        nullAsTypeUnion: Boolean = false,
     ) {
         val names = when (declared) {
             is String -> listOf(declared)
@@ -194,6 +204,14 @@ internal object ProviderJson {
             throw HostedConfigurationException("schema type union ${names} cannot be represented")
         }
         val name = if (uppercase) nonNull.single().uppercase() else nonNull.single()
+        if (nullAsTypeUnion) {
+            if (names.size > nonNull.size) {
+                target.put("type", JSONArray().put(name).put("null"))
+            } else {
+                target.put("type", name)
+            }
+            return
+        }
         target.put("type", name)
         if (names.size > nonNull.size) target.put("nullable", true)
     }

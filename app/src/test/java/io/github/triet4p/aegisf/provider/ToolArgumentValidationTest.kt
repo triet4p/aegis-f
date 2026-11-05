@@ -158,7 +158,7 @@ class ToolArgumentValidationTest {
     }
 
     @Test
-    fun `a nullable union survives as a nullable single type and null is accepted`() {
+    fun `a nullable union survives as a JSON Schema type array and null is accepted`() {
         val declaration = HostedToolDeclaration(
             name = "probe_optional",
             description = "One optional value.",
@@ -168,7 +168,10 @@ class ToolArgumentValidationTest {
             ),
         )
         val lowered = ProviderJson.openAiSchema(declaration.parameters)
-        assertTrue(lowered.getJSONObject("properties").getJSONObject("value").getBoolean("nullable"))
+        val value = lowered.getJSONObject("properties").getJSONObject("value")
+        val schemaTypes = value.getJSONArray("type")
+        assertEquals(listOf("string", "null"), (0 until schemaTypes.length()).map(schemaTypes::getString))
+        assertFalse(value.has("nullable"))
         val nullCall = ToolCallAssembly.assemble(
             listOf(RawToolCall("call-1", "probe_optional", """{"value":null}""")),
             listOf(declaration),

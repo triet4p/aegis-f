@@ -233,7 +233,51 @@ class MaskedValueShapesTest {
         // boundary refuses the never-closed shape once the turn ends.
         assertTrue(boundary.scanInbound(known.dropLast(2)) is InboundScan.Accepted)
     }
-}
+
+    /**
+     * S9.8: an English note that writes dong with the bare "d" shorthand must mask the whole
+     * surface as one neutral value and must resolve locally as a whole-dong amount. Before this
+     * fix "50000d" was classified as a bank-code-like alphanumeric and the amount role refused
+     * it, while "50,000d" was not masked at all.
+     */
+    @Test
+    fun `english bare d dong shorthand masks and resolves as a whole-dong amount`() {
+        val vault = SensitiveVault("s98-en-dong-d")
+        val masked = vault.maskText("Today fuel 50000d at 15:00 and snack 20000d at 15:15.")
+
+        assertFalse("raw amount survives: $masked", masked.contains("50000"))
+        assertFalse("raw amount survives: $masked", masked.contains("20000"))
+        val amounts = vault.issuedTokens().mapNotNull { vault.parseAmountOrNull(it.token) }.toSet()
+        assertEquals(setOf(50_000L, 20_000L), amounts)
+        assertTrue(vault.issuedTokens().all { it.shape == IssuedValueShape.NUMERIC })
+    }
+
+    @Test
+    fun `grouped english d dong shorthand is masked as one amount`() {
+        val vault = SensitiveVault("s98-en-dong-grouped")
+        val masked = vault.maskText("Fuel 50,000d at 15:00 and snack 20,000 d at 15:15.")
+
+        assertFalse("raw grouped amount survives: $masked", masked.contains("50,000"))
+        assertFalse("raw grouped amount survives: $masked", masked.contains("20,000"))
+        val amounts = vault.issuedTokens().mapNotNull { vault.parseAmountOrNull(it.token) }.toSet()
+        assertEquals(setOf(50_000L, 20_000L), amounts)
+    }
+
+    @Test
+    fun `a short d duration is not reclassified as money`() {
+        val vault = SensitiveVault("s98-en-short-d")
+        assertEquals("Parking 3d.", vault.maskText("Parking 3d."))
+    }
+
+    @Test
+    fun `the supported VND spelling keeps resolving as before`() {
+        val vault = SensitiveVault("s98-en-vnd")
+        val masked = vault.maskText("Fuel 50000 VND and snack 20000 VND.")
+        assertFalse(masked.contains("50000"))
+        assertFalse(masked.contains("20000"))
+        val amounts = vault.issuedTokens().mapNotNull { vault.parseAmountOrNull(it.token) }.toSet()
+        assertEquals(setOf(50_000L, 20_000L), amounts)
+    }}
 
 /** Local parse probes used by these tests; they never rehydrate text or expose a raw value. */
 private fun SensitiveVault.parseAmountOrNull(token: String): Long? =

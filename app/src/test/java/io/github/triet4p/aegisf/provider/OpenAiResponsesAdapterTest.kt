@@ -86,8 +86,13 @@ class OpenAiResponsesAdapterTest {
             listOf("source_ref", "summary", "amount_ref", "anchor_ref", "merchant_ref", "clarification"),
             requiredNames,
         )
-        assertEquals("string", fields.getJSONObject("amount_ref").getString("type"))
-        assertTrue(fields.getJSONObject("amount_ref").getBoolean("nullable"))
+        assertEquals(
+            listOf("string", "null"),
+            fields.getJSONObject("amount_ref").getJSONArray("type").let { types ->
+                (0 until types.length()).map(types::getString)
+            },
+        )
+        assertFalse(fields.getJSONObject("amount_ref").has("nullable"))
         assertTrue(fields.getJSONObject("amount_ref").getString("description").contains("Value alias"))
         assertEquals("string", fields.getJSONObject("source_ref").getString("type"))
         assertFalse(fields.getJSONObject("source_ref").optBoolean("nullable", false))
