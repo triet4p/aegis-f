@@ -19,6 +19,7 @@ import io.github.triet4p.aegisf.data.NoteEventInterpretation
 import io.github.triet4p.aegisf.data.NoteEventTimeAnchor
 import io.github.triet4p.aegisf.data.NoteEventWriteResult
 import io.github.triet4p.aegisf.data.LedgerDatabase
+import io.github.triet4p.aegisf.data.ReviewCategoryOrigin
 import io.github.triet4p.aegisf.data.PendingBankDraftEntity
 import io.github.triet4p.aegisf.data.LinkOperationQuery
 import io.github.triet4p.aegisf.data.QueryPageRequest
@@ -911,6 +912,7 @@ class AgentToolRuntimeTest {
                     categoryId = null,
                     categoryResolved = true,
                 ),
+                categoryOrigin = ReviewCategoryOrigin.USER,
             ),
         )
         val missing = storeDraft(
@@ -969,6 +971,7 @@ class AgentToolRuntimeTest {
                 createdAtEpochMillis = receiptAfterMidnight,
                 updatedAtEpochMillis = receiptAfterMidnight,
             ),
+            categoryOrigin = ReviewCategoryOrigin.USER,
         )
         assertTrue(confirmation is BankDraftReviewResult.Confirmed)
         val dismissed = storeDraft(

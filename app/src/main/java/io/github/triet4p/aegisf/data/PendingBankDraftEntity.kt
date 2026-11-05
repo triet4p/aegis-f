@@ -155,10 +155,40 @@ data class PendingBankDraftEntity(
     val reviewCategoryId: Long? = null,
     @ColumnInfo(defaultValue = "0")
     val reviewCategoryResolved: Boolean = false,
+    /**
+     * Who chose the stored review category, and therefore whether a later context change
+     * may reopen it.
+     *
+     * A [ReviewCategoryOrigin.HOSTED] choice was made from the draft's note/link context,
+     * so an edit, deletion, or link change to that context reopens it. A
+     * [ReviewCategoryOrigin.USER] choice is the user's own and survives such changes;
+     * [ReviewCategoryOrigin.NONE] is the absence of a choice — including a legacy row,
+     * whose chooser the old schema did not record.
+     */
+    @ColumnInfo(defaultValue = "'NONE'")
+    val reviewCategoryOrigin: ReviewCategoryOrigin = ReviewCategoryOrigin.NONE,
     /** Compare-and-set revision so a stale editor cannot overwrite newer pending corrections. */
     @ColumnInfo(defaultValue = "0")
     val reviewRevision: Int = 0,
 )
+
+/**
+ * The authority that chose a pending draft's review category.
+ *
+ * It is provenance for revalidation, not a score: a hosted choice is only valid for the
+ * context it was made from, while the user's own choice is not withdrawn by a later note
+ * or link change.
+ */
+enum class ReviewCategoryOrigin {
+    /** No choice is stored, or the stored row predates this provenance column. */
+    NONE,
+
+    /** The user chose the category in their own review form. */
+    USER,
+
+    /** The hosted workflow chose the category from an observed draft context. */
+    HOSTED,
+}
 
 /**
  * The working description of [draft]: the user's own wording when they corrected it, the

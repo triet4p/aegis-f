@@ -166,6 +166,7 @@ abstract class CategoryDao {
      */
     @Query(
         "UPDATE pending_bank_drafts SET reviewCategoryId = NULL, reviewCategoryResolved = 0, " +
+            "reviewCategoryOrigin = 'NONE', " +
             "reviewRevision = reviewRevision + 1 " +
             "WHERE reviewStatus = 'PENDING' AND reviewCategoryId = :categoryId",
     )

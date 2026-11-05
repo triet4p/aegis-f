@@ -457,7 +457,22 @@ private fun StoredLinkDecision(
         draft?.let { Text(candidateDraftSummary(it), style = MaterialTheme.typography.bodySmall) }
         when (link.state) {
             ContextLinkState.PROPOSED -> Text("Choose Attach or Reject in Browse drafts to resolve this proposal.")
-            ContextLinkState.ACCEPTED -> OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onUnlink, enabled = enabled) { Text("Unlink draft #${link.draftId}") }
+            ContextLinkState.ACCEPTED -> when (draft?.reviewStatus) {
+                IntakeReviewStatus.PENDING -> OutlinedButton(
+                    shape = MaterialTheme.shapes.small,
+                    onClick = onUnlink,
+                    enabled = enabled,
+                ) { Text("Unlink draft #${link.draftId}") }
+                null -> Text(
+                    "Loading bank draft #${link.draftId}…",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                else -> Text(
+                    "This draft is a confirmed ledger record. The note reference is kept as " +
+                        "provenance and the ledger is unchanged.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
             ContextLinkState.REJECTED -> Text(
                 "This refusal cannot be undone. You may browse a different draft.",
                 style = MaterialTheme.typography.bodySmall,
@@ -1121,6 +1136,8 @@ internal fun WorkflowCommandOutcome.linkFailureMessage(): String = when (this) {
             "This event is already recorded manually and cannot be linked again."
         io.github.triet4p.aegisf.data.WorkflowDenialReason.EVENT_UNAVAILABLE ->
             "This interpretation is unavailable. Re-read the current source before linking."
+        io.github.triet4p.aegisf.data.WorkflowDenialReason.CONFIRMED_RECORD ->
+            "This draft is already a confirmed ledger record, so its note reference is kept."
         else -> "The link decision was refused: ${reason.name.lowercase().replace('_', ' ')}."
     }
     is WorkflowCommandOutcome.Failed -> reason

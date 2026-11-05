@@ -209,6 +209,11 @@ class MigrationChainTest {
                 assertEquals(FOOD_CATEGORY_ID, pending.reviewCategoryId)
                 assertTrue(pending.reviewCategoryResolved)
                 assertEquals(
+                    "the old schema did not record who chose the category",
+                    ReviewCategoryOrigin.NONE,
+                    pending.reviewCategoryOrigin,
+                )
+                assertEquals(
                     "the delivery identity of the older draft must survive the upgrade",
                     draftDeliveryId(BANK_PACKAGE, PENDING_KEY, FIXTURE_MOMENT + PENDING_DRAFT_ID),
                     pending.deliveryId,

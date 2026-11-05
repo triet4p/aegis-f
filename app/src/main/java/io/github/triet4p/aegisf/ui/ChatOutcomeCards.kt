@@ -638,39 +638,50 @@ private fun ChatLinkCard(
                         ) { Text("Reject") }
                     }
                     if (current.state == ContextLinkState.ACCEPTED) {
-                        OutlinedButton(
-                            shape = MaterialTheme.shapes.small,
-                            onClick = {
-                                actionInProgress = true
-                                actionMessage = null
-                                coroutineScope.launch {
-                                    try {
-                                        val outcome = commandService.unlinkLink(
-                                            WorkflowCallerScope.User,
-                                            UnlinkLinkRequest(
-                                                idempotencyKey = UUID.randomUUID().toString(),
-                                                eventId = current.eventId,
-                                                draftId = current.draftId,
-                                                expectedRevision = current.revision,
-                                            ),
-                                        )
-                                        actionMessage = if (outcome.isAppliedOrNoChange()) {
-                                            "Draft unlinked. The event can be attached to another draft or recorded manually."
-                                        } else {
-                                            outcome.linkFailureMessage()
+                        when (draft?.reviewStatus) {
+                            IntakeReviewStatus.PENDING -> OutlinedButton(
+                                shape = MaterialTheme.shapes.small,
+                                onClick = {
+                                    actionInProgress = true
+                                    actionMessage = null
+                                    coroutineScope.launch {
+                                        try {
+                                            val outcome = commandService.unlinkLink(
+                                                WorkflowCallerScope.User,
+                                                UnlinkLinkRequest(
+                                                    idempotencyKey = UUID.randomUUID().toString(),
+                                                    eventId = current.eventId,
+                                                    draftId = current.draftId,
+                                                    expectedRevision = current.revision,
+                                                ),
+                                            )
+                                            actionMessage = if (outcome.isAppliedOrNoChange()) {
+                                                "Draft unlinked. The event can be attached to another draft or recorded manually."
+                                            } else {
+                                                outcome.linkFailureMessage()
+                                            }
+                                            reload++
+                                            onContextChanged()
+                                        } catch (cancelled: CancellationException) {
+                                            throw cancelled
+                                        } catch (_: Exception) {
+                                            actionMessage = "Unlink failed. The stored decision is unchanged; try again."
+                                        } finally {
+                                            actionInProgress = false
                                         }
-                                        reload++
-                                        onContextChanged()
-                                    } catch (cancelled: CancellationException) {
-                                        throw cancelled
-                                    } catch (_: Exception) {
-                                        actionMessage = "Unlink failed. The stored decision is unchanged; try again."
-                                    } finally {
-                                        actionInProgress = false
                                     }
-                                }
-                            },
-                        ) { Text("Unlink draft #${current.draftId}") }
+                                },
+                            ) { Text("Unlink draft #${current.draftId}") }
+                            null -> Text(
+                                "Loading bank draft #${current.draftId}…",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            else -> Text(
+                                "This draft is a confirmed ledger record. The note reference is " +
+                                    "kept as provenance and the ledger is unchanged.",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
                     }
                 }
             }

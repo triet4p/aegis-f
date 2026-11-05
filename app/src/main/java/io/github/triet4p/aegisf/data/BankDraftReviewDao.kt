@@ -61,6 +61,7 @@ abstract class BankDraftReviewDao {
             "reviewType = :type, " +
             "reviewCategoryId = :categoryId, " +
             "reviewCategoryResolved = :categoryResolved, " +
+            "reviewCategoryOrigin = :categoryOrigin, " +
             "reviewRevision = reviewRevision + 1 " +
             "WHERE id = :id AND reviewStatus = 'PENDING' AND reviewRevision = :expectedRevision",
     )
@@ -75,6 +76,7 @@ abstract class BankDraftReviewDao {
         type: String?,
         categoryId: Long?,
         categoryResolved: Boolean,
+        categoryOrigin: String,
     ): Int
 
     @Query(
@@ -87,6 +89,7 @@ abstract class BankDraftReviewDao {
             "reviewType = :type, " +
             "reviewCategoryId = :categoryId, " +
             "reviewCategoryResolved = :categoryResolved, " +
+            "reviewCategoryOrigin = :categoryOrigin, " +
             "reviewRevision = reviewRevision + 1, " +
             "reviewStatus = 'CONFIRMED' " +
             "WHERE id = :id AND reviewStatus = 'PENDING' AND " +
@@ -103,6 +106,7 @@ abstract class BankDraftReviewDao {
         type: String?,
         categoryId: Long?,
         categoryResolved: Boolean,
+        categoryOrigin: String,
     ): Int
 
     @Insert
@@ -126,6 +130,7 @@ abstract class BankDraftReviewDao {
         id: Long,
         expectedRevision: Int,
         edits: BankDraftReviewEdits,
+        categoryOrigin: ReviewCategoryOrigin,
     ): BankDraftReviewResult {
         val draft = findDraft(id) ?: return BankDraftReviewResult.NotFound
         if (draft.reviewStatus != IntakeReviewStatus.PENDING || draft.confirmedTransactionId != null) {
@@ -151,6 +156,7 @@ abstract class BankDraftReviewDao {
             type = edits.type?.name,
             categoryId = edits.categoryId,
             categoryResolved = edits.categoryResolved,
+            categoryOrigin = categoryOrigin.name,
         )
         return if (updated == 1) {
             BankDraftReviewResult.Saved(expectedRevision + 1)
@@ -163,6 +169,7 @@ abstract class BankDraftReviewDao {
         "UPDATE pending_bank_drafts SET " +
             "reviewCategoryId = :categoryId, " +
             "reviewCategoryResolved = 1, " +
+            "reviewCategoryOrigin = :categoryOrigin, " +
             "reviewRevision = reviewRevision + 1 " +
             "WHERE id = :id AND reviewStatus = 'PENDING' AND " +
             "confirmedTransactionId IS NULL AND reviewRevision = :expectedRevision",
@@ -171,6 +178,7 @@ abstract class BankDraftReviewDao {
         id: Long,
         expectedRevision: Int,
         categoryId: Long,
+        categoryOrigin: String,
     ): Int
 
     /**
@@ -186,6 +194,7 @@ abstract class BankDraftReviewDao {
         id: Long,
         expectedRevision: Int,
         categoryId: Long,
+        categoryOrigin: ReviewCategoryOrigin,
     ): BankDraftReviewResult {
         val draft = findDraft(id) ?: return BankDraftReviewResult.NotFound
         if (draft.reviewStatus != IntakeReviewStatus.PENDING || draft.confirmedTransactionId != null) {
@@ -195,13 +204,32 @@ abstract class BankDraftReviewDao {
         if (countAssignableCategory(categoryId) == 0) {
             return BankDraftReviewResult.CategoryUnavailable
         }
-        val updated = updateReviewCategory(id, expectedRevision, categoryId)
+        val updated = updateReviewCategory(id, expectedRevision, categoryId, categoryOrigin.name)
         return if (updated == 1) {
             BankDraftReviewResult.Saved(expectedRevision + 1)
         } else {
             BankDraftReviewResult.Changed
         }
     }
+
+    /**
+     * Reopens a hosted category choice whose note/link context changed.
+     *
+     * Only a still-pending draft whose category was chosen by the hosted workflow is
+     * reopened; an explicit user choice, and the absence of a choice, are left untouched.
+     * The revision moves on in the same statement, so an editor or a hosted write holding
+     * the earlier revision is told the draft changed instead of writing over newer work.
+     */
+    @Query(
+        "UPDATE pending_bank_drafts SET " +
+            "reviewCategoryId = NULL, " +
+            "reviewCategoryResolved = 0, " +
+            "reviewCategoryOrigin = 'NONE', " +
+            "reviewRevision = reviewRevision + 1 " +
+            "WHERE id = :id AND reviewStatus = 'PENDING' AND " +
+            "confirmedTransactionId IS NULL AND reviewCategoryOrigin = 'HOSTED'",
+    )
+    abstract suspend fun reopenHostedReviewCategory(id: Long): Int
 
     /**
      * Atomically marks the pending draft terminal, inserts exactly one transaction, and links
@@ -214,6 +242,7 @@ abstract class BankDraftReviewDao {
         expectedRevision: Int,
         edits: BankDraftReviewEdits,
         transaction: TransactionEntity,
+        categoryOrigin: ReviewCategoryOrigin,
     ): BankDraftReviewResult {
         val draft = findDraft(id) ?: return BankDraftReviewResult.NotFound
         if (draft.reviewStatus != IntakeReviewStatus.PENDING || draft.confirmedTransactionId != null) {
@@ -236,6 +265,7 @@ abstract class BankDraftReviewDao {
             type = edits.type?.name,
             categoryId = edits.categoryId,
             categoryResolved = edits.categoryResolved,
+            categoryOrigin = categoryOrigin.name,
         )
         if (claimed != 1) {
             val current = findDraft(id) ?: return BankDraftReviewResult.NotFound

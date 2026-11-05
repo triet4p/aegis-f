@@ -100,7 +100,7 @@ abstract class LedgerDatabase : RoomDatabase() {
     abstract fun agentTraceDao(): AgentTraceDao
 
     companion object {
-        const val VERSION = 17
+        const val VERSION = 18
 
         /** File name of the on-device database. */
         const val NAME = "aegis-ledger.db"
@@ -904,6 +904,21 @@ abstract class LedgerDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Version 17 to 18 adds the provenance of a pending draft's chosen review category.
+         *
+         * An existing row keeps its stored category and revision; the new column only says
+         * that the old schema did not record who chose it, so a legacy category is never
+         * silently reopened by a later note or link change.
+         */
+        val MIGRATION_17_18: Migration = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `pending_bank_drafts` ADD COLUMN `reviewCategoryOrigin` " +
+                        "TEXT NOT NULL DEFAULT 'NONE'",
+                )
+            }
+        }
 
         /** Builds the production database on the app's real file directory. */
         fun build(context: Context): LedgerDatabase =
@@ -925,6 +940,7 @@ abstract class LedgerDatabase : RoomDatabase() {
                     MIGRATION_14_15,
                     MIGRATION_15_16,
                     MIGRATION_16_17,
+                    MIGRATION_17_18,
                 )
                 .build()
 

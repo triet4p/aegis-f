@@ -27,7 +27,11 @@ sealed interface CaptureMessageWriteResult {
  * interpretations derived from the old text lose their derived content, and the active links
  * that described those interpretations go with them, in the same Room transaction as the change
  * itself. No copy of a changed or deleted text is left behind, and a refused link survives,
- * because the user's decision about a draft is not part of the text.
+ * because the user's decision about a draft is not part of the text. A link to a confirmed
+ * draft survives too: it is the stored provenance of a finalized financial record, and the
+ * record itself is never changed by a capture write. A pending draft whose review context
+ * changed reopens a category the hosted workflow chose from that context; the capture
+ * write never touches a category the user chose.
  *
  * The class is internal: the saved text is written through the application's one command
  * boundary, so a caller cannot save or rewrite a capture around the boundary's scope,

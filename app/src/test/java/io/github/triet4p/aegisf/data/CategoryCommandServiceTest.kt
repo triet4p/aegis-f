@@ -482,6 +482,7 @@ class CategoryCommandServiceTest {
                 categoryId = categoryId,
                 categoryResolved = true,
             ),
+            categoryOrigin = ReviewCategoryOrigin.USER,
         )
         return draftId
     }

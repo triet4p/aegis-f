@@ -353,3 +353,13 @@ financial confirmation.
 **Reason:** Context may change independently of draft review fields, and a check outside the write transaction leaves a race between validation and persistence. A bounded fingerprint retains the independent revision owners while making stale context a command conflict.
 
 **Consequences:** Hosted writes require a complete context snapshot and a category alias from the same observation. More than 500 links refuses a hosted category write rather than treating a partial snapshot as current; user-owned manual review remains available.
+
+## [2026-11-05] Track category provenance and retain confirmed-note links
+
+**Decision:** Add `pending_bank_drafts.reviewCategoryOrigin` (`NONE`/`USER`/`HOSTED`) and reopen only a `HOSTED` review category, with a review-revision bump, whenever the draft's note/event/link context changes. Keep accepted links to confirmed drafts when a capture is edited or deleted, and refuse propose/accept/reject/unlink for a confirmed draft.
+
+**Alternatives considered:** Clear the review category on every context change regardless of who chose it; clear only the pending link rows and accept losing a confirmed record's note provenance; rely only on the existing stale-context digest check at the hosted write and leave an already-stored hosted category intact.
+
+**Reason:** The acceptance requires newer user choices to survive and old-context hosted work not to leave a draft ready. Clearing every category would overwrite a newer user choice; the digest check only rejects writes that arrive after a change, not a category already stored from the changed context. A confirmed record's link is provenance of finalized money, while an unconfirmed link is derived review context.
+
+**Consequences:** Every context-changing write (capture edit/delete, event reading revision, propose/accept/reject/unlink) must revalidate affected pending drafts. A hosted category is valid only until its context changes; the workflow re-observes after context changes. Link decisions to confirmed drafts are denied with `CONFIRMED_RECORD`, and the capture dialog and link cards must state that the note reference is retained. Legacy rows migrate as `NONE` because the old schema did not record the chooser.

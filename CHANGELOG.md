@@ -43,6 +43,11 @@ and no release has been tagged or published. Format follows
 - Chat follow-ups stay inside the cards the finished run actually shows: naming a row
   outside that visible scope resolves to nothing and changes nothing, and choosing a
   visible chip can only continue the same run, never invent a link or ledger record.
+- Correcting or deleting a saved note reopens only a category the hosted workflow chose
+  from that note's context, with the review revision advanced so a form opened before the
+  change reports a conflict instead of overwriting. A category you chose yourself stays.
+  Editing or deleting a note keeps the note reference recorded with a confirmed ledger
+  record, and the ledger record itself is unchanged.
 
 ### Fixed
 
@@ -51,6 +56,7 @@ and no release has been tagged or published. Format follows
   attachment; users can still resolve ambiguous suggestions explicitly and undo an accepted link
   without changing note text, bank evidence or ledger records.
   The separate local arrival scan applies the same rule within the shared 500-row page; larger inboxes remain incomplete, and it never widens the hosted first-32-id grant.
+- Editing or deleting a linked note no longer leaves a draft showing as ready from a category chosen under the old note context, and a link action on an already-confirmed draft is refused instead of removing the note reference stored with the finalized record.
 
 ### Removed
 - Removed the Laya local classifier and its English translation bridge from the active app:

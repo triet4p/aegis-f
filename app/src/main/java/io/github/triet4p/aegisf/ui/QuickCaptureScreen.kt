@@ -942,8 +942,10 @@ private fun captureStatusText(summary: CaptureContextSummary): String = when {
 
 private fun sourceChangePolicyMessage(): String =
     "If this text has saved interpretations, changing or deleting it clears their derived " +
-        "content and removes active links. Refused link decisions remain. The capture identity " +
-        "and provenance stay; ledger records are not changed."
+        "content and removes links to drafts still waiting for review. Refused link decisions " +
+        "and links to confirmed records stay as provenance. The capture identity stays; a " +
+        "confirmed ledger record is not changed. A category the hosted workflow chose from " +
+        "this note is reopened for review; your own category choice is kept."
 
 private fun captureTimestamp(capture: CaptureMessageEntity): String {
     val instant = capture.capturedAtEpochMillis ?: return "Capture time unavailable"

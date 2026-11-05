@@ -105,6 +105,15 @@ sealed interface ContextLinkResult {
     /** The referenced draft does not exist. */
     data object DraftUnavailable : ContextLinkResult
 
+    /**
+     * The draft is already a confirmed ledger record.
+     *
+     * A finalized record keeps the note link that is its provenance. That link may not be
+     * added to, decided, or removed afterwards; changing what a confirmed record rests on
+     * is a separate explicit financial correction, not a preparation command.
+     */
+    data object DraftAlreadyReviewed : ContextLinkResult
+
     /** The event already holds an active draft, so a second one was refused. */
     data object MultipleDrafts : ContextLinkResult
 
@@ -154,6 +163,7 @@ internal class EventContextRepository(
     private val eventDao = database.noteEventDao()
     private val linkDao = database.contextLinkDao()
     private val draftDao = database.pendingBankDraftDao()
+    private val reviewDao = database.bankDraftReviewDao()
 
     /**
      * Stores the reading of one span of a capture.
@@ -274,8 +284,8 @@ internal class EventContextRepository(
             NoteEventWriteResult.Stored(eventId, 0)
         } else {
             if (existing.sameReading(reading)) return@withTransaction NoteEventWriteResult.NoChange
-            val accepted = linkDao.findActiveForEvent(existing.id)
-                .any { it.state == ContextLinkState.ACCEPTED }
+            val activeLinks = linkDao.findActiveForEvent(existing.id)
+            val accepted = activeLinks.any { it.state == ContextLinkState.ACCEPTED }
             if (accepted) return@withTransaction NoteEventWriteResult.AcceptedLink
             val updated = eventDao.updateReading(
                 id = existing.id,
@@ -297,6 +307,9 @@ internal class EventContextRepository(
                 userEdited = reading.userEdited,
             )
             if (updated == 1) {
+                // The reading a linked draft's review context was built from moved on, so a
+                // category the hosted workflow chose from it is reopened for review.
+                reopenHostedReviews(activeLinks.map { it.draftId })
                 NoteEventWriteResult.Revised(existing.id, existing.revision + 1)
             } else {
                 NoteEventWriteResult.Changed
@@ -339,6 +352,11 @@ internal class EventContextRepository(
                 ContextLinkState.PROPOSED, ContextLinkState.ACCEPTED -> ContextLinkResult.NoChange
             }
         }
+        // A confirmed draft is money: its note link is finalized provenance, and no new
+        // association may be prepared against it.
+        if (draft.reviewStatus != IntakeReviewStatus.PENDING || draft.confirmedTransactionId != null) {
+            return@withTransaction ContextLinkResult.DraftAlreadyReviewed
+        }
         if (linkDao.findActiveForEvent(eventId).isNotEmpty()) {
             return@withTransaction ContextLinkResult.MultipleDrafts
         }
@@ -355,6 +373,9 @@ internal class EventContextRepository(
                 createdAtEpochMillis = clock.nowEpochMillis(),
             ),
         )
+        // A new association changes the draft's review context, so a category the hosted
+        // workflow chose from the earlier context is reopened.
+        reopenHostedReviews(listOf(draftId))
         ContextLinkResult.Linked(linkId, ContextLinkState.PROPOSED, 0)
     }
 
@@ -375,6 +396,11 @@ internal class EventContextRepository(
         if (link.state == ContextLinkState.REJECTED) return@withTransaction ContextLinkResult.Rejected
         if (link.state == ContextLinkState.ACCEPTED) return@withTransaction ContextLinkResult.NoChange
         if (link.revision != expectedRevision) return@withTransaction ContextLinkResult.Changed
+        val draft = draftDao.findById(link.draftId)
+            ?: return@withTransaction ContextLinkResult.DraftUnavailable
+        if (draft.reviewStatus != IntakeReviewStatus.PENDING || draft.confirmedTransactionId != null) {
+            return@withTransaction ContextLinkResult.DraftAlreadyReviewed
+        }
         val event = eventDao.findById(link.eventId)
             ?: return@withTransaction ContextLinkResult.NotFound
         if (event.normalizedText == null) {
@@ -389,6 +415,7 @@ internal class EventContextRepository(
             return@withTransaction ContextLinkResult.Changed
         }
         refreshEventStatus(event.id)
+        reopenHostedReviews(listOf(link.draftId))
         ContextLinkResult.Linked(link.id, ContextLinkState.ACCEPTED, expectedRevision + 1)
     }
 
@@ -409,10 +436,14 @@ internal class EventContextRepository(
             ?: return@withTransaction ContextLinkResult.NotFound
         if (link.state == ContextLinkState.REJECTED) return@withTransaction ContextLinkResult.NoChange
         if (link.revision != expectedRevision) return@withTransaction ContextLinkResult.Changed
+        if (isConfirmedDraft(link.draftId)) {
+            return@withTransaction ContextLinkResult.DraftAlreadyReviewed
+        }
         if (linkDao.reject(link.id, expectedRevision, userOverride) != 1) {
             return@withTransaction ContextLinkResult.Changed
         }
         refreshEventStatus(link.eventId)
+        reopenHostedReviews(listOf(link.draftId))
         ContextLinkResult.Linked(link.id, ContextLinkState.REJECTED, expectedRevision + 1)
     }
 
@@ -430,10 +461,14 @@ internal class EventContextRepository(
                 return@withTransaction ContextLinkResult.Rejected
             }
             if (link.revision != expectedRevision) return@withTransaction ContextLinkResult.Changed
+            if (isConfirmedDraft(link.draftId)) {
+                return@withTransaction ContextLinkResult.DraftAlreadyReviewed
+            }
             if (linkDao.deleteActive(link.id, expectedRevision) != 1) {
                 return@withTransaction ContextLinkResult.Changed
             }
             refreshEventStatus(link.eventId)
+            reopenHostedReviews(listOf(link.draftId))
             ContextLinkResult.Unlinked(link.id)
         }
 
@@ -443,17 +478,24 @@ internal class EventContextRepository(
      * The derived text, amount, merchant, and time of every event of that capture are cleared
      * and the events become unresolved, and the active links that described those readings are
      * removed with them. A refused link stays, because the user's decision about that draft
-     * outlives the reading it was made against.
+     * outlives the reading it was made against. A link to a confirmed draft also stays: it is
+     * the provenance of a finalized financial record, not unconfirmed derived context.
+     *
+     * Every draft that was linked to this capture has its review context changed, so a
+     * category the hosted workflow chose from that context is reopened for review. A
+     * category the user chose is kept, and no ledger record is touched.
      */
     internal suspend fun invalidateDerivedReadings(captureId: Long, reason: String) {
         val events = eventDao.findForCapture(captureId)
         if (events.isEmpty()) return
+        val affectedDraftIds = linkDao.findDraftIdsForCapture(captureId)
         linkDao.deleteActiveForCapture(captureId)
         val refused = linkDao.findRejectedForCapture(captureId).map { it.eventId }.toSet()
         events.forEach { event ->
             val status = if (event.id in refused) NoteEventStatus.NO_MATCH else NoteEventStatus.UNRESOLVED
             eventDao.clearDerivedReading(event.id, reason, status.name)
         }
+        reopenHostedReviews(affectedDraftIds)
     }
 
     suspend fun findEvent(eventId: Long): NoteEventEntity? = eventDao.findById(eventId)
@@ -467,6 +509,26 @@ internal class EventContextRepository(
     suspend fun linksForEvent(eventId: Long): List<ContextLinkEntity> = linkDao.findForEvent(eventId)
 
     suspend fun linksForDraft(draftId: Long): List<ContextLinkEntity> = linkDao.findForDraft(draftId)
+
+    /**
+     * Reopens a hosted category choice on each still-pending draft whose review context just
+     * changed.
+     *
+     * Only a hosted choice is reopened; a user's own choice and the absence of a choice are
+     * untouched. The stored revision moves on, so an in-flight form or an old-context
+     * hosted write is a conflict instead of an overwrite. A confirmed or dismissed draft is
+     * terminal and is never reopened.
+     */
+    private suspend fun reopenHostedReviews(draftIds: Iterable<Long>) {
+        draftIds.distinct().forEach { draftId -> reviewDao.reopenHostedReviewCategory(draftId) }
+    }
+
+    /** Whether this draft is already a confirmed ledger record. */
+    private suspend fun isConfirmedDraft(draftId: Long): Boolean {
+        val draft = draftDao.findById(draftId) ?: return false
+        return draft.reviewStatus == IntakeReviewStatus.CONFIRMED ||
+            draft.confirmedTransactionId != null
+    }
 
     /** Recomputes the interpretation status a link decision produced. */
     private suspend fun refreshEventStatus(eventId: Long) {

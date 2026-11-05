@@ -2751,6 +2751,11 @@ class AgentToolRuntime(
                 message = "The request names a subject outside this authorized session.",
             )
             WorkflowDenialReason.EVENT_UNAVAILABLE -> throw subjectUnavailable("$", "The reading is no longer current.")
+            WorkflowDenialReason.CONFIRMED_RECORD -> throw AgentToolException(
+                AgentErrorCode.LINK_INELIGIBLE, "$", "trusted_link_policy",
+                message = "The draft is already a confirmed ledger record; its note reference is kept.",
+                subjectRef = subjectRef,
+            )
             WorkflowDenialReason.ATTACH_POLICY,
             WorkflowDenialReason.LINK_ALREADY_REJECTED,
             WorkflowDenialReason.MULTIPLE_ACTIVE_DRAFTS,

@@ -1352,6 +1352,8 @@ class WorkflowCommandServiceTest {
         commands: WorkflowCommandService,
         database: LedgerDatabase,
         key: String,
+        /** Keeps the fixture's drafts from satisfying an automatic unique-evidence match. */
+        draftAmountDelta: Long = 0L,
     ): LinkedCaptureFixture {
         val captureId = saveCapture(commands, "$key-save", NOTE_TEXT)
         val acceptedEventId = storeEvent(commands, captureId, "$key-fuel-event")
@@ -1362,8 +1364,16 @@ class WorkflowCommandServiceTest {
             span = "Circle K snack 20,000 at 15:15",
             amountVnd = 20_000L,
         )
-        val acceptedDraftId = storeDraft(database, "$key-fuel-draft", 50_000L)
-        val rejectedDraftId = storeDraft(database, "$key-snack-draft", 20_000L)
+        val acceptedDraftId = storeDraft(
+            database,
+            "$key-fuel-draft",
+            50_000L + draftAmountDelta,
+        )
+        val rejectedDraftId = storeDraft(
+            database,
+            "$key-snack-draft",
+            20_000L + draftAmountDelta,
+        )
 
         val acceptedProposal = commands.proposeLink(
             WorkflowCallerScope.User,
@@ -1374,7 +1384,9 @@ class WorkflowCommandServiceTest {
             ),
         )
         assertTrue(
-            "the fixture link was not proposed: $acceptedProposal",
+            "the fixture link ($key) was not proposed: $acceptedProposal " +
+                "event=$acceptedEventId draft=$acceptedDraftId " +
+                "active=${database.contextLinkDao().findActiveForEvent(acceptedEventId)}",
             acceptedProposal is WorkflowCommandOutcome.Applied,
         )
         val acceptedLink = database.contextLinkDao()
@@ -1624,6 +1636,506 @@ class WorkflowCommandServiceTest {
         } finally {
             database.close()
         }
+    }
+
+    // --- Correction and confirmed-record boundaries (S9.7) ------------------
+
+    @Test
+    fun `editing a linked note reopens the hosted category and refuses the old context write`() =
+        runTest {
+            val database = open()
+            try {
+                val commands = commands(database)
+                val fixture = linkedCaptureFixture(
+                    commands,
+                    database,
+                    "hosted-reopen",
+                    draftAmountDelta = 1_000L,
+                )
+                val draftId = database.contextLinkDao()
+                    .findForEvent(fixture.acceptedEventId).single().draftId
+                val categoryId = database.categoryDao().insert(
+                    CategoryEntity(
+                        name = "Fuel",
+                        createdAtEpochMillis = CAPTURE_TIME,
+                        updatedAtEpochMillis = CAPTURE_TIME,
+                    ),
+                )
+                val queries = WorkflowQueryService(database)
+                val draft = database.pendingBankDraftDao().findById(draftId)!!
+                val context = queries.draftContextSnapshot(draftId).second
+                val catalog = categoryCatalogRevision(queries.categoryCatalog())
+                val scope = WorkflowCallerScope.AgentSession(
+                    scopeId = "hosted-reopen",
+                    captureIds = setOf(fixture.captureId),
+                    draftIds = setOf(draftId),
+                )
+                val hosted = commands.selectDraftCategory(
+                    scope,
+                    SelectDraftCategoryRequest(
+                        "hosted-reopen-pick",
+                        draftId,
+                        draft.reviewRevision,
+                        categoryId,
+                        context,
+                        catalog,
+                    ),
+                )
+                assertTrue("the hosted category was refused: $hosted", hosted is WorkflowCommandOutcome.Applied)
+                val chosen = database.pendingBankDraftDao().findById(draftId)!!
+                assertEquals(categoryId, chosen.reviewCategoryId)
+                assertTrue(chosen.reviewCategoryResolved)
+                assertEquals(ReviewCategoryOrigin.HOSTED, chosen.reviewCategoryOrigin)
+                assertEquals(ReviewQueueGroup.READY, queries.reviewQueueEntry(draftId)!!.group)
+
+                val capture = database.captureMessageDao().findById(fixture.captureId)!!
+                val revised = commands.reviseCapture(
+                    WorkflowCallerScope.User,
+                    ReviseCaptureRequest(
+                        "hosted-reopen-edit",
+                        fixture.captureId,
+                        capture.revision,
+                        "Plans changed after lunch.",
+                    ),
+                )
+                assertTrue("the note edit was refused: $revised", revised is WorkflowCommandOutcome.Applied)
+
+                val reopened = database.pendingBankDraftDao().findById(draftId)!!
+                assertNull("the hosted category survived the note edit", reopened.reviewCategoryId)
+                assertFalse(reopened.reviewCategoryResolved)
+                assertEquals(ReviewCategoryOrigin.NONE, reopened.reviewCategoryOrigin)
+                assertEquals(draft.reviewRevision + 2, reopened.reviewRevision)
+                assertEquals(
+                    ReviewQueueGroup.NEEDS_CATEGORY,
+                    queries.reviewQueueEntry(draftId)!!.group,
+                )
+
+                // The hosted write observed the old context: it is a conflict, not readiness.
+                val stale = commands.selectDraftCategory(
+                    scope,
+                    SelectDraftCategoryRequest(
+                        "hosted-reopen-stale",
+                        draftId,
+                        draft.reviewRevision,
+                        categoryId,
+                        context,
+                        catalog,
+                    ),
+                )
+                assertTrue("the old context write was accepted: $stale", stale is WorkflowCommandOutcome.Conflict)
+                assertNull(database.pendingBankDraftDao().findById(draftId)!!.reviewCategoryId)
+                assertTrue(database.transactionDao().findAll().isEmpty())
+            } finally {
+                database.close()
+            }
+        }
+
+    @Test
+    fun `deleting a note clears a hosted category and keeps the user's own choice`() = runTest {
+        val database = open()
+        try {
+            val commands = commands(database)
+            val queries = WorkflowQueryService(database)
+            val fuel = database.categoryDao().insert(
+                CategoryEntity(
+                    name = "Fuel",
+                    createdAtEpochMillis = CAPTURE_TIME,
+                    updatedAtEpochMillis = CAPTURE_TIME,
+                ),
+            )
+
+            // A user's own choice survives the source change.
+            val userFixture = linkedCaptureFixture(
+                commands,
+                database,
+                "user-keep",
+                draftAmountDelta = 1_000L,
+            )
+            val userDraftId = database.contextLinkDao()
+                .findForEvent(userFixture.acceptedEventId).single().draftId
+            val userDraft = database.pendingBankDraftDao().findById(userDraftId)!!
+            val userSaved = commands.saveDraftReview(
+                WorkflowCallerScope.User,
+                SaveDraftReviewRequest(
+                    "user-keep-review",
+                    userDraftId,
+                    userDraft.reviewRevision,
+                    reviewEdits(fuel),
+                ),
+            )
+            assertTrue("the user review was refused: $userSaved", userSaved is WorkflowCommandOutcome.Applied)
+            val userCapture = database.captureMessageDao().findById(userFixture.captureId)!!
+            val userDeleted = commands.deleteCapture(
+                WorkflowCallerScope.User,
+                DeleteCaptureRequest("user-keep-delete", userFixture.captureId, userCapture.revision),
+            )
+            assertTrue("the note delete was refused: $userDeleted", userDeleted is WorkflowCommandOutcome.Applied)
+            val kept = database.pendingBankDraftDao().findById(userDraftId)!!
+            assertEquals(fuel, kept.reviewCategoryId)
+            assertTrue(kept.reviewCategoryResolved)
+            assertEquals(ReviewCategoryOrigin.USER, kept.reviewCategoryOrigin)
+            assertEquals(ReviewQueueGroup.READY, queries.reviewQueueEntry(userDraftId)!!.group)
+            assertTrue(database.contextLinkDao().findForEvent(userFixture.acceptedEventId).isEmpty())
+
+            // A hosted choice was made from the deleted context, so it is reopened.
+            val hostedFixture = linkedCaptureFixture(
+                commands,
+                database,
+                "hosted-clear",
+                draftAmountDelta = 1_000L,
+            )
+            val hostedDraftId = database.contextLinkDao()
+                .findForEvent(hostedFixture.acceptedEventId).single().draftId
+            val hostedDraft = database.pendingBankDraftDao().findById(hostedDraftId)!!
+            val context = queries.draftContextSnapshot(hostedDraftId).second
+            val catalog = categoryCatalogRevision(queries.categoryCatalog())
+            val hosted = commands.selectDraftCategory(
+                WorkflowCallerScope.AgentSession(
+                    "hosted-clear",
+                    setOf(hostedFixture.captureId),
+                    setOf(hostedDraftId),
+                ),
+                SelectDraftCategoryRequest(
+                    "hosted-clear-pick",
+                    hostedDraftId,
+                    hostedDraft.reviewRevision,
+                    fuel,
+                    context,
+                    catalog,
+                ),
+            )
+            assertTrue("the hosted category was refused: $hosted", hosted is WorkflowCommandOutcome.Applied)
+            val hostedCapture = database.captureMessageDao().findById(hostedFixture.captureId)!!
+            val hostedDeleted = commands.deleteCapture(
+                WorkflowCallerScope.User,
+                DeleteCaptureRequest(
+                    "hosted-clear-delete",
+                    hostedFixture.captureId,
+                    hostedCapture.revision,
+                ),
+            )
+            assertTrue("the note delete was refused: $hostedDeleted", hostedDeleted is WorkflowCommandOutcome.Applied)
+            val cleared = database.pendingBankDraftDao().findById(hostedDraftId)!!
+            assertNull(cleared.reviewCategoryId)
+            assertFalse(cleared.reviewCategoryResolved)
+            assertEquals(ReviewCategoryOrigin.NONE, cleared.reviewCategoryOrigin)
+            // The reopened hosted choice can never leave the draft in the ready group; the
+            // fixture's equal-evidence twin legitimately keeps it in the conflict group.
+            assertTrue(
+                "the reopened draft was still presented as ready",
+                queries.reviewQueueEntry(hostedDraftId)!!.group != ReviewQueueGroup.READY,
+            )
+            assertTrue(database.transactionDao().findAll().isEmpty())
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun `a confirmed record keeps its note reference and ledger row when the note is deleted`() =
+        runTest {
+            val database = open()
+            try {
+                val commands = commands(database)
+                val queries = WorkflowQueryService(database)
+                val fixture = linkedCaptureFixture(
+                    commands,
+                    database,
+                    "confirmed-retain",
+                    draftAmountDelta = 1_000L,
+                )
+                val draftId = database.contextLinkDao()
+                    .findForEvent(fixture.acceptedEventId).single().draftId
+                val fuel = database.categoryDao().insert(
+                    CategoryEntity(
+                        name = "Fuel",
+                        createdAtEpochMillis = CAPTURE_TIME,
+                        updatedAtEpochMillis = CAPTURE_TIME,
+                    ),
+                )
+                val transactionId = confirmDraft(commands, draftId, reviewEdits(fuel))
+                val ledgerBefore = database.transactionDao().findAll().single()
+                assertEquals(transactionId, ledgerBefore.id)
+                val linkBefore = database.contextLinkDao()
+                    .findForEvent(fixture.acceptedEventId).single()
+
+                val capture = database.captureMessageDao().findById(fixture.captureId)!!
+                val deleted = commands.deleteCapture(
+                    WorkflowCallerScope.User,
+                    DeleteCaptureRequest("confirmed-retain-delete", fixture.captureId, capture.revision),
+                )
+                assertTrue("the note delete was refused: $deleted", deleted is WorkflowCommandOutcome.Applied)
+
+                // The finalized record and its description are untouched.
+                assertEquals(ledgerBefore, database.transactionDao().findAll().single())
+                val draftAfter = database.pendingBankDraftDao().findById(draftId)!!
+                assertEquals(IntakeReviewStatus.CONFIRMED, draftAfter.reviewStatus)
+                assertEquals(transactionId, draftAfter.confirmedTransactionId)
+                assertEquals(fuel, draftAfter.reviewCategoryId)
+
+                // The note reference survives as provenance; its text is gone.
+                val linkAfter = database.contextLinkDao()
+                    .findForEvent(fixture.acceptedEventId).single()
+                assertEquals(ContextLinkState.ACCEPTED, linkAfter.state)
+                assertEquals(draftId, linkAfter.draftId)
+                assertEquals(linkBefore.revision, linkAfter.revision)
+                assertEquals(linkBefore.evidence, linkAfter.evidence)
+                val event = database.noteEventDao().findById(fixture.acceptedEventId)!!
+                assertNull(event.normalizedText)
+                assertEquals("SOURCE_DELETED", event.unresolvedReason)
+                val retained = queries.draftContextLinks(
+                    draftId,
+                    QueryPageRequest(limit = 10, offset = 0),
+                ).items.single()
+                assertEquals(ContextLinkState.ACCEPTED, retained.state)
+                assertFalse(retained.sourceCurrent)
+                assertNull(retained.excerpt)
+
+                val tombstone = database.captureMessageDao().findById(fixture.captureId)!!
+                assertTrue(tombstone.tombstone)
+                assertNull(tombstone.bodyText)
+                assertEquals(capture.sourceIdentity, tombstone.sourceIdentity)
+            } finally {
+                database.close()
+            }
+        }
+
+    @Test
+    fun `link decisions on a confirmed record are refused and change nothing`() = runTest {
+        val database = open()
+        try {
+            val commands = commands(database)
+            val fixture = linkedCaptureFixture(
+                commands,
+                database,
+                "confirmed-links",
+                draftAmountDelta = 1_000L,
+            )
+            val draftId = database.contextLinkDao()
+                .findForEvent(fixture.acceptedEventId).single().draftId
+            confirmDraft(commands, draftId, reviewEdits(categoryId = null))
+            val link = database.contextLinkDao().findForEvent(fixture.acceptedEventId).single()
+
+            val unlink = commands.unlinkLink(
+                WorkflowCallerScope.User,
+                UnlinkLinkRequest("confirmed-unlink", fixture.acceptedEventId, draftId, link.revision),
+            )
+            assertEquals(
+                WorkflowCommandOutcome.Denied(WorkflowDenialReason.CONFIRMED_RECORD),
+                unlink,
+            )
+            val reject = commands.rejectLink(
+                WorkflowCallerScope.User,
+                RejectLinkRequest("confirmed-reject", fixture.acceptedEventId, draftId, link.revision),
+            )
+            assertEquals(
+                WorkflowCommandOutcome.Denied(WorkflowDenialReason.CONFIRMED_RECORD),
+                reject,
+            )
+            val propose = commands.proposeLink(
+                WorkflowCallerScope.User,
+                ProposeLinkRequest("confirmed-propose", fixture.rejectedEventId, draftId),
+            )
+            assertEquals(
+                WorkflowCommandOutcome.Denied(WorkflowDenialReason.CONFIRMED_RECORD),
+                propose,
+            )
+
+            val unchanged = database.contextLinkDao().findForEvent(fixture.acceptedEventId).single()
+            assertEquals(ContextLinkState.ACCEPTED, unchanged.state)
+            assertEquals(link.revision, unchanged.revision)
+            assertEquals(link.evidence, unchanged.evidence)
+            assertEquals(1, database.transactionDao().findAll().size)
+            assertTrue(database.contextLinkDao().findForEvent(fixture.rejectedEventId).single().state ==
+                ContextLinkState.REJECTED)
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun `undo reports a conflict and never overwrites a newer user category`() = runTest {
+        val database = open()
+        try {
+            val commands = commands(database)
+            val queries = WorkflowQueryService(database)
+            val fixture = linkedCaptureFixture(
+                commands,
+                database,
+                "undo-conflict",
+                draftAmountDelta = 1_000L,
+            )
+            val draftId = database.contextLinkDao()
+                .findForEvent(fixture.acceptedEventId).single().draftId
+            val link = database.contextLinkDao().findForEvent(fixture.acceptedEventId).single()
+            val fuel = database.categoryDao().insert(
+                CategoryEntity(
+                    name = "Fuel",
+                    createdAtEpochMillis = CAPTURE_TIME,
+                    updatedAtEpochMillis = CAPTURE_TIME,
+                ),
+            )
+            val draft = database.pendingBankDraftDao().findById(draftId)!!
+            val userSaved = commands.saveDraftReview(
+                WorkflowCallerScope.User,
+                SaveDraftReviewRequest("undo-conflict-review", draftId, draft.reviewRevision, reviewEdits(fuel)),
+            )
+            assertTrue("the user review was refused: $userSaved", userSaved is WorkflowCommandOutcome.Applied)
+            val contextAfterUser = queries.draftContextSnapshot(draftId).second
+            val catalog = categoryCatalogRevision(queries.categoryCatalog())
+            val currentRevision = database.pendingBankDraftDao().findById(draftId)!!.reviewRevision
+
+            val staleUndo = commands.unlinkLink(
+                WorkflowCallerScope.User,
+                UnlinkLinkRequest("undo-conflict-stale", fixture.acceptedEventId, draftId, link.revision - 1),
+            )
+            assertTrue("the stale undo was accepted: $staleUndo", staleUndo is WorkflowCommandOutcome.Conflict)
+            assertEquals(
+                ContextLinkState.ACCEPTED,
+                database.contextLinkDao().findForEvent(fixture.acceptedEventId).single().state,
+            )
+            assertEquals(fuel, database.pendingBankDraftDao().findById(draftId)!!.reviewCategoryId)
+
+            val undo = commands.unlinkLink(
+                WorkflowCallerScope.User,
+                UnlinkLinkRequest("undo-conflict-current", fixture.acceptedEventId, draftId, link.revision),
+            )
+            assertTrue("the current undo was refused: $undo", undo is WorkflowCommandOutcome.Applied)
+            val afterUndo = database.pendingBankDraftDao().findById(draftId)!!
+            assertEquals(fuel, afterUndo.reviewCategoryId)
+            assertTrue(afterUndo.reviewCategoryResolved)
+            assertEquals(ReviewCategoryOrigin.USER, afterUndo.reviewCategoryOrigin)
+            assertEquals(ReviewQueueGroup.READY, queries.reviewQueueEntry(draftId)!!.group)
+
+            // A hosted write that observed the pre-undo context cannot mark the draft ready
+            // and cannot overwrite the user's newer category.
+            val stale = commands.selectDraftCategory(
+                WorkflowCallerScope.AgentSession(
+                    "undo-conflict-hosted",
+                    setOf(fixture.captureId),
+                    setOf(draftId),
+                ),
+                SelectDraftCategoryRequest(
+                    "undo-conflict-hosted-write",
+                    draftId,
+                    currentRevision,
+                    fuel,
+                    contextAfterUser,
+                    catalog,
+                ),
+            )
+            assertTrue("the pre-undo hosted write was accepted: $stale", stale is WorkflowCommandOutcome.Conflict)
+            assertEquals(fuel, database.pendingBankDraftDao().findById(draftId)!!.reviewCategoryId)
+            assertTrue(database.transactionDao().findAll().isEmpty())
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun `revising a proposed event reopens the hosted category`() = runTest {
+        val database = open()
+        try {
+            val commands = commands(database)
+            val queries = WorkflowQueryService(database)
+            val captureId = saveCapture(commands, "event-reopen-save", NOTE_TEXT)
+            val eventId = storeEvent(commands, captureId, "event-reopen-event")
+            val draftId = storeDraft(database, "event-reopen-draft", 57_000L)
+            val proposed = commands.proposeLink(
+                WorkflowCallerScope.User,
+                ProposeLinkRequest("event-reopen-proposal", eventId, draftId),
+            )
+            assertTrue("the proposal was refused: $proposed", proposed is WorkflowCommandOutcome.Applied)
+            val fuel = database.categoryDao().insert(
+                CategoryEntity(
+                    name = "Fuel",
+                    createdAtEpochMillis = CAPTURE_TIME,
+                    updatedAtEpochMillis = CAPTURE_TIME,
+                ),
+            )
+            val draft = database.pendingBankDraftDao().findById(draftId)!!
+            val context = queries.draftContextSnapshot(draftId).second
+            val catalog = categoryCatalogRevision(queries.categoryCatalog())
+            val hosted = commands.selectDraftCategory(
+                WorkflowCallerScope.AgentSession("event-reopen", setOf(captureId), setOf(draftId)),
+                SelectDraftCategoryRequest(
+                    "event-reopen-pick",
+                    draftId,
+                    draft.reviewRevision,
+                    fuel,
+                    context,
+                    catalog,
+                ),
+            )
+            assertTrue("the hosted category was refused: $hosted", hosted is WorkflowCommandOutcome.Applied)
+
+            val event = database.noteEventDao().findById(eventId)!!
+            val revised = commands.updateEventInterpretation(
+                WorkflowCallerScope.User,
+                UpdateEventRequest(
+                    idempotencyKey = "event-reopen-revise",
+                    captureId = captureId,
+                    expectedCaptureRevision = 0,
+                    expectedEventRevision = event.revision,
+                    interpretation = reading(
+                        span = "Fuel 50,000 at 15:00",
+                        normalizedText = "Fuel 55,000 at 15:05",
+                        amountVnd = 55_000L,
+                    ),
+                    extractionVersion = EXTRACTION_VERSION,
+                ),
+            )
+            assertTrue("the reading was not revised: $revised", revised is WorkflowCommandOutcome.Applied)
+            val after = database.pendingBankDraftDao().findById(draftId)!!
+            assertNull("the hosted category survived the reading change", after.reviewCategoryId)
+            assertFalse(after.reviewCategoryResolved)
+            assertEquals(ReviewCategoryOrigin.NONE, after.reviewCategoryOrigin)
+            assertTrue(
+                "the draft was still reported ready",
+                queries.reviewQueueEntry(draftId)!!.group != ReviewQueueGroup.READY,
+            )
+        } finally {
+            database.close()
+        }
+    }
+
+    private fun reviewEdits(
+        categoryId: Long?,
+        categoryResolved: Boolean = true,
+    ) = BankDraftReviewEdits(
+        amountText = "50000",
+        dateText = DRAFT_DATE,
+        timeText = "07:38",
+        memoText = "Fuel station",
+        type = TransactionType.EXPENSE,
+        categoryId = categoryId,
+        categoryResolved = categoryResolved,
+    )
+
+    private suspend fun confirmDraft(
+        commands: WorkflowCommandService,
+        draftId: Long,
+        edits: BankDraftReviewEdits,
+    ): Long {
+        val preview = commands.previewDraftConfirmation(
+            WorkflowCallerScope.User,
+            PreviewDraftConfirmationRequest(draftId = draftId, edits = edits),
+        )
+        val ready = preview as? DraftConfirmationPreview.Ready
+            ?: error("the preview was refused: $preview")
+        val confirmed = commands.confirmDraft(
+            WorkflowCallerScope.User,
+            ConfirmDraftRequest(
+                idempotencyKey = "confirm-$draftId",
+                draftId = draftId,
+                expectedRevision = ready.expectedRevision,
+                expectedBinding = ready.binding,
+                edits = edits,
+            ),
+        )
+        val applied = confirmed as? WorkflowCommandOutcome.Applied
+            ?: error("the confirmation was refused: $confirmed")
+        return (applied.change as WorkflowChange.DraftConfirmed).transactionId
     }
 
     private companion object {

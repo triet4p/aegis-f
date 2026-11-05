@@ -107,6 +107,16 @@ enum class WorkflowDenialReason {
      * so the link is refused and the event stays recorded.
      */
     EVENT_ALREADY_RECORDED,
+
+    /**
+     * The draft is already a confirmed ledger record.
+     *
+     * Its note link is stored provenance of finalized money: no new association may be
+     * prepared against it, and the existing link may not be rejected or unlinked. Changing
+     * what a confirmed record rests on is a separate explicit financial correction, so a
+     * preparation command refuses instead of silently erasing the reference.
+     */
+    CONFIRMED_RECORD,
 }
 
 /**
@@ -515,6 +525,8 @@ internal fun WorkflowCommandOutcome.refusalMessage(): String? = when (this) {
             "That note was already recorded as a ledger record."
         WorkflowDenialReason.EVENT_UNAVAILABLE ->
             "That note no longer holds the occurrence it described."
+        WorkflowDenialReason.CONFIRMED_RECORD ->
+            "That draft is already a confirmed ledger record; its note reference is kept."
         WorkflowDenialReason.CALLER_SCOPE ->
             "That item is outside what this caller may change."
         else -> "This change was refused."

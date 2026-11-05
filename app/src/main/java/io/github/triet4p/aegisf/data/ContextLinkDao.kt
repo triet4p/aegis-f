@@ -85,6 +85,14 @@ abstract class ContextLinkDao {
     )
     abstract suspend fun findRejectedForCapture(captureId: Long): List<ContextLinkEntity>
 
+    /** The drafts any link of this capture names, in the order the links were decided. */
+    @Query(
+        "SELECT DISTINCT context_links.draftId FROM context_links " +
+            "INNER JOIN note_events ON note_events.id = context_links.eventId " +
+            "WHERE note_events.captureId = :captureId ORDER BY context_links.draftId",
+    )
+    abstract suspend fun findDraftIdsForCapture(captureId: Long): List<Long>
+
     /** Accepts a proposed link while its revision still matches. */
     @Query(
         "UPDATE context_links SET " +
@@ -115,15 +123,20 @@ abstract class ContextLinkDao {
     abstract suspend fun deleteActive(id: Long, expectedRevision: Int): Int
 
     /**
-     * Removes the active links of every event of one capture.
+     * Removes the active links of every event of one capture that still describe work in
+     * progress.
      *
      * A source edit or delete makes those links describe a reading that no longer exists, so
      * they go with it. Refused links stay: a refusal is the user's decision about that draft
-     * and outlives the reading it was made against.
+     * and outlives the reading it was made against. A link to a confirmed draft also stays:
+     * that draft is a finalized financial record, and the link is its stored note provenance,
+     * not unconfirmed derived context. The reading itself is still cleared, so the retained
+     * link reports that its source is no longer current rather than presenting old text.
      */
     @Query(
         "DELETE FROM context_links WHERE state != 'REJECTED' AND eventId IN " +
-            "(SELECT id FROM note_events WHERE captureId = :captureId)",
+            "(SELECT id FROM note_events WHERE captureId = :captureId) AND draftId NOT IN " +
+            "(SELECT id FROM pending_bank_drafts WHERE reviewStatus = 'CONFIRMED')",
     )
     abstract suspend fun deleteActiveForCapture(captureId: Long): Int
 }

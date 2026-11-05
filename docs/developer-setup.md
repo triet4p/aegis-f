@@ -746,6 +746,36 @@ raw device samples, and per-case outputs remain preserved locally under
 or home-path details are likewise retained locally. These artifacts do not change the
 benchmark's partial, paused, unapproved status or authorize model adoption or further runs.
 
+## 7. Note correction, undo and confirmed-record boundaries (S9.7)
+
+A saved note stays editable and deletable source text. Editing or deleting it clears the derived
+readings of its events and removes active links to drafts **still waiting for review**; a refused
+link and a link to a **confirmed** draft stay as provenance. The confirmed ledger row itself is
+never rewritten by a note change; record corrections remain the explicit transaction editor path.
+
+`pending_bank_drafts.reviewCategoryOrigin` records who chose the draft's review category
+(`NONE`, `USER`, `HOSTED`). When the note, its event reading, or a link changes, a `HOSTED`
+category is reopened and the review revision advances, so a draft cannot stay ready from a
+context that no longer exists and an older form or hosted write reports a conflict. A category
+the user chose is kept. Propose, attach, reject, and unlink against a confirmed draft are refused
+with `CONFIRMED_RECORD`; the capture dialog and link cards state that the note reference is kept.
+
+Verification:
+
+- Schema v18 adds `reviewCategoryOrigin` (`NOT NULL DEFAULT 'NONE'`). Existing databases upgrade
+  in place; a legacy category is treated as `NONE` because the old schema did not record the
+  chooser.
+- Host suites: `TEMP=F:/s95tmp TMP=F:/s95tmp ./gradlew.bat :app:testDebugUnitTest :app:lintDebug --no-daemon`.
+- Isolated device: build with
+  `-PS812_ANDROID_TARGET_PACKAGE=io.github.triet4p.aegisf.s812evidence :app:assembleDebug :app:assembleDebugAndroidTest`
+  and `adb install -r` both APKs (never uninstall or clear app data). Then run
+  `io.github.triet4p.aegisf.data.S97CorrectionBoundaryPhoneInstrumentedTest` and
+  `io.github.triet4p.aegisf.ui.S97ReviewRevalidationPhoneInstrumentedTest`.
+- Staged save/edit UI proof: run `S97DeviceSurfaceInstrumentedTest -e s97_stage seed`, edit the
+  seeded notes through the real Quick Capture dialog, then run the same class with no stage
+  argument to verify only the ids it seeded. The fixture creates unique run-scoped rows and never
+  clears a database.
+
 ## 8. Update path and troubleshooting
 
 **Updating in place.** Install an updated APK over the existing one with `adb -d install -r <apk>`. For the update to be accepted and to keep existing app data:

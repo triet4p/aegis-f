@@ -408,3 +408,23 @@ and allow only the exact validated external report rather than opening a blanket
 **Fix / workaround:** Run Gradle with `--no-daemon` and `TEMP`/`TMP` set to the short `F:\s95tmp` directory. Under those conditions the targeted class and the full 556-test suite passed (three assumed live tests skipped).
 
 **Watch out for:** Robolectric embeds long test names in temporary directory paths. Do not change production startup or globally suppress tests merely to hide this host-specific failure.
+
+## [2026-11-05] Robolectric tests race the application's startup arrival reconciliation
+
+**Symptom:** A new `WorkflowCommandServiceTest` that built two note/draft fixtures failed at the fixture's `proposeLink` with `Denied(MULTIPLE_ACTIVE_DRAFTS)`; the diagnostic showed the second fixture's event already `ACCEPTED` to the first fixture's draft.
+
+**Root cause:** `AegisApplication.onCreate` launches `resumePendingArrivalReconciliation()` on `Dispatchers.IO`. Under Robolectric the application is created for the test, so queued arrival operations from earlier fixture writes can be processed between fixture steps. A fixture whose note amount/date uniquely matches its draft is eligible for automatic attachment, so the background pass can attach it before the test's own proposal.
+
+**Fix / workaround:** Make command-boundary fixtures ineligible for automatic attachment by storing drafts with an amount that differs from the event (for example `draftAmountDelta = 1_000L`), while still proposing/attaching manually as the test intends. Keep at least one single-fixture test for the ordinary path.
+
+**Watch out for:** Do not "fix" this by deleting the application database or by weakening `MULTIPLE_ACTIVE_DRAFTS`; the race is a test-fixture property. Any test asserting the exact set of links must keep its fixture evidence non-unique.
+
+## [2026-11-05] Do not clear a persistent isolated app database to seed a UI proof
+
+**Symptom:** A staged device-surface fixture called `clearAllTables()` on the isolated test app's own `aegis-ledger.db` before seeding UI screenshots. That removed prior rows that were not owned by the new fixture, including rows created by earlier evidence runs.
+
+**Root cause:** The staged harness reused the app's persistent database and treated "seed a clean UI" as sufficient justification for a broad reset, instead of scoping the fixture to rows it owns.
+
+**Fix / workaround:** Removed the clear. The corrected fixture seeds a unique run id, unique capture bodies/memo evidence, and records only the ids it created in its own preferences; verification reads only those ids. The owner's main app was never touched, and no rows were reconstructed or claimed as restored.
+
+**Watch out for:** Browser/Owner test boundaries permit per-test synthetic databases and seeded-ID-scoped operations only. Never clear, uninstall, overwrite, or export a persistent app database (even the isolated test package) to make a fixture convenient; create unique owned rows or use a dedicated disposable database instead.

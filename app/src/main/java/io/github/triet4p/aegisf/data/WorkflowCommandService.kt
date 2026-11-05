@@ -399,6 +399,9 @@ class WorkflowCommandService(
             ContextLinkResult.EventAlreadyRecorded -> WorkflowCommandOutcome.Denied(
                 WorkflowDenialReason.EVENT_ALREADY_RECORDED,
             )
+            ContextLinkResult.DraftAlreadyReviewed -> WorkflowCommandOutcome.Denied(
+                WorkflowDenialReason.CONFIRMED_RECORD,
+            )
         }
     }
 
@@ -477,6 +480,9 @@ class WorkflowCommandService(
             )
             ContextLinkResult.EventAlreadyRecorded -> WorkflowCommandOutcome.Denied(
                 WorkflowDenialReason.EVENT_ALREADY_RECORDED,
+            )
+            ContextLinkResult.DraftAlreadyReviewed -> WorkflowCommandOutcome.Denied(
+                WorkflowDenialReason.CONFIRMED_RECORD,
             )
             is ContextLinkResult.Unlinked -> WorkflowCommandOutcome.Conflict(
                 "The link was removed under the caller.",
@@ -626,6 +632,9 @@ class WorkflowCommandService(
             ContextLinkResult.EventAlreadyRecorded -> WorkflowCommandOutcome.Denied(
                 WorkflowDenialReason.EVENT_ALREADY_RECORDED,
             )
+            ContextLinkResult.DraftAlreadyReviewed -> WorkflowCommandOutcome.Denied(
+                WorkflowDenialReason.CONFIRMED_RECORD,
+            )
             is ContextLinkResult.Unlinked -> WorkflowCommandOutcome.Conflict(
                 "The link was removed under the caller.",
             )
@@ -693,6 +702,9 @@ class WorkflowCommandService(
             )
             ContextLinkResult.EventAlreadyRecorded -> WorkflowCommandOutcome.Denied(
                 WorkflowDenialReason.EVENT_ALREADY_RECORDED,
+            )
+            ContextLinkResult.DraftAlreadyReviewed -> WorkflowCommandOutcome.Denied(
+                WorkflowDenialReason.CONFIRMED_RECORD,
             )
             is ContextLinkResult.Linked -> WorkflowCommandOutcome.Conflict(
                 "The link changed under the caller.",
@@ -777,6 +789,11 @@ class WorkflowCommandService(
                 id = request.draftId,
                 expectedRevision = request.expectedReviewRevision,
                 categoryId = request.categoryId,
+                categoryOrigin = if (scope is WorkflowCallerScope.AgentSession) {
+                    ReviewCategoryOrigin.HOSTED
+                } else {
+                    ReviewCategoryOrigin.USER
+                },
             )
         ) {
             is BankDraftReviewResult.Saved -> WorkflowCommandOutcome.Applied(
@@ -1182,7 +1199,18 @@ class WorkflowCommandService(
                 WorkflowDenialReason.CATEGORY_UNAVAILABLE,
             )
         }
-        when (val result = reviewDao.saveReview(request.draftId, request.expectedRevision, request.edits)) {
+        when (
+            val result = reviewDao.saveReview(
+                request.draftId,
+                request.expectedRevision,
+                request.edits,
+                categoryOrigin = if (request.edits.categoryResolved) {
+                    ReviewCategoryOrigin.USER
+                } else {
+                    ReviewCategoryOrigin.NONE
+                },
+            )
+        ) {
             is BankDraftReviewResult.Saved -> {
                 WorkflowCommandOutcome.Applied(
                     WorkflowChange.DraftReviewSaved(request.draftId, result.revision),
@@ -1341,6 +1369,11 @@ class WorkflowCommandService(
                 expectedRevision = request.expectedRevision,
                 edits = request.edits,
                 transaction = transaction,
+                categoryOrigin = if (request.edits.categoryResolved) {
+                    ReviewCategoryOrigin.USER
+                } else {
+                    ReviewCategoryOrigin.NONE
+                },
             )
         ) {
             is BankDraftReviewResult.Confirmed -> WorkflowCommandOutcome.Applied(
