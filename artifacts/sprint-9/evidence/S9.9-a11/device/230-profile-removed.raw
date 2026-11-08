@@ -1,9 +1,0 @@
-S99I RUN class=io.github.triet4p.aegisf.data.S98DeviceFixtureInstrumentedTest#stage runner=io.github.triet4p.aegisf.s812evidence.test/androidx.test.runner.AndroidJUnitRunner
-
-io.github.triet4p.aegisf.data.S98DeviceFixtureInstrumentedTest:.
-
-Time: 0,086
-
-OK (1 test)
-
-

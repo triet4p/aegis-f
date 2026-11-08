@@ -311,3 +311,12 @@ a7a828b4c9d90f00e6ce473de7d5af1430a5173ea95c329a3ab1e680944a23b4  artifacts/spri
 ## Post-commit verification
 
 Final commit hash and `git status --porcelain` are reported in the executor's final result. No tracked file is edited after commit.
+
+## Post-commit privacy audit addendum (Sprint 9 hygiene correction)
+
+- Correction to prior checkpoint privacy claim: the earlier statement "no raw device identifiers found" was inaccurate for 47 tracked Sprint 9 artifacts. Those 47 paths contained raw device output or literal device identifiers and were incorrectly included in the eligible tracked set above.
+- Correction applied by sequence after the original closure commit: narrow `.gitignore` exact-path entries plus `git rm --cached` for exactly those 47 paths. Local files remain byte-identical; no deletion, move, redaction, or sanitization was performed.
+- The 47 paths are now local-only under HYGIENE2 raw/device-identifier policy. Six additional files retain only contextual `C:/Users/.../.agents/rules` path references and remain tracked under the prior accepted classification.
+- Core acceptance decision for Sprint 9 closure remains valid; local-only evidence links are intentional per policy and are not missing evidence.
+- `MANIFEST.sha256` remains untracked pending owner/Main disposition; no force-add or commit of it occurred.
+- No further tracked mutations after this correction commit.

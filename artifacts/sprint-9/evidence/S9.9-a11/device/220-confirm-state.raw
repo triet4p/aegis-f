@@ -1,9 +1,0 @@
-S99I RUN class=io.github.triet4p.aegisf.data.S99WorkflowPhoneInstrumentedTest#workflowEvidence runner=io.github.triet4p.aegisf.s812evidence.test/androidx.test.runner.AndroidJUnitRunner
-
-io.github.triet4p.aegisf.data.S99WorkflowPhoneInstrumentedTest:.
-
-Time: 0,175
-
-OK (1 test)
-
-
