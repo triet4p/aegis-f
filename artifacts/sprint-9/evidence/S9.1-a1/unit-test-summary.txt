@@ -1,0 +1,8 @@
+Gradle :app:testDebugUnitTest (final candidate run)
+classes=59 tests=543 skipped=3 failures=0 errors=0
+
+io.github.triet4p.aegisf.agent.AgentToolRuntimeTest                    tests=28 skipped=0 failures=0 errors=0
+io.github.triet4p.aegisf.agent.BoundedWorkflowExecutorTest             tests=34 skipped=0 failures=0 errors=0
+io.github.triet4p.aegisf.agent.RelativeDayAnchoringTest                tests=9 skipped=0 failures=0 errors=0
+io.github.triet4p.aegisf.agent.S811ContextCacheTest                    tests=17 skipped=0 failures=0 errors=0
+io.github.triet4p.aegisf.agent.WorkflowSkillCatalogTest                tests=4 skipped=0 failures=0 errors=0

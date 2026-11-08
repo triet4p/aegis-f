@@ -1,0 +1,43 @@
+S9.2-a1 PAUSE SNAPSHOT — implementation unverified; not ready_for_review
+Base HEAD: 9d446323820bcb6bbd0dcc1aa1d4d2d55deabd93
+Scope: 19 known S9.2-owned candidate/evidence paths; SHA-256 per file at pause snapshot.
+The loop-pause handoff, this manifest, the worker record, and handoff supplement are records, not part of this 19-path candidate payload.
+
+SHA256  app/build.gradle.kts
+d3e797cdecb05fd6d74835985cd467f6292c5aa1ce56fd6dfa53976130e18e8d
+SHA256  app/src/main/java/io/github/triet4p/aegisf/agent/AgentInterfaceContract.kt
+efc01d25a15cd2fb91d2003aed37b05993bc9dd914cb9a66e46b30267f679ecf
+SHA256  app/src/main/java/io/github/triet4p/aegisf/agent/AgentToolRuntime.kt
+e86d6fef5139ce6a27a971d50fd593627c58b44648b2546057ffb7f07ad95228
+SHA256  app/src/main/java/io/github/triet4p/aegisf/agent/BoundedWorkflowExecutor.kt
+5701e68b6839cd33d09c307738ba8d564bb6730d0437d2c77dc6ba6965bb0618
+SHA256  app/src/main/java/io/github/triet4p/aegisf/agent/WorkflowSkillCatalog.kt
+e13b574f2b4184e430a4a2f09df2460e7555aacea110c2aa13aa4c868e773ba6
+SHA256  app/src/main/java/io/github/triet4p/aegisf/data/LinkEvidencePolicy.kt
+b21e48a9c36d4f33efa9bf526ce2194f1daf3ac0b995907576d7dcee73f07102
+SHA256  app/src/main/java/io/github/triet4p/aegisf/data/PendingBankDraftDao.kt
+e5be8cb1c88bc6d34a759b21654fe651d2c1112dc9a026cfb988eadda5d6ac30
+SHA256  app/src/main/java/io/github/triet4p/aegisf/data/WorkflowCommandTypes.kt
+be0a6e2f75b9cec30e276f731bcd7e4f48db58af787e0e561a595195415a643c
+SHA256  app/src/main/java/io/github/triet4p/aegisf/data/WorkflowQueryService.kt
+49bd5d826954a8d9fc99e53ca4ce2a3f430d039fd2acb2da237b917c631f2782
+SHA256  app/src/main/java/io/github/triet4p/aegisf/data/WorkflowQueryTypes.kt
+56da1356eea9f69b0b6dcc28d99a1c2df0071d15bac1522fb2037aa429cc646c
+SHA256  app/src/main/java/io/github/triet4p/aegisf/ui/QuickCaptureScreen.kt
+59eeb160e651a5658174accbbbe047b1ae1db8e87f521c91a65044fcbca3233a
+SHA256  app/src/test/java/io/github/triet4p/aegisf/agent/AgentToolRuntimeTest.kt
+ace3a7dff76d5a07cd4ac7f21b2265e3b2905f23c2dc5b522b789a7c9dc75a49
+SHA256  app/src/androidTest/java/io/github/triet4p/aegisf/data/S92CandidateRetrievalPhoneInstrumentedTest.kt
+f0aefa649ac5794947774fecafcd329796d5147b3d2e1bb4b9edc7f4a0384b4c
+SHA256  tools/slm/s8_agent_runtime_skills_v8.json
+98fd229861bc8cd6ce49ce1f0962e12a7241d1e1810f683b4caaaf5a5f25acdb
+SHA256  tools/slm/s8_agent_tools_v8.json
+3971b11d9bf7946fc053b144e73377960f77a47dd584046924454b05a7090189
+SHA256  docs/sprint-8-agent-contract.md
+b1cdf2eab11698a2145c88bc2f5edf62ce93a981196b678309430eeec58e745c
+SHA256  docs/sprint-8-application-tools.md
+fdacc33bcb64f091a2803d8f2221258c8d559684b232f56965f0c8c27dd1960d
+SHA256  CHANGELOG.md
+9afdc49cd3ea383571e068f52e475a61d44543bd8f059f4bd5f27cd5482611c9
+SHA256  artifacts/sprint-9/evidence/S9.2-a1/provider-form-single-check.md
+b82903116a95633fc1a328ac00affc94e069545e2c6ef86c5bb05f565927743b

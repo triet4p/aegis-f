@@ -1,0 +1,4 @@
+S9.5-a1 baseline, before production edits:
+Command: ./gradlew.bat :app:testDebugUnitTest --tests "*AgentToolRuntimeTest.category choice from another draft observation is refused"
+Result: BUILD FAILED; 1 test completed, 1 failed with ComparisonFailure at AgentToolRuntimeTest.kt:2026. The regression asserts a category alias from a second draft observation is refused; the baseline accepted it instead. No phone database or credentials were read.
+Device availability: adb devices listed one connected device. No app was uninstalled or cleared.

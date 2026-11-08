@@ -1,0 +1,4 @@
+    codePath=/data/app/~~S2uPWiTlroNwjy-2nKuvXQ==/io.github.triet4p.aegisf.s812evidence-iA4GtOnEMylWGT2RzGfAPA==
+    versionName=1.0
+    lastUpdateTime=2026-11-08 21:55:35
+      firstInstallTime=2026-11-04 10:53:43

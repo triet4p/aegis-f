@@ -1,0 +1,17 @@
+# S9.4 baseline: both arrival orders stay unmatched
+
+The regression scenarios ran on the isolated synthetic package `io.github.triet4p.aegisf.s812evidence` with instrumentation package `io.github.triet4p.aegisf.s812evidence.test` on device `AAAJBB4930914141`. Each scenario opened a fresh uniquely named file-backed production `LedgerDatabase`, saved one source-backed event through `WorkflowCommandService`, and stored one permitted synthetic VietinBank notification through production `IntakeRepository`.
+
+Build command:
+
+`powershell.exe -NoProfile -Command "& .\gradlew.bat :app:assembleDebug :app:assembleDebugAndroidTest '-PS812_ANDROID_TARGET_PACKAGE=io.github.triet4p.aegisf.s812evidence'"`
+
+Observed: `BUILD SUCCESSFUL` (70 actionable tasks; 13 executed, 57 up-to-date).
+
+Only the synthetic app and test APKs were installed with `adb install -r`; both reported `Success`. The PowerShell wrapper emitted a separate `-ne` expression error because Bash expanded `$LASTEXITCODE` in the wrapper string; the second install still ran and returned `Success`. No clear/uninstall command was issued and the owner main app was not touched.
+
+Instrumentation command:
+
+`adb -s AAAJBB4930914141 shell am instrument -w -e class io.github.triet4p.aegisf.data.S94ArrivalReconciliationPhoneInstrumentedTest io.github.triet4p.aegisf.s812evidence.test/androidx.test.runner.AndroidJUnitRunner`
+
+Observed before any implementation change: **2 tests, 2 failures**. `noteFirstArrivalLinksItsUniqueNotification` found no `(eventId, draftId)` link after the notification arrived (`expected ACCEPTED; was null`). `notificationFirstArrivalLinksItsUniqueEvent` found no link after the note event arrived (`expected ACCEPTED; was null`). The isolated Room rows remained in their persisted unmatched state; no test used hosted inference, UI input, owner data, or ledger writes.

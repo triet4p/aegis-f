@@ -1,0 +1,3 @@
+seed-intended-body: S96WxQvK7391 bun 15000d
+seed-observed-body-after-repair-tap: S96WxQvK7391 b editedun 15000d
+note: Telex artifact during Backspace cleanup; second cleanup attempt cancelled so stored body is the b-editedun variant; fixture remains unique + owned + restart-proven.

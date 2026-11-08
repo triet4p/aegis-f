@@ -1,0 +1,321 @@
+capture_messages: [
+ {
+  "id": 1,
+  "captureKind": "USER_NOTE",
+  "sourceKind": "USER_QUICK_CAPTURE",
+  "bodyText": "coffee 15000 vnd yesterday at 08:10 and taxi 40000 vnd on 2026-10-21 at 13:05",
+  "capturedAtEpochMillis": 1793755541667,
+  "captureTimezone": "Asia/Ho_Chi_Minh",
+  "revision": 0,
+  "tombstone": 0
+ }
+]
+note_events: [
+ {
+  "id": 1,
+  "captureId": 1,
+  "spanStart": 0,
+  "spanEnd": 35,
+  "normalizedText": "Coffee purchase",
+  "amountVnd": 15000,
+  "merchant": null,
+  "anchorDate": "2026-11-03",
+  "anchorTime": "08:10",
+  "anchorTimezone": "Asia/Ho_Chi_Minh",
+  "extractionVersion": "agent-interface/5",
+  "unresolvedReason": null,
+  "status": "INTERPRETED",
+  "revision": 0,
+  "sourceRevision": 0
+ },
+ {
+  "id": 2,
+  "captureId": 1,
+  "spanStart": 40,
+  "spanEnd": 77,
+  "normalizedText": "Taxi ride",
+  "amountVnd": 40000,
+  "merchant": null,
+  "anchorDate": "2026-10-21",
+  "anchorTime": "13:05",
+  "anchorTimezone": "Asia/Ho_Chi_Minh",
+  "extractionVersion": "agent-interface/5",
+  "unresolvedReason": null,
+  "status": "INTERPRETED",
+  "revision": 0,
+  "sourceRevision": 0
+ }
+]
+agent_runs: [
+ {
+  "runId": "run-f33950cda8beae403b22555bef96ed69",
+  "scopeId": "chat-e9853d97-7072-434b-ab06-5ecfa30681b5",
+  "intentNames": "INTERPRET_EVENTS",
+  "state": "SUCCEEDED",
+  "stopReason": "none"
+ }
+]
+workflow_operations: [
+ {
+  "command": "SAVE_CAPTURE",
+  "outcome": "APPLIED",
+  "c": 1
+ },
+ {
+  "command": "UPDATE_EVENT",
+  "outcome": "APPLIED",
+  "c": 2
+ }
+]
+transactions count: 0
+context_links count: 0
+pending_bank_drafts count: 0
+
+span check event 1: 'coffee 15000 vnd yesterday at 08:10'
+span check event 2: 'taxi 40000 vnd on 2026-10-21 at 13:05'
+
+run answerText: I have successfully interpreted the saved note into two source-backed events and verified their storage:
+
+1. **event #1**: Coffee purchase (`event #1`)
+   - **Amount**: `⟦V-chate985b71e-0001⟧ VND`
+   - **Date/Time**: Yesterday at `⟦V-chate985b71e-0002⟧`
+   - **Status**: Verified (`INTERPRETED`)
+
+2. **event #2**: Taxi ride (`event #2`)
+   - **Amount**: `⟦V-chate985b71e-0003⟧ VND`
+   - **Date/Time**: `⟦V-chate985b71e-0004⟧` at `⟦V-chate985b71e-0005⟧`
+   - **Status**: Verified (`INTERPRETED`)
+
+run requestText (synthetic, masked): interpret the saved note into events and save each source backed reading
+
+trace columns: ['id', 'runId', 'scopeId', 'attempt', 'kind', 'turn', 'callId', 'direction', 'completion', 'payloadJson', 'createdAtEpochMillis']
+trace rows: [
+ {
+  "id": 1,
+  "runId": "run-f33950cda8beae403b22555bef96ed69",
+  "scopeId": "chat-e9853d97-7072-434b-ab06-5ecfa30681b5",
+  "attempt": 1,
+  "kind": "RUN_ADMITTED",
+  "turn": null,
+  "callId": null,
+  "direction": "INTERNAL",
+  "completion": "NOT_APPLICABLE",
+  "createdAtEpochMillis": 1793755593549
+ },
+ {
+  "id": 2,
+  "runId": "run-f33950cda8beae403b22555bef96ed69",
+  "scopeId": "chat-e9853d97-7072-434b-ab06-5ecfa30681b5",
+  "attempt": 1,
+  "kind": "ATTEMPT_STARTED",
+  "turn": null,
+  "callId": null,
+  "direction": "INTERNAL",
+  "completion": "NOT_APPLICABLE",
+  "createdAtEpochMillis": 1793755593578
+ },
+ {
+  "id": 3,
+  "runId": "run-f33950cda8beae403b22555bef96ed69",
+  "scopeId": "chat-e9853d97-7072-434b-ab06-5ecfa30681b5",
+  "attempt": 1,
+  "kind": "PROVIDER_REQUEST",
+  "turn": 1,
+  "callId": null,
+  "direction": "OUTBOUND",
+  "completion": "COMPLETE",
+  "createdAtEpochMillis": 1793755593829
+ },
+ {
+  "id": 4,
+  "runId": "run-f33950cda8beae403b22555bef96ed69",
+  "scopeId": "chat-e9853d97-7072-434b-ab06-5ecfa30681b5",
+  "attempt": 1,
+  "kind": "PROVIDER_STREAM_CHUNK",
+  "turn": 1,
+  "callId": null,
+  "direction": "INBOUND",
+  "completion": "COMPLETE",
+  "createdAtEpochMillis": 1793755594960
+ },
+ {
+  "id": 5,
+  "runId": "run-f33950cda8beae403b22555bef96ed69",
+  "scopeId": "chat-e9853d97-7072-434b-ab06-5ecfa30681b5",
+  "attempt": 1,
+  "kind": "PROVIDER_STREAM_CHUNK",
+  "turn": 1,
+  "callId": null,
+  "direction": "INBOUND",
+  "completion": "COMPLETE",
+  "createdAtEpochMillis": 1793755594998
+ },
+ {
+  "id": 6,
+  "runId": "run-f33950cda8beae403b22555bef96ed69",
+  "scopeId": "chat-e9853d97-7072-434b-ab06-5ecfa30681b5",
+  "attempt": 1,
+  "kind": "PROVIDER_STREAM_END",
+  "turn": 1,
+  "callId": null,
+  "direction": "INBOUND",
+  "completion": "COMPLETE",
+  "createdAtEpochMillis": 1793755595006
+ },
+ {
+  "id": 7,
+  "runId": "run-f33950cda8beae403b22555bef96ed69",
+  "scopeId": "chat-e9853d97-7072-434b-ab06-5ecfa30681b5",
+  "attempt": 1,
+  "kind": "PROVIDER_RESPONSE",
+  "turn": 1,
+  "callId": null,
+  "direction": "INBOUND",
+  "completion": "COMPLETE",
+  "createdAtEpochMillis": 1793755595029
+ },
+ {
+  "id": 8,
+  "runId": "run-f33950cda8beae403b22555bef96ed69",
+  "scopeId": "chat-e9853d97-7072-434b-ab06-5ecfa30681b5",
+  "attempt": 1,
+  "kind": "TOOL_CALL",
+  "turn": 1,
+  "callId": "call_197942",
+  "direction": "INTERNAL",
+  "completion": "COMPLETE",
+  "createdAtEpochMillis": 1793755595040
+ },
+ {
+  "id": 9,
+  "runId": "run-f33950cda8beae403b22555bef96ed69",
+  "scopeId": "chat-e9853d97-7072-434b-ab06-5ecfa30681b5",
+  "attempt": 1,
+  "kind": "TOOL_RESULT",
+  "turn": 1,
+  "callId": "call_197942",
+  "direction": "INTERNAL",
+  "completion": "COMPLETE",
+  "createdAtEpochMillis": 1793755595092
+ },
+ {
+  "id": 10,
+  "runId": "run-f33950cda8beae403b22555bef96ed69",
+  "scopeId": "chat-e9853d97-7072-434b-ab06-5ecfa30681b5",
+  "attempt": 1,
+  "kind": "PROVIDER_REQUEST",
+  "turn": 2,
+  "callId": null,
+  "direction": "OUTBOUND",
+  "completion": "COMPLETE",
+  "createdAtEpochMillis": 1793755595120
+ },
+ {
+  "id": 11,
+  "runId": "run-f33950cda8beae403b22555bef96ed69",
+  "scopeId": "chat-e9853d97-7072-434b-ab06-5ecfa30681b5",
+  "attempt": 1,
+  "kind": "PROVIDER_STREAM_CHUNK",
+  "turn": 2,
+  "callId": null,
+  "direction": "INBOUND",
+  "completion": "COMPLETE",
+  "createdAtEpochMillis": 1793755596451
+ },
+ {
+  "id": 12,
+  "runId": "run-f33950cda8beae403b22555bef96ed69",
+  "scopeId": "chat-e9853d97-7072-434b-ab06-5ecfa30681b5",
+  "attempt": 1,
+  "kind": "PROVIDER_STREAM_CHUNK",
+  "turn": 2,
+  "callId": null,
+  "direction": "INBOUND",
+  "completion": "COMPLETE",
+  "createdAtEpochMillis": 1793755596499
+ },
+ {
+  "id": 13,
+  "runId": "run-f33950cda8beae403b22555bef96ed69",
+  "scopeId": "chat-e9853d97-7072-434b-ab06-5ecfa30681b5",
+  "attempt": 1,
+  "kind": "PROVIDER_STREAM_END",
+  "turn": 2,
+  "callId": null,
+  "direction": "INBOUND",
+  "completion": "COMPLETE",
+  "createdAtEpochMillis": 1793755596513
+ },
+ {
+  "id": 14,
+  "runId": "run-f33950cda8beae403b22555bef96ed69",
+  
+tool calls: [
+ {
+  "turn": 1,
+  "callId": "call_197942",
+  "name": "select_source",
+  "arguments": "{\"quote\":\"coffee ⟦V-chate985b71e-0001⟧ vnd yesterday at ⟦V-chate985b71e-0002⟧\",\"capture_ref\":\"r_bdfed447123bb1dc0b71d46f\",\"occurrence\":1}"
+ },
+ {
+  "turn": 2,
+  "callId": "call_216822",
+  "name": "make_time_anchor",
+  "arguments": "{\"date_ref\":\"r_bbfc3de33346a3d5f855cd67\",\"time_ref\":\"r_42b075320270cbf6182f0c91\",\"end_time_ref\":null,\"end_date_ref\":null}"
+ },
+ {
+  "turn": 3,
+  "callId": "call_127916",
+  "name": "record_event",
+  "arguments": "{\"summary\":\"Coffee purchase\",\"clarification\":\"none\",\"source_ref\":\"r_c3d81e038bd8a18d34cd9051\",\"merchant_ref\":null,\"anchor_ref\":\"r_73c30e2664ae759911b48e66\",\"amount_ref\":\"r_f66362a5f578a2dbd0c0c9d3\"}"
+ },
+ {
+  "turn": 4,
+  "callId": "call_101898",
+  "name": "select_source",
+  "arguments": "{\"occurrence\":1,\"capture_ref\":\"r_bdfed447123bb1dc0b71d46f\",\"quote\":\"taxi ⟦V-chate985b71e-0003⟧ vnd on ⟦V-chate985b71e-0004⟧ at ⟦V-chate985b71e-0005⟧\"}"
+ },
+ {
+  "turn": 5,
+  "callId": "call_148169",
+  "name": "make_time_anchor",
+  "arguments": "{\"time_ref\":\"r_a26fea188534bf373e6f3103\",\"end_time_ref\":null,\"end_date_ref\":null,\"date_ref\":\"r_0be94b82742e8eb88a0202b4\"}"
+ },
+ {
+  "turn": 6,
+  "callId": "call_179574",
+  "name": "record_event",
+  "arguments": "{\"clarification\":\"none\",\"anchor_ref\":\"r_bd37b3fbdac692c80750f2cf\",\"summary\":\"Taxi ride\",\"amount_ref\":\"r_f7195fcaea75cdb7e38cdf4b\",\"source_ref\":\"r_bae4025f4a77fc927e9b5175\"}"
+ },
+ {
+  "turn": 7,
+  "callId": "call_155896",
+  "name": "record_event",
+  "arguments": "{\"summary\":\"Taxi ride\",\"anchor_ref\":\"r_bd37b3fbdac692c80750f2cf\",\"source_ref\":\"r_bae4025f4a77fc927e9b5175\",\"merchant_ref\":null,\"amount_ref\":\"r_f7195fcaea75cdb7e38cdf4b\",\"clarification\":\"none\"}"
+ }
+]
+
+provider-reported model fields: []
+first select_source result keys: ['name', 'resultJson', 'outcome', 'effect', 'verified', 'code', 'dispatch', 'operationKey', 'targetKey']
+values: null
+relative_dates: null
+
+model identifiers seen in trace payloads: []
+first select_source result summary: {
+ "outcome": "ok",
+ "values_count": 2,
+ "relative_dates": [
+  {
+   "ref": "r_bbfc3de33346a3d5f855cd67",
+   "kind": "relative_date",
+   "text": "yesterday",
+   "day_offset": -1
+  }
+ ],
+ "source_ref": "r_c3d81e038bd8a18d34cd9051"
+}
+provider request keys (turn 1): ['body', 'headers', 'redactedHeaders', 'url']
+{
+ "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse"
+}
+first anchor args: {"date_ref":"r_bbfc3de33346a3d5f855cd67","time_ref":"r_42b075320270cbf6182f0c91","end_time_ref":null,"end_date_ref":null}

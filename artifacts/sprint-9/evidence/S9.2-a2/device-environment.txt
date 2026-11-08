@@ -1,0 +1,15 @@
+ALT-LX2
+14
+List of devices attached
+AAAJBB4930914141       device product:ALT-LX2 model:ALT_LX2 device:HNALT-QL transport_id:2
+
+--- packages
+package:io.github.triet4p.aegisf.s812evidence
+package:io.github.triet4p.aegisf.s812evidence.test
+package:io.github.triet4p.aegisf
+--- input_method
+com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME
+--- isolated app version
+    versionName=1.0
+    lastUpdateTime=2026-11-04 10:59:48
+      firstInstallTime=2026-11-04 10:53:43

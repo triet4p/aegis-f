@@ -1,0 +1,8 @@
+
+io.github.triet4p.aegisf.data.S92CandidateRetrievalPhoneInstrumentedTest:.
+
+Time: 0,447
+
+OK (1 test)
+
+

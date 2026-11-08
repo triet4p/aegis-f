@@ -1,0 +1,54 @@
+# Device environment for S9.1-a1
+
+Everything below was observed over the authorized ADB connection; only the isolated evidence package
+was installed, and it was removed again after each phase.
+
+## Device
+
+- `adb devices` → `AAAJBB4930914141  device`
+- model `ALT-LX2`, Android `14`, device timezone `Asia/Ho_Chi_Minh`
+
+## Package safety
+
+- Before install, the only Aegis package on the device was the owner's main app
+  `io.github.triet4p.aegisf`.
+- Phase 1 (instrumented test): installed the isolated debug build with the existing evidence suffix —
+  `io.github.triet4p.aegisf.s812evidence` and its test package
+  `io.github.triet4p.aegisf.s812evidence.test` (separate application id, separate data directory) —
+  then uninstalled both.
+- Phase 2 (live hosted run through the real app UI): reinstalled only
+  `io.github.triet4p.aegisf.s812evidence`, used the app's own provider settings inside that isolated
+  package, then uninstalled it. No test package was needed.
+- After both phases the owner package is still present and untouched:
+  `pm path io.github.triet4p.aegisf` →
+  `package:/data/app/~~tQOVTMugtmxbzDqaSlJcHQ==/io.github.triet4p.aegisf-Wo9-2oprN-QWk72zytPdqA==/base.apk`
+- No install over, uninstall of, or data clear for the owner's main package was performed.
+
+## Typing on the device
+
+The installed keyboards compose Vietnamese Telex (`coffee` → `Cofê`, `yesterday` → `yểtday`), which
+would corrupt a synthetic fixture. For deterministic ASCII input the two typing input methods were
+temporarily disabled with `adb shell ime disable`, the text was injected with `adb shell input text`,
+and afterwards both were re-enabled and Gboard was restored as the default:
+
+- `com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME` — enabled, default
+- `com.touchtype.swiftkey/com.touchtype.KeyboardService` — enabled
+
+No keyboard setting remains changed.
+
+## Instrumentation
+
+```
+adb shell am instrument -w \
+  -e class io.github.triet4p.aegisf.agent.S91RelativeDayPhoneInstrumentedTest \
+  io.github.triet4p.aegisf.s812evidence.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+Result: `OK (2 tests)` — recorded verbatim in `device-relative-day-run.txt`.
+
+## Live hosted run
+
+Driven through the isolated app's own UI (Settings → Hosted provider settings → Gemini API ·
+Gemini 3.5 Flash Lite → credential entered in the app's password field, never printed; "Validate
+connection and save"; "Use provider"), then Chat → save synthetic capture → Send. Result, persisted
+state and UI cards are recorded in `live-hosted-run-summary.md` and the `device-live-*` files.

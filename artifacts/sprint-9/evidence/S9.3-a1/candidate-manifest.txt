@@ -1,0 +1,22 @@
+# S9.3-a1 exact candidate manifest
+
+Task: `S9.3`  
+Attempt: `S9.3-a1`  
+Runtime agent: `S93ReversibleLinks`  
+Assigned role: `silver-task`  
+Base reference from assignment: `b3950383a4cd4eacb57b5a7e5c0696459efb1726`  
+Hash algorithm: SHA-256 over the final file bytes. The manifest does not hash itself; its own digest is provided in the `ready_for_review` notice.
+
+| SHA-256 | Task-owned file |
+| --- | --- |
+| `eacd3e5a9d48cf154a959ea206912075cea4c670e16a21b3327f3202d42c7d5e` | `app/src/main/java/io/github/triet4p/aegisf/data/WorkflowCommandService.kt` |
+| `af8a595fc2024424e27709e5ac0f20ea64d07a0fd792f9dc017d316934d8b613` | `app/src/androidTest/java/io/github/triet4p/aegisf/data/S93ReversibleLinkPhoneInstrumentedTest.kt` |
+| `09bbf83f2d575380ced62081e53bb31b4f360040fe66c319228a4b74f381db96` | `README.md` |
+| `27d2bf4c1986bc724206b00cf89471b6a8ba38be64e9d2431fc41e7680ae080e` | `docs/sprint-8-application-tools.md` |
+| `fbd235ccae7eb496ea1ae378e15d8fb9dda9d0e9e1b96a93a0ddbbc0eac0e30c` | `docs/sprint-8-agent-contract.md` |
+| `99ae65f3c4f28a008b6b9615f128668641466bc7a966bfb309ac60bc69400165` | `CHANGELOG.md` |
+| `c547b3968a9ab5924a77f3b48d9f93ed3d6b2f12ada954a727caa19f1d075ad7` | `.agents/memory/lessons-learned.md` |
+| `22611a026d828145411414e791a2f4decfaa01d1dfb44665323112918bb43875` | `artifacts/sprint-9/evidence/S9.3-a1/baseline-incomplete-auto-attach.txt` |
+| `c6de3dfead75c7cb319ba714b42d554411ec7b4ca175c81ce1bef11c69ee3091` | `artifacts/sprint-9/evidence/S9.3-a1/phone-room-instrumented.txt` |
+| `729f89ffa8850dddc0bf01e30ac8e3de56f8977f4b019cb46033decb3c2b1510` | `artifacts/sprint-9/evidence/S9.3-a1/verification-results.md` |
+| `20411f910cf7056cdcfb958f3a95254d795f415ff4fd30b355af751064950480` | `artifacts/sprint-9/workers/S9.3-a1.md` |

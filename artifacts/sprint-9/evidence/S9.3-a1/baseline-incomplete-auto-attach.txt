@@ -1,0 +1,13 @@
+# S9.3-a1 baseline: incomplete search authorized auto-attachment
+
+This pre-fix observation used the isolated synthetic app package `io.github.triet4p.aegisf.s812evidence` and test package `io.github.triet4p.aegisf.s812evidence.test` on device `AAAJBB4930914141`. The instrumentation test opened a fresh, uniquely named file-backed `LedgerDatabase` through the production Room class inside that package; it did not clear app data or touch the owner package.
+
+Commands:
+
+- `powershell.exe -NoProfile -Command "& .\gradlew.bat :app:assembleDebug :app:assembleDebugAndroidTest '-PS812_ANDROID_TARGET_PACKAGE=io.github.triet4p.aegisf.s812evidence'"` → `BUILD SUCCESSFUL`.
+- Installed only `app/build/outputs/apk/debug/app-debug.apk` and `app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk` with `adb -s AAAJBB4930914141 install -r` → both `Success`.
+- `adb -s AAAJBB4930914141 shell am instrument -w -e class io.github.triet4p.aegisf.data.S93ReversibleLinkPhoneInstrumentedTest io.github.triet4p.aegisf.s812evidence.test/androidx.test.runner.AndroidJUnitRunner` → reproduced the defect.
+
+Observed baseline: `WorkflowQueryService.matchDraftCandidates` returned `INCOMPLETE` while one visible candidate had sufficient amount/date evidence. The actual `WorkflowCommandService.attachLink` boundary nevertheless returned `Applied(change=LinkDecided(linkId=3, state=ACCEPTED, revision=1))` for the scoped `AgentSession`; the expected fail-closed assertion failed at `S93ReversibleLinkPhoneInstrumentedTest.kt:182`. This is the discriminating pre-fix result.
+
+No hosted provider, credential, UI secret, IME change, install/clear of the owner main package, or push was involved.

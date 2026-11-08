@@ -1,0 +1,5 @@
+ime list:
+com.google.android.tts/com.google.android.apps.speech.tts.googletts.settings.asr.voiceime.VoiceInputMethodService
+com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME
+default:
+com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME

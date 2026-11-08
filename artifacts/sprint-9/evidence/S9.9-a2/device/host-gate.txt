@@ -1,0 +1,24 @@
+Final host gate over the S9.9-a2 sources (base 1cd84dd7 + worker changes)
+TEMP=F:/s95tmp TMP=F:/s95tmp ./gradlew.bat -PS812_ANDROID_TARGET_PACKAGE=io.github.triet4p.aegisf.s812evidence \
+  :app:testDebugUnitTest :app:lintDebug --no-daemon
+BUILD SUCCESSFUL in 6m 50s
+unit: 590 tests, 0 failures, 0 errors, 3 skipped
+lint: 0 error severity; 18 warnings, 2 hints (app/build/reports/lint-results-debug.xml)
+new guard: AgentRunFailureTest (3 tests) — run budget terminal, other budgets terminal,
+provider request timeout still retryable
+
+Final rerun after removing superseded androidTest scaffolds
+(S99ManualBaselineInstrumentedTest deleted, confirmOwnedLinkedDrafts removed):
+assembleDebugAndroidTest :app:testDebugUnitTest :app:lintDebug -> BUILD SUCCESSFUL in 1m 31s
+unit 590/0/0/3 (task up-to-date after the earlier run on the same unit sources)
+lint 0 error severity
+app APK     f201915b998d24a40735124d70bbcd63731465e6dafc879146dd15b558ad9b3a
+androidTest APK 0ce88a5e0756cdf8ed38406dbb686c93cbd9359b4a756ee9abd609775129e4a7
+
+Final rerun after the Flash-harness edits (hosted-category counter, provider field, stored ledger):
+assembleDebugAndroidTest :app:testDebugUnitTest :app:lintDebug -> BUILD SUCCESSFUL in 2m 1s
+unit 590/0/0/3 (up-to-date; unit sources unchanged)
+lint 0 error severity
+installed app sha256 (pm path + sha256sum on device)  f201915b998d24a40735124d70bbcd63731465e6dafc879146dd15b558ad9b3a
+installed androidTest sha256                         124640212eaa2b79f48f489bf303034f28ee2e67bcfd9a2fad21be421ba0f15e
+both identical to the local build outputs -> measured runs ran the built sources

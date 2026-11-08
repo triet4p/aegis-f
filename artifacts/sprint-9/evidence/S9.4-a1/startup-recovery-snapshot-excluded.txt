@@ -1,0 +1,1 @@
+Intentionally excluded: copied device SQLite contained unrelated persisted application tables; see S9.4 handoff for limited phone assertions. No database rows were inspected or exported.

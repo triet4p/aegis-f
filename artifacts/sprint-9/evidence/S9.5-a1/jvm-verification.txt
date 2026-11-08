@@ -1,0 +1,22 @@
+S9.5-a1 JVM and lint evidence
+
+Before production edits: targeted foreign-category observation test failed (1 test, 1 failure); see baseline.txt.
+
+First post-change command: ./gradlew.bat :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest -PS812_ANDROID_TARGET_PACKAGE=io.github.triet4p.aegisf.s812evidence
+Result: 553 tests, 12 failures, 3 skips; named-database SQLiteCantOpenDatabaseException at SQLiteConnection.setJournalMode. The test failure stopped the combined build; this was not a lint/assembly PASS. C: and F: had more than 59 GB free. WorkflowCommandServiceTest reported 27 tests, 0 failures including source-edit race. Serial default-temp CaptureMessagePersistenceTest had 5 tests, 2 failures with the same error.
+
+Discriminating environment run: PowerShell with TEMP=F:\s95tmp, TMP=F:\s95tmp and Gradle --no-daemon, targeting *CaptureMessagePersistenceTest -> BUILD SUCCESSFUL, 5 tests. The initial PowerShell invocation had split an unquoted -P property and failed before executing tests; quoting fixed invocation. Both shorter path and daemon isolation changed, so neither is proven individually causal.
+
+
+After review-refresh code, focused queue/focus tests first exposed a virtual-time wait (fixed by
+using real coroutine time for the Room flow) and a duplicate-fixture ordering expectation (the
+copy inherited the original timestamp; fixed by giving the new duplicate its own later time).
+The corrected focused suite passed 16 tests; the on-device UI harness result is in
+phone-review-refresh.txt.
+
+Final candidate command: PowerShell with TEMP=F:\s95tmp and TMP=F:\s95tmp,
+./gradlew.bat --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+:app:assembleDebugAndroidTest -PS812_ANDROID_TARGET_PACKAGE=io.github.triet4p.aegisf.s812evidence.
+Result BUILD SUCCESSFUL; XML totals 559 tests, 0 failures, 0 errors, 3 skipped; lint and both
+APK assembly tasks succeeded.
+Final suite at this point: PowerShell with TEMP=F:\s95tmp and TMP=F:\s95tmp, ./gradlew.bat --no-daemon :app:testDebugUnitTest :app:lintDebug -PS812_ANDROID_TARGET_PACKAGE=io.github.triet4p.aegisf.s812evidence -> BUILD SUCCESSFUL; XML totals 556 tests, 0 failures/errors, 3 skipped; lint successful. Includes category foreign-reference, source edit, unlink, newer user choice and conflict-first queue regressions. This result predates any further review-refresh implementation.

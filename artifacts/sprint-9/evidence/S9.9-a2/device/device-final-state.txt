@@ -1,0 +1,19 @@
+Final isolated-app state, S9.9-a2 (read-only stages)
+package io.github.triet4p.aegisf.s812evidence; owner app never installed over/cleared/stopped
+IME: com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME (unchanged)
+profiles: [google-gemini-flash-lite-e9911898-e111-4cb6-a5e3-ee13c7be63f2, s98-gemma, s98-luna]
+active: google-gemini-flash-lite-e9911898-e111-4cb6-a5e3-ee13c7be63f2 (restored)
+secret file s98_secret.env: absent
+ledger: 2 records / 40,000 total / ids 2:20000:EXPENSE, 1:20000:EXPENSE (foreign preserved)
+day 2026-11-06 aggregate: spending=0 records=0
+pending drafts: 10 (unchanged from pre-attempt)
+category catalog: 4:Food,1:Fuel,2:Fuel,3:Transport (unchanged)
+active captures: 42 (39 before + 2 bank-evidence rows of dismissed seeds 49/50 + 1 of draft 53; note capture 79 deleted)
+source: device-final-ledger-state.log, device-final-fixture-audit.log, s98-evidence-device.log
+
+after the owner-authorized Flash run (measurement run 3):
+profiles: [google-gemini-flash-lite-e9911898-…, s98-gemma, s98-luna], active google-gemini-flash-lite-e9911898-… (restored)
+ledger: ids 2:20000, 1:20000 = 40,000; day 2026-11-06 = 0/0
+pending drafts: 10; categories: 4; active captures: 44
+Flash fixture removed: drafts 54/55 dismissed, note capture 83 deleted
+S99M pair manual storedLedger at its endpoint: ids 19:54000, 18:89000, 2:20000, 1:20000 = 183,000

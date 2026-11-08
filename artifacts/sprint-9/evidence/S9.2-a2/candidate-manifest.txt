@@ -1,0 +1,38 @@
+S9.2-a2 REVIEW CANDIDATE SNAPSHOT — source frozen for evidence review cycle S9.2-cycle-1 round 1
+Base HEAD: 9d446323820bcb6bbd0dcc1aa1d4d2d55deabd93
+Snapshot time (UTC): 2026-11-04T04:51:40Z
+Scope: 18 implementation paths (byte-identical to the S9.2-a1 pause snapshot, re-verified this attempt)
+       + this attempt's evidence files + the S9.2-a2 worker record. SHA-256 per file.
+This file is a worker-owned freeze record; the reviewer/checkpoint owner writes its own manifest.
+
+SHA256  d3e797cdecb05fd6d74835985cd467f6292c5aa1ce56fd6dfa53976130e18e8d  app/build.gradle.kts
+SHA256  efc01d25a15cd2fb91d2003aed37b05993bc9dd914cb9a66e46b30267f679ecf  app/src/main/java/io/github/triet4p/aegisf/agent/AgentInterfaceContract.kt
+SHA256  e86d6fef5139ce6a27a971d50fd593627c58b44648b2546057ffb7f07ad95228  app/src/main/java/io/github/triet4p/aegisf/agent/AgentToolRuntime.kt
+SHA256  5701e68b6839cd33d09c307738ba8d564bb6730d0437d2c77dc6ba6965bb0618  app/src/main/java/io/github/triet4p/aegisf/agent/BoundedWorkflowExecutor.kt
+SHA256  e13b574f2b4184e430a4a2f09df2460e7555aacea110c2aa13aa4c868e773ba6  app/src/main/java/io/github/triet4p/aegisf/agent/WorkflowSkillCatalog.kt
+SHA256  b21e48a9c36d4f33efa9bf526ce2194f1daf3ac0b995907576d7dcee73f07102  app/src/main/java/io/github/triet4p/aegisf/data/LinkEvidencePolicy.kt
+SHA256  e5be8cb1c88bc6d34a759b21654fe651d2c1112dc9a026cfb988eadda5d6ac30  app/src/main/java/io/github/triet4p/aegisf/data/PendingBankDraftDao.kt
+SHA256  be0a6e2f75b9cec30e276f731bcd7e4f48db58af787e0e561a595195415a643c  app/src/main/java/io/github/triet4p/aegisf/data/WorkflowCommandTypes.kt
+SHA256  49bd5d826954a8d9fc99e53ca4ce2a3f430d039fd2acb2da237b917c631f2782  app/src/main/java/io/github/triet4p/aegisf/data/WorkflowQueryService.kt
+SHA256  56da1356eea9f69b0b6dcc28d99a1c2df0071d15bac1522fb2037aa429cc646c  app/src/main/java/io/github/triet4p/aegisf/data/WorkflowQueryTypes.kt
+SHA256  59eeb160e651a5658174accbbbe047b1ae1db8e87f521c91a65044fcbca3233a  app/src/main/java/io/github/triet4p/aegisf/ui/QuickCaptureScreen.kt
+SHA256  ace3a7dff76d5a07cd4ac7f21b2265e3b2905f23c2dc5b522b789a7c9dc75a49  app/src/test/java/io/github/triet4p/aegisf/agent/AgentToolRuntimeTest.kt
+SHA256  f0aefa649ac5794947774fecafcd329796d5147b3d2e1bb4b9edc7f4a0384b4c  app/src/androidTest/java/io/github/triet4p/aegisf/data/S92CandidateRetrievalPhoneInstrumentedTest.kt
+SHA256  98fd229861bc8cd6ce49ce1f0962e12a7241d1e1810f683b4caaaf5a5f25acdb  tools/slm/s8_agent_runtime_skills_v8.json
+SHA256  3971b11d9bf7946fc053b144e73377960f77a47dd584046924454b05a7090189  tools/slm/s8_agent_tools_v8.json
+SHA256  b1cdf2eab11698a2145c88bc2f5edf62ce93a981196b678309430eeec58e745c  docs/sprint-8-agent-contract.md
+SHA256  fdacc33bcb64f091a2803d8f2221258c8d559684b232f56965f0c8c27dd1960d  docs/sprint-8-application-tools.md
+SHA256  9afdc49cd3ea383571e068f52e475a61d44543bd8f059f4bd5f27cd5482611c9  CHANGELOG.md
+SHA256  626b7843686d446b51b7915bff01e8f626fdb8b1d0c5091b926fd7c72f09ba9b  artifacts/sprint-9/evidence/S9.2-a2/criteria-and-limitations.md
+SHA256  38d785b76f5c8f7f76d4f0c32be7b431490775a5db74df086bd9dcb0dca8b23c  artifacts/sprint-9/evidence/S9.2-a2/device-environment.txt
+SHA256  76695a8abf4f147c91faacc907d85f36c9841c2dfd03c60859ae28f4a0fd3a65  artifacts/sprint-9/evidence/S9.2-a2/device-live-answer-verified.xml
+SHA256  15aae3045cf29b3849e030ad6b3b1299fa3e94a1e81f7e3cb693ec2a1fc18d09  artifacts/sprint-9/evidence/S9.2-a2/device-live-answer.png
+SHA256  e329a79defffd6eb16bc64efc3b5cba1cc9d6d7aac77ec7d5409960e3a6a9d06  artifacts/sprint-9/evidence/S9.2-a2/device-live-answer.xml
+SHA256  2395c5d9744a40343d54e3c0c63a085b07d18ac837ff575ef3ca726a38c0fb5f  artifacts/sprint-9/evidence/S9.2-a2/device-provider-active.xml
+SHA256  b003940ae9d3a7fb373baf79e4d712e56416a1e8100e317403c050b456c520bf  artifacts/sprint-9/evidence/S9.2-a2/device-provider-validation.xml
+SHA256  c3084a0c5bd752836e6c3b6f1fc363e53bc4b43790b01c39d159af378b81134e  artifacts/sprint-9/evidence/S9.2-a2/live-hosted-run.json
+SHA256  a2b3435cd1fe00cdffd43e3805009e2e49b5b649ae3082efcffed372f82cf1e0  artifacts/sprint-9/evidence/S9.2-a2/live-persisted-state.txt
+SHA256  1d153ec909f726a703f0f603d293af73c5b8082008f5578566438ecb25a79125  artifacts/sprint-9/evidence/S9.2-a2/phone-room-fixture-state.txt
+SHA256  d25883971d178c60dff3b7f01a84cbc485243af2c6953df03b7e0df7ae897223  artifacts/sprint-9/evidence/S9.2-a2/phone-room-instrumented.txt
+SHA256  3cb2ad7b48590cae7456bbbfffb3be855d795207fd93be9c2d7ce5a1d607a85b  artifacts/sprint-9/evidence/S9.2-a2/provider-validation.md
+SHA256  f2f31feb764b5d3b770c0e016391087900d36a58b4da931ddf85ccb74322a1be  artifacts/sprint-9/workers/S9.2-a2.md

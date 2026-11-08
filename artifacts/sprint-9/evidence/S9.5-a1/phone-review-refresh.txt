@@ -1,0 +1,7 @@
+S9.5-a1 isolated phone review-surface proof
+
+Isolated app and test APKs were installed with adb install -r only; no uninstall or data clear.
+Command: adb shell am instrument -w -e class io.github.triet4p.aegisf.ui.S95ReviewRefreshPhoneInstrumentedTest io.github.triet4p.aegisf.s812evidence.test/androidx.test.runner.AndroidJUnitRunner
+Result: OK (1 test), 3.317 s. Actual Compose BankDraftReviewScreen rendered a fresh synthetic named Room database with one unresolved-bank-data conflict and one missing-category draft. The test saved an existing category through the ordinary command while the screen remained open; without refresh/navigation the missing-category card changed to category-chosen and the conflict remained first/visible. The test asserted the draft stayed PENDING and ledger empty. The default database was not read or exported.
+
+An earlier harness attempt failed before the behavior check because MainActivity had already set Compose content; the test was corrected to replace activity content on the UI thread. Focused JVM queue/focus tests also cover same-group per-row updates, changed-priority page refill, off-page conflict entry and stable selected page/order; the first virtual-time timeout and copied fixture timestamp expectation were corrected based on their reports.

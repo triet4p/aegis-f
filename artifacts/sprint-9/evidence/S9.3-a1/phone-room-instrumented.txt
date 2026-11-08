@@ -1,0 +1,27 @@
+# S9.3-a1 post-fix phone/Room/command result
+
+Device: `AAAJBB4930914141` (the S9.2-recorded ALT-LX2). Target package: `io.github.triet4p.aegisf.s812evidence`; instrumentation package: `io.github.triet4p.aegisf.s812evidence.test`.
+
+Only the final isolated app and test APKs were installed using `adb -s AAAJBB4930914141 install -r`; both returned `Success`. No clear/uninstall was run, and the owner main package was not installed over or touched. The test created a fresh uniquely named file-backed `LedgerDatabase` under the synthetic app's private data directory using the production Room schema, production `WorkflowCommandService`, and production `WorkflowQueryService`.
+
+Command:
+
+`adb -s AAAJBB4930914141 shell am instrument -w -e class io.github.triet4p.aegisf.data.S93ReversibleLinkPhoneInstrumentedTest io.github.triet4p.aegisf.s812evidence.test/androidx.test.runner.AndroidJUnitRunner`
+
+Final observed result:
+
+```text
+io.github.triet4p.aegisf.data.S93ReversibleLinkPhoneInstrumentedTest:.
+Time: 10,164
+OK (1 test)
+```
+
+The passing test asserts these real Room/command-boundary outcomes:
+
+- Before any link is proposed, two same-day same-amount drafts at 15:00 and 15:15 yield retrieval `AMBIGUOUS`; both drafts have no link rows, yet `inspectLinkEvidence` reports `AMBIGUOUS` with `candidateDraftCount == 2`. An agent proposal remains `PROPOSED` when automatic attachment is denied `ATTACH_POLICY`.
+- The user rejects the first pair, proposes and explicitly attaches the other candidate. A stale unlink using revision 0 conflicts and leaves the accepted revision untouched. After closing/reopening Room, the rejection and accepted link persist; retrying the rejected pair is denied `LINK_ALREADY_REJECTED` and does not add a row. Unlink with the current revision succeeds.
+- A complete current scope with one unique amount/day pair reports local `ELIGIBLE` evidence (`candidateDraftCount == 1`) and permits agent attachment under the existing local policy.
+- A truncated first-32 grant still has an `INCOMPLETE` match result even with one visible supported candidate; automatic attachment is denied and the proposal remains at revision 0.
+- The event source text, interpretation amount/date, bank-draft rows and ledger IDs are unchanged by link decisions; no transaction is created.
+
+All fixture text, amounts and merchants are synthetic. No provider, network, credential, API key, UI XML dump, screenshot or IME change was involved.

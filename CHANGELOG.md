@@ -7,6 +7,18 @@ and no release has been tagged or published. Format follows
 
 ## [Unreleased]
 
+### Sprint 9 closure
+
+- Owner accepted Sprint 9 after hands-on use. All S9.1–S9.9 evidence gates and exact-snapshot
+  checkpoints passed, followed by the final cross-feature differential PASS at `1b585b8`.
+- On the isolated phone, the multi-event workflow produced two source-backed links, two
+  appropriate hosted-selected categories before manual review, and two explicit user
+  confirmations; dashboard totals reconciled from 40,000 VND / 2 to 110,000 VND / 4.
+- This is sprint acceptance, not a public release or universal provider/language qualification.
+  Worker-driven measurements do not establish a human speedup. Known UI progress/cancel wording,
+  Retry-After propagation and shared run-budget limitations remain disclosed in the Sprint 9 plan.
+  Sprint 10 is planned and has not started.
+
 ### Added
 - Event-bound `list_drafts` reads app-ranked pending candidates from only the draft ids already
   granted to the session, using event day/interval, amount and merchant evidence plus explicit

@@ -1,0 +1,36 @@
+# S9.2-a2 live persisted state (isolated package io.github.triet4p.aegisf.s812evidence)
+# captured after two real hosted SEARCH_DRAFTS runs; DB pulled binary-safe with adb exec-out
+
+## table counts before-hosted-run / after
+transactions: 0 / 0
+context_links: 0 / 0
+pending_bank_drafts: 6 / 6
+note_events: 2 / 2
+capture_messages: 2 / 2
+workflow_operations: 2 / 2
+agent_runs: 0 / 2
+agent_trace_events: 0 / 76
+
+## note events (stored interpretation; source text is in capture_messages)
+{"id": 1, "captureId": 1, "normalizedText": "Coffee purchase", "amountVnd": 5270313, "merchant": null, "anchorDate": "2026-10-21", "anchorTime": "23:50", "anchorTimezone": "Asia/Ho_Chi_Minh", "intervalEndDate": "2026-10-22", "intervalEndTime": "00:20", "revision": 0, "status": "INTERPRETED", "unresolvedReason": null}
+{"id": 2, "captureId": 2, "normalizedText": "Coffee purchase", "amountVnd": 2008692, "merchant": "Highlands", "anchorDate": "2026-10-21", "anchorTime": "23:50", "anchorTimezone": "Asia/Ho_Chi_Minh", "intervalEndDate": "2026-10-22", "intervalEndTime": "00:20", "revision": 0, "status": "INTERPRETED", "unresolvedReason": null}
+
+## pending drafts (unchanged ids/revisions; no confirmedTransactionId)
+{"id": 1, "deliveryId": "s9.2-phone-87e288c9-c9ea-468c-b9b2-f0d1ec6b6a84-within", "amountVnd": 5270313, "statedDate": "2026-10-22", "statedTime": "00:10", "memo": "Highlands Coffee", "postedAtEpochMillis": 1792604700000, "reviewStatus": "PENDING", "reviewRevision": 0, "confirmedTransactionId": null}
+{"id": 2, "deliveryId": "s9.2-phone-87e288c9-c9ea-468c-b9b2-f0d1ec6b6a84-wrong-amount", "amountVnd": 5270314, "statedDate": "2026-10-22", "statedTime": "00:10", "memo": "Highlands Coffee", "postedAtEpochMillis": 1792604700000, "reviewStatus": "PENDING", "reviewRevision": 0, "confirmedTransactionId": null}
+{"id": 3, "deliveryId": "s9.2-phone-87e288c9-c9ea-468c-b9b2-f0d1ec6b6a84-wrong-merchant", "amountVnd": 5270313, "statedDate": "2026-10-22", "statedTime": "00:10", "memo": "Circle K", "postedAtEpochMillis": 1792604700000, "reviewStatus": "PENDING", "reviewRevision": 0, "confirmedTransactionId": null}
+{"id": 4, "deliveryId": "s9.2-phone-a79437d4-71c1-4b0f-80db-c409cd8dba93-within", "amountVnd": 2008692, "statedDate": "2026-10-22", "statedTime": "00:10", "memo": "Highlands Coffee", "postedAtEpochMillis": 1792604700000, "reviewStatus": "PENDING", "reviewRevision": 0, "confirmedTransactionId": null}
+{"id": 5, "deliveryId": "s9.2-phone-a79437d4-71c1-4b0f-80db-c409cd8dba93-wrong-amount", "amountVnd": 2008693, "statedDate": "2026-10-22", "statedTime": "00:10", "memo": "Highlands Coffee", "postedAtEpochMillis": 1792604700000, "reviewStatus": "PENDING", "reviewRevision": 0, "confirmedTransactionId": null}
+{"id": 6, "deliveryId": "s9.2-phone-a79437d4-71c1-4b0f-80db-c409cd8dba93-wrong-merchant", "amountVnd": 2008692, "statedDate": "2026-10-22", "statedTime": "00:10", "memo": "Circle K", "postedAtEpochMillis": 1792604700000, "reviewStatus": "PENDING", "reviewRevision": 0, "confirmedTransactionId": null}
+
+## ledger/links (must stay empty: no financial effect from retrieval)
+transactions ids: []
+context_links ids: []
+
+## operations (pre-existing capture/event writes only)
+{"id": 1, "idempotencyKey": "s9.2-phone-87e288c9-c9ea-468c-b9b2-f0d1ec6b6a84", "command": "SAVE_CAPTURE"}
+{"id": 2, "idempotencyKey": "s9.2-phone-a79437d4-71c1-4b0f-80db-c409cd8dba93", "command": "SAVE_CAPTURE"}
+
+## hosted runs
+{"runId": "run-89b9c87c8e76ea15877818f18c6986a9", "scopeId": "chat-f99b5bd8-51c6-4497-ada3-c2c3dd6c7e4c", "intentNames": "SEARCH_DRAFTS", "state": "SUCCEEDED", "stopReason": "none"}
+{"runId": "run-7f6aade078c431503614dc9f3ec778ab", "scopeId": "chat-2a89046d-a936-4d67-9d15-860362457f81", "intentNames": "SEARCH_DRAFTS", "state": "SUCCEEDED", "stopReason": "none"}

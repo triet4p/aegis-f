@@ -1,0 +1,18 @@
+S9.5-a1 same-user-started-run physical-phone hosted smoke
+
+Command: ./gradlew.bat :app:assembleDebugAndroidTest -PS812_ANDROID_TARGET_PACKAGE=io.github.triet4p.aegisf.s812evidence && adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk && adb shell am instrument -w -e s95_live yes -e s95_link_in_run yes -e class io.github.triet4p.aegisf.agent.S95HostedCategoryPhoneInstrumentedTest io.github.triet4p.aegisf.s812evidence.test/androidx.test.runner.AndroidJUnitRunner
+Result: BUILD SUCCESSFUL, isolated test APK install Success, OK (1 test), device test time 234.822 s.
+
+The opt-in test seeded two source-backed interpreted events and two independent pending drafts in a newly named synthetic Room database; it asserted neither draft had a link before the hosted run. A single user-requested tracked run allowed event interpretation, candidate search, linking and category review. Afterward the test asserted one accepted link per draft, fuel and snack readings remained distinct, existing Transport and Food category IDs were stored, both drafts remained PENDING and the ledger remained empty. It also inspected the synthetic database's production trace in-process: a provider response/stream end and update_draft_review call existed, and attach_link tool results each carried exactly one linked_context item whose text equaled that event's local masking-boundary output. No raw trace, credential or database was exported.
+
+Limitations: this does not independently prove queue conflict priority, archived/foreign category behavior, in-flight source/relink races on the phone or cross-run restart; separate regression evidence is required for those conditions. The test used the existing configured Gemini profile without editing or printing it. Earlier pre-linked run and its initial trace-harness correction are documented in phone-hosted-smoke.txt.
+
+After adding the review UI refresh implementation, a fresh same-run smoke on the updated isolated
+APK failed in 55.026 s at the first post-run accepted-link assertion: the fuel link list was empty.
+A narrowly scoped in-process diagnostic opened only that specifically named synthetic test database
+and emitted whitelisted structural fields, not raw trace, data, or credentials. The admitted run was
+`FAILED/PROVIDER_FAILURE`; provider HTTP statuses were 200, 200, 200, 503, 503, 503. The trace
+showed `list_drafts` success, one `SCHEMA_INVALID` `list_drafts`, then another success, with no
+link call before the provider failure. The final three 503s were the tracked executor's built-in
+attempts, not manual retries. The earlier PASS remains historical proof; no successful hosted run
+on the updated final APK is claimed. The temporary diagnostic test was removed.

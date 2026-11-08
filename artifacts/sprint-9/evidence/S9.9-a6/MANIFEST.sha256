@@ -1,0 +1,15 @@
+3ef5cc29aece87357f3176e0415d5b2fcd158dff3abc422ea066d46bf790f574  ./candidate-manifest.txt
+0d9481747ad6e54b0f8cae0687397a1bb3b5e02751fc2f42d79be12ab63d3835  ./device/00-pre-run-state.md
+a0e13f9ad498a338d565def6e27ca783b4c24af82d8246719ec09c3ec4c8d478  ./device/attempt1/S99M-pair-after-assisted-cleanup.png
+a0b6a48f1f4f63fa33fcd4639bbbc1b67b7940a734cb6a84b70a39501fbce3c1  ./device/attempt1/S99M-pair-after-manual-cleanup.png
+0efdca24d97d55d2e627c7062467371d9a63631fc795cc4979ac58bdad198684  ./device/attempt1/S99M-pair-assisted-capture.png
+ef819aa09f20f8a02193370e56cbe123e171d4636f6d82518adb0beb3dfaaf26  ./device/attempt1/S99M-pair-assisted-idle.png
+952338b088bfe1a144eecde3e13c178088349150f2a6c1ae4fa2be3622bcf7b9  ./device/attempt1/S99M-pair-manual-dashboard.png
+061cf06a9ec463a71621a544d946eada6565c3a6de33ab5e33cd998e7561ec5c  ./device/guard-paths.log
+ad6a40580b07a5d9a482051a020391ba4d16a5e179cf6d8b9eb93c38f0b9d331  ./device/measure-pair-device.log
+6f22d5e6c8c8368663545b056868f691aa3f64929fa397ee2fcaf94bf84af6bb  ./device/model-proof.log
+9140d0b5f8496a555e142f8986c026f06fb092aa465288a683a5053a042f125a  ./device/post-run-audit.log
+0b9e1a4c6aafb270f2b02cebf58bd028c6734c61e9a8a390575d286b7d6d8699  ./device/post-run-fixture-audit.log
+49155237147ce393353945dac2aab69f614a44a97ea3fd0d104fbec45152f42f  ./device/pre-run-fixture-audit.log
+9f8961c7885b91c7177f452246173c899c9b770f1711ac896d9f2119f12eee5a  ./device/prefs-staged-encrypted.xml
+23b6d4364751f9b781064d95a9b7c2adf352a43347836a4bc9e4cde059aa6980  ./device/run-40c64cb9bc0419251ba5f6fb32e899b1.trace.json

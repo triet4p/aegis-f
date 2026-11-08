@@ -1,0 +1,8 @@
+S9.5-a1 isolated physical-phone hosted smoke
+
+Build: ./gradlew.bat :app:assembleDebugAndroidTest -PS812_ANDROID_TARGET_PACKAGE=io.github.triet4p.aegisf.s812evidence -> BUILD SUCCESSFUL.
+Install: adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk -> Success. The already-installed app APK was likewise installed with adb install -r; no uninstall or data clear.
+Command: adb shell am instrument -w -e s95_live yes -e class io.github.triet4p.aegisf.agent.S95HostedCategoryPhoneInstrumentedTest io.github.triet4p.aegisf.s812evidence.test/androidx.test.runner.AndroidJUnitRunner
+Result: OK (1 test), 82.246 seconds. The opted-in test used the existing configured Gemini provider and a fresh per-run synthetic Room database, not the default database. It asserted two separate accepted fuel/snack contexts, existing Transport/Food category IDs saved, both drafts pending, empty ledger, provider response/stream-end trace and update_draft_review tool-call trace.
+Earlier first smoke: category, link, pending and ledger assertions passed, but trace assertion failed because the harness bound an arbitrary run ID without the required agent_runs foreign key. The harness was corrected to production admitRun/startTracked before the successful run. No credential was logged and no database was exported.
+Limit: the fixture created the links before the hosted run; it does not establish same-run event/link-to-category orchestration, UI behavior, queue ordering, or stale-write races on phone.
