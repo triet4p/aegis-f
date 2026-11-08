@@ -2,6 +2,7 @@ package io.github.triet4p.aegisf.provider
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -108,6 +109,21 @@ class HostedProviderConfigTest {
                 budget = HostedGenerationBudget(maxOutputTokens = 65_537),
             )
         }
+    }
+
+    @Test
+    fun `an unset output limit is accepted and never replaced by a fixed cap`() {
+        val config = ProviderFixtures.geminiConfig(budget = HostedGenerationBudget())
+        assertNull(config.budget.maxOutputTokens)
+        assertEquals(
+            "maxOutputTokens=provider-default;reasoningEffort=-;temperature=-;parallelToolCalls=-",
+            config.budget.canonicalBudgetString(),
+        )
+    }
+
+    @Test
+    fun `a non-positive explicit output limit is still refused`() {
+        expectRefusal { HostedGenerationBudget(maxOutputTokens = 0) }
     }
 
     @Test

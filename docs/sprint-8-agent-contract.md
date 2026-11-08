@@ -165,7 +165,12 @@ Turn discipline, in order, every turn:
    `TEMPORAL_CONSTRAINT`, `MISSING_REQUIRED_MEANING`, `UNKNOWN_REFERENCE`,
    `REFERENCE_KIND_MISMATCH` or `SUBJECT_UNAVAILABLE`, re-read the current authoritative
    masked observation and repair only from its state/constraints, ask the scoped
-   clarification question, or stop. Scope, privacy, user-decision, masking, pending/unknown
+   clarification question, or stop. An `UNKNOWN_REFERENCE` refusal additionally restates,
+   under the issue's `expected.issued`, the bounded set of opaque handles this run already
+   issued for the expected kind(s), one per subject and never the refused string. That list
+   is a copy aid, not evidence: it never widens the granted id set, never maps a spelling to
+   its nearest neighbour, and a listed handle for a subject that has since changed is still
+   refused by the tool that reads it. Scope, privacy, user-decision, masking, pending/unknown
    operation and over-budget outcomes are terminal; no retry or skill text can bypass them.
    Exactly one owner-approved exception exists: a complete response refused as `UNKNOWN_TOKEN`
    before any call in it was dispatched may be re-issued once per run by the host

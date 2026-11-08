@@ -494,12 +494,13 @@ class GeminiGenerateContentAdapter internal constructor(
                 ),
             )
         }
-        val generation = JSONObject().put("maxOutputTokens", config.budget.maxOutputTokens)
+        val generation = JSONObject()
+        config.budget.maxOutputTokens?.let { generation.put("maxOutputTokens", it) }
         config.budget.temperature?.let { generation.put("temperature", it) }
         config.budget.reasoningEffort?.let {
             generation.put("thinkingConfig", JSONObject().put("thinkingLevel", it.wireName))
         }
-        request.put("generationConfig", generation)
+        if (generation.length() > 0) request.put("generationConfig", generation)
         return request
     }
 

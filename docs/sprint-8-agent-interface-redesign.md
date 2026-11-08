@@ -218,6 +218,12 @@ Example first page: `{"review_status":"PENDING","duplicates_only":false,"cursor"
 | `end_date_ref` | string or null | Explicit DATE reference for interval end; null for no interval. Cannot precede start. |
 | `end_time_ref` | string or null | Explicit TIME reference for interval end; requires both end date and start time. |
 
+A component may come from an explicit clarification linked to the same reading. The returned anchor
+keeps that reading's occurrence binding — the single validated event id shared by its components and,
+when a component was selected from the occurrence, that exact source span — so `record_event` can
+bind the anchor back to the same reading. The binding is never widened: the anchor is still refused
+for another reading, occurrence or note, and unissued or stale components stay refused.
+
 Reject inconsistent interval/order; do not repair by swapping endpoints. Zone comes from trusted capture policy only for a timed anchor; a date-only anchor has no zone. S8 added no raw date/time arithmetic and no relative-date resolver: “Yesterday” then led to clarification, not a fabricated date. S9.1 delivered the separate local deterministic resolver for a day word the occurrence states — `today`, `yesterday`, `the day before yesterday`, `tomorrow`, `the day after tomorrow` and their Vietnamese spellings — exposed as a host-issued `relative_date` alias and resolved from the capture's own recorded local date and zone; a period word still leads to clarification. Supplying a reference is not proof it belongs to the event; `record_event` rechecks provenance.
 
 Examples: date-only `{"date_ref":"date_a","time_ref":null,"end_date_ref":null,"end_time_ref":null}`; timed `{"date_ref":"date_a","time_ref":"time_a","end_date_ref":null,"end_time_ref":null}`. Returns `anchor_ref` plus masked selected components. Errors identify `$.end_time_ref`, for example, with constraint `requires_end_date_and_start_time`; no rehydrated temporal value in the error.
@@ -375,6 +381,8 @@ All tools, including schema-invalid calls that were not dispatched, use one enve
 
 `expected` contains only safe type/shape/constraint metadata, never decrypted values, candidate answers or submitted token echoes. Multiple independently known argument errors can be reported together; do not run a write to discover more validation errors. Limit error detail with existing context budgets; diagnostic logs are not prompt content.
 
+On `UNKNOWN_REFERENCE`, `expected` also carries `issued`: a bounded inventory of the opaque handles this run already issued for the expected kind(s), one newest handle per subject, and never the refused string. It is a copy aid inside the same trusted session only. It grants no subject or scope, performs no spelling or similarity mapping, and a listed handle whose subject has since changed is still refused as stale.
+
 ### 7.2 Field meanings and combinations
 
 | Field | Meaning |
@@ -398,7 +406,7 @@ Error `retryable` means repair is possible under the specified next action and e
 | Code | Effect knowledge / next action | Model responsibility |
 | --- | --- | --- |
 | `SCHEMA_INVALID` | No dispatch, none / correct arguments | Fix named required/type/extra field only; do not guess values |
-| `UNKNOWN_REFERENCE` | None / re-observe authorized parent if possible | Copy a current issued reference; do not probe variants |
+| `UNKNOWN_REFERENCE` | None / re-observe authorized parent if possible | Copy a current issued reference; `expected.issued` restates this run's issued handles for the expected kind; do not probe variants |
 | `REFERENCE_KIND_MISMATCH` | None / correct arguments | Use expected kind from allowed observation |
 | `REFERENCE_SCOPE_REFUSED` | None / stop | No cross-run/cross-subject token laundering; terminal for this attempted authority violation |
 | `STALE_OBSERVATION` | None if CAS failed / observe and reassess | New reference is a new decision; do not auto-write the same meaning without checking |

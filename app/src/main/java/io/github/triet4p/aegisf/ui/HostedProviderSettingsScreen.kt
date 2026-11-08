@@ -34,6 +34,7 @@ import io.github.triet4p.aegisf.provider.HostedProviderPresets
 import io.github.triet4p.aegisf.provider.HostedProviderSettingsStore
 import io.github.triet4p.aegisf.provider.SavedHostedProvider
 import io.github.triet4p.aegisf.provider.HostedReasoningEffort
+import io.github.triet4p.aegisf.provider.MIN_EXPLICIT_OUTPUT_TOKENS
 import io.github.triet4p.aegisf.provider.UrlConnectionHttpTransport
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -61,7 +62,9 @@ internal fun HostedProviderSettingsScreen(
     var editingProfileId by remember { mutableStateOf<String?>(null) }
     var profileName by remember { mutableStateOf("") }
     var endpoint by remember { mutableStateOf("") }
-    var maxOutputTokens by remember { mutableStateOf(HostedProviderPresets.all.first().maxOutputTokens.toString()) }
+    var maxOutputTokens by remember {
+        mutableStateOf(HostedProviderPresets.all.first().maxOutputTokens?.toString().orEmpty())
+    }
     var reasoningEffort by remember { mutableStateOf(HostedProviderPresets.all.first().reasoningEffort) }
     var parallelToolCalls by remember {
         mutableStateOf(HostedProviderPresets.all.first().capabilities.supportsParallelToolCalls)
@@ -119,7 +122,7 @@ internal fun HostedProviderSettingsScreen(
                         endpoint = profile.endpoint
                         model = profile.model
                         credential = ""
-                        maxOutputTokens = profile.maxOutputTokens.toString()
+                        maxOutputTokens = profile.maxOutputTokens?.toString().orEmpty()
                         reasoningEffort = profile.reasoningEffort
                         parallelToolCalls = profile.parallelToolCalls ?: false
                         status = "Enter a replacement credential to edit this profile."
@@ -143,7 +146,7 @@ internal fun HostedProviderSettingsScreen(
                         selectedPresetId = option.id
                         endpoint = option.endpoint
                         model = option.model
-                        maxOutputTokens = option.maxOutputTokens.toString()
+                        maxOutputTokens = option.maxOutputTokens?.toString().orEmpty()
                         reasoningEffort = option.reasoningEffort
                         parallelToolCalls = option.capabilities.supportsParallelToolCalls
                         if (profileName.isBlank()) profileName = option.label
@@ -159,7 +162,7 @@ internal fun HostedProviderSettingsScreen(
                 value = maxOutputTokens,
                 onValueChange = { maxOutputTokens = it.filter(Char::isDigit) },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Maximum output tokens") },
+                label = { Text("Maximum output tokens (blank = model default)") },
                 singleLine = true,
             )
             OutlinedTextField(
@@ -185,21 +188,32 @@ internal fun HostedProviderSettingsScreen(
                     Text("Allow parallel tool calls")
                 }
             }
-            Text("Generation limit: ${preset.maxOutputTokens} output tokens. Protocol capabilities are declared per verified preset; custom models need a supported capability declaration.")
+            Text(
+                "Generation limit: " +
+                    (preset.maxOutputTokens?.let { "$it output tokens" } ?: "the model's own output limit") +
+                    ". Leave the field blank to send no output limit at all; an explicit limit must be " +
+                    "at least $MIN_EXPLICIT_OUTPUT_TOKENS tokens. Protocol capabilities are declared per " +
+                    "verified preset; custom models need a supported capability declaration.",
+            )
             Button(
                 onClick = {
                     val candidate = runCatching {
                         require(profileName.isNotBlank()) { "Enter a profile name." }
                         require(credential.isNotBlank()) { "Enter a credential or replace the saved profile securely." }
+                        val outputBudget = maxOutputTokens.toIntOrNull()
+                        require(outputBudget == null || outputBudget >= MIN_EXPLICIT_OUTPUT_TOKENS) {
+                            "An explicit output limit must be at least $MIN_EXPLICIT_OUTPUT_TOKENS tokens, " +
+                                "or leave the field blank to use the model's own default."
+                        }
                         preset.copy(
                             endpoint = endpoint,
                             model = model,
-                            maxOutputTokens = maxOutputTokens.toInt(),
+                            maxOutputTokens = outputBudget,
                             reasoningEffort = reasoningEffort,
                         ).profile(
                             name = profileName.trim(),
                             credential = credential,
-                            maxOutputTokens = maxOutputTokens.toInt(),
+                            maxOutputTokens = outputBudget,
                             reasoningEffort = reasoningEffort,
                             parallelToolCalls = if (preset.capabilities.supportsParallelToolCalls) {
                                 parallelToolCalls

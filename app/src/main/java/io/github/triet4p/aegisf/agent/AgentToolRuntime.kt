@@ -533,7 +533,16 @@ class AgentToolRuntime(
                 )
             }
         }
-        val key = date.bindingKey()
+        // A clarification answer carries its subject's validated event id; an occurrence value
+        // carries the exact source span. Keep both on the anchor, so an anchor grounded by a
+        // linked clarification can still be bound to that same reading at the write, without
+        // widening the write's own binding check.
+        val boundEventId = all.mapNotNull { it.eventId }.distinct().singleOrNull()
+        val occurrenceKey = all
+            .mapNotNull { component -> component.linkedSubjectKey?.takeIf { it.startsWith("source:") } }
+            .distinct()
+            .singleOrNull()
+        val key = occurrenceKey ?: date.bindingKey()
         val handle = registry.nextHandle()
         val anchorRef = registry.issue(
             AgentReference(
@@ -541,6 +550,7 @@ class AgentToolRuntime(
                 kind = AgentReferenceKind.ANCHOR,
                 scopeId = scope.scopeId,
                 captureId = captureIds.single(),
+                eventId = boundEventId,
                 dateToken = date.valueToken,
                 // A relative day word is evidence of one day, not a stored date value: the
                 // offset travels with the anchor and is resolved again at the write.
@@ -1770,6 +1780,20 @@ class AgentToolRuntime(
             .put("capture_revision", capture.revision)
             .put("source_text", maskedSource ?: JSONObject.NULL)
             .put("source_is_complete", !events.hasMore && capture.bodyText != null)
+            // Trusted capture save instant, distinct from event/bank dates: lets the model tell
+            // "newest saved note" apart when several notes are in scope.
+            .put("captured_at_epoch_millis", capture.capturedAtEpochMillis ?: JSONObject.NULL)
+            .put("capture_timezone", capture.captureTimezone ?: JSONObject.NULL)
+            // Non-numeric deterministic order: numeric epochs are masked on egress, so the model
+            // cannot compare them. This label is relative to the run's observed capture scope, not a
+            // global latest claim; tied save instants never produce a unique "newest".
+            .put("saved_order", runCatching {
+                savedOrderLabel(
+                    captureId = capture.id,
+                    capturedAtById = queries.sourceExcerptsByIdsNewestFirst(scope.captureIds)
+                        .map { it.id to it.capturedAtEpochMillis },
+                )
+            }.getOrNull() ?: JSONObject.NULL)
             .put("values", JSONArray(values))
             .put("events", JSONArray(eventObservations))
             .put("anchors", JSONArray(anchors))
@@ -2701,7 +2725,7 @@ class AgentToolRuntime(
             AgentErrorCode.SOURCE_QUOTE_NOT_FOUND ->
                 listOf("observe", "select_source")
             AgentErrorCode.UNKNOWN_REFERENCE, AgentErrorCode.REFERENCE_KIND_MISMATCH ->
-                listOf("observe", tool)
+                listOf("observe", tool).distinct()
             AgentErrorCode.MISSING_REQUIRED_MEANING, AgentErrorCode.TEMPORAL_CONSTRAINT ->
                 listOf(tool, "ask_user")
             else -> listOf(tool)
@@ -2941,5 +2965,17 @@ object AgentToolDeclarations {
             "The bundled agent tool catalog is incomplete or contains extra tools."
         }
         return declarations
+    }
+
+}
+
+/** Scope-relative saved order; ties never claim a unique newest. Returns null when unknown. */
+internal fun savedOrderLabel(captureId: Long, capturedAtById: List<Pair<Long, Long?>>): String? {
+    val max = capturedAtById.mapNotNull { it.second }.maxOrNull() ?: return null
+    val newest = capturedAtById.filter { it.second == max }.map { it.first }.toSet()
+    return when {
+        captureId !in newest -> "older-in-observed-scope"
+        newest.size == 1 -> "newest-in-observed-scope"
+        else -> "tied-newest-in-observed-scope"
     }
 }

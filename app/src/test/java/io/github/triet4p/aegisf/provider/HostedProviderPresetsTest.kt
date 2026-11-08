@@ -1,16 +1,22 @@
 package io.github.triet4p.aegisf.provider
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HostedProviderPresetsTest {
     @Test
-    fun `every published preset constructs an explicit valid protocol configuration`() {
+    fun `every published preset constructs a valid configuration with no forced output cap`() {
         HostedProviderPresets.all.forEach { preset ->
-            assertEquals(preset.protocol, preset.profile("Synthetic test profile", "synthetic-test-credential").validatedConfig().protocol)
+            val config = preset.profile("Synthetic test profile", "synthetic-test-credential").validatedConfig()
+            assertEquals(preset.protocol, config.protocol)
             assertTrue(preset.endpoint.startsWith("https://"))
-            assertTrue(preset.maxOutputTokens >= 4096)
+            assertNull("a preset must not impose an output ceiling", preset.maxOutputTokens)
+            assertNull(
+                "the serialized budget must leave the selected model's own limit in force",
+                config.budget.maxOutputTokens,
+            )
         }
     }
 

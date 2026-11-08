@@ -337,6 +337,179 @@ class AgentToolRuntimeTest {
     }
 
     @Test
+    fun `an unissued alias is refused without mutation and restates only issued handles`() = runBlocking {
+        val registry = AgentReferenceRegistry(scope.scopeId)
+        val runtime = runtimeFor(scope, registry)
+        val capture = observeCapture(runtime)
+        val validCaptureRef = capture.getString("ref")
+        val maskedSource = capture.getString("source_text")
+        // The observed failure: an issued handle copied with one wrong character.
+        val wrong = validCaptureRef.dropLast(1) +
+            if (validCaptureRef.last() == '0') '1' else '0'
+        assertNotEquals(validCaptureRef, wrong)
+
+        val refused = runtime.execute(
+            "select_source",
+            JSONObject().put("capture_ref", wrong).put("quote", maskedSource).put("occurrence", 1),
+            "read-only",
+        ).envelope
+
+        // The same result the provider receives: serialized, then masked by the egress boundary.
+        val serialized = JSONObject(refused.toString())
+        assertEquals("error", serialized.getString("outcome"))
+        assertEquals("UNKNOWN_REFERENCE", serialized.getJSONObject("error").getString("code"))
+        assertEquals("none", serialized.getString("effect"))
+        assertTrue(database.noteEventDao().findForCapture(captureId).isEmpty())
+        assertTrue(database.transactionDao().findAll().isEmpty())
+        assertEquals(0L, database.workflowOperationDao().countOf("UPDATE_EVENT"))
+
+        val issue = serialized.getJSONObject("error").getJSONArray("issues").getJSONObject(0)
+        assertEquals("$.capture_ref", issue.getString("path"))
+        val expected = issue.getJSONObject("expected")
+        assertEquals("capture", expected.getString("kind"))
+        val issued = expected.getJSONArray("issued")
+        assertTrue(issued.length() > 0)
+        val entries = (0 until issued.length()).map { issued.getJSONObject(it) }
+        assertTrue(entries.all { it.getString("kind") == "capture" })
+        val handles = entries.map { it.getString("ref") }
+        assertEquals(listOf(validCaptureRef), handles)
+        assertFalse("the refused alias is never echoed as a candidate", handles.contains(wrong))
+        handles.forEach { handle ->
+            assertEquals(
+                AgentReferenceKind.CAPTURE,
+                registry.resolve(handle, AgentReferenceKind.CAPTURE, "$.capture_ref").kind,
+            )
+        }
+
+        val masked = boundary.maskOutbound(
+            serialized.toString(),
+            io.github.triet4p.aegisf.privacy.MaskedPath.TOOL_RESULT,
+        )
+        assertTrue("issued handles survive the egress boundary verbatim", masked.contains(validCaptureRef))
+        assertFalse(masked.contains(wrong))
+        assertFalse(masked.contains("28,000"))
+
+        // The deliberate recovery: copy the restated handle exactly and continue.
+        val recovered = runtime.execute(
+            "select_source",
+            JSONObject().put("capture_ref", handles.single())
+                .put("quote", maskedSource)
+                .put("occurrence", 1),
+            "read-only",
+        ).envelope
+        assertEquals("ok", recovered.getString("outcome"))
+        assertTrue(
+            recovered.getJSONObject("data").getString("source_ref")
+                .matches(Regex("^r_[0-9a-f]{24}$")),
+        )
+    }
+
+    @Test
+    fun `an unissued observe alias lists the observable inventory and each allowed tool once`() = runBlocking {
+        val runtime = runtimeFor(scope)
+        val capture = observeCapture(runtime)
+        val valid = capture.getString("ref")
+        val wrong = valid.dropLast(1) + if (valid.last() == '0') '1' else '0'
+
+        val refused = runtime.execute("observe", JSONObject().put("ref", wrong), "read-only").envelope
+        val error = refused.getJSONObject("error")
+        assertEquals("UNKNOWN_REFERENCE", error.getString("code"))
+        assertEquals("none", refused.getString("effect"))
+        val expected = error.getJSONArray("issues").getJSONObject(0).getJSONObject("expected")
+        val kinds = (0 until expected.getJSONArray("kinds").length())
+            .map { expected.getJSONArray("kinds").getString(it) }
+        assertTrue(kinds.contains("capture"))
+        val handles = (0 until expected.getJSONArray("issued").length())
+            .map { expected.getJSONArray("issued").getJSONObject(it).getString("ref") }
+        assertTrue(handles.contains(valid))
+        assertFalse(handles.contains(wrong))
+        // An alias refusal names the supported reads without repeating a tool name.
+        val allowed = (0 until error.getJSONArray("allowed_tools").length())
+            .map { error.getJSONArray("allowed_tools").getString(it) }
+        assertEquals(listOf("observe"), allowed)
+        assertTrue(database.noteEventDao().findForCapture(captureId).isEmpty())
+    }
+
+    @Test
+    fun `the issued inventory keeps one newest handle per subject in issuance order`() {
+        val registry = AgentReferenceRegistry("s9.9-inventory-order")
+        registry.issue(
+            AgentReference(
+                handle = registry.nextHandle(),
+                kind = AgentReferenceKind.DRAFT,
+                scopeId = "s9.9-inventory-order",
+                subjectId = 2L,
+                draftId = 2L,
+            ),
+        )
+        registry.issue(
+            AgentReference(
+                handle = registry.nextHandle(),
+                kind = AgentReferenceKind.CAPTURE,
+                scopeId = "s9.9-inventory-order",
+                subjectId = 7L,
+                captureId = 7L,
+            ),
+        )
+        val newestCapture = registry.issue(
+            AgentReference(
+                handle = registry.nextHandle(),
+                kind = AgentReferenceKind.CAPTURE,
+                scopeId = "s9.9-inventory-order",
+                subjectId = 7L,
+                captureId = 7L,
+            ),
+        )
+        val captures = registry.issuedFor(setOf(AgentReferenceKind.CAPTURE))
+        assertEquals(
+            listOf(newestCapture),
+            (0 until captures.length()).map { captures.getJSONObject(it).getString("ref") },
+        )
+        val newestDraft = registry.issue(
+            AgentReference(
+                handle = registry.nextHandle(),
+                kind = AgentReferenceKind.DRAFT,
+                scopeId = "s9.9-inventory-order",
+                subjectId = 2L,
+                draftId = 2L,
+            ),
+        )
+        val drafts = registry.issuedFor(setOf(AgentReferenceKind.DRAFT))
+        assertEquals(
+            listOf(newestDraft),
+            (0 until drafts.length()).map { drafts.getJSONObject(it).getString("ref") },
+        )
+    }
+
+    @Test
+    fun `the issued inventory is bounded and never lists an evicted handle`() {
+        val registry = AgentReferenceRegistry("s9.9-inventory-bound", maxEntries = 16)
+        val handles = (1..20).map { index ->
+            registry.issue(
+                AgentReference(
+                    handle = registry.nextHandle(),
+                    kind = AgentReferenceKind.CAPTURE,
+                    scopeId = "s9.9-inventory-bound",
+                    subjectId = index.toLong(),
+                    captureId = index.toLong(),
+                ),
+            )
+        }
+        val issued = registry.issuedFor(setOf(AgentReferenceKind.CAPTURE))
+        assertEquals(AgentReferenceRegistry.MAX_INVENTORY_PER_KIND, issued.length())
+        val listed = (0 until issued.length()).map { issued.getJSONObject(it).getString("ref") }
+        assertFalse(listed.any { it in handles.take(4) })
+        assertEquals(handles[4], listed.first())
+        listed.forEach {
+            assertEquals(
+                AgentReferenceKind.CAPTURE,
+                registry.resolve(it, AgentReferenceKind.CAPTURE, "$.ref").kind,
+            )
+        }
+        assertEquals(0, registry.issuedFor(setOf(AgentReferenceKind.DRAFT)).length())
+    }
+
+    @Test
     fun `strict flat schema reports every known argument issue without dispatch`() = runBlocking {
         val runtime = runtimeFor(scope)
         val capture = observeCapture(runtime)
@@ -628,6 +801,115 @@ class AgentToolRuntimeTest {
         assertEquals(25_000L, stored.amountVnd)
         assertNull(stored.unresolvedReason)
         assertEquals("INTERPRETED", stored.status.name)
+    }
+
+    @Test
+    fun `clarification-supplied day grounds the selected unresolved occurrence`() = runBlocking {
+        val dayId = storeCapture(
+            "s9.9-clarification-day",
+            "On 2026-10-21: fuel 50,000 VND at 15:00 and snack 20,000 VND at 15:15",
+        )
+        val widened = WorkflowCallerScope.AgentSession(
+            scopeId = scope.scopeId,
+            captureIds = setOf(captureId, dayId),
+            draftIds = emptySet(),
+        )
+        val runtime = runtimeFor(widened)
+        val capture = observeCapture(runtime, dayId)
+        val masked = capture.getString("source_text")
+        val fuelSource = selectSource(runtime, capture.getString("ref"), masked.substringBefore(" and "))
+        val fuel = record(
+            runtime,
+            fuelSource.getString("source_ref"),
+            valueRef(fuelSource, "amount"),
+            makeAnchor(runtime, valueRef(fuelSource, "date"), valueRef(fuelSource, "time")),
+            "Fuel purchase",
+            "none",
+        )
+        assertEquals(fuel.toString(), "ok", fuel.getString("outcome"))
+
+        // The snack clause states neither day nor year, so the reading is stored as a grounded
+        // partial that names its clarification need instead of guessing a date.
+        val snackSource = selectSource(runtime, capture.getString("ref"), masked.substringAfter(" and "))
+        val partial = record(
+            runtime,
+            snackSource.getString("source_ref"),
+            valueRef(snackSource, "amount"),
+            null,
+            "Snack purchase",
+            "date",
+        )
+        assertEquals(partial.toString(), "ok", partial.getString("outcome"))
+        val snackEventRef = partial.getJSONObject("data").getJSONObject("event").getString("ref")
+
+        val ask = runtime.execute(
+            "ask_user",
+            JSONObject()
+                .put("subject_ref", snackEventRef)
+                .put("field", "date")
+                .put("question", "What calendar date was the snack purchase made?"),
+            "read-only",
+        ).envelope
+        assertEquals("clarifying", ask.getString("outcome"))
+
+        val evidence = runtime.registerClarification(
+            subjectRef = snackEventRef,
+            field = "date",
+            userAnswer = "2026-10-21",
+        )
+        assertEquals("clarification", evidence.getString("kind"))
+        assertFalse("the answer must mint a neutral value alias", evidence.isNull("value_ref"))
+        val dayRef = evidence.getString("value_ref")
+
+        // The same occurrence is re-read and now carries the unresolved reading the answer belongs
+        // to; its own time plus the clarified day must form one legal anchor for that reading.
+        val fresh = observeCapture(runtime, dayId)
+        val freshSource = selectSource(runtime, fresh.getString("ref"), masked.substringAfter(" and "))
+        val dateOnly = makeAnchor(runtime, dayRef, null)
+        val anchor = makeAnchor(runtime, dayRef, valueRef(freshSource, "time"))
+        val corrected = record(
+            runtime,
+            freshSource.getString("source_ref"),
+            valueRef(freshSource, "amount"),
+            anchor,
+            "Snack purchase",
+            "none",
+        )
+        assertEquals(corrected.toString(), "ok", corrected.getString("outcome"))
+        assertEquals("applied", corrected.getString("effect"))
+        val grounded = database.noteEventDao().findForCapture(dayId)
+            .single { it.amountVnd == 20_000L && it.unresolvedReason == null }
+        assertFalse("the clarified day must be stored", grounded.anchorDate.isNullOrBlank())
+        assertEquals("INTERPRETED", grounded.status.name)
+
+        // Provenance stays closed: the snack answer cannot label another reading, whether it is
+        // mixed with that reading's temporal value or used as a date-only anchor.
+        val foreignMix = makeIntervalAnchor(runtime, dayRef, valueRef(fuelSource, "time"), null, null)
+        assertEquals("error", foreignMix.getString("outcome"))
+        assertEquals(
+            "REFERENCE_KIND_MISMATCH",
+            foreignMix.getJSONObject("error").getString("code"),
+        )
+        val fuelAgain = observeCapture(runtime, dayId)
+        val fuelFresh = selectSource(runtime, fuelAgain.getString("ref"), masked.substringBefore(" and "))
+        val foreignRecord = record(
+            runtime,
+            fuelFresh.getString("source_ref"),
+            valueRef(fuelFresh, "amount"),
+            dateOnly,
+            "Fuel purchase",
+            "none",
+        )
+        assertEquals("error", foreignRecord.getString("outcome"))
+        assertEquals(
+            "REFERENCE_KIND_MISMATCH",
+            foreignRecord.getJSONObject("error").getString("code"),
+        )
+        assertEquals(
+            "anchor_from_selected_occurrence",
+            foreignRecord.getJSONObject("error").getJSONArray("issues").getJSONObject(0)
+                .getString("constraint"),
+        )
     }
 
     @Test

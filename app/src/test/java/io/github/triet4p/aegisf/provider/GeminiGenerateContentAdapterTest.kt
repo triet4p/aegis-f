@@ -425,4 +425,48 @@ class GeminiGenerateContentAdapterTest {
           {"functionCall":{"name":"probe_echo","args":{"value":"ALPHA-17"},"id":"call_1"},"thoughtSignature":"sig"}
         ]},"finishReason":"STOP"}]}
     """.trimIndent()
+
+    @Test
+    fun `an unset output budget omits the Gemini output limit field`() = runBlocking {
+        val transport = FakeTransport(
+            ProviderFixtures.reply(
+                """{"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"role":"model","parts":[{"text":"ok"}]},"finishReason":"STOP"}]}""",
+            ),
+        )
+        val config = ProviderFixtures.geminiConfig(
+            budget = HostedGenerationBudget(reasoningEffort = HostedReasoningEffort.MINIMAL),
+        )
+        val adapter = HostedAdapters.create(config, transport)
+        ProviderFixtures.turn(adapter.generate(adapter.begin("system instructions", "hello"), emptyList()))
+
+        val generation = transport.requestJson().getJSONObject("generationConfig")
+        assertFalse("the model default must not be replaced by a fixed cap", generation.has("maxOutputTokens"))
+        assertEquals(
+            "minimal",
+            generation.getJSONObject("thinkingConfig").getString("thinkingLevel"),
+        )
+        assertEquals(
+            "maxOutputTokens=provider-default;reasoningEffort=minimal;temperature=-;parallelToolCalls=-",
+            config.budget.canonicalBudgetString(),
+        )
+    }
+
+    @Test
+    fun `an unset budget still sends reasoning only when the model declares it`() = runBlocking {
+        val transport = FakeTransport(
+            ProviderFixtures.reply(
+                """{"modelVersion":"gemini-3.5-flash-lite","candidates":[{"content":{"role":"model","parts":[{"text":"ok"}]},"finishReason":"STOP"}]}""",
+            ),
+        )
+        val adapter = HostedAdapters.create(
+            ProviderFixtures.geminiConfig(budget = HostedGenerationBudget()),
+            transport,
+        )
+        ProviderFixtures.turn(adapter.generate(adapter.begin("system instructions", "hello"), emptyList()))
+
+        assertFalse(
+            "an empty generation config was serialized",
+            transport.requestJson().has("generationConfig"),
+        )
+    }
 }

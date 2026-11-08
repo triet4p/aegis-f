@@ -40,6 +40,7 @@ class S98DeviceFixtureInstrumentedTest {
             "verify_after_live_run" -> verifyAfterLiveRun(context)
             "verify_after_fallback" -> verifyAfterFallback(context)
             "add_profile" -> addOfferedProfile(context)
+            "add_custom_profile" -> addCustomProfile(context)
             "remove_profile" -> removeTemporaryProfile(
                 context,
                 requireNotNull(InstrumentationRegistry.getArguments().getString("s98_profile_id")),
@@ -869,6 +870,44 @@ class S98DeviceFixtureInstrumentedTest {
         }
     }
 
+    private fun addCustomProfile(context: Context) {
+        val arguments = InstrumentationRegistry.getArguments()
+        val id = requireNotNull(arguments.getString("s98_profile_id"))
+        val endpoint = requireNotNull(arguments.getString("s98_endpoint"))
+        val model = requireNotNull(arguments.getString("s98_model"))
+        val protocolName = requireNotNull(arguments.getString("s98_protocol"))
+        val keyName = requireNotNull(arguments.getString("s98_key_name"))
+        val secretFile = java.io.File(context.filesDir, SECRET_FILE)
+        require(secretFile.isFile) { "no injected secret file" }
+        val values = secretFile.readLines().mapNotNull { line ->
+            val index = line.indexOf('=')
+            if (index <= 0) null else line.substring(0, index) to line.substring(index + 1).trim()
+        }.toMap()
+        val key = requireNotNull(values[keyName]) { "$keyName missing" }
+        require(key.isNotBlank()) { "injected key is blank" }
+        try {
+            val store = HostedProviderSettingsStore(context)
+            val profiles = store.load()
+            if (profiles.any { it.id == id }) {
+                emit("S98CONFIG custom exists id=$id")
+                return
+            }
+            val protocol = io.github.triet4p.aegisf.provider.HostedProtocol.valueOf(protocolName)
+            val base = HostedProviderPresets.byId("opencode-go-deepseek").profile(
+                name = "S99 Direct DeepSeek", credential = key,
+            )
+            val profile = base.copy(id = id, protocol = protocol, endpoint = endpoint, model = model)
+            store.save(profiles + profile)
+            val reloaded = store.load().first { it.id == id }
+            emit("S98CONFIG custom id=$id model=${reloaded.model} endpoint=${reloaded.endpoint} " +
+                "protocol=${reloaded.protocol} credentialNonBlank=${reloaded.credential.isNotBlank()} " +
+                "credentialMatch=${reloaded.credential == key} active=${runCatching { store.active() }.getOrNull()?.id}")
+        } finally {
+            secretFile.delete()
+            emit("S98CONFIG secretFileDeleted=${!secretFile.exists()}")
+        }
+    }
+
     private fun activateProfile(context: Context, profileId: String) {
         val store = HostedProviderSettingsStore(context)
         require(store.load().any { it.id == profileId }) { "no profile $profileId" }
@@ -879,7 +918,13 @@ class S98DeviceFixtureInstrumentedTest {
     private fun removeTemporaryProfile(context: Context, profileId: String) {
         val store = HostedProviderSettingsStore(context)
         val profiles = store.load()
-        store.save(profiles.filterNot { it.id == profileId })
+        when {
+            // The production delete removes the active marker and, when it leaves no profile,
+            // clears the whole store (including a stale active id/alias from an earlier save([])).
+            profiles.any { it.id == profileId } -> store.delete(profileId)
+            profiles.isEmpty() -> store.deleteAll()
+            else -> Unit
+        }
         emit("S98CONFIG removed=$profileId remaining=${store.load().map { it.id }} active=${runCatching { store.active() }.getOrNull()?.id}")
     }
 

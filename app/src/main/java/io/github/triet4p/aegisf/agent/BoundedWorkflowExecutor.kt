@@ -1884,7 +1884,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             appendLine("User request:")
             appendLine(userRequest)
             appendLine()
-            appendLine("Trusted host observations taken now (masked, current). Every alias below is usable only in this run:")
+            appendLine("Trusted host observations taken now (masked, current). Capture entries carry a scope-relative saved_order: newest-in-observed-scope only when one observed note has the latest save instant, tied-newest-in-observed-scope when several share it, otherwise older-in-observed-scope. This is not a global latest claim. Every alias below is usable only in this run:")
             appendLine(observations.toString())
             appendLine()
             append(

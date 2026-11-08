@@ -463,13 +463,66 @@ class AgentReferenceRegistry(
         }
     }
 
+    /**
+     * Bounded, value-free inventory of the handles this run already issued for [kinds].
+     *
+     * It exists only to answer one refused alias: the model gets the exact current strings to
+     * copy instead of probing variants it invents. Membership is this registry's own issue
+     * history (an evicted or foreign handle can never appear), one newest handle per subject,
+     * in first-issuance order. It is an inventory, not a state guarantee: a handle for a
+     * subject that changed is still refused by the tool that reads it.
+     */
+    fun issuedFor(kinds: Set<AgentReferenceKind>): JSONArray {
+        if (kinds.isEmpty()) return JSONArray()
+        val latestBySubject = LinkedHashMap<String, AgentReference>()
+        synchronized(entries) {
+            entries.values.forEach { reference ->
+                if (reference.kind !in kinds) return@forEach
+                latestBySubject[inventorySubject(reference)] = reference
+            }
+        }
+        val issued = JSONArray()
+        kinds.forEach { kind ->
+            latestBySubject.values
+                .asSequence()
+                .filter { it.kind == kind }
+                .take(MAX_INVENTORY_PER_KIND)
+                .forEach { reference ->
+                    issued.put(JSONObject().put("ref", reference.handle).put("kind", kind.wire))
+                }
+        }
+        return issued
+    }
+
+    /**
+     * The host fact that makes two handles interchangeable for one argument.
+     *
+     * Handles for the same capture, draft, event, pair or recorded operation collapse to one
+     * inventory row; value, anchor, source and category handles stay individual because each
+     * names a different choice. This is identity grouping, never spelling similarity.
+     */
+    private fun inventorySubject(reference: AgentReference): String = when (reference.kind) {
+        AgentReferenceKind.CAPTURE -> "capture:${reference.captureId}"
+        AgentReferenceKind.DRAFT -> "draft:${reference.draftId}"
+        AgentReferenceKind.EVENT -> "event:${reference.eventId}"
+        AgentReferenceKind.PAIR, AgentReferenceKind.PROPOSAL ->
+            "pair:${reference.eventId}:${reference.draftId}"
+        AgentReferenceKind.OPERATION -> reference.operationKey?.let { "operation:$it" }
+            ?: reference.handle
+        else -> reference.handle
+    }
+
     fun resolve(handle: String?, expected: AgentReferenceKind, path: String): AgentReference {
         if (handle.isNullOrBlank()) {
             throw AgentToolException(
                 code = AgentErrorCode.UNKNOWN_REFERENCE,
                 path = path,
                 constraint = "nonblank_reference",
-                message = "Copy a reference issued in this run for ${expected.wire}.",
+                expected = JSONObject()
+                    .put("kind", expected.wire)
+                    .put("issued", issuedFor(setOf(expected))),
+                message = "Copy a reference issued in this run for ${expected.wire}; " +
+                    "expected.issued lists the currently issued ones.",
             )
         }
         val reference = synchronized(entries) { entries[handle] }
@@ -477,7 +530,11 @@ class AgentReferenceRegistry(
                 code = AgentErrorCode.UNKNOWN_REFERENCE,
                 path = path,
                 constraint = "issued_in_this_run",
-                message = "That reference was not issued in this run. Observe again instead of probing variants.",
+                expected = JSONObject()
+                    .put("kind", expected.wire)
+                    .put("issued", issuedFor(setOf(expected))),
+                message = "That reference was not issued in this run. Copy one of the issued " +
+                    "${expected.wire} references in expected.issued exactly; do not probe variants.",
             )
         if (reference.scopeId != scopeId) {
             throw AgentToolException(
@@ -509,7 +566,11 @@ class AgentReferenceRegistry(
                 code = AgentErrorCode.UNKNOWN_REFERENCE,
                 path = path,
                 constraint = "nonblank_reference",
-                message = "Copy a reference issued in this run.",
+                expected = JSONObject()
+                    .put("kinds", JSONArray(expected.map { it.wire }))
+                    .put("issued", issuedFor(expected)),
+                message = "Copy a reference issued in this run; expected.issued lists the " +
+                    "currently issued ones.",
             )
         }
         val reference = synchronized(entries) { entries[handle] }
@@ -517,7 +578,11 @@ class AgentReferenceRegistry(
                 code = AgentErrorCode.UNKNOWN_REFERENCE,
                 path = path,
                 constraint = "issued_in_this_run",
-                message = "That reference was not issued in this run. Observe again instead of probing variants.",
+                expected = JSONObject()
+                    .put("kinds", JSONArray(expected.map { it.wire }))
+                    .put("issued", issuedFor(expected)),
+                message = "That reference was not issued in this run. Copy one of the issued " +
+                    "references in expected.issued exactly; do not probe variants.",
             )
         if (reference.kind !in expected) {
             throw AgentToolException(
@@ -538,6 +603,9 @@ class AgentReferenceRegistry(
 
     companion object {
         const val DEFAULT_MAX_ENTRIES = 512
+
+        /** At most this many issued handles per expected kind are restated on a refusal. */
+        const val MAX_INVENTORY_PER_KIND = 8
         private const val HANDLE_BYTES = 12
         private val HANDLE_PATTERN = Regex("^r_[0-9a-f]{24}$")
     }

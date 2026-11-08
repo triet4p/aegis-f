@@ -1,20 +1,27 @@
 package io.github.triet4p.aegisf.provider
 
-/** Presets only use protocol/model routes exercised by the project's prior live adapter probes. */
+/**
+ * Presets only use protocol/model routes exercised by the project's prior live adapter probes.
+ *
+ * [maxOutputTokens] is the preset's explicit output ceiling and is `null` by default: the
+ * request omits the protocol's limit field and the model's own default applies. The app never
+ * seeds a profile with a lower fixed cap, because a reasoning model charged against a small
+ * shared ceiling can spend the entire budget thinking and never reach its first tool call.
+ */
 data class HostedProviderPreset(
     val id: String,
     val label: String,
     val protocol: HostedProtocol,
     val endpoint: String,
     val model: String,
-    val maxOutputTokens: Int,
+    val maxOutputTokens: Int? = null,
     val reasoningEffort: HostedReasoningEffort?,
     val capabilities: HostedProviderCapabilities,
 ) {
     fun profile(
         name: String,
         credential: String,
-        maxOutputTokens: Int = this.maxOutputTokens,
+        maxOutputTokens: Int? = this.maxOutputTokens,
         reasoningEffort: HostedReasoningEffort? = this.reasoningEffort,
         parallelToolCalls: Boolean? = if (capabilities.supportsParallelToolCalls) true else null,
     ): SavedHostedProvider = SavedHostedProvider(
@@ -48,7 +55,6 @@ object HostedProviderPresets {
             protocol = HostedProtocol.GEMINI_GENERATE_CONTENT,
             endpoint = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
             model = "gemma-4-26b-a4b-it",
-            maxOutputTokens = 8192,
             reasoningEffort = null,
             capabilities = toolModel.copy(
                 supportsParallelToolCalls = false,
@@ -61,7 +67,6 @@ object HostedProviderPresets {
             protocol = HostedProtocol.GEMINI_GENERATE_CONTENT,
             endpoint = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
             model = "gemini-3.5-flash-lite",
-            maxOutputTokens = 8192,
             reasoningEffort = null,
             capabilities = toolModel.copy(
                 supportsParallelToolCalls = false,
@@ -75,7 +80,6 @@ object HostedProviderPresets {
             protocol = HostedProtocol.OPENAI_CHAT_COMPLETIONS,
             endpoint = "https://opencode.ai/zen/go/v1/chat/completions",
             model = "deepseek-v4.1-flash",
-            maxOutputTokens = 8192,
             reasoningEffort = null,
             capabilities = toolModel,
         ),
@@ -85,7 +89,6 @@ object HostedProviderPresets {
             protocol = HostedProtocol.OPENAI_RESPONSES,
             endpoint = "https://opencode.ai/zen/go/v1/responses",
             model = "gpt-6-luna",
-            maxOutputTokens = 4096,
             reasoningEffort = HostedReasoningEffort.MEDIUM,
             capabilities = toolModel.copy(supportsReasoningBudget = true, supportsParallelToolCalls = false),
         ),

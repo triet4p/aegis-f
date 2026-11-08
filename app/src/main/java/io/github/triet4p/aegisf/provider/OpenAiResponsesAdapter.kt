@@ -446,7 +446,7 @@ class OpenAiResponsesAdapter internal constructor(
             )
             request.put("tool_choice", AUTO_TOOL_CHOICE)
         }
-        request.put("max_output_tokens", config.budget.maxOutputTokens)
+        config.budget.maxOutputTokens?.let { request.put("max_output_tokens", it) }
         config.budget.temperature?.let { request.put("temperature", it) }
         config.budget.reasoningEffort?.let {
             request.put("reasoning", JSONObject().put("effort", it.wireName))

@@ -427,4 +427,25 @@ and allow only the exact validated external report rather than opening a blanket
 
 **Fix / workaround:** Removed the clear. The corrected fixture seeds a unique run id, unique capture bodies/memo evidence, and records only the ids it created in its own preferences; verification reads only those ids. The owner's main app was never touched, and no rows were reconstructed or claimed as restored.
 
-**Watch out for:** Browser/Owner test boundaries permit per-test synthetic databases and seeded-ID-scoped operations only. Never clear, uninstall, overwrite, or export a persistent app database (even the isolated test package) to make a fixture convenient; create unique owned rows or use a dedicated disposable database instead.
+**Watch out for:** Browser/Owner test boundaries permit per-test synthetic databases and seeded-ID-scoped operations only. Never clear, uninstall, overwrite, or export a persistent app database (even the isolated test package) to make a fixture convenient; create unique rows or use a dedicated disposable database instead.
+
+## [2026-11-08] A clarification-grounded anchor could never bind back to its occurrence
+
+**Symptom:** The hosted agent stored a purchase as `UNRESOLVED` with a `date` clarification. After the user answered the day, `make_time_anchor(date_ref = <clarification value>, time_ref = <occurrence time>)` succeeded, but the following `record_event` refused its own anchor with `REFERENCE_KIND_MISMATCH`, `$.anchor_ref`, `anchor_from_selected_occurrence` — so the purchase never got a date and could never link to its bank draft. The model then asked for the same date again and the run burned its turn budget.
+
+**Root cause:** `makeTimeAnchor` issued the anchor with `linkedSubjectKey = date.bindingKey()` and no `eventId`. For a clarification value that key is `event:<id>` (the answering subject), while `recordEvent`'s `bindingCompatible(source, anchor)` only matches an equal source key (`source:<capture>:<start>:<end>`), an equal event id, a clarification linked directly to that source key, or a capture-bound clarification. None could match, so any anchor grounded by a clarification was deterministically unusable. Existing-event anchors (`anchorsFor`) showed the intended shape: `eventId` plus the source key.
+
+**Fix / workaround:** `makeTimeAnchor` now keeps the single validated `eventId` shared by its components and, when a component was selected from the occurrence, that exact source key (`occurrenceKey ?: date.bindingKey()`). `bindingCompatible` and the registry were not relaxed: mixing one reading's clarification with another occurrence's time, or using it as a date-only anchor for a different reading, is still refused.
+
+**Watch out for:** Any host-issued reference assembled from several components must preserve the binding of the subject it will later be applied to. A key derived from the *clarifying* subject is not the *occurrence* key. Cover the clarification path with a real-runtime regression, not just the happy occurrence path.
+
+## [2026-11-08] A Compose test rule throttles any long-running app work it hosts
+
+**Symptom:** An operator-driven phone session run under `createAndroidComposeRule` consumed a live provider stream at roughly one chunk per second (1,366 chunks in 22 minutes) and the visible UI repainted only about once per second. A deterministic local SSE producer emitting every 150 ms was consumed with a 1,028 ms median gap under the same hold, and the fix's rule-free hold consumed the identical stream with a 167 ms median.
+
+**Root cause:** The Compose test environment owns the app's frame clock; while the instrumentation merely waits, frames arrive only when the test advances the clock, so frame-driven recomposition and stream consumption were paced by the pump rather than by production.
+
+**Fix / workaround:** Do not host an operator-driven live session inside a Compose test rule. Use a rule-free instrumentation class that installs only the fail-closed transport pin and leaves the app on its own frame clock. No `mainClock` control is needed at all.
+
+**Watch out for:** Never "fix" slow live behavior by pumping the test clock faster — the harness stays in the path. Measure with a deterministic local producer before attributing cadence to the provider.
+

@@ -16,10 +16,12 @@ import java.net.URISyntaxException
  *   model name, or replaced when a request fails. An adapter sends the model id verbatim, uses
  *   the endpoint verbatim (Gemini's `{model}` placeholder is the one documented substitution),
  *   and compares the identity the provider echoes back with the configured one.
- * - **Budget.** [HostedGenerationBudget.maxOutputTokens] is required and per model; there is no
- *   shared cap. Reasoning effort and temperature are only sent when the declared capabilities
- *   include them, and a request for an undeclared feature fails as a configuration error instead
- *   of being silently dropped.
+ * - **Budget.** [HostedGenerationBudget.maxOutputTokens] is optional and `null` by default: the
+ *   request then carries no output-limit field at all and the provider applies the selected
+ *   model's own default. A configured value is per model and sent verbatim; there is no shared
+ *   cap, and the app's own presets never impose one. Reasoning effort and temperature are only
+ *   sent when the declared capabilities include them, and a request for an undeclared feature
+ *   fails as a configuration error instead of being silently dropped.
  * - **Dispatch eligibility.** A tool call is only [HostedToolCall.dispatchable] after its
  *   arguments are a complete JSON object that satisfies the declared argument schema. Partial
  *   or truncated arguments, unknown tools and schema violations are surfaced with their own
@@ -128,22 +130,31 @@ enum class HostedReasoningEffort(val wireName: String) {
 }
 
 /**
- * One model's frozen generation budget.
+ * The canonical cache-identity spelling of a budget that requests no explicit output ceiling.
+ * The wire request simply omits the protocol's limit field in that case.
+ */
+const val PROVIDER_DEFAULT_OUTPUT_TOKENS: String = "provider-default"
+
+/**
+ * One model's generation budget.
  *
- * [maxOutputTokens] is required: a large reasoning model must be given room to reason and
- * answer, and a single shared cap (the old 2048-token value) is exactly what this contract
- * forbids. Truncation is reported as an incomplete turn, never as a complete answer.
+ * [maxOutputTokens] is the optional explicit output ceiling and `null` by default. `null` omits
+ * the protocol's limit field entirely so the provider applies the selected model's own default:
+ * that is the only setting that both lets a reasoning model spend its own thinking budget before
+ * the first tool call and stays inside whatever that model actually supports. A non-null value
+ * is sent verbatim and is bounded only by the declared model limit. Truncation is still reported
+ * as an incomplete turn, never as a complete answer.
  */
 data class HostedGenerationBudget(
-    val maxOutputTokens: Int,
+    val maxOutputTokens: Int? = null,
     val reasoningEffort: HostedReasoningEffort? = null,
     val temperature: Double? = null,
     /** `null` leaves the provider's own parallel-call default in place. */
     val parallelToolCalls: Boolean? = null,
 ) {
     init {
-        if (maxOutputTokens < 1) {
-            throw HostedConfigurationException("maxOutputTokens must be positive")
+        if (maxOutputTokens != null && maxOutputTokens < 1) {
+            throw HostedConfigurationException("maxOutputTokens must be positive when it is set")
         }
         if (temperature != null && temperature !in 0.0..2.0) {
             throw HostedConfigurationException("temperature must be within 0.0..2.0")
@@ -210,9 +221,10 @@ data class HostedProviderConfig(
             }
         }
         val limit = capabilities.maxOutputTokensLimit
-        if (limit != null && budget.maxOutputTokens > limit) {
+        val requestedOutputTokens = budget.maxOutputTokens
+        if (limit != null && requestedOutputTokens != null && requestedOutputTokens > limit) {
             throw HostedConfigurationException(
-                "maxOutputTokens ${budget.maxOutputTokens} exceeds the declared model limit $limit",
+                "maxOutputTokens $requestedOutputTokens exceeds the declared model limit $limit",
             )
         }
         if (budget.reasoningEffort != null && !capabilities.supportsReasoningBudget) {

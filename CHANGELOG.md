@@ -26,6 +26,12 @@ and no release has been tagged or published. Format follows
 - Note event interpretations and permitted bank notifications now reconcile when either arrives. Only a complete, unique evidence match is linked automatically; ambiguous or incomplete evidence remains for review, and stale revisions, rejected links, and dismissed drafts are not resurrected. Replayed arrivals coalesce into durable bounded work that resumes after restart, while re-extraction preserves event identity and user-edited interpretations without changing sources, draft amounts, or ledger records.
 
 ### Changed
+- Hosted provider profiles no longer send a fixed 8192/4096 output-token cap. The default request
+  carries no output-limit field at all and the selected model's own limit applies, so a reasoning
+  model can finish its thinking and still answer or call a tool within the same turn. An explicit
+  limit remains available and must be at least 32768 tokens; it is sent as the protocol's own
+  field. A profile saved by an earlier build with the former preset cap now uses the model default,
+  and the settings screen states both cases.
 - Hosted review now receives each affected draft's own accepted, current note context and category
   choices during the same user-started workflow. A changed note, link, draft or category catalog
   invalidates an older category choice; selecting a category never resolves a link conflict or
@@ -51,6 +57,31 @@ and no release has been tagged or published. Format follows
 
 ### Fixed
 
+- A purchase described in a note without repeating the note's stated day can now be completed from
+  the day the user confirms. The assistant could already store such a purchase as an unresolved
+  reading and ask which day it was, but the assembled date could not be bound back to that reading,
+  so the purchase stayed undated and could never be matched to its bank draft. The anchor now keeps
+  the reading it belongs to, so a confirmed day fills that same reading. A confirmation for one
+  purchase is still refused for any other purchase, occurrence or note, and unissued or stale
+  references stay refused.
+
+- A bank draft the user already dismissed or confirmed no longer counts as a competing candidate
+  for the same amount and day. The app's own pair inspection previously called a later unique draft
+  "ambiguous" once an earlier identical row had been dismissed, while retrieval already called it
+  unique, so the assistant could never attach it.
+- A hosted run that spends its own wall-clock limit now ends that attempt with `TIME_BUDGET`
+  instead of replaying the whole run. A spent run budget is a terminal bound like the turn and
+  tool-call bounds; only a provider request timeout is retried, after reconciling uncertain writes.
+- Agent capture observations now include a scope-relative `saved_order`
+  (`newest-in-observed-scope`, `tied-newest-in-observed-scope`, `older-in-observed-scope`) so the
+  newest saved note can be identified without unmasking capture timestamps. Ties never claim a
+  unique newest, and the label is relative to the observed scope rather than a global latest claim.
+- A hosted workflow that copies one of its observation handles with a wrong character no longer
+  ends in a dead end. The refusal now restates, in the error's `expected.issued`, the exact handles
+  this run already issued for the argument's expected kind, so the assistant can copy one and
+  continue. The refused handle is still denied with no effect, only handles from the same trusted
+  session are listed, no spelling or similarity mapping is performed, and a listed handle whose
+  subject changed is still refused as stale.
 - Hosted workflows now send OpenAI-compatible function schemas the provider can read as nullable:
   an optional reference is declared with the JSON Schema type `["string", "null"]` instead of an
   OpenAPI-only `nullable` flag that the tool schema dialect ignores. A model that previously had

@@ -359,4 +359,29 @@ class OpenAiChatCompletionsAdapterTest {
          "usage":{"prompt_tokens":352,"completion_tokens":104,"total_tokens":456,
            "completion_tokens_details":{"reasoning_tokens":59},"prompt_tokens_details":{"cached_tokens":0}}}
     """.trimIndent()
+
+    @Test
+    fun `an unset output budget omits max_completion_tokens`() = runBlocking {
+        val transport = FakeTransport(ProviderFixtures.reply(twoCallReply()))
+        val adapter = HostedAdapters.create(
+            ProviderFixtures.chatConfig(budget = HostedGenerationBudget(parallelToolCalls = false)),
+            transport,
+        )
+        ProviderFixtures.turn(
+            adapter.generate(
+                adapter.begin("system instructions", "probe once"),
+                listOf(ProviderFixtures.echoTool, ProviderFixtures.secondTool),
+            ),
+        )
+
+        val request = transport.requestJson()
+        assertFalse("the model default must not be replaced by a fixed cap", request.has("max_completion_tokens"))
+        assertFalse(request.has("max_tokens"))
+        assertEquals(false, request.getBoolean("parallel_tool_calls"))
+        assertEquals(
+            "maxOutputTokens=provider-default;reasoningEffort=-;temperature=-;parallelToolCalls=false",
+            ProviderFixtures.chatConfig(budget = HostedGenerationBudget(parallelToolCalls = false))
+                .budget.canonicalBudgetString(),
+        )
+    }
 }

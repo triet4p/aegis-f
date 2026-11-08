@@ -25,7 +25,7 @@ data class HostedProviderIdentity(
  * identity, never a silent substitution.
  */
 fun HostedGenerationBudget.canonicalBudgetString(): String = buildString {
-    append("maxOutputTokens=").append(maxOutputTokens)
+    append("maxOutputTokens=").append(maxOutputTokens?.toString() ?: PROVIDER_DEFAULT_OUTPUT_TOKENS)
     append(";reasoningEffort=").append(reasoningEffort?.wireName ?: "-")
     append(";temperature=").append(temperature?.toString() ?: "-")
     append(";parallelToolCalls=").append(parallelToolCalls?.toString() ?: "-")

@@ -410,4 +410,37 @@ class OpenAiResponsesAdapterTest {
          "usage":{"input_tokens":178,"output_tokens":22,"total_tokens":200,
            "output_tokens_details":{"reasoning_tokens":0},"input_tokens_details":{"cached_tokens":0}}}
     """.trimIndent()
+
+    @Test
+    fun `an unset output budget omits max_output_tokens`() = runBlocking {
+        val transport = FakeTransport(ProviderFixtures.reply(functionCallReply()))
+        val adapter = HostedAdapters.create(
+            ProviderFixtures.responsesConfig(
+                budget = HostedGenerationBudget(
+                    reasoningEffort = HostedReasoningEffort.MEDIUM,
+                    parallelToolCalls = false,
+                ),
+            ),
+            transport,
+        )
+        ProviderFixtures.turn(
+            adapter.generate(
+                adapter.begin("system instructions", "probe once"),
+                listOf(ProviderFixtures.echoTool),
+            ),
+        )
+
+        val request = transport.requestJson()
+        assertFalse("the model default must not be replaced by a fixed cap", request.has("max_output_tokens"))
+        assertEquals("medium", request.getJSONObject("reasoning").getString("effort"))
+        assertEquals(
+            "maxOutputTokens=provider-default;reasoningEffort=medium;temperature=-;parallelToolCalls=false",
+            ProviderFixtures.responsesConfig(
+                budget = HostedGenerationBudget(
+                    reasoningEffort = HostedReasoningEffort.MEDIUM,
+                    parallelToolCalls = false,
+                ),
+            ).budget.canonicalBudgetString(),
+        )
+    }
 }

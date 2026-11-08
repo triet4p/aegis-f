@@ -148,6 +148,44 @@ class S93ReversibleLinkPhoneInstrumentedTest {
                 database.contextLinkDao().findByPair(uniqueEvent.eventId, uniqueDraft)!!.state,
             )
 
+            // A dismissed duplicate no longer competes: the surviving draft is the only live
+            // candidate, so the app's own inspection must report it as eligible. While the
+            // candidate count included rows in every state, one earlier dismissed draft made
+            // every later draft with the same amount and day permanently ambiguous.
+            val dismissedEvent = storeEvent(
+                commands = commands,
+                runId = runId,
+                suffix = "dismissed-partner",
+                amount = 91_000L,
+                time = "18:00",
+                merchant = null,
+            )
+            val keptDraft = storeDraft(database, runId, "dismissed-kept", 91_000L, "18:00")
+            val droppedDraft = storeDraft(database, runId, "dismissed-dropped", 91_000L, "18:05")
+            assertEquals(
+                2,
+                commands.inspectLinkEvidence(
+                    WorkflowCallerScope.User,
+                    dismissedEvent.eventId,
+                    keptDraft,
+                )!!.candidateDraftCount,
+            )
+            val dismissed = commands.dismissDraft(
+                WorkflowCallerScope.User,
+                DismissDraftRequest("s9.3-$runId-dismiss-partner", droppedDraft, 0),
+            )
+            assertTrue(
+                "the duplicate draft was not dismissed: $dismissed",
+                dismissed is WorkflowCommandOutcome.Applied,
+            )
+            val survivingEvidence = commands.inspectLinkEvidence(
+                WorkflowCallerScope.User,
+                dismissedEvent.eventId,
+                keptDraft,
+            )!!
+            assertEquals(1, survivingEvidence.candidateDraftCount)
+            assertEquals(LinkEligibility.ELIGIBLE, survivingEvidence.eligibility)
+
             val uniqueEventBeforeRestart = database.noteEventDao().findById(uniqueEvent.eventId)!!
             val uniqueDraftBeforeRestart = database.pendingBankDraftDao().findById(uniqueDraft)!!
 

@@ -123,7 +123,9 @@ sealed interface AgentRunFailure {
             WorkflowRunStopReason.TURN_BUDGET -> Terminal("turn_budget", detail)
             WorkflowRunStopReason.TOOL_CALL_BUDGET -> Terminal("tool_budget", detail)
             WorkflowRunStopReason.CONTEXT_BUDGET -> Terminal("context_budget", detail)
-            WorkflowRunStopReason.TIME_BUDGET -> Timeout(detail)
+            // The run's own wall-clock budget is spent: a retry replays the same exhausted
+            // budget. Only a provider request timeout is a retryable [Timeout].
+            WorkflowRunStopReason.TIME_BUDGET -> Terminal("time_budget", detail)
             WorkflowRunStopReason.LOOP_DETECTED -> Terminal("loop_detected", detail)
             WorkflowRunStopReason.REQUIRED_EFFECT_MISSING -> Terminal("required_effect_missing", detail)
             WorkflowRunStopReason.EMPTY_ANSWER -> SchemaRepair(detail)

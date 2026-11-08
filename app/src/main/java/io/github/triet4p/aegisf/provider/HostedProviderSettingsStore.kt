@@ -14,6 +14,13 @@ import javax.crypto.spec.GCMParameterSpec
 import java.util.UUID
 import java.net.URI
 
+/**
+ * The smallest output ceiling a stored profile may send explicitly. Owner policy: the default is
+ * the model's own output limit (no field on the wire); when a person does configure a ceiling it
+ * must leave a reasoning model enough room to finish its thinking and still answer or call a tool.
+ */
+const val MIN_EXPLICIT_OUTPUT_TOKENS: Int = 32_768
+
 /** A provider configuration whose credential is only ever kept in encrypted local storage. */
 data class SavedHostedProvider(
     val id: String,
@@ -22,13 +29,20 @@ data class SavedHostedProvider(
     val endpoint: String,
     val model: String,
     val credential: String,
-    val maxOutputTokens: Int,
+    /** `null` sends no output-limit field and leaves the model's own limit in force. */
+    val maxOutputTokens: Int?,
     val reasoningEffort: HostedReasoningEffort?,
     val temperature: Double?,
     val parallelToolCalls: Boolean?,
     val capabilities: HostedProviderCapabilities,
 ) {
     fun validatedConfig(sessionId: String? = null): HostedProviderConfig {
+        if (maxOutputTokens != null && maxOutputTokens < MIN_EXPLICIT_OUTPUT_TOKENS) {
+            throw HostedConfigurationException(
+                "An explicit output limit must be at least $MIN_EXPLICIT_OUTPUT_TOKENS tokens. " +
+                    "Clear the field to use the model's own default.",
+            )
+        }
         val clientHeaders = if (
             sessionId != null &&
             runCatching { URI(endpoint).host?.equals(OPEN_CODE_HOST, ignoreCase = true) == true }
@@ -198,7 +212,7 @@ class HostedProviderSettingsStore(context: Context) {
         .put("endpoint", endpoint)
         .put("model", model)
         .put("credential", credential)
-        .put("maxOutputTokens", maxOutputTokens)
+        .put("maxOutputTokens", maxOutputTokens ?: JSONObject.NULL)
         .put("reasoningEffort", reasoningEffort?.name)
         .put("temperature", temperature)
         .put("parallelToolCalls", parallelToolCalls)
@@ -215,7 +229,7 @@ class HostedProviderSettingsStore(context: Context) {
             id = getString("id"), name = getString("name"),
             protocol = HostedProtocol.valueOf(getString("protocol")),
             endpoint = getString("endpoint"), model = getString("model"), credential = getString("credential"),
-            maxOutputTokens = getInt("maxOutputTokens"),
+            maxOutputTokens = storedOutputTokens(),
             reasoningEffort = optString("reasoningEffort").takeIf { it.isNotEmpty() && it != "null" }
                 ?.let(HostedReasoningEffort::valueOf),
             temperature = if (isNull("temperature")) null else getDouble("temperature"),
@@ -228,6 +242,17 @@ class HostedProviderSettingsStore(context: Context) {
                 maxOutputTokensLimit = if (caps.isNull("maxOutputTokensLimit")) null else caps.getInt("maxOutputTokensLimit"),
             ),
         )
+    }
+
+    /**
+     * Reads a stored output ceiling. A value below [MIN_EXPLICIT_OUTPUT_TOKENS] predates this
+     * policy — the app used to seed every profile with a fixed 8192/4096 cap — so it is returned
+     * as `null` and the model's own default applies. The stored document is left untouched until
+     * the profile is saved again, and every reader (`load`/`active`) sees the corrected value.
+     */
+    private fun JSONObject.storedOutputTokens(): Int? {
+        if (!has("maxOutputTokens") || isNull("maxOutputTokens")) return null
+        return getInt("maxOutputTokens").takeIf { it >= MIN_EXPLICIT_OUTPUT_TOKENS }
     }
 
     private companion object {
