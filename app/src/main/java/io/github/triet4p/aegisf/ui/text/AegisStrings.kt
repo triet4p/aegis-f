@@ -17,6 +17,183 @@ import io.github.triet4p.aegisf.data.TransactionType
  * keep their own copy until their redesign task (S10.3–S10.8) owns it; this is why the shell must
  * not invent copy for a screen it does not own.
  */
+/**
+ * The Notes destination's vocabulary, including the explicit chat-handoff copy.
+ *
+ * It is one immutable value per language, so a screen reads one consistent set of words and
+ * the shared [AegisStrings] constructor stays a manageable size.
+ */
+data class NoteStrings(
+    val language: AegisLanguage,
+    val noteComposerLabel: String,
+    val noteComposerPlaceholder: String,
+    val noteComposerHelp: String,
+    val noteSave: String,
+    val noteSaving: String,
+    val noteSaved: String,
+    val noteSaveFailed: String,
+    val noteDraftClear: String,
+    val noteDraftCleared: String,
+    val noteSavedSection: String,
+    val noteBrowseHelp: String,
+    val noteEmptyTitle: String,
+    val noteEmptyBody: String,
+    val noteListLoading: String,
+    val noteLoading: String,
+    val noteListError: String,
+    val noteOpen: String,
+    val noteDetailTitle: String,
+    val noteOnDevice: String,
+    val noteTimeUnknown: String,
+    val noteSourceValue: String,
+    val noteEdit: String,
+    val noteDelete: String,
+    val noteDeleteQuestion: String,
+    val noteDeleteBody: String,
+    val noteDeleted: String,
+    val noteDeleteFailed: String,
+    val noteMissingTitle: String,
+    val noteMissingBody: String,
+    val noteReadErrorTitle: String,
+    val noteReadErrorBody: String,
+    val noteEditTitle: String,
+    val noteEditLabel: String,
+    val noteSaveChanges: String,
+    val noteChangesSaved: String,
+    val noteUpdateFailed: String,
+    val noteStale: String,
+    val noteReloadSaved: String,
+    val noteReloadConfirmTitle: String,
+    val noteReloadConfirmBody: String,
+    val noteChangePolicy: String,
+    val noteEditPolicy: String,
+    val noteDetailsSection: String,
+    val noteDetailsEmpty: String,
+    val noteDetailsLoading: String,
+    val noteDetailsError: String,
+    val noteAddDetail: String,
+    val noteDetailReady: String,
+    val noteDetailNeedsInfo: String,
+    val noteDetailNoMatch: String,
+    val noteDetailOutdated: String,
+    val noteDetailRecorded: String,
+    val noteDetailWhatItSays: String,
+    val noteDetailAmount: String,
+    val noteDetailMerchant: String,
+    val noteDetailStatedTime: String,
+    val noteDetailAddTitle: String,
+    val noteDetailEditTitle: String,
+    val noteDetailExcerpt: String,
+    val noteDetailExcerptHelp: String,
+    val noteDetailExcerptMissing: String,
+    val noteDetailExcerptAmbiguous: String,
+    val noteDetailExcerptFixed: String,
+    val noteDetailDuplicateRange: String,
+    val noteDetailDateFormat: String,
+    val noteDetailTimeFormat: String,
+    val noteDetailTimeNeedsDate: String,
+    val noteDetailAmountError: String,
+    val noteDetailAmountHint: String,
+    val noteDetailMissingReason: String,
+    val noteDetailIntervalError: String,
+    val noteDetailLinkError: String,
+    val noteDetailUnlinked: String,
+    val noteDetailUnlinkFailed: String,
+    val noteDetailReading: String,
+    val noteDetailReadingHelp: String,
+    val noteDetailAmountField: String,
+    val noteDetailMerchantField: String,
+    val noteDetailDateField: String,
+    val noteDetailTimeField: String,
+    val noteDetailIntervalDateField: String,
+    val noteDetailIntervalTimeField: String,
+    val noteDetailMissingField: String,
+    val noteDetailSave: String,
+    val noteDetailSaved: String,
+    val noteDetailSaveFailed: String,
+    val noteDetailConflict: String,
+    val noteDetailReload: String,
+    val noteDetailReloadConfirmTitle: String,
+    val noteDetailReloadConfirmBody: String,
+    val noteDetailMissingTitle: String,
+    val noteDetailMissingBody: String,
+    val noteDetailOutdatedBody: String,
+    val noteDetailAddFromCurrent: String,
+    val noteDetailLinkSection: String,
+    val noteDetailNoLinks: String,
+    val noteDetailChooseDraft: String,
+    val noteDetailAttach: String,
+    val noteDetailReject: String,
+    val noteDetailUnlink: String,
+    val noteDetailAttached: String,
+    val noteDetailProposed: String,
+    val noteDetailRefused: String,
+    val noteDetailLinkHelp: String,
+    val noteDetailUnlinkFirst: String,
+    val noteDetailManualHelp: String,
+    val noteRecordTransaction: String,
+    val noteDiscussAi: String,
+    val noteDiscussAiHelp: String,
+    val noteDraftTitle: String,
+    val noteDraftEmpty: String,
+    val noteDraftLoading: String,
+    val noteDraftLoadError: String,
+    val noteDraftHelp: String,
+    val noteDraftAmount: String,
+    val noteDraftTime: String,
+    val noteDraftMemo: String,
+    val noteDraftAlreadyAttached: String,
+    val noteDraftProposedState: String,
+    val noteDraftRefusedState: String,
+    val noteDraftOtherActive: String,
+    val noteDraftAttachedMsg: String,
+    val noteDraftRefusedMsg: String,
+    val noteDraftActionFailed: String,
+    val noteDraftDeciding: String,
+    val noteDraftDirectionOut: String,
+    val noteDraftDirectionIn: String,
+    val noteDraftDirectionUnknown: String,
+    val noteDraftAmountUnread: String,
+    val noteDraftTimeUnread: String,
+    val noteDraftNoMemo: String,
+    val chatAttachedNote: String,
+    val chatAttachedNoteHelp: String,
+    val chatRemoveAttachedNote: String,
+) {
+    /** "1 note" / "3 notes" / "3 ghi chú". */
+    fun noteCount(count: Int): String = when (language) {
+        AegisLanguage.ENGLISH -> if (count == 1) "1 note" else "$count notes"
+        AegisLanguage.VIETNAMESE -> "$count ghi chú"
+    }
+
+    /** "2 details" / "2 chi tiết". */
+    fun noteDetailCount(count: Int): String = when (language) {
+        AegisLanguage.ENGLISH -> if (count == 1) "1 detail" else "$count details"
+        AegisLanguage.VIETNAMESE -> "$count chi tiết"
+    }
+
+    /** "1 linked to a bank notification" / "2 đã gắn thông báo ngân hàng". */
+    fun noteLinkedCount(count: Int): String = when (language) {
+        AegisLanguage.ENGLISH ->
+            if (count == 1) "1 linked to a bank notification"
+            else "$count linked to bank notifications"
+        AegisLanguage.VIETNAMESE -> "$count đã gắn thông báo ngân hàng"
+    }
+
+    /** "1 suggested match" / "2 đề xuất khớp". */
+    fun noteProposedCount(count: Int): String = when (language) {
+        AegisLanguage.ENGLISH -> if (count == 1) "1 suggested match" else "$count suggested matches"
+        AegisLanguage.VIETNAMESE -> "$count đề xuất khớp"
+    }
+
+    /** "1 recorded in the ledger" / "2 đã ghi vào sổ quỹ". */
+    fun noteRecordedCount(count: Int): String = when (language) {
+        AegisLanguage.ENGLISH ->
+            if (count == 1) "1 recorded in the ledger" else "$count recorded in the ledger"
+        AegisLanguage.VIETNAMESE -> "$count đã ghi vào sổ quỹ"
+    }
+}
+
 data class AegisStrings(
     val language: AegisLanguage,
     val tabHome: String,
@@ -162,7 +339,146 @@ data class AegisStrings(
     val archivedLabel: String,
     val thisMonth: String,
     val drillHint: String,
+    val note: NoteStrings,
 ) {
+
+    // The Notes and AI Chat handoff copy lives in [NoteStrings] so the shared vocabulary
+    // stays one immutable value without one oversized constructor.
+    val noteComposerLabel: String get() = note.noteComposerLabel
+    val noteComposerPlaceholder: String get() = note.noteComposerPlaceholder
+    val noteComposerHelp: String get() = note.noteComposerHelp
+    val noteSave: String get() = note.noteSave
+    val noteSaving: String get() = note.noteSaving
+    val noteSaved: String get() = note.noteSaved
+    val noteSaveFailed: String get() = note.noteSaveFailed
+    val noteDraftClear: String get() = note.noteDraftClear
+    val noteDraftCleared: String get() = note.noteDraftCleared
+    val noteSavedSection: String get() = note.noteSavedSection
+    val noteBrowseHelp: String get() = note.noteBrowseHelp
+    val noteEmptyTitle: String get() = note.noteEmptyTitle
+    val noteEmptyBody: String get() = note.noteEmptyBody
+    val noteListLoading: String get() = note.noteListLoading
+    val noteLoading: String get() = note.noteLoading
+    val noteListError: String get() = note.noteListError
+    val noteOpen: String get() = note.noteOpen
+    val noteDetailTitle: String get() = note.noteDetailTitle
+    val noteOnDevice: String get() = note.noteOnDevice
+    val noteTimeUnknown: String get() = note.noteTimeUnknown
+    val noteSourceValue: String get() = note.noteSourceValue
+    val noteEdit: String get() = note.noteEdit
+    val noteDelete: String get() = note.noteDelete
+    val noteDeleteQuestion: String get() = note.noteDeleteQuestion
+    val noteDeleteBody: String get() = note.noteDeleteBody
+    val noteDeleted: String get() = note.noteDeleted
+    val noteDeleteFailed: String get() = note.noteDeleteFailed
+    val noteMissingTitle: String get() = note.noteMissingTitle
+    val noteMissingBody: String get() = note.noteMissingBody
+    val noteReadErrorTitle: String get() = note.noteReadErrorTitle
+    val noteReadErrorBody: String get() = note.noteReadErrorBody
+    val noteEditTitle: String get() = note.noteEditTitle
+    val noteEditLabel: String get() = note.noteEditLabel
+    val noteSaveChanges: String get() = note.noteSaveChanges
+    val noteChangesSaved: String get() = note.noteChangesSaved
+    val noteUpdateFailed: String get() = note.noteUpdateFailed
+    val noteStale: String get() = note.noteStale
+    val noteReloadSaved: String get() = note.noteReloadSaved
+    val noteReloadConfirmTitle: String get() = note.noteReloadConfirmTitle
+    val noteReloadConfirmBody: String get() = note.noteReloadConfirmBody
+    val noteChangePolicy: String get() = note.noteChangePolicy
+    val noteEditPolicy: String get() = note.noteEditPolicy
+    val noteDetailsSection: String get() = note.noteDetailsSection
+    val noteDetailsEmpty: String get() = note.noteDetailsEmpty
+    val noteDetailsLoading: String get() = note.noteDetailsLoading
+    val noteDetailsError: String get() = note.noteDetailsError
+    val noteAddDetail: String get() = note.noteAddDetail
+    val noteDetailReady: String get() = note.noteDetailReady
+    val noteDetailNeedsInfo: String get() = note.noteDetailNeedsInfo
+    val noteDetailNoMatch: String get() = note.noteDetailNoMatch
+    val noteDetailOutdated: String get() = note.noteDetailOutdated
+    val noteDetailRecorded: String get() = note.noteDetailRecorded
+    val noteDetailWhatItSays: String get() = note.noteDetailWhatItSays
+    val noteDetailAmount: String get() = note.noteDetailAmount
+    val noteDetailMerchant: String get() = note.noteDetailMerchant
+    val noteDetailStatedTime: String get() = note.noteDetailStatedTime
+    val noteDetailAddTitle: String get() = note.noteDetailAddTitle
+    val noteDetailEditTitle: String get() = note.noteDetailEditTitle
+    val noteDetailExcerpt: String get() = note.noteDetailExcerpt
+    val noteDetailExcerptHelp: String get() = note.noteDetailExcerptHelp
+    val noteDetailExcerptMissing: String get() = note.noteDetailExcerptMissing
+    val noteDetailExcerptAmbiguous: String get() = note.noteDetailExcerptAmbiguous
+    val noteDetailExcerptFixed: String get() = note.noteDetailExcerptFixed
+    val noteDetailDuplicateRange: String get() = note.noteDetailDuplicateRange
+    val noteDetailDateFormat: String get() = note.noteDetailDateFormat
+    val noteDetailTimeFormat: String get() = note.noteDetailTimeFormat
+    val noteDetailTimeNeedsDate: String get() = note.noteDetailTimeNeedsDate
+    val noteDetailAmountError: String get() = note.noteDetailAmountError
+    val noteDetailAmountHint: String get() = note.noteDetailAmountHint
+    val noteDetailMissingReason: String get() = note.noteDetailMissingReason
+    val noteDetailIntervalError: String get() = note.noteDetailIntervalError
+    val noteDetailLinkError: String get() = note.noteDetailLinkError
+    val noteDetailUnlinked: String get() = note.noteDetailUnlinked
+    val noteDetailUnlinkFailed: String get() = note.noteDetailUnlinkFailed
+    val noteDetailReading: String get() = note.noteDetailReading
+    val noteDetailReadingHelp: String get() = note.noteDetailReadingHelp
+    val noteDetailAmountField: String get() = note.noteDetailAmountField
+    val noteDetailMerchantField: String get() = note.noteDetailMerchantField
+    val noteDetailDateField: String get() = note.noteDetailDateField
+    val noteDetailTimeField: String get() = note.noteDetailTimeField
+    val noteDetailIntervalDateField: String get() = note.noteDetailIntervalDateField
+    val noteDetailIntervalTimeField: String get() = note.noteDetailIntervalTimeField
+    val noteDetailMissingField: String get() = note.noteDetailMissingField
+    val noteDetailSave: String get() = note.noteDetailSave
+    val noteDetailSaved: String get() = note.noteDetailSaved
+    val noteDetailSaveFailed: String get() = note.noteDetailSaveFailed
+    val noteDetailConflict: String get() = note.noteDetailConflict
+    val noteDetailReload: String get() = note.noteDetailReload
+    val noteDetailReloadConfirmTitle: String get() = note.noteDetailReloadConfirmTitle
+    val noteDetailReloadConfirmBody: String get() = note.noteDetailReloadConfirmBody
+    val noteDetailMissingTitle: String get() = note.noteDetailMissingTitle
+    val noteDetailMissingBody: String get() = note.noteDetailMissingBody
+    val noteDetailOutdatedBody: String get() = note.noteDetailOutdatedBody
+    val noteDetailAddFromCurrent: String get() = note.noteDetailAddFromCurrent
+    val noteDetailLinkSection: String get() = note.noteDetailLinkSection
+    val noteDetailNoLinks: String get() = note.noteDetailNoLinks
+    val noteDetailChooseDraft: String get() = note.noteDetailChooseDraft
+    val noteDetailAttach: String get() = note.noteDetailAttach
+    val noteDetailReject: String get() = note.noteDetailReject
+    val noteDetailUnlink: String get() = note.noteDetailUnlink
+    val noteDetailAttached: String get() = note.noteDetailAttached
+    val noteDetailProposed: String get() = note.noteDetailProposed
+    val noteDetailRefused: String get() = note.noteDetailRefused
+    val noteDetailLinkHelp: String get() = note.noteDetailLinkHelp
+    val noteDetailUnlinkFirst: String get() = note.noteDetailUnlinkFirst
+    val noteDetailManualHelp: String get() = note.noteDetailManualHelp
+    val noteRecordTransaction: String get() = note.noteRecordTransaction
+    val noteDiscussAi: String get() = note.noteDiscussAi
+    val noteDiscussAiHelp: String get() = note.noteDiscussAiHelp
+    val noteDraftTitle: String get() = note.noteDraftTitle
+    val noteDraftEmpty: String get() = note.noteDraftEmpty
+    val noteDraftLoading: String get() = note.noteDraftLoading
+    val noteDraftLoadError: String get() = note.noteDraftLoadError
+    val noteDraftHelp: String get() = note.noteDraftHelp
+    val noteDraftAmount: String get() = note.noteDraftAmount
+    val noteDraftTime: String get() = note.noteDraftTime
+    val noteDraftMemo: String get() = note.noteDraftMemo
+    val noteDraftAlreadyAttached: String get() = note.noteDraftAlreadyAttached
+    val noteDraftProposedState: String get() = note.noteDraftProposedState
+    val noteDraftRefusedState: String get() = note.noteDraftRefusedState
+    val noteDraftOtherActive: String get() = note.noteDraftOtherActive
+    val noteDraftAttachedMsg: String get() = note.noteDraftAttachedMsg
+    val noteDraftRefusedMsg: String get() = note.noteDraftRefusedMsg
+    val noteDraftActionFailed: String get() = note.noteDraftActionFailed
+    val noteDraftDeciding: String get() = note.noteDraftDeciding
+    val noteDraftDirectionOut: String get() = note.noteDraftDirectionOut
+    val noteDraftDirectionIn: String get() = note.noteDraftDirectionIn
+    val noteDraftDirectionUnknown: String get() = note.noteDraftDirectionUnknown
+    val noteDraftAmountUnread: String get() = note.noteDraftAmountUnread
+    val noteDraftTimeUnread: String get() = note.noteDraftTimeUnread
+    val noteDraftNoMemo: String get() = note.noteDraftNoMemo
+    val chatAttachedNote: String get() = note.chatAttachedNote
+    val chatAttachedNoteHelp: String get() = note.chatAttachedNoteHelp
+    val chatRemoveAttachedNote: String get() = note.chatRemoveAttachedNote
+
     /** The label of one root tab. */
     fun tabLabel(tab: ShellTab): String = when (tab) {
         ShellTab.HOME -> tabHome
@@ -245,10 +561,171 @@ data class AegisStrings(
         RecordSource.MANUAL -> sourceManual
         RecordSource.BANK_NOTIFICATION -> sourceBank
     }
+
+    // The note journal delegates its wording to [NoteStrings]; these wrappers keep the
+    // screen-facing vocabulary in one place.
+    fun noteCount(count: Int): String = note.noteCount(count)
+    fun noteDetailCount(count: Int): String = note.noteDetailCount(count)
+    fun noteLinkedCount(count: Int): String = note.noteLinkedCount(count)
+    fun noteProposedCount(count: Int): String = note.noteProposedCount(count)
+    fun noteRecordedCount(count: Int): String = note.noteRecordedCount(count)
 }
 
 /** The root destinations, named once so the shell and the strings agree. */
 enum class ShellTab { HOME, LEDGER, NOTES, CHAT, REVIEW }
+
+private val englishNoteStrings = NoteStrings(
+    language = AegisLanguage.ENGLISH,
+    noteComposerLabel = "Quick note",
+    noteComposerPlaceholder = "Lunch at Phở Thìn 65k…",
+    noteComposerHelp = "Saved on this device · Works offline · Instant",
+    noteSave = "Save note",
+    noteSaving = "Saving…",
+    noteSaved = "Saved on this device.",
+    noteSaveFailed = "Couldn't save this note. Your text is still here; try again.",
+    noteDraftClear = "Clear draft",
+    noteDraftCleared = "Draft cleared.",
+    noteSavedSection = "Saved notes",
+    noteBrowseHelp = "See every note saved on this device.",
+    noteEmptyTitle = "No saved notes yet",
+    noteEmptyBody = "Notes you save on this device appear here. Save one from the Notes screen.",
+    noteListLoading = "Loading saved notes…",
+    noteLoading = "Loading note…",
+    noteListError = "Saved notes couldn't be read. Nothing was changed.",
+    noteOpen = "Open saved note",
+    noteDetailTitle = "Saved note",
+    noteOnDevice = "Saved on this device",
+    noteTimeUnknown = "Saved time unavailable",
+    noteSourceValue = "Written on this device",
+    noteEdit = "Edit note",
+    noteDelete = "Delete note",
+    noteDeleteQuestion = "Delete this note?",
+    noteDeleteBody = "This removes the note and its details from this device. This cannot be undone.",
+    noteDeleted = "Note deleted from this device.",
+    noteDeleteFailed = "Couldn't delete this note. It is still here.",
+    noteMissingTitle = "This note no longer exists",
+    noteMissingBody = "It may have been deleted on this device.",
+    noteReadErrorTitle = "Couldn't read this note",
+    noteReadErrorBody = "The saved note couldn't be read. Nothing was changed.",
+    noteEditTitle = "Edit saved note",
+    noteEditLabel = "Note text",
+    noteSaveChanges = "Save changes",
+    noteChangesSaved = "Changes saved on this device.",
+    noteUpdateFailed = "Couldn't save changes. Your text is still here; try again.",
+    noteStale = "This note changed after you opened it. Your edits are still here.",
+    noteReloadSaved = "Reload saved note",
+    noteReloadConfirmTitle = "Reload the saved note?",
+    noteReloadConfirmBody = "Your edits in this form will be replaced by the saved note.",
+    noteChangePolicy = "Editing or deleting this note also clears the details read from the old " +
+        "text and removes links to bank notifications still waiting for review. A refusal you " +
+        "already made and a link to a confirmed record stay. Your saved ledger records do not " +
+        "change.",
+    noteEditPolicy = "Saving new text clears the details read from the old text and the links " +
+        "still waiting for review. Ledger records do not change.",
+    noteDetailsSection = "Details from this note",
+    noteDetailsEmpty = "No details yet. Add what the note says happened so you can match it " +
+        "with a bank notification or record it.",
+    noteDetailsLoading = "Loading details…",
+    noteDetailsError = "Details couldn't be read. Nothing was changed.",
+    noteAddDetail = "Add detail",
+    noteDetailReady = "Ready",
+    noteDetailNeedsInfo = "Needs more information",
+    noteDetailNoMatch = "No bank match yet",
+    noteDetailOutdated = "Out of date",
+    noteDetailRecorded = "Recorded in the ledger",
+    noteDetailWhatItSays = "What it says",
+    noteDetailAmount = "Amount",
+    noteDetailMerchant = "Where",
+    noteDetailStatedTime = "Time in the note",
+    noteDetailAddTitle = "Add detail",
+    noteDetailEditTitle = "Edit detail",
+    noteDetailExcerpt = "Exact text from the note",
+    noteDetailExcerptHelp = "Choose a phrase that appears once in the note.",
+    noteDetailExcerptMissing = "This text is not in the saved note.",
+    noteDetailExcerptAmbiguous = "This text appears more than once. Include nearby words to " +
+        "pick one.",
+    noteDetailExcerptFixed = "The text this detail came from stays fixed.",
+    noteDetailDuplicateRange = "This exact text already has a detail. Edit that detail " +
+        "instead of adding another.",
+    noteDetailDateFormat = "Use YYYY-MM-DD.",
+    noteDetailTimeFormat = "Use HH:mm on a 24-hour clock.",
+    noteDetailTimeNeedsDate = "A time in the note needs its date.",
+    noteDetailAmountError = "Enter a whole amount in VND greater than zero.",
+    noteDetailAmountHint = "Add an amount, or explain what is missing.",
+    noteDetailMissingReason = "Explain what is missing when there is no amount.",
+    noteDetailIntervalError = "The end must follow the start and needs its date and time.",
+    noteDetailLinkError = "Link decisions couldn't be read.",
+    noteDetailUnlinked = "Bank notification unlinked. The ledger is unchanged.",
+    noteDetailUnlinkFailed = "Couldn't unlink. The link is unchanged; try again.",
+    noteDetailReading = "What happened",
+    noteDetailReadingHelp = "Describe only what this text says. No match is chosen " +
+        "automatically.",
+    noteDetailAmountField = "Amount in VND (optional)",
+    noteDetailMerchantField = "Where (optional)",
+    noteDetailDateField = "Date in the note (optional)",
+    noteDetailTimeField = "Time in the note (optional)",
+    noteDetailIntervalDateField = "End date (optional)",
+    noteDetailIntervalTimeField = "End time (optional)",
+    noteDetailMissingField = "What is missing (optional)",
+    noteDetailSave = "Save detail",
+    noteDetailSaved = "Detail saved.",
+    noteDetailSaveFailed = "Couldn't save this detail. Your text is still here; try again.",
+    noteDetailConflict = "This note or detail changed after you opened it. Your edits are " +
+        "still here.",
+    noteDetailReload = "Reload saved detail",
+    noteDetailReloadConfirmTitle = "Reload the saved detail?",
+    noteDetailReloadConfirmBody = "Your edits in this form will be replaced by the saved " +
+        "detail.",
+    noteDetailMissingTitle = "This detail no longer exists",
+    noteDetailMissingBody = "It may have been removed or cleared after the note changed.",
+    noteDetailOutdatedBody = "This detail was read from an older version of the note. Add a " +
+        "new detail from the current text if it still applies.",
+    noteDetailAddFromCurrent = "Add detail from current note",
+    noteDetailLinkSection = "Bank notification",
+    noteDetailNoLinks = "No bank notification is linked or suggested for this detail.",
+    noteDetailChooseDraft = "Choose a pending bank notification",
+    noteDetailAttach = "Attach",
+    noteDetailReject = "Reject",
+    noteDetailUnlink = "Unlink",
+    noteDetailAttached = "Linked to a bank notification",
+    noteDetailProposed = "Match suggested; not attached",
+    noteDetailRefused = "Match refused (decision kept)",
+    noteDetailLinkHelp = "Linking never confirms a bank notification and never changes the " +
+        "ledger.",
+    noteDetailUnlinkFirst = "Unlink the current bank notification before choosing another.",
+    noteDetailManualHelp = "Recording by hand needs an amount and no active bank notification.",
+    noteRecordTransaction = "Record a transaction",
+    noteDiscussAi = "Discuss with AI",
+    noteDiscussAiHelp = "Opens AI Chat with this note attached. Nothing is sent until you " +
+        "send it.",
+    noteDraftTitle = "Pending bank notifications",
+    noteDraftEmpty = "No bank notifications are waiting for review.",
+    noteDraftLoading = "Loading pending bank notifications…",
+    noteDraftLoadError = "Pending bank notifications couldn't be read. No match was chosen.",
+    noteDraftHelp = "This list is limited and never selects a match for you. A refusal is " +
+        "kept for this detail and notification.",
+    noteDraftAmount = "Amount",
+    noteDraftTime = "Bank time",
+    noteDraftMemo = "Bank note",
+    noteDraftAlreadyAttached = "Already attached to this detail.",
+    noteDraftProposedState = "Suggested for this detail; choose Attach or Reject.",
+    noteDraftRefusedState = "Refused before. This pair cannot be suggested again.",
+    noteDraftOtherActive = "Unlink the current bank notification before choosing another.",
+    noteDraftAttachedMsg = "Attached. The bank notification and the ledger are unchanged.",
+    noteDraftRefusedMsg = "Refused. That decision is kept.",
+    noteDraftActionFailed = "The decision didn't complete. Nothing financial changed; reload " +
+        "and try again.",
+    noteDraftDeciding = "Saving decision…",
+    noteDraftDirectionOut = "Money out",
+    noteDraftDirectionIn = "Money in",
+    noteDraftDirectionUnknown = "Direction not clear",
+    noteDraftAmountUnread = "Amount not read",
+    noteDraftTimeUnread = "Time not read",
+    noteDraftNoMemo = "No bank note",
+    chatAttachedNote = "Attached note",
+    chatAttachedNoteHelp = "This text is included when you send. Nothing has been sent.",
+    chatRemoveAttachedNote = "Remove attached note",
+)
 
 val englishStrings = AegisStrings(
     language = AegisLanguage.ENGLISH,
@@ -403,6 +880,161 @@ val englishStrings = AegisStrings(
     archivedLabel = "Archived",
     thisMonth = "This month",
     drillHint = "Select a row to open its records.",
+    note = englishNoteStrings,
+)
+
+private val vietnameseNoteStrings = NoteStrings(
+    language = AegisLanguage.VIETNAMESE,
+    noteComposerLabel = "Ghi chú nhanh",
+    noteComposerPlaceholder = "Trưa nay ăn phở Thìn 65k…",
+    noteComposerHelp = "Lưu trên thiết bị · Không cần mạng · Tức thì",
+    noteSave = "Lưu ghi chú",
+    noteSaving = "Đang lưu…",
+    noteSaved = "Đã lưu trên thiết bị.",
+    noteSaveFailed = "Không lưu được ghi chú này. Nội dung vẫn còn đây; hãy thử lại.",
+    noteDraftClear = "Xóa bản nháp",
+    noteDraftCleared = "Đã xóa bản nháp.",
+    noteSavedSection = "Ghi chú đã lưu",
+    noteBrowseHelp = "Xem mọi ghi chú đã lưu trên thiết bị.",
+    noteEmptyTitle = "Chưa có ghi chú nào",
+    noteEmptyBody = "Ghi chú bạn lưu trên thiết bị sẽ hiện ở đây. Hãy lưu một ghi chú từ màn " +
+        "hình Ghi chép.",
+    noteListLoading = "Đang tải ghi chú đã lưu…",
+    noteLoading = "Đang tải ghi chú…",
+    noteListError = "Không đọc được ghi chú đã lưu. Không có thay đổi nào.",
+    noteOpen = "Mở ghi chú đã lưu",
+    noteDetailTitle = "Ghi chú đã lưu",
+    noteOnDevice = "Lưu trên thiết bị",
+    noteTimeUnknown = "Không rõ thời điểm lưu",
+    noteSourceValue = "Viết trên thiết bị này",
+    noteEdit = "Sửa ghi chú",
+    noteDelete = "Xóa ghi chú",
+    noteDeleteQuestion = "Xóa ghi chú này?",
+    noteDeleteBody = "Ghi chú và các chi tiết của nó sẽ bị xóa khỏi thiết bị. Không thể hoàn tác.",
+    noteDeleted = "Đã xóa ghi chú khỏi thiết bị.",
+    noteDeleteFailed = "Không xóa được ghi chú này. Ghi chú vẫn còn.",
+    noteMissingTitle = "Ghi chú này không còn tồn tại",
+    noteMissingBody = "Có thể ghi chú đã bị xóa trên thiết bị.",
+    noteReadErrorTitle = "Không đọc được ghi chú này",
+    noteReadErrorBody = "Không đọc được ghi chú đã lưu. Không có thay đổi nào.",
+    noteEditTitle = "Sửa ghi chú đã lưu",
+    noteEditLabel = "Nội dung ghi chú",
+    noteSaveChanges = "Lưu thay đổi",
+    noteChangesSaved = "Đã lưu thay đổi trên thiết bị.",
+    noteUpdateFailed = "Không lưu được thay đổi. Văn bản vẫn còn đây; hãy thử lại.",
+    noteStale = "Ghi chú đã thay đổi sau khi bạn mở. Phần bạn sửa vẫn còn đây.",
+    noteReloadSaved = "Tải lại ghi chú đã lưu",
+    noteReloadConfirmTitle = "Tải lại ghi chú đã lưu?",
+    noteReloadConfirmBody = "Phần bạn sửa trong biểu mẫu sẽ được thay bằng ghi chú đã lưu.",
+    noteChangePolicy = "Sửa hoặc xóa ghi chú này cũng xóa các chi tiết đọc từ văn bản cũ và " +
+        "gỡ liên kết với thông báo ngân hàng đang chờ duyệt. Quyết định từ chối trước đó và " +
+        "liên kết với giao dịch đã xác nhận vẫn được giữ. Các giao dịch đã lưu trong sổ quỹ " +
+        "không thay đổi.",
+    noteEditPolicy = "Lưu văn bản mới sẽ xóa các chi tiết đọc từ văn bản cũ và liên kết đang " +
+        "chờ duyệt. Giao dịch trong sổ quỹ không thay đổi.",
+    noteDetailsSection = "Chi tiết từ ghi chú",
+    noteDetailsEmpty = "Chưa có chi tiết nào. Thêm điều ghi chú nói để có thể khớp với thông " +
+        "báo ngân hàng hoặc ghi giao dịch.",
+    noteDetailsLoading = "Đang tải chi tiết…",
+    noteDetailsError = "Không đọc được chi tiết. Không có thay đổi nào.",
+    noteAddDetail = "Thêm chi tiết",
+    noteDetailReady = "Đã đủ thông tin",
+    noteDetailNeedsInfo = "Cần thêm thông tin",
+    noteDetailNoMatch = "Chưa khớp ngân hàng",
+    noteDetailOutdated = "Đã cũ",
+    noteDetailRecorded = "Đã ghi vào sổ quỹ",
+    noteDetailWhatItSays = "Nội dung ghi",
+    noteDetailAmount = "Số tiền",
+    noteDetailMerchant = "Nơi giao dịch",
+    noteDetailStatedTime = "Thời gian trong ghi chú",
+    noteDetailAddTitle = "Thêm chi tiết",
+    noteDetailEditTitle = "Sửa chi tiết",
+    noteDetailExcerpt = "Đúng đoạn văn trong ghi chú",
+    noteDetailExcerptHelp = "Chọn một cụm chỉ xuất hiện một lần trong ghi chú.",
+    noteDetailExcerptMissing = "Đoạn này không có trong ghi chú đã lưu.",
+    noteDetailExcerptAmbiguous = "Đoạn này xuất hiện nhiều lần. Thêm các từ xung quanh để " +
+        "chọn đúng một chỗ.",
+    noteDetailExcerptFixed = "Đoạn văn tạo ra chi tiết này được giữ cố định.",
+    noteDetailDuplicateRange = "Đoạn văn này đã có chi tiết. Hãy sửa chi tiết đó thay vì " +
+        "thêm chi tiết mới.",
+    noteDetailDateFormat = "Dùng định dạng YYYY-MM-DD.",
+    noteDetailTimeFormat = "Dùng HH:mm theo 24 giờ.",
+    noteDetailTimeNeedsDate = "Giờ trong ghi chú cần ngày đi kèm.",
+    noteDetailAmountError = "Nhập số tiền VND nguyên, lớn hơn 0.",
+    noteDetailAmountHint = "Thêm số tiền, hoặc giải thích điều còn thiếu.",
+    noteDetailMissingReason = "Giải thích điều còn thiếu khi chưa có số tiền.",
+    noteDetailIntervalError = "Điểm kết thúc phải sau điểm bắt đầu và cần ngày, giờ.",
+    noteDetailLinkError = "Không đọc được quyết định liên kết.",
+    noteDetailUnlinked = "Đã hủy gắn thông báo ngân hàng. Sổ quỹ không thay đổi.",
+    noteDetailUnlinkFailed = "Không hủy gắn được. Liên kết không đổi; hãy thử lại.",
+    noteDetailReading = "Điều đã xảy ra",
+    noteDetailReadingHelp = "Chỉ mô tả điều đoạn văn nói. Không có khớp nào được chọn tự động.",
+    noteDetailAmountField = "Số tiền bằng VND (không bắt buộc)",
+    noteDetailMerchantField = "Nơi giao dịch (không bắt buộc)",
+    noteDetailDateField = "Ngày trong ghi chú (không bắt buộc)",
+    noteDetailTimeField = "Giờ trong ghi chú (không bắt buộc)",
+    noteDetailIntervalDateField = "Ngày kết thúc (không bắt buộc)",
+    noteDetailIntervalTimeField = "Giờ kết thúc (không bắt buộc)",
+    noteDetailMissingField = "Thiếu thông tin gì (không bắt buộc)",
+    noteDetailSave = "Lưu chi tiết",
+    noteDetailSaved = "Đã lưu chi tiết.",
+    noteDetailSaveFailed = "Không lưu được chi tiết này. Nội dung vẫn còn đây; hãy thử lại.",
+    noteDetailConflict = "Ghi chú hoặc chi tiết đã thay đổi sau khi bạn mở. Phần bạn sửa vẫn " +
+        "còn đây.",
+    noteDetailReload = "Tải lại chi tiết đã lưu",
+    noteDetailReloadConfirmTitle = "Tải lại chi tiết đã lưu?",
+    noteDetailReloadConfirmBody = "Phần bạn sửa trong biểu mẫu sẽ được thay bằng chi tiết đã " +
+        "lưu.",
+    noteDetailMissingTitle = "Chi tiết này không còn tồn tại",
+    noteDetailMissingBody = "Có thể chi tiết đã bị gỡ hoặc xóa khi ghi chú thay đổi.",
+    noteDetailOutdatedBody = "Chi tiết này được đọc từ bản ghi chú cũ hơn. Hãy thêm chi tiết " +
+        "mới từ văn bản hiện tại nếu vẫn đúng.",
+    noteDetailAddFromCurrent = "Thêm chi tiết từ ghi chú hiện tại",
+    noteDetailLinkSection = "Thông báo ngân hàng",
+    noteDetailNoLinks = "Chưa có thông báo ngân hàng nào được gắn hoặc đề xuất cho chi tiết này.",
+    noteDetailChooseDraft = "Chọn thông báo ngân hàng đang chờ",
+    noteDetailAttach = "Gắn",
+    noteDetailReject = "Từ chối",
+    noteDetailUnlink = "Hủy gắn",
+    noteDetailAttached = "Đã gắn thông báo ngân hàng",
+    noteDetailProposed = "Có đề xuất khớp; chưa gắn",
+    noteDetailRefused = "Đã từ chối khớp (giữ quyết định)",
+    noteDetailLinkHelp = "Gắn liên kết không xác nhận thông báo ngân hàng và không thay đổi " +
+        "sổ quỹ.",
+    noteDetailUnlinkFirst = "Hãy hủy gắn thông báo hiện tại trước khi chọn thông báo khác.",
+    noteDetailManualHelp = "Ghi tay cần có số tiền và không có thông báo ngân hàng đang gắn.",
+    noteRecordTransaction = "Ghi giao dịch",
+    noteDiscussAi = "Thảo luận với Trợ lý AI",
+    noteDiscussAiHelp = "Mở Trợ lý AI với ghi chú này được đính kèm. Chưa có gì được gửi cho " +
+        "đến khi bạn gửi.",
+    noteDraftTitle = "Thông báo ngân hàng đang chờ",
+    noteDraftEmpty = "Không có thông báo ngân hàng nào đang chờ duyệt.",
+    noteDraftLoading = "Đang tải thông báo ngân hàng…",
+    noteDraftLoadError = "Không đọc được thông báo ngân hàng đang chờ. Không có khớp nào được " +
+        "chọn.",
+    noteDraftHelp = "Danh sách có giới hạn và không tự chọn khớp. Quyết định từ chối được giữ " +
+        "cho cặp chi tiết và thông báo này.",
+    noteDraftAmount = "Số tiền",
+    noteDraftTime = "Thời gian ngân hàng",
+    noteDraftMemo = "Ghi chú của ngân hàng",
+    noteDraftAlreadyAttached = "Đã gắn với chi tiết này.",
+    noteDraftProposedState = "Được đề xuất cho chi tiết này; chọn Gắn hoặc Từ chối.",
+    noteDraftRefusedState = "Đã từ chối trước đó. Cặp này không thể được đề xuất lại.",
+    noteDraftOtherActive = "Hãy hủy gắn thông báo hiện tại trước khi chọn thông báo khác.",
+    noteDraftAttachedMsg = "Đã gắn. Thông báo ngân hàng và sổ quỹ không thay đổi.",
+    noteDraftRefusedMsg = "Đã từ chối. Quyết định này được giữ.",
+    noteDraftActionFailed = "Quyết định chưa hoàn tất. Không có thay đổi tài chính nào; hãy " +
+        "tải lại và thử lại.",
+    noteDraftDeciding = "Đang lưu quyết định…",
+    noteDraftDirectionOut = "Tiền ra",
+    noteDraftDirectionIn = "Tiền vào",
+    noteDraftDirectionUnknown = "Chưa rõ chiều tiền",
+    noteDraftAmountUnread = "Chưa đọc được số tiền",
+    noteDraftTimeUnread = "Chưa đọc được thời gian",
+    noteDraftNoMemo = "Không có ghi chú ngân hàng",
+    chatAttachedNote = "Ghi chú đính kèm",
+    chatAttachedNoteHelp = "Văn bản này sẽ được gửi khi bạn bấm Gửi. Hiện chưa gửi gì.",
+    chatRemoveAttachedNote = "Bỏ ghi chú đính kèm",
 )
 
 val vietnameseStrings = AegisStrings(
@@ -555,6 +1187,7 @@ val vietnameseStrings = AegisStrings(
     archivedLabel = "Đã lưu trữ",
     thisMonth = "Tháng này",
     drillHint = "Chọn một dòng để mở các giao dịch của dòng đó.",
+    note = vietnameseNoteStrings,
 )
 
 /** The strings of one language. */

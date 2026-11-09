@@ -33,11 +33,17 @@ import io.github.triet4p.aegisf.ui.BankNotificationSettingsScreen
 import io.github.triet4p.aegisf.ui.CategoryManagerScreen
 import io.github.triet4p.aegisf.ui.AnalyticsScreen
 import io.github.triet4p.aegisf.ui.ChatAgentRunState
+import io.github.triet4p.aegisf.ui.ChatNoteContext
 import io.github.triet4p.aegisf.ui.DashboardListScope
 import io.github.triet4p.aegisf.ui.DashboardScopeState
 import io.github.triet4p.aegisf.ui.HostedProviderSettingsScreen
 import io.github.triet4p.aegisf.ui.LedgerScreen
+import io.github.triet4p.aegisf.ui.NoteDetailScreen
+import io.github.triet4p.aegisf.ui.NoteDraftChooserScreen
+import io.github.triet4p.aegisf.ui.NoteEditorScreen
+import io.github.triet4p.aegisf.ui.NoteEventScreen
 import io.github.triet4p.aegisf.ui.QuickCaptureScreen
+import io.github.triet4p.aegisf.ui.SavedNotesScreen
 import io.github.triet4p.aegisf.ui.ScopedLedgerScreen
 import io.github.triet4p.aegisf.ui.TransactionDetailScreen
 import io.github.triet4p.aegisf.ui.TransactionEditorScreen
@@ -82,9 +88,26 @@ private sealed interface LedgerRoute : Serializable {
     data class Edit(val transactionId: Long) : LedgerRoute
 }
 
-/** The secondary routes of the Notes destination: manual records, from the form or an event. */
+/** The secondary routes of the Notes destination: one saved note and everything it owns. */
 private sealed interface NotesRoute : Serializable {
     data object ManualRecord : NotesRoute
+
+    /** The focused browse of every note saved on this device. */
+    data object Browse : NotesRoute
+
+    /** One saved note, read from storage when the route is shown. */
+    data class Detail(val captureId: Long) : NotesRoute
+
+    /** The focused text editor for one saved note. */
+    data class Edit(val captureId: Long) : NotesRoute
+
+    /** One detail read from a note; a null event id starts a new detail. */
+    data class EventDetail(val captureId: Long, val eventId: Long?) : NotesRoute
+
+    /** The bounded chooser of pending bank notifications for one detail. */
+    data class ChooseDraft(val captureId: Long, val eventId: Long) : NotesRoute
+
+    /** The existing manual form, optionally filled from one detail. */
     data class RecordEvent(val eventId: Long) : NotesRoute
 }
 
@@ -132,6 +155,9 @@ internal fun AegisAppShell(
     var notesStack by rememberSaveable { mutableStateOf(emptyList<NotesRoute>()) }
     var chatStack by rememberSaveable { mutableStateOf(emptyList<ChatRoute>()) }
     var reviewStack by rememberSaveable { mutableStateOf(emptyList<ReviewRoute>()) }
+    // Feedback about a completed note action must outlive the route change that follows it:
+    // the route state holder disposes the destination subtree when the route key changes.
+    var notesNotice by rememberSaveable { mutableStateOf<String?>(null) }
 
     // The ledger's filters live above its own routes, so opening a record and coming back — or
     // visiting another destination and returning — keeps the list looking as it was left.
@@ -304,11 +330,13 @@ internal fun AegisAppShell(
                             queryService = queryService,
                             commandService = commandService,
                             stack = notesStack,
-                            onOpenManualRecord = {
-                                notesStack = notesStack + NotesRoute.ManualRecord
-                            },
-                            onOpenEvent = { eventId ->
-                                notesStack = notesStack + NotesRoute.RecordEvent(eventId)
+                            notice = notesNotice,
+                            onNoticeChange = { notesNotice = it },
+                            onOpen = { route -> notesStack = notesStack + route },
+                            onOpenChatWithNote = { captureId, text ->
+                                chatRunState.noteContext = ChatNoteContext(captureId, text)
+                                chatStack = emptyList()
+                                tab = ShellTab.CHAT
                             },
                             onPop = ::popCurrentRoute,
                         )
@@ -502,17 +530,90 @@ private fun NotesDestination(
     queryService: WorkflowQueryService,
     commandService: WorkflowCommandService,
     stack: List<NotesRoute>,
-    onOpenManualRecord: () -> Unit,
-    onOpenEvent: (Long) -> Unit,
+    notice: String?,
+    onNoticeChange: (String?) -> Unit,
+    onOpen: (NotesRoute) -> Unit,
+    onOpenChatWithNote: (Long, String) -> Unit,
     onPop: () -> Unit,
 ) {
+    val strings = LocalAegisStrings.current
+
     when (val route = stack.lastOrNull()) {
         null -> QuickCaptureScreen(
             queryService = queryService,
             commandService = commandService,
-            onOpenManual = onOpenManualRecord,
-            onRecordTransaction = onOpenManualRecord,
-            onRecordEvent = onOpenEvent,
+            notice = notice,
+            onDismissNotice = { onNoticeChange(null) },
+            onOpenSavedNotes = { onOpen(NotesRoute.Browse) },
+        )
+
+        NotesRoute.Browse -> SavedNotesScreen(
+            queryService = queryService,
+            notice = notice,
+            onDismissNotice = { onNoticeChange(null) },
+            onOpenNote = { captureId -> onOpen(NotesRoute.Detail(captureId)) },
+            onNavigateUp = onPop,
+        )
+
+        is NotesRoute.Detail -> NoteDetailScreen(
+            queryService = queryService,
+            commandService = commandService,
+            captureId = route.captureId,
+            notice = notice,
+            onDismissNotice = { onNoticeChange(null) },
+            onEdit = { captureId -> onOpen(NotesRoute.Edit(captureId)) },
+            onAddDetail = { captureId ->
+                onOpen(NotesRoute.EventDetail(captureId, eventId = null))
+            },
+            onOpenDetail = { captureId, eventId ->
+                onOpen(NotesRoute.EventDetail(captureId, eventId))
+            },
+            onRecordManually = { onOpen(NotesRoute.ManualRecord) },
+            onDiscussWithAi = onOpenChatWithNote,
+            onDeleted = {
+                onNoticeChange(strings.noteDeleted)
+                onPop()
+            },
+            onNavigateUp = onPop,
+        )
+
+        is NotesRoute.Edit -> NoteEditorScreen(
+            queryService = queryService,
+            commandService = commandService,
+            captureId = route.captureId,
+            onSaved = {
+                onNoticeChange(strings.noteChangesSaved)
+                onPop()
+            },
+            onNavigateUp = onPop,
+        )
+
+        is NotesRoute.EventDetail -> NoteEventScreen(
+            queryService = queryService,
+            commandService = commandService,
+            captureId = route.captureId,
+            eventId = route.eventId,
+            onSaved = {
+                onNoticeChange(strings.noteDetailSaved)
+                onPop()
+            },
+            onChooseDraft = { eventId ->
+                onOpen(NotesRoute.ChooseDraft(route.captureId, eventId))
+            },
+            onRecordManually = { eventId -> onOpen(NotesRoute.RecordEvent(eventId)) },
+            onAddFromCurrent = { captureId ->
+                onOpen(NotesRoute.EventDetail(captureId, eventId = null))
+            },
+            onNavigateUp = onPop,
+        )
+
+        is NotesRoute.ChooseDraft -> NoteDraftChooserScreen(
+            queryService = queryService,
+            commandService = commandService,
+            captureId = route.captureId,
+            eventId = route.eventId,
+            onRecordManually = { eventId -> onOpen(NotesRoute.RecordEvent(eventId)) },
+            onNavigateUp = onPop,
         )
 
         NotesRoute.ManualRecord -> TransactionEditorScreen(
@@ -619,6 +720,11 @@ private fun LedgerRoute.ledgerKey(): String = when (this) {
 
 private fun NotesRoute.notesKey(): String = when (this) {
     NotesRoute.ManualRecord -> "manual-record"
+    NotesRoute.Browse -> "saved-notes"
+    is NotesRoute.Detail -> "note-$captureId"
+    is NotesRoute.Edit -> "note-edit-$captureId"
+    is NotesRoute.EventDetail -> "note-event-$captureId-${eventId ?: "new"}"
+    is NotesRoute.ChooseDraft -> "note-draft-$captureId-$eventId"
     is NotesRoute.RecordEvent -> "record-event-$eventId"
 }
 

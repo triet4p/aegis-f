@@ -19,7 +19,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -32,7 +31,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.triet4p.aegisf.data.AttachLinkRequest
-import io.github.triet4p.aegisf.data.CaptureEventQuery
 import io.github.triet4p.aegisf.data.CaptureMessageEntity
 import io.github.triet4p.aegisf.data.ContextLinkState
 import io.github.triet4p.aegisf.data.DraftCandidateQuery
@@ -41,14 +39,12 @@ import io.github.triet4p.aegisf.data.LinkOperation
 import io.github.triet4p.aegisf.data.LinkOperationQuery
 import io.github.triet4p.aegisf.data.NoteEventEntity
 import io.github.triet4p.aegisf.data.NoteEventInterpretation
-import io.github.triet4p.aegisf.data.NoteEventStatus
 import io.github.triet4p.aegisf.data.NoteEventTimeAnchor
 import io.github.triet4p.aegisf.data.PendingBankDraftEntity
 import io.github.triet4p.aegisf.data.ProposeLinkRequest
 import io.github.triet4p.aegisf.data.QueryPage
 import io.github.triet4p.aegisf.data.QueryPageRequest
 import io.github.triet4p.aegisf.data.RejectLinkRequest
-import io.github.triet4p.aegisf.data.UnlinkLinkRequest
 import io.github.triet4p.aegisf.data.UpdateEventRequest
 import io.github.triet4p.aegisf.data.VndMoney
 import io.github.triet4p.aegisf.data.WorkflowCallerScope
@@ -61,425 +57,10 @@ import kotlinx.coroutines.launch
 import java.util.TimeZone
 import java.util.UUID
 
-private const val EVENT_PAGE_SIZE = 20
 private const val CANDIDATE_PAGE_SIZE = 10
-private const val MANUAL_EXTRACTION_VERSION = "user-manual-v1"
+internal const val MANUAL_EXTRACTION_VERSION = "user-manual-v1"
 
 private const val EVENT_LINK_PAGE_SIZE = 20
-
-@Composable
-internal fun QuickCaptureEventPanel(
-    capture: CaptureMessageEntity,
-    queryService: WorkflowQueryService,
-    commandService: WorkflowCommandService,
-    onRecordManually: (Long) -> Unit,
-    onContextChanged: () -> Unit,
-) {
-    var eventOffset by rememberSaveable(capture.id) { mutableIntStateOf(0) }
-    var eventReload by remember { mutableIntStateOf(0) }
-    var events by remember(capture.id) { mutableStateOf(emptyList<NoteEventEntity>()) }
-    var eventHasMore by remember(capture.id) { mutableStateOf(false) }
-    var eventLoading by remember(capture.id) { mutableStateOf(true) }
-    var eventError by remember(capture.id) { mutableStateOf<String?>(null) }
-    var creatingInterpretation by rememberSaveable(capture.id) { mutableStateOf(false) }
-    var editingEventId by rememberSaveable(capture.id) { mutableStateOf<Long?>(null) }
-    var candidateEventId by rememberSaveable(capture.id) { mutableStateOf<Long?>(null) }
-
-    LaunchedEffect(queryService, capture.id, capture.revision, eventOffset, eventReload) {
-        eventLoading = true
-        eventError = null
-        try {
-            val page = queryService.captureEvents(
-                CaptureEventQuery(
-                    captureId = capture.id,
-                    bounds = QueryPageRequest(limit = EVENT_PAGE_SIZE, offset = eventOffset),
-                ),
-            )
-            if (page.items.isEmpty() && eventOffset > 0) {
-                eventOffset = (eventOffset - EVENT_PAGE_SIZE).coerceAtLeast(0)
-            } else {
-                events = page.items
-                eventHasMore = page.hasMore
-            }
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            eventError = "Event interpretations could not be loaded. Try again."
-        } finally {
-            eventLoading = false
-        }
-    }
-
-    CapturePanel(
-        modifier = Modifier.fillMaxWidth(),
-        accent = MaterialTheme.colorScheme.primary,
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text("Event interpretations", style = MaterialTheme.typography.titleMedium)
-            Text(
-                "Choose an exact excerpt from the saved source for each occurrence. Saving an " +
-                    "interpretation does not create a ledger record or select a bank draft.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-            Text("Source note #${capture.id}: ${capture.bodyText.orEmpty()}")
-            Button(shape = MaterialTheme.shapes.small, onClick = {
-                creatingInterpretation = true
-                editingEventId = null
-            },
-            enabled = !capture.tombstone && !capture.bodyText.isNullOrBlank(),
-            modifier = Modifier.fillMaxWidth(),) { Text("Add event interpretation") }
-            when {
-                eventLoading && events.isEmpty() -> Text("Loading event interpretations…")
-                eventError != null -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(eventError.orEmpty(), color = MaterialTheme.colorScheme.error)
-                    TextButton(onClick = { eventReload++ }) { Text("Retry") }
-                }
-                events.isEmpty() -> Text("No event interpretations yet. The saved note stays unchanged.")
-            }
-            events.forEach { event ->
-                QuickCaptureEventCard(
-                    event = event,
-                    capture = capture,
-                    queryService = queryService,
-                    commandService = commandService,
-                    linkRefreshKey = eventReload,
-                    onBrowseCandidates = { candidateEventId = event.id },
-                    onRecordManually = onRecordManually,
-                    onEdit = {
-                        editingEventId = event.id
-                        creatingInterpretation = false
-                    },
-                    onContextChanged = {
-                        eventReload++
-                        onContextChanged()
-                    },
-                )
-            }
-            if (eventOffset > 0 || eventHasMore) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    TextButton(
-                        onClick = { eventOffset = (eventOffset - EVENT_PAGE_SIZE).coerceAtLeast(0) },
-                        enabled = eventOffset > 0 && !eventLoading,
-                    ) { Text("Previous events") }
-                    Text("Events ${eventOffset + 1}–${eventOffset + events.size}")
-                    TextButton(
-                        onClick = { eventOffset += events.size },
-                        enabled = eventHasMore && events.isNotEmpty() && !eventLoading,
-                    ) { Text("Next events") }
-                }
-            }
-        }
-    }
-
-    if (creatingInterpretation || editingEventId != null) {
-        val editingEvent = editingEventId?.let { id -> events.firstOrNull { it.id == id } }
-        if (editingEventId != null && editingEvent == null) {
-            AlertDialog(
-                onDismissRequest = { editingEventId = null },
-                title = { Text("Interpretation unavailable") },
-                text = { Text("This event changed or is no longer on the current page. Reload it before editing.") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            editingEventId = null
-                            eventReload++
-                        },
-                    ) { Text("Reload") }
-                },
-                dismissButton = { TextButton(onClick = { editingEventId = null }) { Text("Close") } },
-            )
-        } else {
-            InterpretationEditorDialog(
-                capture = capture,
-                event = editingEvent,
-                existingEvents = events,
-                commandService = commandService,
-                onDismiss = {
-                    creatingInterpretation = false
-                    editingEventId = null
-                },
-                onSaved = {
-                    creatingInterpretation = false
-                    editingEventId = null
-                    eventReload++
-                    onContextChanged()
-                },
-                onConflict = {
-                    eventReload++
-                    onContextChanged()
-                },
-            )
-        }
-    }
-
-    candidateEventId?.let { eventId ->
-        val event = events.firstOrNull { it.id == eventId }
-        if (event == null) {
-            candidateEventId = null
-        } else {
-            CandidateDraftBrowserDialog(
-                event = event,
-                capture = capture,
-                queryService = queryService,
-                commandService = commandService,
-                onDismiss = { candidateEventId = null },
-                onContextChanged = {
-                    eventReload++
-                    onContextChanged()
-                },
-                onRecordManually = { selectedEventId ->
-                    candidateEventId = null
-                    onRecordManually(selectedEventId)
-                },
-            )
-        }
-    }
-}
-
-@Composable
-private fun QuickCaptureEventCard(
-    event: NoteEventEntity,
-    capture: CaptureMessageEntity,
-    queryService: WorkflowQueryService,
-    commandService: WorkflowCommandService,
-    onBrowseCandidates: () -> Unit,
-    onRecordManually: (Long) -> Unit,
-    onEdit: () -> Unit,
-    linkRefreshKey: Int,
-    onContextChanged: () -> Unit,
-) {
-    var links by remember(event.id) { mutableStateOf(emptyList<LinkOperation>()) }
-    var linkLoading by remember(event.id) { mutableStateOf(true) }
-    var linkError by remember(event.id) { mutableStateOf<String?>(null) }
-    var linkReload by remember(event.id) { mutableIntStateOf(0) }
-    var actionMessage by remember(event.id) { mutableStateOf<String?>(null) }
-    var actionInProgress by remember(event.id) { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
-
-    LaunchedEffect(queryService, event.id, event.revision, capture.revision, linkRefreshKey, linkReload) {
-        linkLoading = true
-        linkError = null
-        try {
-            links = queryService.linkOperations(
-                LinkOperationQuery(
-                    eventId = event.id,
-                    bounds = QueryPageRequest(limit = EVENT_LINK_PAGE_SIZE),
-                ),
-            ).items
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            linkError = "Link decisions could not be loaded."
-        } finally {
-            linkLoading = false
-        }
-    }
-
-    val body = capture.bodyText
-    val currentExcerpt = body?.takeIf {
-        event.sourceRevision == capture.revision &&
-            event.spanStart >= 0 &&
-            event.spanEnd > event.spanStart &&
-            event.spanEnd <= it.length
-    }?.substring(event.spanStart, event.spanEnd)
-    val staleSource = event.sourceRevision != capture.revision || event.normalizedText == null
-    val activeLink = links.firstOrNull {
-        it.state == ContextLinkState.PROPOSED || it.state == ContextLinkState.ACCEPTED
-    }
-    val manuallyRecordable =
-        !staleSource &&
-            event.unresolvedReason == null &&
-            event.amountVnd != null &&
-            event.resolvedTransactionId == null &&
-            activeLink == null
-
-    val eventAccent = when (event.status) {
-        NoteEventStatus.INTERPRETED -> MaterialTheme.colorScheme.primary
-        NoteEventStatus.UNRESOLVED -> MaterialTheme.colorScheme.tertiary
-        NoteEventStatus.NO_MATCH -> MaterialTheme.colorScheme.outlineVariant
-    }
-    CapturePanel(
-        modifier = Modifier.fillMaxWidth(),
-        accent = eventAccent,
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text("Event #${event.id}", fontWeight = FontWeight.SemiBold)
-            Text(
-                when (event.status) {
-                    NoteEventStatus.INTERPRETED -> "Interpretation ready · revision ${event.revision}"
-                    NoteEventStatus.UNRESOLVED -> "Unresolved · ${event.unresolvedReason ?: "needs review"}"
-                    NoteEventStatus.NO_MATCH -> "Unmatched · no active bank draft"
-                },
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            if (staleSource) {
-                Text(
-                    "Source conflict: this reading came from capture revision ${event.sourceRevision}, " +
-                        "but the current source is revision ${capture.revision}. The old reading " +
-                        "was cleared; re-read current source text before linking or recording.",
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            } else {
-                Text("Selected source excerpt: “${currentExcerpt.orEmpty()}”")
-                Text("Reading: ${event.normalizedText.orEmpty()}")
-            }
-            event.amountVnd?.let { amount -> Text("Interpretation amount: ${VndMoney.formatAmount(amount)}") }
-            event.merchant?.let { Text("Merchant: $it") }
-            if (event.anchorDate != null || event.anchorTime != null ||
-                event.intervalEndDate != null || event.intervalEndTime != null
-            ) {
-                val intervalEnd = listOfNotNull(event.intervalEndDate, event.intervalEndTime)
-                    .joinToString(" ")
-                Text(
-                    "Stated date/time: ${event.anchorDate.orEmpty()} ${event.anchorTime.orEmpty()}" +
-                        if (intervalEnd.isBlank()) "" else " to $intervalEnd",
-                )
-            }
-            if (event.resolvedTransactionId != null) {
-                Text("Recorded manually as ledger record #${event.resolvedTransactionId}.")
-            }
-            if (linkLoading) {
-                Text("Loading link decisions…", style = MaterialTheme.typography.bodySmall)
-            }
-            linkError?.let { message ->
-                Text(message, color = MaterialTheme.colorScheme.error)
-                TextButton(onClick = { linkReload++ }) { Text("Retry link read") }
-            }
-            links.forEach { link ->
-                StoredLinkDecision(
-                    link = link,
-                    queryService = queryService,
-                    enabled = !actionInProgress,
-                    onUnlink = {
-                        actionInProgress = true
-                        actionMessage = null
-                        coroutineScope.launch {
-                            try {
-                                val outcome = commandService.unlinkLink(
-                                    WorkflowCallerScope.User,
-                                    UnlinkLinkRequest(
-                                        idempotencyKey = UUID.randomUUID().toString(),
-                                        eventId = event.id,
-                                        draftId = link.draftId,
-                                        expectedRevision = link.revision,
-                                    ),
-                                )
-                                if (outcome.isAppliedOrNoChange()) {
-                                    actionMessage = "Draft unlinked. The event can be attached to another draft or recorded manually."
-                                    linkReload++
-                                    onContextChanged()
-                                } else {
-                                    actionMessage = outcome.linkFailureMessage()
-                                    linkReload++
-                                    onContextChanged()
-                                }
-                            } catch (cancelled: CancellationException) {
-                                throw cancelled
-                            } catch (_: Exception) {
-                                actionMessage = "Unlink failed. The stored decision is unchanged; try again."
-                            } finally {
-                                actionInProgress = false
-                            }
-                        }
-                    },
-                )
-            }
-            if (actionInProgress) Text("Saving link decision…")
-            actionMessage?.let { message ->
-                Text(
-                    message,
-                    color = if (message.startsWith("Draft unlinked")) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.error
-                    },
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onBrowseCandidates,
-                enabled = !staleSource && !eventLoadingLink(links, linkLoading),) { Text("Browse drafts") }
-                if (manuallyRecordable) {
-                    Button(shape = MaterialTheme.shapes.small, onClick = { onRecordManually(event.id) },
-                    enabled = !actionInProgress,) { Text("Record manually") }
-                }
-            }
-            if (!staleSource && activeLink == null && event.resolvedTransactionId == null) {
-                TextButton(
-                    onClick = onEdit,
-                    enabled = !actionInProgress,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("Edit interpretation") }
-            }
-            if (links.none { it.state == ContextLinkState.PROPOSED || it.state == ContextLinkState.ACCEPTED } &&
-                event.resolvedTransactionId == null
-            ) {
-                Text(
-                    "No draft is attached. Missing or multiple candidates stay unresolved until you choose one.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun StoredLinkDecision(
-    link: LinkOperation,
-    queryService: WorkflowQueryService,
-    enabled: Boolean,
-    onUnlink: () -> Unit,
-) {
-    val draft by remember(queryService, link.draftId) {
-        queryService.observeDraftCandidate(link.draftId)
-    }.collectAsState(initial = null)
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            when (link.state) {
-                ContextLinkState.PROPOSED -> "Proposed · bank draft #${link.draftId} (not attached)"
-                ContextLinkState.ACCEPTED -> "Attached · bank draft #${link.draftId}"
-                ContextLinkState.REJECTED -> "Rejected · bank draft #${link.draftId} (decision retained)"
-            },
-            fontWeight = FontWeight.Medium,
-        )
-        draft?.let { Text(candidateDraftSummary(it), style = MaterialTheme.typography.bodySmall) }
-        when (link.state) {
-            ContextLinkState.PROPOSED -> Text("Choose Attach or Reject in Browse drafts to resolve this proposal.")
-            ContextLinkState.ACCEPTED -> when (draft?.reviewStatus) {
-                IntakeReviewStatus.PENDING -> OutlinedButton(
-                    shape = MaterialTheme.shapes.small,
-                    onClick = onUnlink,
-                    enabled = enabled,
-                ) { Text("Unlink draft #${link.draftId}") }
-                null -> Text(
-                    "Loading bank draft #${link.draftId}…",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                else -> Text(
-                    "This draft is a confirmed ledger record. The note reference is kept as " +
-                        "provenance and the ledger is unchanged.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-            ContextLinkState.REJECTED -> Text(
-                "This refusal cannot be undone. You may browse a different draft.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
-    }
-}
 
 @Composable
 internal fun InterpretationEditorDialog(
@@ -1149,7 +730,7 @@ internal fun WorkflowCommandOutcome.linkFailureMessage(): String = when (this) {
     -> "The link decision did not complete. Reload and try again."
 }
 
-private fun currentSourceExcerpt(event: NoteEventEntity, capture: CaptureMessageEntity): String? {
+internal fun currentSourceExcerpt(event: NoteEventEntity, capture: CaptureMessageEntity): String? {
     val source = capture.bodyText ?: return null
     if (event.sourceRevision != capture.revision || event.spanStart < 0 ||
         event.spanEnd <= event.spanStart || event.spanEnd > source.length
@@ -1157,9 +738,9 @@ private fun currentSourceExcerpt(event: NoteEventEntity, capture: CaptureMessage
     return source.substring(event.spanStart, event.spanEnd)
 }
 
-private data class SourceSpan(val start: Int, val end: Int)
+internal data class SourceSpan(val start: Int, val end: Int)
 
-private fun uniqueSourceSpan(source: String, excerpt: String): SourceSpan? {
+internal fun uniqueSourceSpan(source: String, excerpt: String): SourceSpan? {
     if (excerpt.isBlank()) return null
     val first = source.indexOf(excerpt)
     if (first < 0 || source.indexOf(excerpt, first + 1) >= 0) return null
@@ -1170,6 +751,3 @@ private fun candidateDraftSummary(draft: PendingBankDraftEntity): String = build
     append(draft.reviewStatus.name.lowercase().replace('_', ' '))
     draft.memo?.takeIf(String::isNotBlank)?.let { append(" · ").append(it) }
 }
-
-private fun eventLoadingLink(links: List<LinkOperation>, loading: Boolean): Boolean =
-    loading && links.isEmpty()

@@ -13,6 +13,34 @@ import io.github.triet4p.aegisf.agent.WorkflowRunOutcome
 import io.github.triet4p.aegisf.data.WorkflowCallerScope
 import kotlinx.coroutines.Job
 
+/** A saved note the user explicitly attached to the chat, before and after sending. */
+internal data class ChatNoteContext(
+    val captureId: Long,
+    val text: String,
+) {
+    /**
+     * The request text actually sent: the attached note named first, then the user's own words.
+     *
+     * The note is part of the request only while this context is attached; removing it from the
+     * chat leaves the next request exactly as the user typed it.
+     */
+    fun toRequestText(prompt: String): String = buildString {
+        append("Saved note context (attached by me):\n\"")
+        append(text)
+        append("\"\n\nMy request:\n")
+        append(prompt)
+    }
+}
+
+/**
+ * The text one chat request carries.
+ *
+ * Without an attached note this is the user's own request, unchanged. With one, the same visible
+ * text the chip shows is named before the request; removing the chip restores the typed request.
+ */
+internal fun chatRequestText(prompt: String, note: ChatNoteContext?): String =
+    note?.toRequestText(prompt) ?: prompt
+
 /**
  * The Chat destination's in-progress exchange, owned by the shell rather than by the destination
  * subtree.
@@ -22,6 +50,10 @@ import kotlinx.coroutines.Job
  * coming back shows the same conversation instead of an empty composer. The Room rows remain the
  * authority for committed work; this type owns only the transient projection and the job handle.
  *
+ * [noteContext] is the note handed over from the Notes destination. It is visible and removable
+ * on the Chat screen and is included in a request only when the user sends one; attaching it
+ * starts nothing by itself.
+ *
  * [projectionRevision] is bumped whenever an exchange settles so the capture list reloads and its
  * status projection cannot stay stale after an event is recorded.
  */
@@ -30,6 +62,7 @@ internal class ChatAgentRunState {
     var outcome by mutableStateOf<WorkflowRunOutcome?>(null)
     var progress by mutableStateOf<String?>(null)
     var busy by mutableStateOf(false)
+    var noteContext by mutableStateOf<ChatNoteContext?>(null)
     var runId by mutableStateOf<String?>(null)
     var executor by mutableStateOf<BoundedWorkflowExecutor?>(null)
     var continuation by mutableStateOf<WorkflowRunContinuation?>(null)

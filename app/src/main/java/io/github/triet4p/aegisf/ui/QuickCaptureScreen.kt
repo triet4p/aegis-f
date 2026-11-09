@@ -2,11 +2,13 @@ package io.github.triet4p.aegisf.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,16 +17,12 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -32,7 +30,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,112 +39,96 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.triet4p.aegisf.data.CaptureContextSummary
-import io.github.triet4p.aegisf.data.CaptureKind
 import io.github.triet4p.aegisf.data.CaptureMessageEntity
-import io.github.triet4p.aegisf.data.CaptureSourceKind
-import io.github.triet4p.aegisf.data.DeleteCaptureRequest
-import io.github.triet4p.aegisf.data.LIST_PAGE_SIZE
-import io.github.triet4p.aegisf.data.QueryPageRequest
-import io.github.triet4p.aegisf.data.ReviseCaptureRequest
 import io.github.triet4p.aegisf.data.SaveCaptureRequest
-import io.github.triet4p.aegisf.data.SourceQuery
-import io.github.triet4p.aegisf.data.SourceState
 import io.github.triet4p.aegisf.data.UserCaptureKind
 import io.github.triet4p.aegisf.data.WorkflowCallerScope
 import io.github.triet4p.aegisf.data.WorkflowChange
 import io.github.triet4p.aegisf.data.WorkflowCommandOutcome
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
+import io.github.triet4p.aegisf.ui.components.AegisDiscardChangesDialog
+import io.github.triet4p.aegisf.ui.components.AegisGlyph
+import io.github.triet4p.aegisf.ui.components.AegisIcon
+import io.github.triet4p.aegisf.ui.components.AegisSettingRow
+import io.github.triet4p.aegisf.ui.text.AegisStrings
 import io.github.triet4p.aegisf.ui.text.LocalAegisStrings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import java.util.UUID
 
+/**
+ * Notes: one task — write one note and keep it on this device.
+ *
+ * The composer is the only primary action here. The saved notes open as their own focused browse
+ * child, so editing, deleting, interpreting and handing a note to AI never stack under the
+ * composer. Saving is a local write and starts no hosted request and no ledger record.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun QuickCaptureScreen(
     queryService: WorkflowQueryService,
     commandService: WorkflowCommandService,
-    onOpenManual: () -> Unit,
-    onRecordTransaction: () -> Unit,
-    onRecordEvent: (Long) -> Unit,
+    notice: String?,
+    onDismissNotice: () -> Unit,
+    onOpenSavedNotes: () -> Unit,
 ) {
+    val strings = LocalAegisStrings.current
     var draft by rememberSaveable { mutableStateOf("") }
     var saveRequestKey by rememberSaveable { mutableStateOf<String?>(null) }
     var saveMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var saveFailed by rememberSaveable { mutableStateOf(false) }
     var saveInProgress by remember { mutableStateOf(false) }
-
-    var historyOffset by rememberSaveable { mutableStateOf(0) }
-    var historyRevision by remember { mutableStateOf(0) }
-    var captures by remember { mutableStateOf(emptyList<CaptureMessageEntity>()) }
-    var contextSummaries by remember {
-        mutableStateOf(emptyMap<Long, CaptureContextSummary>())
-    }
-    var hasMore by remember { mutableStateOf(false) }
-
-    var expandedCaptureId by rememberSaveable { mutableStateOf<Long?>(null) }
-
-    var historyLoading by remember { mutableStateOf(true) }
-    var historyError by remember { mutableStateOf<String?>(null) }
-
-    var editingCaptureId by rememberSaveable { mutableStateOf<Long?>(null) }
-    var editingRevision by rememberSaveable { mutableStateOf<Int?>(null) }
-    var editText by rememberSaveable { mutableStateOf("") }
-    var editRequestKey by rememberSaveable { mutableStateOf<String?>(null) }
-    var editMessage by rememberSaveable { mutableStateOf<String?>(null) }
-    var editInProgress by remember { mutableStateOf(false) }
-
-    var deletingCaptureId by rememberSaveable { mutableStateOf<Long?>(null) }
-    var deletingRevision by rememberSaveable { mutableStateOf<Int?>(null) }
-    var deleteRequestKey by rememberSaveable { mutableStateOf<String?>(null) }
-    var deleteInProgress by remember { mutableStateOf(false) }
-    var deleteMessage by rememberSaveable { mutableStateOf<String?>(null) }
-
+    var discardPending by rememberSaveable { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
-    LaunchedEffect(
-        queryService,
-        historyOffset,
-        historyRevision,
-    ) {
-        historyLoading = true
-        historyError = null
-        try {
-            val page = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                queryService.sourceExcerpts(
-                    SourceQuery(
-                        kind = CaptureKind.USER_NOTE,
-                        sourceKind = CaptureSourceKind.USER_QUICK_CAPTURE,
-                        state = SourceState.ACTIVE,
-                        bounds = QueryPageRequest(limit = LIST_PAGE_SIZE, offset = historyOffset),
+    fun saveNote() {
+        val text = draft
+        if (text.isBlank() || saveInProgress) return
+        val requestKey = saveRequestKey ?: UUID.randomUUID().toString().also {
+            saveRequestKey = it
+        }
+        saveInProgress = true
+        saveMessage = null
+        saveFailed = false
+        coroutineScope.launch {
+            try {
+                val outcome = commandService.saveCapture(
+                    WorkflowCallerScope.User,
+                    SaveCaptureRequest(
+                        idempotencyKey = requestKey,
+                        bodyText = text,
+                        captureKind = UserCaptureKind.QUICK_CAPTURE,
                     ),
                 )
-            }
-            if (page.items.isEmpty() && historyOffset > 0) {
-                historyOffset = (historyOffset - LIST_PAGE_SIZE).coerceAtLeast(0)
-            } else {
-                val summaries = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    queryService.captureContextSummaries(page.items.map { it.id })
+                if (outcome.savedCaptureId() != null) {
+                    draft = ""
+                    saveRequestKey = null
+                    saveFailed = false
+                    saveMessage = strings.noteSaved
+                } else {
+                    saveFailed = true
+                    saveMessage = outcome.noteFailureMessage(strings, strings.noteSaveFailed)
                 }
-                captures = page.items
-                contextSummaries = summaries
-                hasMore = page.hasMore
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                saveFailed = true
+                saveMessage = strings.noteSaveFailed
+            } finally {
+                saveInProgress = false
             }
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            historyError = "Saved captures could not be loaded. Try again."
-        } finally {
-            historyLoading = false
         }
     }
 
@@ -158,14 +139,14 @@ internal fun QuickCaptureScreen(
             TopAppBar(
                 title = {
                     Text(
-                        LocalAegisStrings.current.notesTitle.uppercase(Locale.ROOT),
+                        text = strings.notesTitle,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.8.sp,
                     )
                 },
             )
         },
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
@@ -175,417 +156,367 @@ internal fun QuickCaptureScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item {
-                CapturePanel(
-                    modifier = Modifier.fillMaxWidth(),
-                    accent = MaterialTheme.colorScheme.primary,
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Text(
-                            text = "NEW QUICK CAPTURE",
-                            style = MaterialTheme.typography.labelLarge,
-                            letterSpacing = 1.2.sp,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        Text(
-                            text = "Save any note locally. It stays source text until you take " +
-                                "a separate manual action.",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        OutlinedTextField(
-                            value = draft,
-                            onValueChange = {
-                                draft = it
-                                saveRequestKey = null
-                                saveMessage = null
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 144.dp),
-                            enabled = !saveInProgress,
-                            label = { Text("Write anything") },
-                            supportingText = { Text("No financial fields are required.") },
-                        )
-                        Button(
-                            shape = MaterialTheme.shapes.small,
-                            onClick = {
-                                val text = draft
-                                val requestKey = saveRequestKey
-                                    ?: UUID.randomUUID().toString().also { key ->
-                                        saveRequestKey = key
-                                    }
-                                saveInProgress = true
-                                saveMessage = null
-                                coroutineScope.launch {
-                                    try {
-                                        val outcome = commandService.saveCapture(
-                                            WorkflowCallerScope.User,
-                                            SaveCaptureRequest(
-                                                idempotencyKey = requestKey,
-                                                bodyText = text,
-                                                captureKind = UserCaptureKind.QUICK_CAPTURE,
-                                            ),
-                                        )
-                                        val captureId = outcome.savedCaptureId()
-                                        if (captureId != null) {
-                                            draft = ""
-                                            saveRequestKey = null
-                                            saveMessage = "Saved. No ledger record or automatic " +
-                                                "match was created."
-                                            historyRevision += 1
-                                        } else {
-                                            saveMessage = outcome.captureFailureMessage()
-                                        }
-                                    } catch (cancelled: CancellationException) {
-                                        throw cancelled
-                                    } catch (_: Exception) {
-                                        saveMessage = "Save failed. Your note is still here; " +
-                                            "retry to finish the same request."
-                                    } finally {
-                                        saveInProgress = false
-                                    }
-                                }
-                            },
-                            enabled = draft.isNotBlank() && !saveInProgress,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 48.dp),
-                        ) {
-                            if (saveInProgress) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                )
-                                Text("Saving…")
-                            } else {
-                                Text("Save capture")
-                            }
-                        }
-                        saveMessage?.let { message ->
-                            Text(
-                                text = message,
-                                color = if (saveMessageIsError(message)) {
-                                    MaterialTheme.colorScheme.error
-                                } else {
-                                    MaterialTheme.colorScheme.primary
-                                },
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                        }
-                    }
+            notice?.let { message ->
+                item {
+                    NoteNoticeBanner(
+                        message = message,
+                        closeLabel = strings.close,
+                        onClose = onDismissNotice,
+                    )
                 }
             }
 
             item {
-                CapturePanel(
-                    modifier = Modifier.fillMaxWidth(),
-                    accent = MaterialTheme.colorScheme.tertiary,
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text("Availability", fontWeight = FontWeight.SemiBold)
-                        Text(
-                            "Quick Capture does not run model extraction. When an event interpretation " +
-                                "or permitted bank notification arrives, complete unique evidence may " +
-                                "link them; ambiguous or incomplete evidence stays for review. Saving " +
-                                "a note never creates a financial record.",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(
-                                shape = MaterialTheme.shapes.small,
-                                onClick = onRecordTransaction,
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text("Record a transaction")
-                            }
-                            TextButton(
-                                onClick = onOpenManual,
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text("Open Manual")
-                            }
-                        }
-                    }
-                }
-            }
-
-            item {
-                Text(
-                    text = "RECENT CAPTURES & PROVENANCE",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                NoteComposer(
+                    strings = strings,
+                    draft = draft,
+                    onDraftChange = {
+                        draft = it
+                        saveRequestKey = null
+                        saveMessage = null
+                        saveFailed = false
+                    },
+                    saving = saveInProgress,
+                    message = saveMessage,
+                    messageIsError = saveFailed,
+                    onSave = ::saveNote,
+                    onClear = { discardPending = true },
                 )
             }
 
-            if (historyLoading && captures.isEmpty()) {
-                item { Text("Loading saved captures…") }
-            } else if (captures.isEmpty() && historyError == null) {
-                item { Text("No saved captures yet.") }
-            }
-
-            historyError?.let { error ->
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(error, color = MaterialTheme.colorScheme.error)
-                        TextButton(onClick = { historyRevision += 1 }) {
-                            Text("Retry loading captures")
-                        }
-                    }
-                }
-            }
-
-
-            items(captures, key = { it.id }) { capture ->
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+            item {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 ) {
-                    QuickCaptureHistoryCard(
-                        capture = capture,
-                        context = contextSummaries[capture.id],
-                        onEdit = {
-                            editingCaptureId = capture.id
-                            editingRevision = capture.revision
-                            editText = capture.bodyText.orEmpty()
-                            editRequestKey = null
-                            editMessage = null
-                        },
-                        onDelete = {
-                            deletingCaptureId = capture.id
-                            deletingRevision = capture.revision
-                            deleteRequestKey = null
-                            deleteMessage = null
-                        },
-                        onManageEvents = {
-                            expandedCaptureId =
-                                if (expandedCaptureId == capture.id) null else capture.id
-                        },
-                        eventsExpanded = expandedCaptureId == capture.id,
+                    AegisSettingRow(
+                        title = strings.noteSavedSection,
+                        supporting = strings.noteBrowseHelp,
+                        onClick = onOpenSavedNotes,
                     )
-                    if (expandedCaptureId == capture.id) {
-                        QuickCaptureEventPanel(
-                            capture = capture,
-                            queryService = queryService,
-                            commandService = commandService,
-                            onRecordManually = onRecordEvent,
-                            onContextChanged = { historyRevision++ },
-                        )
-                    }
-                }
-            }
-
-            if ((hasMore || historyOffset > 0) && captures.isNotEmpty()) {
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        TextButton(
-                            onClick = {
-                                historyOffset = (historyOffset - LIST_PAGE_SIZE).coerceAtLeast(0)
-                            },
-                            enabled = historyOffset > 0 && !historyLoading,
-                        ) { Text("Previous") }
-                        Text("Captures ${historyOffset + 1}–${historyOffset + captures.size}")
-                        TextButton(
-                            onClick = { historyOffset += captures.size },
-                            enabled = hasMore && captures.isNotEmpty() && !historyLoading,
-                        ) { Text("Next") }
-                    }
                 }
             }
         }
     }
 
-    if (editingCaptureId != null) {
-        AlertDialog(
-            onDismissRequest = {
-                if (!editInProgress) {
-                    editingCaptureId = null
-                    editingRevision = null
-                    editRequestKey = null
-                    historyRevision += 1
-                }
-            },
-            title = { Text("Edit saved capture") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = editText,
-                        onValueChange = {
-                            editText = it
-                            editRequestKey = null
-                            editMessage = null
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 120.dp),
-                        enabled = !editInProgress,
-                        label = { Text("Capture text") },
-                    )
-                    Text(
-                        text = sourceChangePolicyMessage(),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    editMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                }
-            },
-            confirmButton = {
-                Button(
-                    shape = MaterialTheme.shapes.small,
-                    enabled = editText.isNotBlank() && !editInProgress,
-                    onClick = {
-                        val captureId = editingCaptureId ?: return@Button
-                        val revision = editingRevision ?: return@Button
-                        val requestKey = editRequestKey
-                            ?: UUID.randomUUID().toString().also { key ->
-                                editRequestKey = key
-                            }
-                        editInProgress = true
-                        editMessage = null
-                        coroutineScope.launch {
-                            try {
-                                val outcome = commandService.reviseCapture(
-                                    WorkflowCallerScope.User,
-                                    ReviseCaptureRequest(
-                                        idempotencyKey = requestKey,
-                                        captureId = captureId,
-                                        expectedRevision = revision,
-                                        bodyText = editText,
-                                    ),
-                                )
-                                if (outcome.revisedCaptureId() == captureId) {
-                                    editingCaptureId = null
-                                    editingRevision = null
-                                    editRequestKey = null
-                                    editMessage = null
-                                    saveMessage = "Capture text saved. Provenance is retained."
-                                    historyRevision += 1
-                                } else {
-                                    editMessage = outcome.captureFailureMessage()
-                                }
-                            } catch (cancelled: CancellationException) {
-                                throw cancelled
-                            } catch (_: Exception) {
-                                editMessage = "Update failed. Your changes are still here; " +
-                                    "retry to finish the same request."
-                            } finally {
-                                editInProgress = false
-                            }
-                        }
-                    },
-                ) {
-                    Text(if (editInProgress) "Saving…" else "Save changes")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    enabled = !editInProgress,
-                    onClick = {
-                        editingCaptureId = null
-                        editingRevision = null
-                        editRequestKey = null
-                        historyRevision += 1
-                    },
-                ) { Text("Cancel") }
-            },
-        )
-    }
-
-    if (deletingCaptureId != null) {
-        val captureId = checkNotNull(deletingCaptureId)
-        val revision = checkNotNull(deletingRevision)
-        val capture = captures.firstOrNull { it.id == captureId }
-        AlertDialog(
-            onDismissRequest = {
-                if (!deleteInProgress) {
-                    deletingCaptureId = null
-                    deletingRevision = null
-                    deleteRequestKey = null
-                    deleteMessage = null
-                }
-            },
-            title = { Text("Delete saved capture?") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    capture?.bodyText?.let { text ->
-                        Text(text, maxLines = 4, overflow = TextOverflow.Ellipsis)
-                    } ?: Text(
-                        "This capture is no longer in active history. Confirm again to " +
-                            "resolve the saved deletion request.",
-                    )
-                    Text(
-                        text = sourceChangePolicyMessage(),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    deleteMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                }
-            },
-            confirmButton = {
-                Button(
-                    shape = MaterialTheme.shapes.small,
-                    enabled = !deleteInProgress,
-                    onClick = {
-                        val requestKey = deleteRequestKey ?: UUID.randomUUID().toString().also {
-                            deleteRequestKey = it
-                        }
-                        deleteInProgress = true
-                        deleteMessage = null
-                        coroutineScope.launch {
-                            try {
-                                val outcome = commandService.deleteCapture(
-                                    WorkflowCallerScope.User,
-                                    DeleteCaptureRequest(
-                                        idempotencyKey = requestKey,
-                                        captureId = captureId,
-                                        expectedRevision = revision,
-                                    ),
-                                )
-                                if (outcome.deletedCaptureId() == captureId) {
-                                    deletingCaptureId = null
-                                    deletingRevision = null
-                                    deleteRequestKey = null
-                                    deleteMessage = null
-                                    saveMessage = "Capture deleted. Provenance remains as a " +
-                                        "text-free tombstone."
-                                    historyRevision += 1
-                                } else {
-                                    deleteMessage = outcome.captureFailureMessage()
-                                }
-                            } catch (cancelled: CancellationException) {
-                                throw cancelled
-                            } catch (_: Exception) {
-                                deleteMessage = "Delete failed. The same request is retained; " +
-                                    "retry to finish it safely."
-                            } finally {
-                                deleteInProgress = false
-                            }
-                        }
-                    },
-                ) { Text(if (deleteInProgress) "Deleting…" else "Delete capture") }
-            },
-            dismissButton = {
-                TextButton(
-                    enabled = !deleteInProgress,
-                    onClick = {
-                        deletingCaptureId = null
-                        deletingRevision = null
-                        deleteRequestKey = null
-                        deleteMessage = null
-                        historyRevision += 1
-                    },
-                ) { Text("Cancel") }
+    if (discardPending) {
+        AegisDiscardChangesDialog(
+            onKeepEditing = { discardPending = false },
+            onDiscard = {
+                discardPending = false
+                draft = ""
+                saveRequestKey = null
+                saveFailed = false
+                saveMessage = strings.noteDraftCleared
             },
         )
     }
 }
 
+@Composable
+private fun NoteComposer(
+    strings: AegisStrings,
+    draft: String,
+    onDraftChange: (String) -> Unit,
+    saving: Boolean,
+    message: String?,
+    messageIsError: Boolean,
+    onSave: () -> Unit,
+    onClear: () -> Unit,
+) {
+    val largeText = LocalDensity.current.fontScale >= 1.3f
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = strings.noteComposerLabel.uppercase(Locale.ROOT),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                letterSpacing = 1.2.sp,
+            )
+            OutlinedTextField(
+                value = draft,
+                onValueChange = onDraftChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 140.dp),
+                enabled = !saving,
+                label = { Text(strings.noteEditLabel) },
+                placeholder = { Text(strings.noteComposerPlaceholder) },
+                supportingText = { Text(strings.noteComposerHelp) },
+            )
+            val save: @Composable (Modifier) -> Unit = { buttonModifier ->
+                Button(
+                    onClick = onSave,
+                    enabled = draft.isNotBlank() && !saving,
+                    shape = MaterialTheme.shapes.small,
+                    modifier = buttonModifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp),
+                ) {
+                    if (saving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                        )
+                        Text(strings.noteSaving)
+                    } else {
+                        Text(strings.noteSave)
+                    }
+                }
+            }
+            if (largeText) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    save(Modifier)
+                    if (draft.isNotBlank()) {
+                        TextButton(
+                            onClick = onClear,
+                            enabled = !saving,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .defaultMinSize(minHeight = 48.dp),
+                        ) { Text(strings.noteDraftClear) }
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    save(Modifier.weight(1f))
+                    if (draft.isNotBlank()) {
+                        TextButton(
+                            onClick = onClear,
+                            enabled = !saving,
+                            modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                        ) { Text(strings.noteDraftClear) }
+                    }
+                }
+            }
+            if (message != null) {
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (messageIsError) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                )
+            }
+        }
+    }
+}
+
+/** "No details yet" is a heading of its own; a saved note without details shows no summary line. */
+internal fun noteSummaryText(
+    summary: CaptureContextSummary?,
+    strings: AegisStrings,
+): String? {
+    if (summary == null || summary.eventCount == 0) return null
+    val parts = buildList {
+        add(strings.noteDetailCount(summary.eventCount))
+        if (summary.acceptedLinkCount > 0) add(strings.noteLinkedCount(summary.acceptedLinkCount))
+        if (summary.proposedLinkCount > 0) add(strings.noteProposedCount(summary.proposedLinkCount))
+        if (summary.resolvedEventCount > 0) add(strings.noteRecordedCount(summary.resolvedEventCount))
+    }
+    return parts.joinToString(" · ")
+}
+
+/** The saved moment, or the truth that the stored row did not record one. */
+internal fun noteMomentText(note: CaptureMessageEntity, strings: AegisStrings): String {
+    val instant = note.capturedAtEpochMillis ?: return strings.noteTimeUnknown
+    val zone = note.captureTimezone
+        ?.let { TimeZone.getTimeZone(it) }
+        ?: TimeZone.getDefault()
+    return weekdayMomentText(instant, strings.language, zone)
+}
+
+@Composable
+internal fun NoteAiHandoffBanner(
+    title: String,
+    supporting: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val container = if (enabled) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+    val content = if (enabled) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics { contentDescription = title }
+            .then(
+                if (enabled) {
+                    Modifier.clickable(role = Role.Button, onClick = onClick)
+                } else {
+                    Modifier
+                },
+            ),
+        shape = MaterialTheme.shapes.large,
+        color = container,
+        contentColor = content,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .defaultMinSize(minHeight = 64.dp)
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = supporting,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            if (enabled) {
+                AegisIcon(
+                    glyph = AegisGlyph.CHEVRON_RIGHT,
+                    tint = content,
+                    size = 20.dp,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+internal fun NoteNoticeBanner(
+    message: String,
+    closeLabel: String,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 12.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            AegisIcon(
+                glyph = AegisGlyph.CHECK,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                size = 18.dp,
+            )
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 8.dp),
+            )
+            IconButton(
+                onClick = onClose,
+                modifier = Modifier
+                    .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                    .semantics { contentDescription = closeLabel },
+            ) {
+                AegisIcon(
+                    glyph = AegisGlyph.CROSS,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    size = 18.dp,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+internal fun NoteStateMessage(
+    title: String,
+    body: String?,
+    modifier: Modifier = Modifier,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+    bodyStyle: Boolean = false,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = title,
+                style = if (bodyStyle) {
+                    MaterialTheme.typography.bodyMedium
+                } else {
+                    MaterialTheme.typography.titleMedium
+                },
+                color = if (bodyStyle) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+            )
+            if (body != null) {
+                Text(
+                    text = body,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (actionLabel != null && onAction != null) {
+                TextButton(
+                    onClick = onAction,
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                ) { Text(actionLabel) }
+            }
+        }
+    }
+}
+
+/** Why a note command did not complete, in the user's own language. */
+internal fun WorkflowCommandOutcome.noteFailureMessage(
+    strings: AegisStrings,
+    fallback: String,
+): String = when (this) {
+    is WorkflowCommandOutcome.Conflict -> strings.noteStale
+    WorkflowCommandOutcome.NotFound -> strings.noteMissingTitle
+    else -> fallback
+}
+
+/**
+ * The shared framed surface used by the existing chat and outcome cards, kept for the flows that
+ * are not redesigned yet. Its accent strip names the section without carrying meaning by color
+ * alone: every caller has a heading of its own.
+ */
 @Composable
 internal fun CapturePanel(
     modifier: Modifier = Modifier,
@@ -609,111 +540,9 @@ internal fun CapturePanel(
         }
     }
 }
-@Composable
-private fun QuickCaptureHistoryCard(
-    capture: CaptureMessageEntity,
-    context: CaptureContextSummary?,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    onManageEvents: () -> Unit,
-    eventsExpanded: Boolean,
-) {
-    val accent = when {
-        context?.acceptedLinkCount?.let { it > 0 } == true -> MaterialTheme.colorScheme.secondary
-        context?.proposedLinkCount?.let { it > 0 } == true -> MaterialTheme.colorScheme.tertiary
-        context?.resolvedEventCount?.let { it > 0 } == true -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.outlineVariant
-    }
-    CapturePanel(modifier = Modifier.fillMaxWidth(), accent = accent) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text(capture.bodyText.orEmpty(), style = MaterialTheme.typography.bodyLarge)
-            Text(
-                context?.let(::captureStatusText) ?: "Saved · current status unavailable",
-                style = MaterialTheme.typography.labelLarge,
-            )
-            Text(
-                captureTimestamp(capture),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                TextButton(onClick = onManageEvents) {
-                    Text(if (eventsExpanded) "Hide events" else "Manage events")
-                }
-                TextButton(onClick = onEdit) { Text("Edit") }
-                TextButton(onClick = onDelete) { Text("Delete") }
-            }
-        }
-    }
-}
-
-private fun captureStatusText(summary: CaptureContextSummary): String = when {
-    summary.acceptedLinkCount > 0 -> "Linked · ${summary.acceptedLinkCount} bank draft(s)"
-    summary.proposedLinkCount > 0 -> "Link proposed · not accepted"
-    summary.resolvedEventCount > 0 -> "Recorded manually · ${summary.resolvedEventCount} ledger event(s)"
-    summary.eventCount == 0 -> "Saved · unresolved · no interpretation recorded"
-    summary.unresolvedEventCount > 0 -> "Saved · unresolved · interpretation needs review"
-    summary.rejectedLinkCount > 0 -> "Unresolved · a previous link was refused"
-    summary.unmatchedEventCount > 0 -> "Unmatched · no active bank link"
-    else -> "Interpreted · not linked"
-}
-
-private fun sourceChangePolicyMessage(): String =
-    "If this text has saved interpretations, changing or deleting it clears their derived " +
-        "content and removes links to drafts still waiting for review. Refused link decisions " +
-        "and links to confirmed records stay as provenance. The capture identity stays; a " +
-        "confirmed ledger record is not changed. A category the hosted workflow chose from " +
-        "this note is reopened for review; your own category choice is kept."
-
-private fun captureTimestamp(capture: CaptureMessageEntity): String {
-    val instant = capture.capturedAtEpochMillis ?: return "Capture time unavailable"
-    val zoneId = capture.captureTimezone ?: return "Saved ${Date(instant)} · timezone unknown"
-    val timezone = TimeZone.getTimeZone(zoneId)
-    val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm z", Locale.ROOT).apply {
-        timeZone = timezone
-    }
-    return "Saved ${formatter.format(Date(instant))} · $zoneId"
-}
 
 private fun WorkflowCommandOutcome.savedCaptureId(): Long? = when (this) {
     is WorkflowCommandOutcome.Applied -> (change as? WorkflowChange.CaptureSaved)?.captureId
     is WorkflowCommandOutcome.NoChange -> (change as? WorkflowChange.CaptureSaved)?.captureId
     else -> null
 }
-
-private fun WorkflowCommandOutcome.revisedCaptureId(): Long? = when (this) {
-    is WorkflowCommandOutcome.Applied -> (change as? WorkflowChange.CaptureRevised)?.captureId
-    is WorkflowCommandOutcome.NoChange -> (change as? WorkflowChange.CaptureRevised)?.captureId
-    else -> null
-}
-
-private fun WorkflowCommandOutcome.deletedCaptureId(): Long? = when (this) {
-    is WorkflowCommandOutcome.Applied -> (change as? WorkflowChange.CaptureDeleted)?.captureId
-    is WorkflowCommandOutcome.NoChange -> (change as? WorkflowChange.CaptureDeleted)?.captureId
-    else -> null
-}
-
-private fun WorkflowCommandOutcome.captureFailureMessage(): String = when (this) {
-    is WorkflowCommandOutcome.Conflict -> reason
-    is WorkflowCommandOutcome.Denied -> "This capture cannot be changed under the source policy."
-    is WorkflowCommandOutcome.Failed -> reason
-    WorkflowCommandOutcome.NotFound -> "This capture is no longer stored."
-    WorkflowCommandOutcome.Cancelled -> "The request was cancelled; your text is still here."
-    is WorkflowCommandOutcome.NeedsClarification -> reason
-    is WorkflowCommandOutcome.Applied,
-    is WorkflowCommandOutcome.NoChange,
-    -> "The capture change did not complete. Your text is still here."
-}
-
-private fun saveMessageIsError(message: String): Boolean =
-    !message.startsWith("Saved.") &&
-        !message.startsWith("Capture text saved.") &&
-        !message.startsWith("Capture updated.") &&
-        !message.startsWith("Capture deleted.")

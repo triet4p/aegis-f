@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -19,7 +20,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.triet4p.aegisf.agent.AgentRunHistory
@@ -57,7 +61,10 @@ import io.github.triet4p.aegisf.provider.HostedProviderConfig
 import io.github.triet4p.aegisf.provider.HostedProviderSettingsStore
 import io.github.triet4p.aegisf.ui.CapturePanel
 import io.github.triet4p.aegisf.ui.ChatAgentRunState
+import io.github.triet4p.aegisf.ui.ChatNoteContext
 import io.github.triet4p.aegisf.ui.ChatOutcomeSection
+import io.github.triet4p.aegisf.ui.chatRequestText
+import io.github.triet4p.aegisf.ui.text.AegisStrings
 import io.github.triet4p.aegisf.ui.text.LocalAegisStrings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -115,7 +122,8 @@ internal fun AiChatScreen(
         }
     }
 
-    val title = LocalAegisStrings.current.chatTitle.uppercase(Locale.ROOT)
+    val strings = LocalAegisStrings.current
+    val title = strings.chatTitle.uppercase(Locale.ROOT)
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -141,6 +149,16 @@ internal fun AiChatScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            agentRunState.noteContext?.let { attached ->
+                item {
+                    AttachedNoteCard(
+                        attached = attached,
+                        strings = strings,
+                        enabled = !agentRunState.busy,
+                        onRemove = { agentRunState.noteContext = null },
+                    )
+                }
+            }
             item {
                 val activeProvider = runCatching { hostedProviderSettingsStore.active() }.getOrNull()
                 CapturePanel(
@@ -191,6 +209,7 @@ internal fun AiChatScreen(
                             Button(
                                 onClick = {
                                     val prompt = agentPrompt.trim()
+                                    val attachedNoteContext = agentRunState.noteContext
                                     if (prompt.isBlank() || selectedIntents.isEmpty()) {
                                         agentRunState.progress = "Enter a request and choose at least one workflow skill."
                                     } else {
@@ -218,7 +237,14 @@ internal fun AiChatScreen(
                                                 )
                                                 val runRequest = WorkflowRunRequest(
                                                     intents = selectedIntents,
-                                                    userRequest = prompt,
+                                                    // The attached note is part of the request
+                                                    // only while the visible chip is attached;
+                                                    // removing the chip leaves the next request
+                                                    // exactly as the user typed it.
+                                                    userRequest = chatRequestText(
+                                                        prompt = prompt,
+                                                        note = attachedNoteContext,
+                                                    ),
                                                     // The checkboxes are the allowed-skill
                                                     // allowlist, not a declared list of effects:
                                                     // the user's conversational request decides
@@ -420,5 +446,57 @@ private fun runProgressSink(
 
         is WorkflowRunProgress.StreamingUnavailable ->
             onNote("Live answer streaming is unavailable for this provider route; run progress only.")
+    }
+}
+
+/**
+ * The explicitly attached saved note, shown first on the Chat screen.
+ *
+ * It is the visible record of what the Notes destination handed over: the user can read the text
+ * that will be named in a request and remove it. Removing it sends nothing and leaves the next
+ * request exactly as the user typed it; the card never starts a run by itself.
+ */
+@Composable
+private fun AttachedNoteCard(
+    attached: ChatNoteContext,
+    strings: AegisStrings,
+    enabled: Boolean,
+    onRemove: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = strings.chatAttachedNote,
+                style = MaterialTheme.typography.labelLarge,
+            )
+            Text(
+                text = attached.text,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 6,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = strings.chatAttachedNoteHelp,
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(
+                    onClick = onRemove,
+                    enabled = enabled,
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                ) { Text(strings.chatRemoveAttachedNote) }
+            }
+        }
     }
 }
