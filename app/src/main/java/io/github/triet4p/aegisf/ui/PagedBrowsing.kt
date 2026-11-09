@@ -35,6 +35,9 @@ fun PageControls(
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
+    previousLabel: String = "Previous",
+    nextLabel: String = "Next",
+    pageLabel: String = "Page ${pageIndex + 1}",
 ) {
     Row(
         modifier = modifier
@@ -44,15 +47,15 @@ fun PageControls(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         TextButton(onClick = onPrevious, enabled = pageIndex > 0) {
-            Text("Previous")
+            Text(previousLabel)
         }
         Text(
-            text = "Page ${pageIndex + 1}",
+            text = pageLabel,
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         TextButton(onClick = onNext, enabled = hasMore) {
-            Text("Next")
+            Text(nextLabel)
         }
     }
 }

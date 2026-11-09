@@ -35,6 +35,7 @@ internal enum class AegisGlyph {
     SETTINGS,
     ARROW_BACK,
     CHEVRON_RIGHT,
+    CHEVRON_LEFT,
     CHECK,
     WARNING,
     CROSS,
@@ -210,6 +211,11 @@ private fun DrawScope.drawAegisGlyph(glyph: AegisGlyph, tint: Color) {
         AegisGlyph.CHEVRON_RIGHT -> {
             line(9f, 5f, 16f, 12f)
             line(16f, 12f, 9f, 19f)
+        }
+
+        AegisGlyph.CHEVRON_LEFT -> {
+            line(15f, 5f, 8f, 12f)
+            line(8f, 12f, 15f, 19f)
         }
 
         AegisGlyph.CHECK -> {

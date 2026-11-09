@@ -318,4 +318,38 @@ class DashboardScopeTest {
             range.throughExclusiveEpochMillis,
         )
     }
+
+    @Test
+    fun `adjacent month walks calendar months and keeps the category`() {
+        val scope = DashboardScopeState(
+            fromText = "2026-11-01",
+            throughText = "2026-11-30",
+            category = LedgerCategoryFilter.Specific(7L),
+        )
+
+        val previous = scope.adjacentMonth(-1, zone)
+        assertEquals("2026-10-01", previous.fromText)
+        assertEquals("2026-10-31", previous.throughText)
+        assertEquals(scope.category, previous.category)
+
+        val next = scope.adjacentMonth(1, zone)
+        assertEquals("2026-12-01", next.fromText)
+        assertEquals("2026-12-31", next.throughText)
+    }
+
+    @Test
+    fun `adjacent month from a leap February keeps its own last day`() {
+        val scope = DashboardScopeState(
+            fromText = "2028-02-01",
+            throughText = "2028-02-29",
+        )
+
+        val previous = scope.adjacentMonth(-1, zone)
+        assertEquals("2028-01-01", previous.fromText)
+        assertEquals("2028-01-31", previous.throughText)
+
+        val next = scope.adjacentMonth(1, zone)
+        assertEquals("2028-03-01", next.fromText)
+        assertEquals("2028-03-31", next.throughText)
+    }
 }

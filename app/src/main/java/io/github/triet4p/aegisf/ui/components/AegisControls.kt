@@ -151,12 +151,13 @@ internal fun AegisMoneyText(
     overflowed: Boolean = false,
     style: TextStyle = MaterialTheme.typography.titleMedium,
     color: Color = MaterialTheme.colorScheme.onSurface,
+    prefix: String = "",
 ) {
     val strings = LocalAegisStrings.current
     val text = when {
         masked -> AEGIS_MASKED_AMOUNT
-        overflowed -> VndMoney.formatAmount(amountVnd, " ₫") + " " + strings.orMore
-        else -> VndMoney.formatAmount(amountVnd, " ₫")
+        overflowed -> prefix + VndMoney.formatAmount(amountVnd, " ₫") + " " + strings.orMore
+        else -> prefix + VndMoney.formatAmount(amountVnd, " ₫")
     }
     Text(
         text = text,

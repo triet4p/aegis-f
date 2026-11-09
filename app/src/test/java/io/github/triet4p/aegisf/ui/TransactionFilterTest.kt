@@ -1,6 +1,7 @@
 package io.github.triet4p.aegisf.ui
 
 import io.github.triet4p.aegisf.data.LedgerCategoryFilter
+import io.github.triet4p.aegisf.data.TransactionType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -225,5 +226,36 @@ class TransactionFilterTest {
         is LedgerCategoryFilter.Specific -> categories.firstOrNull { it.id == selection.categoryId }
             ?.let { io.github.triet4p.aegisf.ui.categoryLabel(it) }
             ?: "Unknown category"
+    }
+
+    @Test
+    fun `search text is an active dimension once it holds a word`() {
+        val blank = TransactionFilterState(searchText = "   ")
+        assertFalse(blank.isActive)
+        assertEquals(0, blank.activeDimensionCount)
+        assertNull(blank.effectiveSearchText)
+
+        val searching = TransactionFilterState(searchText = "  coffee  ")
+        assertTrue(searching.isActive)
+        assertEquals(1, searching.activeDimensionCount)
+        assertEquals("coffee", searching.effectiveSearchText)
+    }
+
+    @Test
+    fun `search composes with the other dimensions`() {
+        val filters = TransactionFilterState(
+            type = TransactionType.EXPENSE,
+            category = LedgerCategoryFilter.Uncategorized,
+            fromText = "2026-11-01",
+            throughText = "2026-11-30",
+            searchText = "pho",
+        )
+
+        assertEquals(5, filters.activeDimensionCount)
+        assertEquals("pho", filters.effectiveSearchText)
+        assertEquals(TransactionType.EXPENSE, filters.type)
+        assertEquals(LedgerCategoryFilter.Uncategorized, filters.category)
+        assertEquals("2026-11-01", filters.fromText)
+        assertEquals("2026-11-30", filters.throughText)
     }
 }

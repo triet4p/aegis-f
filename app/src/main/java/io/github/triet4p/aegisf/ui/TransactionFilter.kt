@@ -8,11 +8,15 @@ import java.util.TimeZone
 /**
  * The browsing filters of the saved-transactions list: one state for every filter dimension.
  *
- * The three dimensions — transaction type, category, and inclusive From/Through calendar days —
- * combine as AND: a record is shown only when it satisfies every dimension that is constrained.
- * An unconstrained dimension matches everything, so the default state (null type,
- * [LedgerCategoryFilter.All], empty dates) returns the full list, and clearing every
- * dimension returns it too.
+ * The four dimensions — transaction type, category, inclusive From/Through calendar days,
+ * and free-text search — combine as AND: a record is shown only when it satisfies every
+ * dimension that is constrained. An unconstrained dimension matches everything, so the
+ * default state (null type, [LedgerCategoryFilter.All], empty dates, empty search) returns
+ * the full list, and clearing every dimension returns it too.
+ *
+ * [searchText] is the user's literal words, matched inside the stored description (the
+ * record's merchant, note, and label) as a substring rather than as a pattern. Surrounding
+ * whitespace is not part of the search, and an all-whitespace search is no filter.
  *
  * The category dimension is keyed by the stable database id, never by name: renaming a
  * category does not lose the selection, and an archived category stays selectable — through
@@ -22,32 +26,38 @@ import java.util.TimeZone
  * category.
  *
  * The state is held as saveable primitives (a nullable enum, a serializable sealed
- * interface, two strings), so it survives a configuration change and stays put while the user
- * opens a record's detail view or its editor and comes back. It is deliberately not written to
- * disk: filters are a browsing preference, not ledger data.
+ * interface, three strings), so it survives a configuration change and stays put while the
+ * user opens a record's detail view or its editor and comes back. It is deliberately not
+ * written to disk: filters are a browsing preference, not ledger data.
  */
 data class TransactionFilterState(
     val type: TransactionType? = null,
     val category: LedgerCategoryFilter = LedgerCategoryFilter.All,
     val fromText: String = "",
     val throughText: String = "",
+    val searchText: String = "",
 ) : java.io.Serializable {
 
     /**
-     * How many of the four dimensions are set — type, category, From, Through. Zero is the
-     * default state: nothing constrains the list. A date end counts as set as soon as
-     * anything is typed, including a malformed day that is refused rather than applied, so
-     * the count never hides input the user can still see and correct.
+     * How many of the five dimensions are set — type, category, From, Through, search. Zero
+     * is the default state: nothing constrains the list. A date end or the search counts as
+     * set as soon as anything is typed, including a malformed day that is refused rather
+     * than applied, so the count never hides input the user can still see and correct.
      */
     val activeDimensionCount: Int
         get() = (if (type != null) 1 else 0) +
             (if (category !is LedgerCategoryFilter.All) 1 else 0) +
             (if (fromText.isNotEmpty()) 1 else 0) +
-            (if (throughText.isNotEmpty()) 1 else 0)
+            (if (throughText.isNotEmpty()) 1 else 0) +
+            (if (effectiveSearchText != null) 1 else 0)
 
     /** Whether any dimension constrains the list; false means the full list is shown. */
     val isActive: Boolean
         get() = activeDimensionCount > 0
+
+    /** The search text the read should apply: trimmed, or null when nothing is searched. */
+    val effectiveSearchText: String?
+        get() = searchText.trim().takeIf { it.isNotEmpty() }
 }
 
 /**

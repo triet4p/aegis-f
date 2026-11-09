@@ -6,6 +6,8 @@ import io.github.triet4p.aegisf.data.LedgerDateRange
 import io.github.triet4p.aegisf.data.LedgerSpending
 import io.github.triet4p.aegisf.data.VndMoney
 import java.io.Serializable
+import java.util.Calendar
+import java.util.Locale
 import java.util.TimeZone
 
 /**
@@ -69,6 +71,38 @@ enum class DashboardListScope : Serializable {
 
     /** The confirmed internal transfers of the scope. */
     TRANSFERS,
+}
+
+/**
+ * The same scope moved by whole calendar months, retaining the chosen category.
+ *
+ * The month is read from the scope's own From day when it is well formed, so the chevrons
+ * move from what the user is looking at rather than from the machine's clock; a malformed
+ * From falls back to the current month. One calendar month is added in the device's zone,
+ * so 28-, 29-, 30- and 31-day months each contribute their own span and a month boundary
+ * is exact.
+ */
+fun DashboardScopeState.adjacentMonth(
+    months: Int,
+    zone: TimeZone = TimeZone.getDefault(),
+): DashboardScopeState {
+    require(months != 0) { "A month step moves by at least one month." }
+    val anchorEpochMillis = if (ManualDateTime.dateError(fromText) == null) {
+        ManualDateTime.dayStartEpochMillis(fromText, zone)
+    } else {
+        System.currentTimeMillis()
+    }
+    val monthStart = ManualDateTime.monthStartEpochMillis(anchorEpochMillis, zone)
+    val shiftedStart = Calendar.getInstance(zone, Locale.US).apply {
+        timeInMillis = monthStart
+        add(Calendar.MONTH, months)
+    }.timeInMillis
+    val shiftedThroughExclusive = ManualDateTime.nextMonthStartEpochMillis(shiftedStart, zone)
+    return DashboardScopeState(
+        fromText = ManualDateTime.dateFieldText(shiftedStart, zone),
+        throughText = ManualDateTime.dateFieldText(shiftedThroughExclusive - 1L, zone),
+        category = category,
+    )
 }
 
 /**
@@ -243,14 +277,20 @@ internal fun spendingBucketLabel(bucket: LedgerCategorySpending): String = when 
 }
 
 /**
- * A whole-dong amount for the Dashboard.
+ * A whole-dong amount for the reports and scoped lists.
  *
  * An amount that could not be summed exactly is marked as the lower bound it is, so a
- * reader can never mistake it for the exact figure.
+ * reader can never mistake it for the exact figure. The currency is written the same way
+ * the shared money primitive writes it, so the reports, the rows and the receipt show the
+ * same exact digits with the same symbol.
  */
-internal fun dashboardAmountText(amountVnd: Long, overflowed: Boolean): String {
-    val formatted = VndMoney.formatAmount(amountVnd)
-    return if (overflowed) "$formatted or more" else formatted
+internal fun dashboardAmountText(
+    amountVnd: Long,
+    overflowed: Boolean,
+    orMore: String = "or more",
+): String {
+    val formatted = VndMoney.formatAmount(amountVnd, " ₫")
+    return if (overflowed) "$formatted $orMore" else formatted
 }
 
 /** The visual width of one non-negative amount relative to its largest chart bucket. */

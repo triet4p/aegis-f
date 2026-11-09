@@ -31,17 +31,17 @@ import io.github.triet4p.aegisf.provider.HostedProviderSettingsStore
 import io.github.triet4p.aegisf.ui.BankDraftReviewScreen
 import io.github.triet4p.aegisf.ui.BankNotificationSettingsScreen
 import io.github.triet4p.aegisf.ui.CategoryManagerScreen
+import io.github.triet4p.aegisf.ui.AnalyticsScreen
 import io.github.triet4p.aegisf.ui.ChatAgentRunState
 import io.github.triet4p.aegisf.ui.DashboardListScope
 import io.github.triet4p.aegisf.ui.DashboardScopeState
-import io.github.triet4p.aegisf.ui.DashboardScreen
-import io.github.triet4p.aegisf.ui.DashboardScopedListScreen
 import io.github.triet4p.aegisf.ui.HostedProviderSettingsScreen
+import io.github.triet4p.aegisf.ui.LedgerScreen
 import io.github.triet4p.aegisf.ui.QuickCaptureScreen
+import io.github.triet4p.aegisf.ui.ScopedLedgerScreen
 import io.github.triet4p.aegisf.ui.TransactionDetailScreen
 import io.github.triet4p.aegisf.ui.TransactionEditorScreen
 import io.github.triet4p.aegisf.ui.TransactionFilterState
-import io.github.triet4p.aegisf.ui.TransactionListScreen
 import io.github.triet4p.aegisf.ui.chat.AiChatScreen
 import io.github.triet4p.aegisf.ui.components.AegisBarItem
 import io.github.triet4p.aegisf.ui.components.AegisBottomBar
@@ -49,7 +49,6 @@ import io.github.triet4p.aegisf.ui.components.AegisGlyph
 import io.github.triet4p.aegisf.ui.text.LocalAegisStrings
 import io.github.triet4p.aegisf.ui.text.ShellTab
 import java.io.Serializable
-import java.util.Locale
 import java.util.TimeZone
 
 /**
@@ -67,14 +66,18 @@ private sealed interface HomeRoute : Serializable {
     data object BankNotifications : HomeRoute
     data object HostedProviderSettings : HomeRoute
 
-    /** One confirmed-records list behind an analytics figure, in that figure's own scope. */
-    data class ScopedList(val listScope: DashboardListScope) : HomeRoute
+    /** One confirmed-records list behind an analytics figure, with that figure's exact scope. */
+    data class ScopedList(
+        val listScope: DashboardListScope,
+        val scope: DashboardScopeState,
+    ) : HomeRoute
     data class Detail(val transactionId: Long) : HomeRoute
     data class Edit(val transactionId: Long) : HomeRoute
 }
 
 /** The secondary routes of the Ledger destination. */
 private sealed interface LedgerRoute : Serializable {
+    data object ManualRecord : LedgerRoute
     data class Detail(val transactionId: Long) : LedgerRoute
     data class Edit(val transactionId: Long) : LedgerRoute
 }
@@ -359,9 +362,8 @@ private fun HomeDestination(
     onPop: () -> Unit,
     onSelectTab: (ShellTab) -> Unit,
 ) {
-    val strings = LocalAegisStrings.current
     when (val route = stack.lastOrNull()) {
-        null -> HomeLauncherScreen(
+        null -> HomeScreen(
             queryService = queryService,
             reviewCount = waitingDrafts,
             onOpenLedger = { onSelectTab(ShellTab.LEDGER) },
@@ -374,14 +376,15 @@ private fun HomeDestination(
             onOpenSettings = { onOpenRoute(HomeRoute.Settings) },
         )
 
-        HomeRoute.Analytics -> DashboardScreen(
+        HomeRoute.Analytics -> AnalyticsScreen(
             queryService = queryService,
             scope = scope,
             onScopeChange = onScopeChange,
-            onOpenList = { listScope -> onOpenRoute(HomeRoute.ScopedList(listScope)) },
-            onOpenSettings = { onOpenRoute(HomeRoute.Settings) },
-            onOpenReview = { onSelectTab(ShellTab.REVIEW) },
-            title = strings.analyticsTitle.uppercase(Locale.ROOT),
+            onOpenRecords = { listScope, listScopeState ->
+                onOpenRoute(HomeRoute.ScopedList(listScope, listScopeState))
+            },
+            onAddRecord = { onOpenRoute(HomeRoute.ManualRecord) },
+            onNavigateUp = onPop,
         )
 
         HomeRoute.ManualRecord -> TransactionEditorScreen(
@@ -417,9 +420,9 @@ private fun HomeDestination(
             onNavigateUp = onPop,
         )
 
-        is HomeRoute.ScopedList -> DashboardScopedListScreen(
+        is HomeRoute.ScopedList -> ScopedLedgerScreen(
             queryService = queryService,
-            scope = scope,
+            scope = route.scope,
             listScope = route.listScope,
             onSelectRecord = { transactionId -> onOpenRoute(HomeRoute.Detail(transactionId)) },
             onNavigateUp = onPop,
@@ -456,16 +459,24 @@ private fun LedgerDestination(
     onPop: () -> Unit,
 ) {
     when (val route = stack.lastOrNull()) {
-        null -> TransactionListScreen(
+        null -> LedgerScreen(
             queryService = queryService,
             filters = filters,
             onFiltersChange = onFiltersChange,
             filtersExpanded = filtersExpanded,
             onFiltersExpandedChange = onFiltersExpandedChange,
             onSelect = { transactionId -> onOpen(LedgerRoute.Detail(transactionId)) },
+            onCreate = { onOpen(LedgerRoute.ManualRecord) },
             // The ledger is a root destination: it has no parent screen to go back to.
             onNavigateUp = {},
             showBack = false,
+        )
+
+        LedgerRoute.ManualRecord -> TransactionEditorScreen(
+            commandService = commandService,
+            queryService = queryService,
+            transactionId = null,
+            onNavigateUp = onPop,
         )
 
         is LedgerRoute.Detail -> TransactionDetailScreen(
@@ -594,12 +605,14 @@ private fun HomeRoute.homeKey(): String = when (this) {
     HomeRoute.Settings -> "settings"
     HomeRoute.BankNotifications -> "bank-notifications"
     HomeRoute.HostedProviderSettings -> "hosted-provider-settings"
-    is HomeRoute.ScopedList -> "scoped-list-${listScope.name}"
+    is HomeRoute.ScopedList -> "scoped-list-${listScope.name}-${scope.fromText}-" +
+        "${scope.throughText}-${scope.category}"
     is HomeRoute.Detail -> "record-detail-$transactionId"
     is HomeRoute.Edit -> "record-edit-$transactionId"
 }
 
 private fun LedgerRoute.ledgerKey(): String = when (this) {
+    LedgerRoute.ManualRecord -> "manual-record"
     is LedgerRoute.Detail -> "record-detail-$transactionId"
     is LedgerRoute.Edit -> "record-edit-$transactionId"
 }

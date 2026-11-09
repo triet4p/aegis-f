@@ -200,7 +200,9 @@ class WorkflowQueryService(
      * A bounded page of the stored ledger records.
      *
      * The order is the instant the record happened, newest first, with the stored id as
-     * the tie-breaker. Every dimension of the query is open when it is not stated.
+     * the tie-breaker. Every dimension of the query is open when it is not stated; a
+     * search text narrows to the records whose stored description contains it as a
+     * literal substring.
      */
     suspend fun ledgerRecords(query: LedgerRecordQuery): QueryPage<TransactionEntity> = pageOf(
         rows = transactionDao.findPage(
@@ -210,6 +212,7 @@ class WorkflowQueryService(
             uncategorizedOnly = query.category.uncategorizedOnly(),
             fromEpochMillis = query.occurredIn?.fromEpochMillis,
             throughExclusiveEpochMillis = query.occurredIn?.throughExclusiveEpochMillis,
+            searchText = normalizedSearchText(query.searchText),
             limit = query.bounds.limit + 1,
             offset = query.bounds.offset,
         ),
@@ -225,6 +228,7 @@ class WorkflowQueryService(
             uncategorizedOnly = query.category.uncategorizedOnly(),
             fromEpochMillis = query.occurredIn?.fromEpochMillis,
             throughExclusiveEpochMillis = query.occurredIn?.throughExclusiveEpochMillis,
+            searchText = normalizedSearchText(query.searchText),
             limit = query.bounds.limit + 1,
             offset = query.bounds.offset,
         ).map { rows -> pageOf(rows, query.bounds) }
@@ -1031,6 +1035,16 @@ private fun LedgerCategoryFilter.specificCategoryId(): Long? =
 /** Whether a query narrows to the records filed under no category. */
 private fun LedgerCategoryFilter.uncategorizedOnly(): Int =
     if (this is LedgerCategoryFilter.Uncategorized) 1 else 0
+
+/**
+ * The one search text a ledger read passes to the database.
+ *
+ * Blank input is no search at all rather than a filter that can never match; surrounding
+ * whitespace is not part of what the user is looking for. What remains is literal text the
+ * DAO matches inside the stored description.
+ */
+private fun normalizedSearchText(searchText: String?): String? =
+    searchText?.trim()?.takeIf { it.isNotEmpty() }
 
 /** The category ids the spending breakdown of the range is made of. */
 private fun LedgerAggregate.categoryIds(): List<Long> = spending.categoryTotals

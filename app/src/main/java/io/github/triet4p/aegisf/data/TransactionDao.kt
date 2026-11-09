@@ -21,7 +21,8 @@ private const val LEDGER_PAGE_SQL =
         "(:uncategorizedOnly = 0 OR categoryId IS NULL) AND " +
         "(:fromEpochMillis IS NULL OR occurredAtEpochMillis >= :fromEpochMillis) AND " +
         "(:throughExclusiveEpochMillis IS NULL OR " +
-        "occurredAtEpochMillis < :throughExclusiveEpochMillis) " +
+        "occurredAtEpochMillis < :throughExclusiveEpochMillis) AND " +
+        "(:searchText IS NULL OR instr(lower(description), lower(:searchText)) > 0) " +
         "ORDER BY occurredAtEpochMillis DESC, id DESC LIMIT :limit OFFSET :offset"
 
 /**
@@ -82,6 +83,11 @@ abstract class TransactionDao {
      * first, with the stored id as the tie-breaker, so two records that happened in the
      * same millisecond still have a fixed order and a page boundary never falls between
      * them unpredictably.
+     *
+     * [searchText] is a literal substring of the stored description, matched
+     * case-insensitively for ASCII: `instr` is used rather than `LIKE`, so `%` and `_` in
+     * the user's words are matched as characters and never as wildcards. A null or empty
+     * search text is an open dimension.
      */
     @Query(LEDGER_PAGE_SQL)
     abstract suspend fun findPage(
@@ -91,6 +97,7 @@ abstract class TransactionDao {
         uncategorizedOnly: Int,
         fromEpochMillis: Long?,
         throughExclusiveEpochMillis: Long?,
+        searchText: String?,
         limit: Int,
         offset: Int,
     ): List<TransactionEntity>
@@ -107,6 +114,7 @@ abstract class TransactionDao {
         uncategorizedOnly: Int,
         fromEpochMillis: Long?,
         throughExclusiveEpochMillis: Long?,
+        searchText: String?,
         limit: Int,
         offset: Int,
     ): Flow<List<TransactionEntity>>

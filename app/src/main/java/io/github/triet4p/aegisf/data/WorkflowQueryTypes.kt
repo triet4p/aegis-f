@@ -375,15 +375,24 @@ data class ReviewQueueEntry(
  * A bounded read of the stored ledger records.
  *
  * Every dimension is explicit and optional: [type] narrows the read to one kind of record,
- * [category] to one category dimension, [confirmation] to one lifecycle state, and
- * [occurredIn] to one explicit range. A null dimension is an open dimension, and an open
+ * [category] to one category dimension, [confirmation] to one lifecycle state,
+ * [occurredIn] to one explicit range, and [searchText] to the records whose stored
+ * description contains that text. A null dimension is an open dimension, and an open
  * dimension matches everything.
+ *
+ * [searchText] is a literal substring, never a pattern: `%` and `_` in the user's words
+ * match those characters and not "anything". Case folding is ASCII-only, because that is
+ * what the on-device SQLite `lower()` and the index can promise; a Vietnamese word is
+ * matched with the same diacritics the user typed. The description is the only free-text
+ * field a ledger record stores, so it carries the merchant, the note, and the label the
+ * user wrote.
  */
 data class LedgerRecordQuery(
     val type: TransactionType? = null,
     val category: LedgerCategoryFilter = LedgerCategoryFilter.All,
     val confirmation: ConfirmationStatus? = null,
     val occurredIn: LedgerDateRange? = null,
+    val searchText: String? = null,
     val bounds: QueryPageRequest,
 )
 

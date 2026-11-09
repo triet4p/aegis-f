@@ -85,7 +85,10 @@ internal fun CategorySwatch(
 
 /** A visible, textual state badge; archived identity is never communicated by hue alone. */
 @Composable
-internal fun ArchivedCategoryBadge(modifier: Modifier = Modifier) {
+internal fun ArchivedCategoryBadge(
+    modifier: Modifier = Modifier,
+    label: String = "ARCHIVED",
+) {
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(2.dp),
@@ -93,7 +96,7 @@ internal fun ArchivedCategoryBadge(modifier: Modifier = Modifier) {
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
         Text(
-            text = "ARCHIVED",
+            text = label,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
