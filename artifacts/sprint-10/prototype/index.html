@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Aegis Mobile Redesign - Sprint 10 Interactive Prototype</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-theme="light">
+
+  <!-- Top Prototype Control Panel (Evaluator & Reviewer Toolbar) -->
+  <header class="proto-controls" role="toolbar" aria-label="Prototype Evaluation Toolbar">
+    <div class="proto-title-badge">
+      <span class="proto-pill">SPRINT 10.1</span>
+      <span>Aegis Mobile Redesign Prototype</span>
+    </div>
+
+    <!-- Quick Destination Jump -->
+    <div class="proto-group">
+      <label for="proto-screen-select" style="font-size: 11px; color: #94a3b8; font-weight: 600;">MÀN HÌNH:</label>
+      <select id="proto-screen-select" class="proto-select" onchange="navigateTo(this.value)">
+        <option value="screen-home">1. Trang chủ (Home Dashboard)</option>
+        <option value="screen-analytics">2. Báo cáo chi tiêu (Analytics & Trends)</option>
+        <option value="screen-ledger">3. Sổ giao dịch (Ledger List)</option>
+        <option value="screen-detail">4. Chi tiết giao dịch (Transaction Receipt)</option>
+        <option value="screen-record">5. Nhập tay giao dịch (Manual Entry Form)</option>
+        <option value="screen-capture">6. Ghi chép nhanh (Quick Note Journal)</option>
+        <option value="screen-chat">7. Trợ lý AI Chat (Dedicated Streaming Chat)</option>
+        <option value="screen-review">8. Duyệt biến động (Review Inbox)</option>
+        <option value="screen-draft-detail">9. Chi tiết biến động (Draft Detail & Link)</option>
+        <option value="screen-categories">10. Danh mục & Quy tắc (Categories & Rules)</option>
+        <option value="screen-settings">11. Cài đặt hệ thống (Settings Hub)</option>
+      </select>
+    </div>
+
+    <!-- State Family Matrix Switcher -->
+    <div class="proto-group">
+      <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">TRẠNG THÁI:</span>
+      <button class="proto-btn active" data-state="normal" onclick="setStateFamily('normal')">Bình thường</button>
+      <button class="proto-btn" data-state="empty" onclick="setStateFamily('empty')">Trống</button>
+      <button class="proto-btn" data-state="loading" onclick="setStateFamily('loading')">Đang tải</button>
+      <button class="proto-btn" data-state="error" onclick="setStateFamily('error')">Lỗi</button>
+      <button class="proto-btn" data-state="offline" onclick="setStateFamily('offline')">Ngoại tuyến</button>
+      <button class="proto-btn" data-state="stale" onclick="setStateFamily('stale')">Cũ/Chờ duyệt</button>
+    </div>
+
+    <!-- Language, Theme & Frame Toggles -->
+    <div class="proto-group">
+      <button class="proto-btn" id="lang-toggle-btn" onclick="toggleLanguage()">🌐 EN | VI</button>
+      <button class="proto-btn" id="theme-toggle-btn" onclick="toggleTheme(appState.currentTheme === 'light' ? 'dark' : 'light')">🌓 Sáng/Tối</button>
+      <button class="proto-btn" onclick="document.getElementById('device-wrapper').classList.toggle('expanded-view')">📱 Phóng to</button>
+    </div>
+  </header>
+
+  <!-- Mobile Device Simulation Frame -->
+  <main id="device-wrapper" class="device-wrapper" aria-label="Mobile Device Simulator">
+    <div id="device-screen" class="device-screen" data-theme="light">
+
+      <!-- Status Bar with Android Camera Punch Hole -->
+      <div class="status-bar">
+        <span>09:41</span>
+        <div class="camera-punch-hole"></div>
+        <div class="status-icons">
+          <span style="font-size: 13px;">📶</span>
+          <span style="font-size: 12px; font-weight: 700;">LTE</span>
+          <span style="font-size: 13px;">🔋 98%</span>
+        </div>
+      </div>
+
+      <!-- Scrollable Main Viewport (Dynamically Rendered by app.js) -->
+      <div id="app-viewport" class="app-viewport">
+        <!-- Screens are rendered here by renderScreen() -->
+      </div>
+
+      <!-- Persistent 5-Tab Bottom Navigation Bar -->
+      <nav id="bottom-nav-bar" class="bottom-nav-bar" role="navigation" aria-label="Primary Mobile Navigation">
+        <div id="tab-home" class="nav-tab-item active" onclick="navigateTo('screen-home')" role="button" tabindex="0">
+          <svg class="svg-icon" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+          <span class="nav-tab-label" data-i18n="tab_home">Trang chủ</span>
+        </div>
+        <div id="tab-ledger" class="nav-tab-item" onclick="navigateTo('screen-ledger')" role="button" tabindex="0">
+          <svg class="svg-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+          <span class="nav-tab-label" data-i18n="tab_ledger">Sổ quỹ</span>
+        </div>
+        <div id="tab-capture" class="nav-tab-item" onclick="navigateTo('screen-capture')" role="button" tabindex="0">
+          <svg class="svg-icon" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+          <span class="nav-tab-label" data-i18n="tab_capture">Ghi chép</span>
+        </div>
+        <div id="tab-chat" class="nav-tab-item" onclick="navigateTo('screen-chat')" role="button" tabindex="0">
+          <svg class="svg-icon" viewBox="0 0 24 24"><path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z"/></svg>
+          <span class="nav-tab-label" data-i18n="tab_chat">Trợ lý AI</span>
+        </div>
+        <div id="tab-review" class="nav-tab-item" onclick="navigateTo('screen-review')" role="button" tabindex="0">
+          <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+          <span class="nav-tab-label" data-i18n="tab_review">Duyệt tin</span>
+          <span class="nav-badge">2</span>
+        </div>
+      </nav>
+
+      <!-- Android Gesture Navigation Pill -->
+      <div class="android-gesture-bar">
+        <div class="android-gesture-pill"></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

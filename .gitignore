@@ -123,6 +123,9 @@ __pycache__/
 /artifacts/**/*.patch
 /artifacts/**/*.diff
 /artifacts/**/*.html
+# Reviewed S10.1 synthetic UI prototype entry points, not raw captured HTML.
+!/artifacts/sprint-10/prototype/index.html
+!/artifacts/sprint-10/renders/gallery.html
 /artifacts/**/*.py
 /artifacts/**/debug/
 # Sensitive/uncertain JSON (provider payloads, DB snapshots, per-case outputs, manifests).

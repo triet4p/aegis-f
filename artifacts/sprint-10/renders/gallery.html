@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Aegis Mobile Redesign - Visual Contact Sheet (Sprint 10)</title>
+  <style>
+    body {
+      background: #0b0f17;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 32px 24px;
+      margin: 0;
+    }
+    h1 { font-size: 26px; font-weight: 800; color: #38bdf8; margin-bottom: 8px; }
+    p.subtitle { font-size: 14px; color: #94a3b8; margin-bottom: 32px; max-width: 800px; line-height: 1.5; }
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 28px;
+    }
+    .card {
+      background: #131923;
+      border: 1px solid #1e293b;
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .card-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .card-title { font-size: 15px; font-weight: 700; color: #f8fafc; }
+    .card-desc { font-size: 12px; color: #94a3b8; line-height: 1.4; }
+    .card-body {
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+      background: #070a0f;
+    }
+    .card-img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 24px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+  </style>
+</head>
+<body>
+  <h1>Aegis Mobile Redesign — Visual Inspection Contact Sheet</h1>
+  <p class="subtitle">
+    Sprint 10 Task S10.1 · Review Cycle S10.1-streaming-cycle-1 (Round 2 Correction Attempt) · Verified via Headless Chromium Browser.<br>
+    Anti-stacking task-focused UX: each screen has ONE explicit purpose and ONE primary action. Home is a true lightweight task launcher (8 squircle feature icons directly on surface, compact single-line financial glance, zero stacked card boxes, pending review badged directly on squircle). Quick Capture is dedicated to local note journaling with friendly human copy (no SQLite/token jargon). Dedicated AI Chat screen features incrementally streamed responses, compact tool-working step indicator, safe non-overlapping FAB geometry (21.7px clearance above composer), dynamic English bottom navigation tabs, and functional conversation history loading.
+  </p>
+  <div class="gallery-grid">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">1. Trang chủ (Home Dashboard — Lightweight Single-Purpose Task Launcher)</span>
+        <span class="card-desc">Redesigned into a true task launcher: 8 feature squircles sit directly on the screen surface with breathing room. Single-line financial glance bar (48px) with eye toggle and Reports drill-down. Unread count badged on squircle #5 and top bell. All stacked 543px card boxes completely eliminated.</span>
+      </div>
+      <div class="card-body"><img class="card-img" src="01_home_screen.webp" alt="Home Dashboard"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">2. Chế độ ẩn số dư (Privacy Masking)</span>
+        <span class="card-desc">One-tap eye toggle conceals all financial figures (`*** *** ₫`) for public privacy.</span>
+      </div>
+      <div class="card-body"><img class="card-img" src="02_home_masked.webp" alt="Home Masked"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">3. Báo cáo chi tiêu (Analytics & Trends)</span>
+        <span class="card-desc">Month switcher `< Tháng 11/2024 >`, side-by-side spending vs income, category distribution bar, drill-down list.</span>
+      </div>
+      <div class="card-body"><img class="card-img" src="03_analytics_screen.webp" alt="Analytics"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">4. Sổ giao dịch (All Transactions Ledger)</span>
+        <span class="card-desc">Search bar, quick filter chips (All, Chi tiêu, Thu nhập, Chuyển khoản), and paginated transaction feed.</span>
+      </div>
+      <div class="card-body"><img class="card-img" src="04_ledger_screen.webp" alt="Ledger"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">5. Chi tiết giao dịch (Transaction Receipt)</span>
+        <span class="card-desc">Digital receipt layout: merchant avatar, large amount, confirmation badge, key-value provenance, Edit/Delete CTAs.</span>
+      </div>
+      <div class="card-body"><img class="card-img" src="05_transaction_detail.webp" alt="Transaction Detail"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">6. Nhập tay giao dịch (Manual Record Form - Sticky CTA)</span>
+        <span class="card-desc">Segmented type tabs, hero amount input with words, category swatch grid, bottom nav hidden, sticky "Lưu vào sổ giao dịch" CTA bar.</span>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">7. Ghi chép nhanh (Quick Note Journal — Human Copy & Truthful Fixture Notice)</span>
+        <span class="card-desc">Focused local note composer with user-friendly copy ("Lưu trên thiết bị · Không cần mạng · Tức thì"), non-blocking in-page toast feedback, clear web synthetic fixture disclaimer vs. Room persistence, and zero internal database jargon.</span>
+      </div>
+      <div class="card-body"><img class="card-img" src="07_quick_capture.webp" alt="Quick Note Journal"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">8. Duyệt biến động ngân hàng (Review Inbox)</span>
+        <span class="card-desc">Conflict-first review queue: "Cần xử lý" (conflicts, possible duplicates) vs "Sẵn sàng duyệt" (ready drafts).</span>
+      </div>
+      <div class="card-body"><img class="card-img" src="08_review_inbox.webp" alt="Review Inbox"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">9. Chi tiết biến động (Draft Detail - Jargon-Free)</span>
+        <span class="card-desc">Bank receipt breakdown, duplicate warning, category dropdown with provenance, linked note card, clean wording, sticky confirm CTA bar.</span>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">10. Danh mục & Quy tắc (Categories & Rules - Full User Authority)</span>
+        <span class="card-desc">Tabs for Categories and Automation Rules; all categories are user-mutable with Edit/Delete actions (no locked padlocks).</span>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">11. Cài đặt hệ thống (Settings Hub - Expanded Lifecycle)</span>
+        <span class="card-desc">Bank notification listener status & permission check, test intake trigger, package whitelist, AI provider profiles, masked vault keys.</span>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">12. Trạng thái trống (Empty State)</span>
+        <span class="card-desc">Helpful visual illustration, clear message, and immediate primary action button to escape empty state.</span>
+      </div>
+      <div class="card-body"><img class="card-img" src="12_analytics_empty_state.webp" alt="Empty State"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">13. Trạng thái ngoại tuyến (Offline State)</span>
+        <span class="card-desc">Persistent status banner informing the user that local database capabilities remain fully available without network.</span>
+      </div>
+      <div class="card-body"><img class="card-img" src="13_home_offline_state.webp" alt="Offline State"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">14. Chế độ giao diện tối (Dark Theme)</span>
+        <span class="card-desc">Signature deep slate-blue dark mode with high WCAG contrast, refined card elevation, and vibrant semantic tags.</span>
+      </div>
+      <div class="card-body"><img class="card-img" src="14_home_dark_theme.webp" alt="Dark Theme"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">15. Trợ lý AI Chat — Đang tạo phản hồi & Chỉ báo công cụ (Streaming & Tool Indicator)</span>
+        <span class="card-desc">Dedicated streaming AI Chat screen with active incremental chunk appending, typing cursor ▍, compact non-stacked tool-working step indicator with active pulse dot ("CÔNG CỤ HỆ THỐNG"), and verified non-overlapping FAB geometry.</span>
+      </div>
+      <div class="card-body"><img class="card-img" src="15_chat_streaming.webp" alt="Chat Streaming"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">16. Trợ lý AI Chat — Hoàn thành & Gắn kết (Completed with Link Actions)</span>
+        <span class="card-desc">Completed AI response with LinkEvidenceCard in-context (Vietcombank -150.000 ₫ HIGHLANDS COFFEE), Attach/Reject CTAs, and user-only financial confirmation boundary note.</span>
+      </div>
+      <div class="card-body"><img class="card-img" src="16_chat_completed.webp" alt="Chat Completed"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">17. Trợ lý AI Chat — Đã dừng bởi người dùng (Stopped State)</span>
+        <span class="card-desc">Stop tapped mid-stream: chunking halts immediately with zero late leaks, displayed partial text is preserved in transcript, stopped status pill shown, and Send button restored.</span>
+      </div>
+      <div class="card-body"><img class="card-img" src="17_chat_stopped.webp" alt="Chat Stopped"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">18. Trợ lý AI Chat — Chế độ ngoại tuyến (Offline / No-Key State)</span>
+        <span class="card-desc">Persistent offline banner informing user that AI Assistant requires network, guiding to local Quick Capture. Composer input and Send CTA safely disabled.</span>
+      </div>
+      <div class="card-body"><img class="card-img" src="18_chat_offline.webp" alt="Chat Offline"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">19. Trợ lý AI Chat — Lịch sử hội thoại (Human-Readable History & Direct Loading)</span>
+        <span class="card-desc">Bottom drawer listing past conversation turns with humane session titles ("Ăn trưa phở Thìn & cafe", "Tìm giao dịch siêu thị WinMart"), relative times, friendly status badges ("Hoàn thành", "Đã dừng"), and direct transcript message loading without alert modals.</span>
+      </div>
+      <div class="card-body"><img class="card-img" src="19_chat_history.webp" alt="Chat History"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">20. Giao diện tiếng Anh mặc định (English-First Navigation & Task Launcher)</span>
+        <span class="card-desc">Full bilingual parity demonstrating English-first toggle: English top greeting ("Good morning, Triet Pham"), task prompt ("What would you like to do?"), 8 English feature squircles, and dynamically translated persistent bottom navigation tabs ("Home", "Ledger", "Notes", "AI Chat", "Review").</span>
+      </div>
+      <div class="card-body"><img class="card-img" src="20_home_screen_en.webp" alt="English Home Screen"></div>
+    </div>
+  </div>
+</body>
+</html>
