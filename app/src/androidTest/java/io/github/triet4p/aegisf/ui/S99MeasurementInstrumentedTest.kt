@@ -1,12 +1,13 @@
 package io.github.triet4p.aegisf.ui
 
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -275,10 +276,9 @@ class S99MeasurementInstrumentedTest {
         resetCounters()
         mark("t0")
         emit("S99M path=manual start trial=$trial")
+        // The S10.2 Home launcher opens the record form directly; the intermediate Manual
+        // menu no longer exists.
         selectDestination("Manual entry")
-        waitForText("MANUAL")
-        compose.waitForIdle()
-        tap(compose.onNodeWithText("Record a transaction"))
         awaitText("NEW TRANSACTION", 30_000, "editor")
         fillForm(day, "09:10", "89000", fuelDescription, "Transport")
         tap(compose.onNodeWithText("Save transaction").performScrollTo())
@@ -291,7 +291,7 @@ class S99MeasurementInstrumentedTest {
         awaitText("Transaction saved", 30_000, "saved-2")
         mark("secondSaved")
         tap(compose.onNodeWithText("Done"))
-        waitForText("MANUAL")
+        waitForText("Manual record")
         mark("done")
         emit(
             "S99M path=manual metrics actions=$actions chars=$characters " +
@@ -330,7 +330,7 @@ class S99MeasurementInstrumentedTest {
             baseline.spending.totalVnd to baseline.spending.recordCount,
             after.spending.totalVnd to after.spending.recordCount,
         )
-        selectDestination("Dashboard")
+        openAnalytics()
         waitForText("CONFIRMED SPENDING")
         screenshot("S99M-pair-after-manual-cleanup")
     }
@@ -353,29 +353,13 @@ class S99MeasurementInstrumentedTest {
         var captureId: Long? = null
         var confirmedIds: List<Long?> = listOf(null, null)
         try {
-            selectDestination("Chat / Quick Capture")
+            // S10.2 splits the local note journal and the AI conversation into two
+            // destinations: the note is saved on Notes, then the run starts on AI Chat.
+            selectDestination("Notes")
             compose.waitUntil(120_000) {
                 compose.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isNotEmpty()
             }
-            // The quick-capture item is composed only once its section is scrolled into view.
-            runCatching {
-                compose.onAllNodes(hasScrollAction())[0]
-                    .performScrollToNode(hasText("NEW QUICK CAPTURE", substring = true))
-            }.onFailure { emit("S99M path=assisted scrollToSectionFailed=${it::class.simpleName}") }
-            var captureCount = compose.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().size
-            repeat(4) {
-                if (captureCount < 2) {
-                    compose.onRoot().performTouchInput { swipeUp() }
-                    compose.waitForIdle()
-                    captureCount = compose.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().size
-                }
-            }
-            emit("S99M path=assisted textFields=$captureCount")
-            check(captureCount >= 2) {
-                "the quick-capture field is not composed (fields=$captureCount); screen=" +
-                    compose.onRoot().printToString(maxDepth = 8).take(1200)
-            }
-            val captureField = compose.onAllNodes(hasSetTextAction())[captureCount - 1]
+            val captureField = compose.onAllNodes(hasSetTextAction())[0]
             captureField.performScrollTo()
             characters += note.length
             captureField.performTextInput(note)
@@ -386,6 +370,12 @@ class S99MeasurementInstrumentedTest {
             screenshot("S99M-pair-assisted-capture")
             captureId = newestCaptureId(note)
             emit("S99M path=assisted captureSaved id=$captureId actions=$actions chars=$characters")
+
+            // The conversation now starts on its own destination.
+            selectDestination("Chat / Quick Capture")
+            compose.waitUntil(120_000) {
+                compose.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isNotEmpty()
+            }
 
             // Preflight immediately before Send: prove the intended note and the intended drafts.
             preflight(day, note, captureId, seededDrafts, baseline)
@@ -706,7 +696,7 @@ class S99MeasurementInstrumentedTest {
             baseline.spending.totalVnd to baseline.spending.recordCount,
             after.spending.totalVnd to after.spending.recordCount,
         )
-        selectDestination("Dashboard")
+        openAnalytics()
         waitForText("CONFIRMED SPENDING")
         screenshot("S99M-pair-after-assisted-cleanup")
     }
@@ -833,7 +823,7 @@ class S99MeasurementInstrumentedTest {
     }
 
     private suspend fun dashboardEvidence(day: String, path: String, baseline: LedgerAggregate) {
-        selectDestination("Dashboard")
+        openAnalytics()
         waitForText("CONFIRMED SPENDING")
         screenshot("S99M-pair-$path-dashboard")
         val zone = ZoneId.of(ZONE)
@@ -949,7 +939,48 @@ class S99MeasurementInstrumentedTest {
     }
 
     private fun selectDestination(description: String) {
-        tap(compose.onNodeWithContentDescription(description, substring = true))
+        // S10.2 five-tab shell: Manual entry and Analytics are Home launchers, while the
+        // conversation has its own destination.
+        when (description) {
+            "Review notifications" -> selectTab("Review")
+
+            "Chat / Quick Capture" -> selectTab("AI Chat")
+
+            "Notes" -> selectTab("Notes")
+
+            "Manual entry" -> {
+                selectTab("Home")
+                tap(compose.onNodeWithText("Manual record", substring = true))
+            }
+
+            else -> error("unknown destination: $description")
+        }
+    }
+
+    /**
+     * Root destinations are selected by tab semantics: Home's launchers announce
+     * "Open Review" / "Open AI Chat" / "Open Notes", which a substring match would also find.
+     */
+    private fun selectTab(description: String) {
+        tap(
+            compose.onNode(
+                hasContentDescription(description, substring = true) and isSelectable(),
+            ),
+        )
+    }
+
+    /**
+     * The reports live behind Home's Analytics launcher. Already being there is a valid state:
+     * the launcher is not on screen while a focused route is open.
+     */
+    private fun openAnalytics() {
+        if (compose.onAllNodesWithText("CONFIRMED SPENDING", substring = true)
+                .fetchSemanticsNodes().isNotEmpty()
+        ) {
+            return
+        }
+        selectTab("Home")
+        tap(compose.onNodeWithText("Analytics", substring = true))
     }
 
     private fun tap(node: androidx.compose.ui.test.SemanticsNodeInteraction) {

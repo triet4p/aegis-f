@@ -1,0 +1,15 @@
+# S10.2-a1 pre-run device state
+
+captured: 2026-11-09T04:08:26Z (host UTC)
+
+ALT-LX2
+14
+34
+Physical size: 720x1610
+Physical density: 320
+font_scale=1.0
+Night mode: yes
+    versionCode=4 minSdk=24 targetSdk=37
+    versionName=1.0
+    lastUpdateTime=2026-11-05 10:16:52
+      firstInstallTime=2026-11-03 00:40:33

@@ -1,0 +1,25 @@
+S10.2-a2 round-2 device smoke state (read-only facts captured 2026-11-09)
+Repository: F:/ai-ml/aegis-f (base 095a09834eb5a864d26daba411ab6bad9cb49669), ref refs/heads/main
+Device: AAAJBB4930914141 ALT-LX2 (HONOR), Android 14 / API 34, 720x1610 px, density 320 (2x)
+System font scale: 1.0 ; system night mode: yes (unchanged by this attempt)
+Installed package: io.github.triet4p.aegisf versionName=1.0 (installed in place with `adb -d install -r`, data preserved)
+App APK sha256: ffe1540dee997f5a4223f25ba2279a7d43558a357bfda11b5db1a0aab0e31c67
+  (identical to the S10.2-a1 APK hash: production bytes are unchanged by this round)
+Smoke command:
+  adb -s AAAJBB4930914141 shell am instrument -w \
+    -e class io.github.triet4p.aegisf.ui.S102Round2SelectorSmokeTest \
+    io.github.triet4p.aegisf.test/androidx.test.runner.AndroidJUnitRunner
+Result: OK (1 test), 7.594 s
+Smoke flow: Home -> tab AI Chat -> Home -> tab Notes -> Home -> tab Review -> Home, using
+  hasContentDescription(name, substring = true) and isSelectable()
+Observed competing nodes on Home (launcher + tab): AI Chat 2, Notes 2, Review 2;
+  selectable tabs resolved: 1 for each. Reached screens: ASK THE HOSTED AGENT,
+  NEW QUICK CAPTURE, REVIEW NOTIFICATIONS.
+Raw smoke output: device/selector-smoke.txt
+Home render (not checkpointable; matched by .gitignore /artifacts/**/*.png):
+  device/home-competing-launchers.png
+Scaffold removed after the run: app/src/androidTest/.../ui/S102Round2SelectorSmokeTest.kt,
+  test APK uninstalled, /sdcard/Android/data/io.github.triet4p.aegisf/files/s102round2 deleted.
+Read-only app data after the smoke (unchanged): transactions=0, PENDING bank drafts=6,
+  capture_messages=3. No ledger, draft, provider, category, consent or notification setting
+  was written; no system setting, IME, app-op or permission command was run.

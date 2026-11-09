@@ -71,6 +71,7 @@ import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowDenialReason
 import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.data.refusalMessage
+import io.github.triet4p.aegisf.ui.components.AegisDiscardChangesDialog
 import java.util.Locale
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
@@ -238,6 +239,25 @@ private fun TransactionFormScreen(
     }
     var notePickerVisible by rememberSaveable { mutableStateOf(false) }
 
+    // Whether the user has changed anything on this form, and whether leaving it is waiting
+    // for the discard confirmation. Values prefilled from a saved note are not edits until
+    // the user changes something.
+    var editedSinceOpen by rememberSaveable { mutableStateOf(false) }
+    var discardPending by rememberSaveable { mutableStateOf(false) }
+
+    /**
+     * Leaves the form only when it holds nothing the user would lose, or after an explicit
+     * discard. A write in flight is never interrupted.
+     */
+    fun requestLeave() {
+        if (saving) return
+        if (editedSinceOpen) {
+            discardPending = true
+        } else {
+            onNavigateUp()
+        }
+    }
+
     // The whole catalog, live and read in bounded chunks: an archive or a rename must be
     // visible at once, and the picker reads the catalog page by page so every stored
     // category is reachable there.
@@ -285,7 +305,7 @@ private fun TransactionFormScreen(
     val scope = rememberCoroutineScope()
     val writeInFlight = remember { AtomicBoolean(false) }
 
-    BackHandler { if (!saving) onNavigateUp() }
+    BackHandler { requestLeave() }
 
 
     // Prefer the current row name when a category changes while the form is open.
@@ -418,12 +438,15 @@ private fun TransactionFormScreen(
                         is WorkflowCommandOutcome.Applied -> {
                             savedRecordId = (outcome.change as? WorkflowChange.TransactionSaved)
                                 ?.transactionId
+                            // The record is stored: there is no unsaved edit left to protect.
+                            editedSinceOpen = false
                         }
                         is WorkflowCommandOutcome.NoChange -> {
                             // The same request was already made under this key: the record
                             // that was made then is the record this form is about.
                             savedRecordId = (outcome.change as? WorkflowChange.TransactionSaved)
                                 ?.transactionId
+                            editedSinceOpen = false
                         }
                         else -> showRefusal(outcome)
                     }
@@ -448,6 +471,7 @@ private fun TransactionFormScreen(
                             // The corrected values are now the detail view's to show: it reads
                             // the row back out of storage instead of this form reporting its
                             // own inputs.
+                            editedSinceOpen = false
                             onNavigateUp()
                         }
                         else -> showRefusal(outcome)
@@ -466,7 +490,7 @@ private fun TransactionFormScreen(
         topBar = {
             EditorTopBar(
                 title = if (editing) "Edit transaction" else "New transaction",
-                onNavigateUp = onNavigateUp,
+                onNavigateUp = ::requestLeave,
                 backEnabled = !saving,
             )
         },
@@ -491,6 +515,8 @@ private fun TransactionFormScreen(
                     // records no note until the user names one again.
                     saveKey = newSaveRequestKey()
                     sourceEvent = null
+                    editedSinceOpen = false
+                    discardPending = false
                 },
                 onDone = onNavigateUp,
                 modifier = Modifier.padding(innerPadding),
@@ -498,21 +524,22 @@ private fun TransactionFormScreen(
         } else {
             TransactionForm(
                 amountText = amountText,
-                onAmountChange = { amountText = it; amountError = null },
+                onAmountChange = { amountText = it; amountError = null; editedSinceOpen = true },
                 amountError = amountError,
                 selectedType = selectedType,
                 onTypeChange = {
                     selectedType = it
                     categoryError = null
+                    editedSinceOpen = true
                 },
                 dateText = dateText,
-                onDateChange = { dateText = it; dateError = null },
+                onDateChange = { dateText = it; dateError = null; editedSinceOpen = true },
                 dateError = dateError,
                 timeText = timeText,
-                onTimeChange = { timeText = it; timeError = null },
+                onTimeChange = { timeText = it; timeError = null; editedSinceOpen = true },
                 timeError = timeError,
                 descriptionText = descriptionText,
-                onDescriptionChange = { descriptionText = it },
+                onDescriptionChange = { descriptionText = it; editedSinceOpen = true },
                 categoryName = categoryButtonLabel,
                 categoryId = selectedCategoryId,
                 categoryArchived = currentSelectedCategory?.archived
@@ -525,6 +552,7 @@ private fun TransactionFormScreen(
                     selectedCategoryId = null
                     selectedCategoryName = null
                     categoryError = null
+                    editedSinceOpen = true
                 },
                 sourceEvent = sourceEvent,
                 sourceEventLoading = sourceEventLoading,
@@ -533,6 +561,7 @@ private fun TransactionFormScreen(
                 onClearNote = {
                     sourceEvent = null
                     sourceEventLoadError = null
+                    editedSinceOpen = true
                 },
                 saveError = saveError,
                 saving = saving || sourceEventLoading,
@@ -540,10 +569,17 @@ private fun TransactionFormScreen(
                 // The guard is checked before the coroutine starts, so two taps inside one
                 // frame still produce a single write; the button state only makes it visible.
                 onSave = { if (writeInFlight.compareAndSet(false, true)) save() },
-                onCancel = onNavigateUp,
+                onCancel = ::requestLeave,
                 modifier = Modifier.padding(innerPadding),
             )
         }
+    }
+
+    if (discardPending) {
+        AegisDiscardChangesDialog(
+            onKeepEditing = { discardPending = false },
+            onDiscard = onNavigateUp,
+        )
     }
 
     if (categoryPickerVisible) {
@@ -567,6 +603,7 @@ private fun TransactionFormScreen(
                 selectedCategoryName = name
                 categoryError = null
                 categoryPickerVisible = false
+                editedSinceOpen = true
             },
             onDismiss = { categoryPickerVisible = false },
         )
@@ -586,6 +623,7 @@ private fun TransactionFormScreen(
                 note.anchorTime?.let { time -> timeText = time }
                 descriptionText = note.normalizedText.orEmpty()
                 notePickerVisible = false
+                editedSinceOpen = true
             },
             onDismiss = { notePickerVisible = false },
         )

@@ -1,0 +1,3 @@
+AI Chat ambiguous=2 tab=1 -> ASK THE HOSTED AGENT
+Notes ambiguous=2 tab=1 -> NEW QUICK CAPTURE
+Review ambiguous=2 tab=1 -> REVIEW NOTIFICATIONS

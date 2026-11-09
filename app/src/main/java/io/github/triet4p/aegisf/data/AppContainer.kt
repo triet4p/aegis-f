@@ -85,6 +85,11 @@ class AppContainer(context: Context) {
         NotificationAccessStore(appContext)
     }
 
+    /** The user's interface language and theme choices: presentation, not ledger data. */
+    val uiPreferencesStore: AegisUiPreferencesStore by lazy {
+        AegisUiPreferencesStore(appContext)
+    }
+
     /** Device-local encrypted provider profiles; credentials never enter app logs or history. */
     val hostedProviderSettingsStore: HostedProviderSettingsStore by lazy {
         HostedProviderSettingsStore(appContext)

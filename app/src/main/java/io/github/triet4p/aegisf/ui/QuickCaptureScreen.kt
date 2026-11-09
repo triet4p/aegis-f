@@ -63,20 +63,7 @@ import io.github.triet4p.aegisf.data.WorkflowChange
 import io.github.triet4p.aegisf.data.WorkflowCommandOutcome
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
-import androidx.compose.material3.Checkbox
-import io.github.triet4p.aegisf.agent.AgentRunHistory
-import io.github.triet4p.aegisf.agent.BoundedWorkflowExecutor
-import io.github.triet4p.aegisf.agent.WorkflowIntent
-import io.github.triet4p.aegisf.agent.WorkflowRunHost
-import io.github.triet4p.aegisf.agent.WorkflowRunOutcome
-import io.github.triet4p.aegisf.agent.WorkflowRunProgress
-import io.github.triet4p.aegisf.agent.WorkflowRunProgressSink
-import io.github.triet4p.aegisf.agent.WorkflowRunRequest
-import io.github.triet4p.aegisf.data.DraftCandidateQuery
-import io.github.triet4p.aegisf.data.IntakeReviewStatus
-import io.github.triet4p.aegisf.provider.HostedProviderConfig
-import io.github.triet4p.aegisf.provider.HostedProviderSettingsStore
-import io.github.triet4p.aegisf.privacy.MaskingBlockedException
+import io.github.triet4p.aegisf.ui.text.LocalAegisStrings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -90,11 +77,6 @@ import java.util.UUID
 internal fun QuickCaptureScreen(
     queryService: WorkflowQueryService,
     commandService: WorkflowCommandService,
-    hostedProviderSettingsStore: HostedProviderSettingsStore,
-    createHostedWorkflowHost: (WorkflowCallerScope.AgentSession, HostedProviderConfig) -> WorkflowRunHost,
-    agentRunHistory: AgentRunHistory,
-    agentRunState: ChatAgentRunState,
-    agentRunScope: kotlinx.coroutines.CoroutineScope,
     onOpenManual: () -> Unit,
     onRecordTransaction: () -> Unit,
     onRecordEvent: (Long) -> Unit,
@@ -129,11 +111,6 @@ internal fun QuickCaptureScreen(
     var deleteRequestKey by rememberSaveable { mutableStateOf<String?>(null) }
     var deleteInProgress by remember { mutableStateOf(false) }
     var deleteMessage by rememberSaveable { mutableStateOf<String?>(null) }
-    var agentPrompt by rememberSaveable { mutableStateOf("") }
-    var selectedIntents by remember { mutableStateOf(setOf(WorkflowIntent.INTERPRET_EVENTS)) }
-    // The exchange itself (outcome, stream, clarification, job) lives in the shell-owned
-    // [ChatAgentRunState]; only prompt/intent/saveable inputs stay per-destination.
-    var clarificationAnswer by rememberSaveable { mutableStateOf("") }
 
     val coroutineScope = rememberCoroutineScope()
 
@@ -141,7 +118,6 @@ internal fun QuickCaptureScreen(
         queryService,
         historyOffset,
         historyRevision,
-        agentRunState.projectionRevision,
     ) {
         historyLoading = true
         historyError = null
@@ -182,7 +158,7 @@ internal fun QuickCaptureScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "CHAT / QUICK CAPTURE",
+                        LocalAegisStrings.current.notesTitle.uppercase(Locale.ROOT),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.8.sp,
@@ -199,257 +175,6 @@ internal fun QuickCaptureScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item {
-                val activeProvider = runCatching { hostedProviderSettingsStore.active() }.getOrNull()
-                CapturePanel(
-                    modifier = Modifier.fillMaxWidth(),
-                    accent = MaterialTheme.colorScheme.secondary,
-                ) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            activeProvider?.let { "HOSTED AGENT · ${it.name} · ${it.model}" }
-                                ?: "HOSTED AGENT · NOT CONFIGURED",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.secondary,
-                        )
-                        Text(
-                            "Hosted requests require internet access and send locally masked context to the selected endpoint. " +
-                                "Masking is not anonymity; remaining context may still identify you. Check the endpoint and provider terms before sending. " +
-                                "Without an active provider, Chat remains a local note journal; manual entry and intake work offline.",
-                        )
-                    }
-                }
-            }
-            item {
-                CapturePanel(Modifier.fillMaxWidth(), MaterialTheme.colorScheme.primary) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("ASK THE HOSTED AGENT", style = MaterialTheme.typography.labelLarge)
-                        Text("Choose its allowed workflow skills. Only verified application effects are reported as changes.")
-                        WorkflowIntent.values().forEach { intent ->
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(
-                                    checked = intent in selectedIntents,
-                                    onCheckedChange = { enabled ->
-                                        selectedIntents = if (enabled) selectedIntents + intent
-                                        else selectedIntents - intent
-                                    },
-                                    enabled = !agentRunState.busy,
-                                )
-                                Text(intent.name.replace('_', ' '))
-                            }
-                        }
-                        OutlinedTextField(
-                            value = agentPrompt,
-                            onValueChange = { agentPrompt = it },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 96.dp),
-                            enabled = !agentRunState.busy,
-                            label = { Text("Ask about your notes or pending drafts") },
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(
-                                onClick = {
-                                    val prompt = agentPrompt.trim()
-                                    if (prompt.isBlank() || selectedIntents.isEmpty()) {
-                                        agentRunState.progress = "Enter a request and choose at least one workflow skill."
-                                    } else {
-                                        agentRunState.busy = true
-                                        agentRunState.outcome = null
-                                        agentRunState.streamText = ""
-                                        agentRunState.streamNote = null
-                                        agentRunState.progress = "Preparing a scoped, privacy-masked run…"
-                                        agentRunState.job = agentRunScope.launch {
-                                            try {
-                                                val provider = hostedProviderSettingsStore.active()
-                                                    ?: error("No active hosted provider. Configure one in Dashboard settings.")
-                                                val pendingDraftPage = queryService.draftCandidates(
-                                                    DraftCandidateQuery(
-                                                        reviewStatus = IntakeReviewStatus.PENDING,
-                                                        bounds = QueryPageRequest(limit = 32, offset = 0),
-                                                    ),
-                                                )
-                                                val pendingDrafts = pendingDraftPage.items
-                                                val sessionScope = WorkflowCallerScope.AgentSession(
-                                                    scopeId = "chat-${UUID.randomUUID()}",
-                                                    captureIds = captures.map { it.id }.toSet(),
-                                                    draftIds = pendingDrafts.map { it.id }.toSet(),
-                                                    draftScopeComplete = !pendingDraftPage.hasMore,
-                                                )
-                                                val runRequest = WorkflowRunRequest(
-                                                    intents = selectedIntents,
-                                                    userRequest = prompt,
-                                                    // The checkboxes are the allowed-skill
-                                                    // allowlist, not a declared list of effects:
-                                                    // the user's conversational request decides
-                                                    // which of them the run applies, and only
-                                                    // verified effects are ever reported.
-                                                    requiredIntents = emptySet(),
-                                                )
-                                                val host = createHostedWorkflowHost(
-                                                    sessionScope,
-                                                    provider.validatedConfig(sessionScope.scopeId),
-                                                )
-                                                val executor = BoundedWorkflowExecutor(host)
-                                                val admitted = agentRunHistory.admitRun(
-                                                    sessionScope,
-                                                    runRequest,
-                                                    host.boundary,
-                                                    provider.maxOutputTokens,
-                                                )
-                                                agentRunState.runId = admitted.runId
-                                                agentRunState.executor = executor
-                                                agentRunState.lastScope = sessionScope
-                                                agentRunState.lastPrompt = prompt
-                                                agentRunState.lastIntents = selectedIntents
-                                                agentRunState.followUpSelection = null
-                                                agentRunState.followUpInput = ""
-                                                agentRunState.progress = "Generating with ${provider.name} · ${provider.model}…"
-                                                agentRunState.outcome = executor.startTracked(
-                                                    admitted = admitted,
-                                                    request = runRequest,
-                                                    history = agentRunHistory,
-                                                    maxOutputTokens = provider.maxOutputTokens,
-                                                    progress = runProgressSink(
-                                                        onText = { agentRunState.streamText += it },
-                                                        onNote = { agentRunState.streamNote = it },
-                                                    ),
-                                                )
-                                                agentRunState.followUp = agentRunState.outcome?.followUp
-                                                agentRunState.continuation = (agentRunState.outcome as? WorkflowRunOutcome.Clarifying)?.continuation
-                                            } catch (_: MaskingBlockedException) {
-                                                agentRunState.progress = "Privacy protection stopped this request before it was sent. No application change was made."
-                                            } catch (_: Exception) {
-                                                agentRunState.progress = "The hosted request could not start. Check provider settings, network access, and the selected workflow scope."
-                                            } finally {
-                                                agentRunState.busy = false
-                                                agentRunState.job = null
-                                                agentRunState.projectionRevision += 1
-                                            }
-                                        }
-                                    }
-                                },
-                                enabled = !agentRunState.busy,
-                            ) { Text("Send") }
-                            if (agentRunState.busy) {
-                                OutlinedButton(
-                                    onClick = {
-                                        val runId = agentRunState.runId
-                                        val executor = agentRunState.executor
-                                        if (runId != null && executor != null) {
-                                            agentRunScope.launch {
-                                                executor.cancelTracked(agentRunHistory, runId, "USER_CANCELLED")
-                                                agentRunState.job?.cancel()
-                                                agentRunState.busy = false
-                                                agentRunState.progress = "Canceled. Any application change already stored remains in place."
-                                            }
-                                        } else {
-                                            agentRunState.job?.cancel()
-                                            agentRunState.busy = false
-                                            agentRunState.progress = "Canceled before the provider run started."
-                                        }
-                                    },
-                                ) { Text("Cancel") }
-                                CircularProgressIndicator(Modifier.size(20.dp))
-                            }
-                        }
-                        agentRunState.progress?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                        if (agentRunState.busy) {
-                            agentRunState.streamNote?.let {
-                                Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            if (agentRunState.streamText.isNotBlank()) {
-                                Text(agentRunState.streamText, style = MaterialTheme.typography.bodyMedium)
-                            }
-                        }
-                        when (val outcome = agentRunState.outcome) {
-                            is WorkflowRunOutcome.Completed -> ChatOutcomeSection(
-                                outcome = outcome,
-                                agentRunState = agentRunState,
-                                agentRunScope = agentRunScope,
-                                queryService = queryService,
-                                commandService = commandService,
-                                onRecordEvent = onRecordEvent,
-                                onContextChanged = { agentRunState.projectionRevision += 1 },
-                                onRetry = { prompt, _ ->
-                                    agentPrompt = prompt
-                                    agentRunState.progress = "Retry the request above to start a new run with the same prompt."
-                                },
-                            )
-                            is WorkflowRunOutcome.Clarifying -> {
-                                Text("Clarification needed: ${outcome.question}")
-                                OutlinedTextField(
-                                    clarificationAnswer,
-                                    { clarificationAnswer = it },
-                                    Modifier.fillMaxWidth(),
-                                    label = { Text("Your answer") },
-                                    enabled = !agentRunState.busy,
-                                )
-                                Button(
-                                    enabled = !agentRunState.busy && clarificationAnswer.isNotBlank(),
-                                    onClick = {
-                                        val runId = agentRunState.runId
-                                        val executor = agentRunState.executor
-                                        val continuation = agentRunState.continuation
-                                        if (runId == null || executor == null || continuation == null) {
-                                            agentRunState.progress = "This clarification is no longer available. Start a new request."
-                                        } else {
-                                            agentRunState.busy = true
-                                            agentRunState.streamText = ""
-                                            agentRunState.streamNote = null
-                                            agentRunState.progress = "Resuming the same provider and scoped run…"
-                                            val answer = clarificationAnswer
-                                            agentRunState.job = agentRunScope.launch {
-                                                try {
-                                                    agentRunState.outcome = executor.resumeTracked(
-                                                        agentRunHistory,
-                                                        runId,
-                                                        continuation,
-                                                        answer,
-                                                        progress = runProgressSink(
-                                                            onText = { agentRunState.streamText += it },
-                                                            onNote = { agentRunState.streamNote = it },
-                                                        ),
-                                                    )
-                                                    agentRunState.continuation = (agentRunState.outcome as? WorkflowRunOutcome.Clarifying)?.continuation
-                                                    agentRunState.followUp = agentRunState.outcome?.followUp
-                                                    clarificationAnswer = ""
-                                                    agentRunState.progress = if (agentRunState.outcome == null) {
-                                                        "The clarification could not be resumed (the run stayed on its current attempt). Start a new request with a fresh prompt."
-                                                    } else null
-                                                } catch (cancelled: CancellationException) {
-                                                    throw cancelled
-                                                } catch (exception: Exception) {
-                                                    val consumed = exception is IllegalStateException || exception is IllegalArgumentException
-                                                    if (consumed) agentRunState.continuation = null
-                                                    agentRunState.progress = "The clarification could not be resumed (${exception::class.simpleName ?: "error"}). The run stayed on its current attempt; try Continue once more or start a new request."
-                                                } finally {
-                                                    agentRunState.busy = false
-                                                    agentRunState.job = null
-                                                    agentRunState.projectionRevision += 1
-                                                }
-                                            }
-                                        }
-                                    },
-                                ) { Text("Continue") }
-                            }
-                            is WorkflowRunOutcome.Refused -> Text("Request refused: ${outcome.reason}", color = MaterialTheme.colorScheme.error)
-                            is WorkflowRunOutcome.Incomplete -> ChatOutcomeSection(
-                                outcome = outcome,
-                                agentRunState = agentRunState,
-                                agentRunScope = agentRunScope,
-                                queryService = queryService,
-                                commandService = commandService,
-                                onRecordEvent = onRecordEvent,
-                                onContextChanged = { agentRunState.projectionRevision += 1 },
-                                onRetry = { prompt, _ ->
-                                    agentPrompt = prompt
-                                    agentRunState.progress = "Retry the request above to start a new run with the same prompt."
-                                },
-                            )
-                            null -> Unit
-                        }
-                    }
-                }
-            }
             item {
                 CapturePanel(
                     modifier = Modifier.fillMaxWidth(),
@@ -992,30 +717,3 @@ private fun saveMessageIsError(message: String): Boolean =
         !message.startsWith("Capture text saved.") &&
         !message.startsWith("Capture updated.") &&
         !message.startsWith("Capture deleted.")
-
-/**
- * The chat screen's live progress sink.
- *
- * Answer text arrives already filtered by the masked gateway's incremental public gate, so it
- * is safe to display as it grows. Tool activity is a declared tool name only; argument text and
- * private reasoning never reach this sink. A route without honest streaming reports that fact
- * instead of typing out the final answer after the fact.
- */
-private fun runProgressSink(
-    onText: (String) -> Unit,
-    onNote: (String) -> Unit,
-): WorkflowRunProgressSink = { item ->
-    when (item) {
-        is WorkflowRunProgress.PublicText -> onText(item.text)
-        is WorkflowRunProgress.ToolActivity -> onNote(
-            if (item.completed) {
-                "Tool ${item.name}: arguments complete; host validation follows."
-            } else {
-                "Tool ${item.name}: calling…"
-            },
-        )
-
-        is WorkflowRunProgress.StreamingUnavailable ->
-            onNote("Live answer streaming is unavailable for this provider route; run progress only.")
-    }
-}

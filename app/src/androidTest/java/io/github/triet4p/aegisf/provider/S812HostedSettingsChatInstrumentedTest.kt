@@ -2,6 +2,8 @@ package io.github.triet4p.aegisf.provider
 
 
 
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -21,18 +23,18 @@ class S812HostedSettingsChatInstrumentedTest {
 
     @Test
     fun retainedOfflineManualReviewAndIntakeRoutesRemainReachable() {
-        selectPrimaryDestination("Dashboard")
+        // The S10.2 shell: Home is a launcher, the record form and Settings are focused
+        // children, and the Review inbox is its own root destination.
+        selectPrimaryDestination("Home")
 
-        selectPrimaryDestination("Manual entry")
-        waitForText("MANUAL")
-        compose.onNodeWithText("Record a transaction").performClick()
+        compose.onNodeWithText("Manual record").performClick()
         waitForText("NEW TRANSACTION")
         compose.onNodeWithText("Back").performClick()
-        waitForText("MANUAL")
+        waitForText("Manual record")
 
-        selectPrimaryDestination("Review notifications")
+        selectPrimaryDestination("Review")
         waitForText("REVIEW NOTIFICATIONS")
-        selectPrimaryDestination("Dashboard")
+        selectPrimaryDestination("Home")
         compose.onNodeWithText("Settings").performClick()
         compose.onNodeWithText("Bank notification settings").performScrollTo().performClick()
         waitForText("Bank notifications")
@@ -41,7 +43,11 @@ class S812HostedSettingsChatInstrumentedTest {
     }
 
     private fun selectPrimaryDestination(description: String) {
-        compose.onNodeWithContentDescription(description, substring = true).performClick()
+        // The Homes launchers also carry the destination name ("Open Review"), so a tab is
+        // selected by its tab role rather than by a substring that also matches a launcher.
+        compose.onNode(
+            hasContentDescription(description, substring = true) and isSelectable(),
+        ).performClick()
     }
 
     private fun waitForText(

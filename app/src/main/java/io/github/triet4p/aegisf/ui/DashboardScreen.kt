@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -112,6 +111,7 @@ fun DashboardScreen(
     onOpenSettings: () -> Unit,
     onOpenReview: () -> Unit,
     modifier: Modifier = Modifier,
+    title: String = "DASHBOARD",
 ) {
     // Pure derivation: the two day texts become one closed range, and a refused scope
     // names no range at all, so no figure is read over a range that was never stated.
@@ -166,7 +166,7 @@ fun DashboardScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "DASHBOARD",
+                        title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.1.sp,
@@ -177,7 +177,6 @@ fun DashboardScreen(
                 },
             )
         },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -1137,7 +1136,6 @@ fun DashboardScopedListScreen(
                     navigationIcon = { TextButton(onClick = onNavigateUp) { Text("Back") } },
                 )
             },
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
         ) { innerPadding ->
             Column(
                 modifier = Modifier
@@ -1228,7 +1226,6 @@ fun DashboardScopedListScreen(
                 navigationIcon = { TextButton(onClick = onNavigateUp) { Text("Back") } },
             )
         },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { innerPadding ->
         Column(
             modifier = Modifier

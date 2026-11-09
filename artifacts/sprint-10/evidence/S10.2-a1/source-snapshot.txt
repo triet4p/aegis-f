@@ -1,0 +1,39 @@
+# S10.2-a1 candidate source snapshot (worker-owned paths only; foreign/evidence files excluded)
+# HEAD: 095a09834eb5a864d26daba411ab6bad9cb49669
+# APK sha256: ffe1540dee997f5a4223f25ba2279a7d43558a357bfda11b5db1a0aab0e31c67
+# Refreshed 2026-11-09 for review round 1: binds the exact frozen a1 bytes (the S812 tab
+# selector fix and the final a1 report). Only the drifted report line was corrected; no source
+# bytes changed. The round-2 candidate is bound separately in S10.2-a2/source-snapshot.txt.
+# Superseded for the current worktree: the two S99 entries below are the a1 bytes that round 2
+# corrected, so they intentionally no longer match the worktree. Use the a2 snapshot as the
+# current candidate binding; this file remains the historical a1 record.
+cb04b08f6cd43692dca60628227d7419588686a4933a2a0cc497e925751a2de8  CHANGELOG.md
+124a22d04b6288b95209623e6d3c6f9b76620420706b41ab6ee7318dddbaccd9  README.md
+cc83dabe7a9cef6c81d22d9efa0a09cdc8e0f9c8fc4ef193d6d4ee9aad2bc0c5  app/src/androidTest/java/io/github/triet4p/aegisf/provider/S812HostedSettingsChatInstrumentedTest.kt
+f26904f59ac1988fecf8947fc2b72dbe80aae5bbb2186213cb2bd61baf90b7b4  app/src/androidTest/java/io/github/triet4p/aegisf/ui/S102ShellLayoutInstrumentedTest.kt
+cdbc380d1fed3e02d48a3bd9a4396233607cc8d9f9b94a54dbe39e41e53afe33  app/src/androidTest/java/io/github/triet4p/aegisf/ui/S99ChatUiInstrumentedTest.kt
+3ac5ff5ba971eb32d76850156d71e03c79bd073472f0506660cef985d683579f  app/src/androidTest/java/io/github/triet4p/aegisf/ui/S99MeasurementInstrumentedTest.kt
+fcde1d15dd43f3c8392343ea2bc5f458a349ffc9ab22b94531ed3983c7495d0b  app/src/main/java/io/github/triet4p/aegisf/MainActivity.kt
+f93ef6f52018459658366a77de5f585a06bc4b4a0fb95cb7069d2358aee109b4  app/src/main/java/io/github/triet4p/aegisf/data/AegisUiPreferencesStore.kt
+e9fa70f241ade185bf4a7e91eb869b3155bf51d39e428ff95ffa09e6a1bd9587  app/src/main/java/io/github/triet4p/aegisf/data/AppContainer.kt
+82c71d9f827662b77bab6b25b03e8ed100d6a0767d6756468eb27f885e447afe  app/src/main/java/io/github/triet4p/aegisf/data/VndMoney.kt
+(deleted)  app/src/main/java/io/github/triet4p/aegisf/ui/AppShell.kt
+424acf2a6862dd3905fc4163aa76a99f18113038121c603bee1c598dec1a73e2  app/src/main/java/io/github/triet4p/aegisf/ui/DashboardScreen.kt
+bbdd8c14db2e834dfeffd68488b4a83dc8d7567a4f3b2a5d45017a08c447d52b  app/src/main/java/io/github/triet4p/aegisf/ui/QuickCaptureScreen.kt
+670e61199f532a1551b629a67e51b74db680ccf57a795bafa42a31211e5a649c  app/src/main/java/io/github/triet4p/aegisf/ui/TransactionEditorScreen.kt
+d91ea342520ea0d13e0e35dbd4dfb6a63f43255b53df2f1b68c075e3e32a1e05  app/src/main/java/io/github/triet4p/aegisf/ui/TransactionListScreen.kt
+400c6abfd7d9cb1e2886fb93235674c8e407c813353e8201710a273aced3b0c4  app/src/main/java/io/github/triet4p/aegisf/ui/chat/AiChatScreen.kt
+e8797d37dfd427e8cc54724ff8ebb131fce3ee3018d600e4fcfb1ec35dc4270c  app/src/main/java/io/github/triet4p/aegisf/ui/components/AegisBottomBar.kt
+875922bdb9496223896f0a9cfef8d2790f515883c6741464c5c6ee262de00fed  app/src/main/java/io/github/triet4p/aegisf/ui/components/AegisControls.kt
+ef5935e7f62a0e56b1ca0fee9e1f6c0069f440f79fc37a7bd9b7e5c19e43f9ba  app/src/main/java/io/github/triet4p/aegisf/ui/components/AegisFeatureIcon.kt
+7af4a4e325474d21e4f778bf368af1b33ea675ddd0113a35caa4bb2a52e46e52  app/src/main/java/io/github/triet4p/aegisf/ui/components/AegisGlyph.kt
+2e0e1c5630c24c4df6a7f55a048fcbd3051672d0bf87ef1ac8946f60e72a99c4  app/src/main/java/io/github/triet4p/aegisf/ui/navigation/AegisNavShell.kt
+ace80747c1131b43a717cc1ab83bc5b1656172dc6ef21a5f99c554ab51bf87d2  app/src/main/java/io/github/triet4p/aegisf/ui/navigation/HomeLauncherScreen.kt
+5fb43b980ce4ce9231b6fd4f038a3697ea4d65636ab4b8e315a359b1a5587195  app/src/main/java/io/github/triet4p/aegisf/ui/navigation/SettingsHubScreen.kt
+a90bf84469bd4a5b7e25ea082403a8e39cf91eb0ef7b2c2f1a089b4723e6b430  app/src/main/java/io/github/triet4p/aegisf/ui/text/AegisStrings.kt
+bb75631cb9194cc7c9a1591f3fb75e9ec20c398e0d88bff75e446da3b5aed794  app/src/main/java/io/github/triet4p/aegisf/ui/theme/AegisTheme.kt
+20da30312a0f9c92fbb109a6eceb8f774d1bb5126328c060cc88b521523ab8ed  app/src/main/java/io/github/triet4p/aegisf/ui/theme/Color.kt
+a44990e4a2360bc782a69ce1dc5515d087e9cdb96d6aba0155cf56c92b7642c6  app/src/main/java/io/github/triet4p/aegisf/ui/theme/Shapes.kt
+62b2246808308de09adc81f4f573488b52a4526dbb15eeaec533fc1150c45b6e  app/src/main/java/io/github/triet4p/aegisf/ui/theme/Type.kt
+6ca37fe18ee6a9ae5bcb3315b32edfea2c1f550aa2b8fc72301d9ee19d9db6a1  artifacts/sprint-10/workers/S10.2-implementation-a1.md
+733686b93f61b2d71b4d937afa6101964aecf78a0339fa272f4a1643c09e5c98  docs/design/sprint-10-navigation-shell.md

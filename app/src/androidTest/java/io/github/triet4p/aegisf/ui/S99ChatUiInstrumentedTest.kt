@@ -4,10 +4,11 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.view.inputmethod.InputMethodManager
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -77,7 +78,7 @@ class S99ChatUiInstrumentedTest {
                 } ?: "none"),
         )
 
-        compose.onNodeWithContentDescription("Chat / Quick Capture", substring = true).performClick()
+        selectDestination("AI Chat")
         compose.waitUntil(timeoutMillis = 120_000) {
             compose.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isNotEmpty()
         }
@@ -287,7 +288,7 @@ class S99ChatUiInstrumentedTest {
         val captureId = (capture.change as io.github.triet4p.aegisf.data.WorkflowChange.CaptureSaved).captureId
         emit("S99UIC start capture=$captureId fuels=$fuelDraft snacks=$snackDraft note=$note")
 
-        compose.onNodeWithContentDescription("Chat / Quick Capture", substring = true).performClick()
+        selectDestination("AI Chat")
         compose.waitUntil(300_000) {
             compose.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isNotEmpty()
         }
@@ -370,7 +371,7 @@ class S99ChatUiInstrumentedTest {
 
         if (state == "SUCCEEDED") {
             // Explicit user confirmation through the real Review screen.
-            selectDestination("Review notifications")
+            selectDestination("Review")
             waitForText("REVIEW NOTIFICATIONS")
             listOf(fuelDraft, snackDraft).forEach { draftId ->
                 openDraftFromInbox(draftId)
@@ -473,7 +474,11 @@ class S99ChatUiInstrumentedTest {
     }
 
     private fun selectDestination(description: String) {
-        compose.onNodeWithContentDescription(description, substring = true).performClick()
+        // Home's feature launchers announce "Open Notes" / "Open AI Chat" / "Open Review", so a
+        // destination is selected by its tab semantics instead of a substring both nodes share.
+        compose.onNode(
+            hasContentDescription(description, substring = true) and isSelectable(),
+        ).performClick()
     }
 
     private fun waitForText(text: String, timeoutMillis: Long = 120_000) {

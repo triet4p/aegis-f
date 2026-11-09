@@ -43,18 +43,28 @@ object VndMoney {
     }
 
     /** Formats a non-negative whole-dong amount with deterministic grouping and an explicit code. */
-    fun formatAmount(amountVnd: Long): String {
+    fun formatAmount(amountVnd: Long): String = formatAmount(amountVnd, VND_SUFFIX)
+
+    /**
+     * Formats a non-negative whole-dong amount with deterministic grouping and the caller's
+     * currency suffix.
+     *
+     * The grouping stays here, so every surface that shows an exact amount — the existing
+     * `VND` wording and the design system's `₫` wording — renders the same exact digits. Only
+     * the suffix differs; the arithmetic never does.
+     */
+    fun formatAmount(amountVnd: Long, suffix: String): String {
         require(amountVnd >= 0L) { "A VND amount to display cannot be negative." }
         val digits = amountVnd.toString()
         val separators = (digits.length - 1) / 3
-        return buildString(digits.length + separators + VND_SUFFIX.length) {
+        return buildString(digits.length + separators + suffix.length) {
             digits.forEachIndexed { index, digit ->
                 if (index > 0 && (digits.length - index) % 3 == 0) {
                     append(',')
                 }
                 append(digit)
             }
-            append(VND_SUFFIX)
+            append(suffix)
         }
     }
 

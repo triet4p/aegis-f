@@ -95,6 +95,11 @@ fun TransactionListScreen(
     onFiltersExpandedChange: (Boolean) -> Unit,
     onSelect: (Long) -> Unit,
     onNavigateUp: () -> Unit,
+    /**
+     * False when the ledger is a root destination: there is no previous screen, so the screen
+     * must not draw a Back control or consume the system back gesture.
+     */
+    showBack: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     // Pure derivation, never a composition write: a refused date dimension reports its
@@ -169,7 +174,7 @@ fun TransactionListScreen(
     val anyRecordPage: QueryPage<TransactionEntity>? by anyRecordFlow.collectAsState(initial = null)
     val ledgerIsEmpty = anyRecordPage?.items?.isEmpty() == true
 
-    BackHandler(onBack = onNavigateUp)
+    BackHandler(enabled = showBack, onBack = onNavigateUp)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -177,7 +182,9 @@ fun TransactionListScreen(
             TopAppBar(
                 title = { Text("Saved transactions") },
                 navigationIcon = {
-                    TextButton(onClick = onNavigateUp) { Text("Back") }
+                    if (showBack) {
+                        TextButton(onClick = onNavigateUp) { Text("Back") }
+                    }
                 },
             )
         },
