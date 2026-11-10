@@ -1,38 +1,50 @@
 package io.github.triet4p.aegisf.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -41,24 +53,30 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import io.github.triet4p.aegisf.data.CategoryEntity
-import io.github.triet4p.aegisf.data.CategoryQuery
-import io.github.triet4p.aegisf.data.CategoryState
 import io.github.triet4p.aegisf.data.CorrectTransactionRequest
 import io.github.triet4p.aegisf.data.LIST_PAGE_SIZE
-import io.github.triet4p.aegisf.data.QueryPage
-import io.github.triet4p.aegisf.data.QueryPageRequest
 import io.github.triet4p.aegisf.data.LedgerValidationException
 import io.github.triet4p.aegisf.data.ManualTransactionSource
+import io.github.triet4p.aegisf.data.QueryPageRequest
 import io.github.triet4p.aegisf.data.SaveManualTransactionRequest
 import io.github.triet4p.aegisf.data.TransactionEntity
 import io.github.triet4p.aegisf.data.TransactionType
@@ -70,17 +88,24 @@ import io.github.triet4p.aegisf.data.WorkflowCommandOutcome
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowDenialReason
 import io.github.triet4p.aegisf.data.WorkflowQueryService
-import io.github.triet4p.aegisf.data.refusalMessage
 import io.github.triet4p.aegisf.ui.components.AegisDiscardChangesDialog
-import java.util.Locale
+import io.github.triet4p.aegisf.ui.components.AegisGlyph
+import io.github.triet4p.aegisf.ui.components.AegisIcon
+import io.github.triet4p.aegisf.ui.components.AegisMoneyText
+import io.github.triet4p.aegisf.ui.components.AegisStatus
+import io.github.triet4p.aegisf.ui.components.AegisStatusChip
+import io.github.triet4p.aegisf.ui.text.AegisStrings
+import io.github.triet4p.aegisf.ui.text.LocalAegisStrings
+import java.util.TimeZone
 import java.util.UUID
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
- * Manual transaction editor: one stored record per Save.
+ * Manual transaction editor: one focused form, one Save.
  *
  * With [transactionId] null this is the creation form: the fields start empty, a Save writes
  * one confirmed manual record through the application's one command boundary, and the form is
@@ -91,23 +116,20 @@ import java.util.concurrent.atomic.AtomicBoolean
  * values. The record keeps its id, its creation time, its confirmation, and its
  * provenance, because a correction cannot write those.
  *
- * The form collects the user-supplied fields — amount, type, date, time, description, and
- * category where applicable — and writes them through the command boundary, which owns every
- * data rule and the caller's authority. A refused write stores nothing and shows the reason
- * under the field it belongs to, with the typed values intact.
- * New expense creation writes only what the user states; nothing is classified on the device
- * and no suggestion changes the category field. Income, transfers, and correction forms are
- * equally manual. The live category list backs the picker, so a category renamed or archived
- * during an edit cannot remain eligible; an existing record keeps its archived category link
- * unless the user chooses another category.
+ * The screen owns one task and one primary action: the sticky Save bar. Amount, type, category,
+ * moment, note, and the optional saved-note source are the record's supported fields; the
+ * category, moment, and saved-note choosers are focused bottom sheets, never stacked panels.
+ * Leaving without Save — close, Back, or the system back gesture — writes nothing and asks
+ * before discarding typed values.
  *
  * A record may be written from a saved note the user recorded by hand: the note event is
- * named, the note's own amount and moment fill the form, and the saved record resolves that
- * note — so a bank notification that arrives later cannot consume the same occurrence again.
+ * named, the note's own amount, moment, and text fill the form, and the saved record resolves
+ * that note — so a bank notification that arrives later cannot consume the same occurrence
+ * again. A note that was already recorded or changed under the form is refused with the typed
+ * values intact.
  *
  * While a write is in flight the guard ignores further taps and the form cannot be left, so an
- * impatient double tap cannot turn one record into two or into none. Leaving without pressing
- * Save — Back, Cancel, or the system back gesture — writes nothing at all.
+ * impatient double tap cannot turn one record into two or into none.
  */
 @Composable
 fun TransactionEditorScreen(
@@ -131,27 +153,82 @@ fun TransactionEditorScreen(
         return
     }
 
-    // The stored row is re-read here rather than handed in by the caller: what fills the form
-    // is what the database holds, so a stale caller cannot put another record's values in it.
-    var loaded by remember(transactionId) {
+    val strings = manualRecordStrings(LocalAegisStrings.current.language)
+    var loadToken by remember { mutableIntStateOf(0) }
+    var loaded by remember(transactionId, loadToken) {
         mutableStateOf<StoredTransactionState>(StoredTransactionState.Loading)
     }
-    LaunchedEffect(transactionId) {
-        val record = queryService.findLedgerRecord(transactionId)
-        loaded = if (record == null) {
-            StoredTransactionState.Missing
-        } else {
-            StoredTransactionState.Found(
-                record = record,
-                category = record.categoryId?.let { queryService.findCategory(it) },
-            )
+    LaunchedEffect(transactionId, loadToken) {
+        loaded = StoredTransactionState.Loading
+        loaded = try {
+            val record = queryService.findLedgerRecord(transactionId)
+            if (record == null) {
+                StoredTransactionState.Missing
+            } else {
+                StoredTransactionState.Found(
+                    record = record,
+                    category = record.categoryId?.let { queryService.findCategory(it) },
+                )
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            StoredTransactionState.Error
         }
     }
 
     when (val stored = loaded) {
-        StoredTransactionState.Loading -> LoadingTransaction(onNavigateUp, modifier)
+        StoredTransactionState.Loading -> ManualStateScaffold(
+            title = strings.loadingTitle,
+            strings = strings,
+            onClose = onNavigateUp,
+            modifier = modifier,
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(22.dp))
+                Text(strings.loadingBody, style = MaterialTheme.typography.bodyLarge)
+            }
+        }
 
-        StoredTransactionState.Missing -> MissingTransaction(onNavigateUp, modifier)
+        StoredTransactionState.Missing -> ManualStateScaffold(
+            title = strings.loadingTitle,
+            strings = strings,
+            onClose = onNavigateUp,
+            modifier = modifier,
+        ) {
+            Text(strings.missingTitle, style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = strings.missingBody,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            TextButton(onClick = onNavigateUp) { Text(strings.close) }
+        }
+
+        StoredTransactionState.Error -> ManualStateScaffold(
+            title = strings.loadingTitle,
+            strings = strings,
+            onClose = onNavigateUp,
+            modifier = modifier,
+        ) {
+            Text(
+                text = strings.readErrorTitle,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+            Text(
+                text = strings.readErrorBody,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = { loadToken += 1 }) { Text(strings.retry) }
+                TextButton(onClick = onNavigateUp) { Text(strings.close) }
+            }
+        }
 
         is StoredTransactionState.Found -> TransactionFormScreen(
             commandService = commandService,
@@ -169,6 +246,8 @@ private sealed interface StoredTransactionState {
     data object Loading : StoredTransactionState
 
     data object Missing : StoredTransactionState
+
+    data object Error : StoredTransactionState
 
     data class Found(val record: TransactionEntity, val category: CategoryEntity?) :
         StoredTransactionState
@@ -189,9 +268,13 @@ private fun TransactionFormScreen(
     sourceEventId: Long? = null,
     modifier: Modifier = Modifier,
 ) {
+    val baseStrings = LocalAegisStrings.current
+    val strings = manualRecordStrings(baseStrings.language)
     val editing = storedRecord != null
-    val openedAtMillis = remember { System.currentTimeMillis() }
-    val initialMomentMillis = storedRecord?.occurredAtEpochMillis ?: openedAtMillis
+    val zone = remember { TimeZone.getDefault() }
+    val initialMomentMillis = remember(storedRecord) {
+        storedRecord?.occurredAtEpochMillis ?: System.currentTimeMillis()
+    }
     var amountText by rememberSaveable {
         mutableStateOf(storedRecord?.amountVnd?.toString() ?: "")
     }
@@ -199,15 +282,18 @@ private fun TransactionFormScreen(
         mutableStateOf(storedRecord?.type ?: TransactionType.EXPENSE)
     }
     var dateText by rememberSaveable {
-        mutableStateOf(ManualDateTime.dateFieldText(initialMomentMillis))
+        mutableStateOf(ManualDateTime.dateFieldText(initialMomentMillis, zone))
     }
     var timeText by rememberSaveable {
-        mutableStateOf(ManualDateTime.timeFieldText(initialMomentMillis))
+        mutableStateOf(ManualDateTime.timeFieldText(initialMomentMillis, zone))
     }
     var descriptionText by rememberSaveable { mutableStateOf(storedRecord?.description ?: "") }
     var selectedCategoryId by rememberSaveable { mutableStateOf(storedRecord?.categoryId) }
     var selectedCategoryName by rememberSaveable { mutableStateOf(storedCategory?.name) }
-    var categoryPickerVisible by rememberSaveable { mutableStateOf(false) }
+
+    var categorySheetVisible by rememberSaveable { mutableStateOf(false) }
+    var momentSheetVisible by rememberSaveable { mutableStateOf(false) }
+    var noteSheetVisible by rememberSaveable { mutableStateOf(false) }
 
     var amountError by remember { mutableStateOf<String?>(null) }
     var dateError by remember { mutableStateOf<String?>(null) }
@@ -224,12 +310,17 @@ private fun TransactionFormScreen(
 
     // The note this record is written from, when the user records an unmatched note by
     // hand. The saved record resolves that note, so a bank notification that arrives later
-    // cannot consume the same occurrence again.
-    var sourceEvent by remember(sourceEventId) {
-        mutableStateOf<UnrecordedNoteEvent?>(null)
+    // cannot consume the same occurrence again. The event id and reading revision are the
+    // saveable identity; the loaded row itself is read back after a configuration change.
+    var chosenSourceEventId by rememberSaveable(sourceEventId) {
+        mutableStateOf(sourceEventId)
     }
-    var sourceEventLoading by remember(sourceEventId) {
-        mutableStateOf(sourceEventId != null)
+    var chosenSourceRevision by rememberSaveable(sourceEventId) {
+        mutableStateOf<Int?>(null)
+    }
+    var sourceEvent by remember { mutableStateOf<UnrecordedNoteEvent?>(null) }
+    var sourceEventLoading by remember {
+        mutableStateOf(chosenSourceEventId != null)
     }
     var sourceEventLoadError by rememberSaveable(sourceEventId) {
         mutableStateOf<String?>(null)
@@ -237,7 +328,7 @@ private fun TransactionFormScreen(
     var sourcePrefillApplied by rememberSaveable(sourceEventId) {
         mutableStateOf(false)
     }
-    var notePickerVisible by rememberSaveable { mutableStateOf(false) }
+    var sourceLoadToken by remember { mutableIntStateOf(0) }
 
     // Whether the user has changed anything on this form, and whether leaving it is waiting
     // for the discard confirmation. Values prefilled from a saved note are not edits until
@@ -258,26 +349,39 @@ private fun TransactionFormScreen(
         }
     }
 
-    // The whole catalog, live and read in bounded chunks: an archive or a rename must be
-    // visible at once, and the picker reads the catalog page by page so every stored
-    // category is reachable there.
+    // The whole live catalog: an archive, rename, or deletion must be visible at once, and
+    // the chooser can reach every stored category without paging.
     val catalog: List<CategoryEntity>? by remember(queryService) {
         queryService.observeCategoryCatalog()
     }.collectAsState(initial = null)
 
-    LaunchedEffect(queryService, sourceEventId) {
-        val eventId = sourceEventId ?: return@LaunchedEffect
+    LaunchedEffect(
+        queryService,
+        chosenSourceEventId,
+        chosenSourceRevision,
+        sourceLoadToken,
+    ) {
+        val eventId = chosenSourceEventId ?: run {
+            sourceEventLoading = false
+            return@LaunchedEffect
+        }
+        // A row already loaded for this exact reading needs no second read; this also stops
+        // the revision learned from the note from restarting the effect once.
+        if (sourceEvent?.let { it.eventId == eventId && it.revision == chosenSourceRevision } == true) {
+            sourceEventLoading = false
+            return@LaunchedEffect
+        }
         sourceEventLoading = true
         sourceEventLoadError = null
         try {
             val note = queryService.unrecordedNoteEvent(eventId)
             if (note == null) {
-                sourceEventLoadError =
-                    "The saved event is no longer available for manual recording. " +
-                        "Choose another saved event or cancel; no transaction was saved."
+                sourceEvent = null
+                sourceEventLoadError = strings.sourceLoadError
             } else {
                 sourceEvent = note
-                if (!sourcePrefillApplied) {
+                chosenSourceRevision = note.revision
+                if (!sourcePrefillApplied && !editedSinceOpen) {
                     note.amountVnd?.let { amountText = it.toString() }
                     note.anchorDate?.let { dateText = it }
                     note.anchorTime?.let { timeText = it }
@@ -288,8 +392,8 @@ private fun TransactionFormScreen(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            sourceEventLoadError =
-                "The saved event could not be loaded. Your form is unchanged; retry or choose another note."
+            sourceEvent = null
+            sourceEventLoadError = strings.sourceLoadError
         } finally {
             sourceEventLoading = false
         }
@@ -307,33 +411,22 @@ private fun TransactionFormScreen(
 
     BackHandler { requestLeave() }
 
-
-    // Prefer the current row name when a category changes while the form is open.
-    val currentSelectedCategory = catalog
-        ?.firstOrNull { it.id == selectedCategoryId }
-    val categoryButtonLabel = when {
-        selectedCategoryId == null -> null
-        currentSelectedCategory != null -> categoryLabel(currentSelectedCategory)
-        storedCategory != null && selectedCategoryId == storedCategory.id ->
-            categoryLabel(storedCategory)
-        else -> selectedCategoryName
-    }
+    val selectedCategoryRow = catalog?.firstOrNull { it.id == selectedCategoryId }
+        ?: storedCategory?.takeIf { it.id == selectedCategoryId }
     val categoryNote = when {
-        currentSelectedCategory?.archived == true &&
-            selectedCategoryId != storedRecord?.categoryId ->
-            "\"${currentSelectedCategory.name}\" was archived while this form was open. " +
-                "Choose an active category; saving will refuse this assignment."
-        // A category deleted while this form was open leaves its id selected but no row
-        // behind it. Saying so is what keeps the stale name from looking like a live choice;
-        // saving it is refused by the repository's own category check.
-        catalog != null && selectedCategoryId != null && currentSelectedCategory == null ->
-            "The category this form had selected no longer exists: it was deleted. Choose " +
-                "another category or No category; saving will refuse the removed one."
+        selectedCategoryRow?.archived == true && selectedCategoryId != storedRecord?.categoryId ->
+            strings.categoryArchivedNow.format(selectedCategoryRow.name)
+        catalog != null && selectedCategoryId != null && selectedCategoryRow == null ->
+            strings.categoryDeletedNow
         storedCategory != null && storedCategory.archived &&
             selectedCategoryId == storedCategory.id ->
-            "\"${storedCategory.name}\" is archived. This record keeps it unless you choose " +
-                "another category."
+            strings.categoryRetained.format(storedCategory.name)
         else -> null
+    }
+    val parsedAmount = parseManualAmountOrNull(amountText)
+    val amountWords = parsedAmount?.let { amountInWords(it, baseStrings.language) }
+    val momentDisplay = remember(dateText, timeText, zone, baseStrings.language) {
+        momentDisplayText(dateText, timeText, zone)
     }
 
     /**
@@ -345,23 +438,33 @@ private fun TransactionFormScreen(
     fun showRefusal(outcome: WorkflowCommandOutcome) {
         when (outcome) {
             is WorkflowCommandOutcome.NeedsClarification -> {
-                if (outcome.field == "categoryId") {
-                    categoryError = outcome.reason
-                } else {
-                    amountError = outcome.reason
+                when (outcome.field) {
+                    "categoryId" -> categoryError = strings.categoryUnavailable
+                    "amountVnd" -> amountError = strings.amountInvalid
+                    "occurredAtEpochMillis" -> {
+                        dateError = strings.dateError
+                        timeError = strings.timeError
+                    }
+                    else -> saveError = strings.saveError
                 }
             }
+
             is WorkflowCommandOutcome.Denied -> {
-                if (outcome.reason == WorkflowDenialReason.CATEGORY_UNAVAILABLE) {
-                    categoryError = "That category is no longer available. Choose an active " +
-                        "category and try again."
-                } else {
-                    saveError = "This record could not be saved."
+                when (outcome.reason) {
+                    WorkflowDenialReason.CATEGORY_UNAVAILABLE ->
+                        categoryError = strings.categoryUnavailable
+                    WorkflowDenialReason.EVENT_UNAVAILABLE ->
+                        sourceEventLoadError = strings.eventUnavailable
+                    else -> saveError = strings.saveError
                 }
             }
-            is WorkflowCommandOutcome.Conflict -> saveError = outcome.reason
-            is WorkflowCommandOutcome.Failed -> saveError = outcome.reason
-            WorkflowCommandOutcome.NotFound -> saveError = "That record is no longer available."
+
+            is WorkflowCommandOutcome.Conflict ->
+                saveError = if (editing) strings.staleRecord else strings.staleEvent
+
+            is WorkflowCommandOutcome.Failed -> saveError = strings.saveError
+            WorkflowCommandOutcome.NotFound ->
+                saveError = if (editing) strings.recordMissingSave else strings.saveError
             WorkflowCommandOutcome.Cancelled -> Unit
             is WorkflowCommandOutcome.Applied,
             is WorkflowCommandOutcome.NoChange,
@@ -376,12 +479,12 @@ private fun TransactionFormScreen(
         categoryError = null
         saveError = null
         if (sourceEventLoading) {
-            saveError = "The saved event is still loading. No transaction was saved."
+            saveError = strings.sourceLoading
             writeInFlight.set(false)
             return
         }
-        if (sourceEventId != null && sourceEvent == null && sourceEventLoadError != null) {
-            saveError = sourceEventLoadError
+        if (chosenSourceEventId != null && sourceEvent == null) {
+            saveError = sourceEventLoadError ?: strings.sourceLoadError
             writeInFlight.set(false)
             return
         }
@@ -389,15 +492,19 @@ private fun TransactionFormScreen(
         val amountVnd = try {
             VndMoney.parseManualAmount(amountText)
         } catch (rejection: LedgerValidationException) {
-            amountError = rejection.message
+            amountError = if (amountText.isBlank()) {
+                strings.amountRequired
+            } else {
+                strings.amountInvalid
+            }
             writeInFlight.set(false)
             return
         }
         val dateProblem = ManualDateTime.dateError(dateText)
         val timeProblem = ManualDateTime.timeError(timeText)
         if (dateProblem != null || timeProblem != null) {
-            dateError = dateProblem
-            timeProblem?.let { timeError = it }
+            dateError = if (dateProblem != null) strings.dateError else null
+            timeError = if (timeProblem != null) strings.timeError else null
             writeInFlight.set(false)
             return
         }
@@ -406,14 +513,13 @@ private fun TransactionFormScreen(
         scope.launch {
             try {
                 val type = selectedType
-                val occurredAtEpochMillis = ManualDateTime.toEpochMillis(dateText, timeText)
+                val occurredAtEpochMillis = ManualDateTime.toEpochMillis(dateText, timeText, zone)
                 val description = descriptionText.trim()
                 // A transfer carries no category, so the type decides whether the chosen one
                 // is written at all; the stored category is otherwise kept as it is.
                 val categoryId = selectedCategoryId.takeIf { type != TransactionType.TRANSFER }
                 val stored = storedRecord
-                val storedId = stored?.id
-                if (storedId == null || stored == null) {
+                if (stored == null) {
                     val outcome = commandService.saveManualTransaction(
                         scope = WorkflowCallerScope.User,
                         request = SaveManualTransactionRequest(
@@ -441,6 +547,7 @@ private fun TransactionFormScreen(
                             // The record is stored: there is no unsaved edit left to protect.
                             editedSinceOpen = false
                         }
+
                         is WorkflowCommandOutcome.NoChange -> {
                             // The same request was already made under this key: the record
                             // that was made then is the record this form is about.
@@ -448,6 +555,7 @@ private fun TransactionFormScreen(
                                 ?.transactionId
                             editedSinceOpen = false
                         }
+
                         else -> showRefusal(outcome)
                     }
                 } else {
@@ -455,7 +563,7 @@ private fun TransactionFormScreen(
                         scope = WorkflowCallerScope.User,
                         request = CorrectTransactionRequest(
                             idempotencyKey = saveKey,
-                            transactionId = storedId,
+                            transactionId = stored.id,
                             expectedRevision = stored.revision,
                             type = type,
                             amountVnd = amountVnd,
@@ -474,9 +582,16 @@ private fun TransactionFormScreen(
                             editedSinceOpen = false
                             onNavigateUp()
                         }
+
                         else -> showRefusal(outcome)
                     }
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // A closed or unreadable database must not look like a successful write. The
+                // typed values stay on the form, and pressing Save again is the retry.
+                saveError = strings.saveError
             } finally {
                 saving = false
                 writeInFlight.set(false)
@@ -489,23 +604,73 @@ private fun TransactionFormScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             EditorTopBar(
-                title = if (editing) "Edit transaction" else "New transaction",
-                onNavigateUp = ::requestLeave,
-                backEnabled = !saving,
+                title = when {
+                    savedRecord != null -> strings.savedTitle
+                    editing -> strings.titleEdit
+                    else -> strings.titleNew
+                },
+                closeLabel = strings.close,
+                editing = editing,
+                onClose = ::requestLeave,
+                closeEnabled = !saving,
             )
         },
+        bottomBar = {
+            if (savedRecord == null) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 3.dp,
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .imePadding()
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                    ) {
+                        Button(
+                            onClick = {
+                                // Checked before the coroutine starts, so two taps inside one
+                                // frame still produce a single write.
+                                if (writeInFlight.compareAndSet(false, true)) save()
+                            },
+                            enabled = !saving && !(chosenSourceEventId != null &&
+                                sourceEvent == null),
+                            shape = MaterialTheme.shapes.medium,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 52.dp)
+                                .testTag("manual-save"),
+                        ) {
+                            Text(
+                                text = when {
+                                    saving -> strings.saving
+                                    editing -> strings.saveEdit
+                                    else -> strings.saveNew
+                                },
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { innerPadding ->
         val saved = savedRecord
         if (saved != null) {
             SavedTransactionPanel(
                 record = saved,
                 categoryName = selectedCategoryName,
+                strings = strings,
+                baseStrings = baseStrings,
+                zone = zone,
                 onRecordAnother = {
                     val nowMillis = System.currentTimeMillis()
                     amountText = ""
                     selectedType = TransactionType.EXPENSE
-                    dateText = ManualDateTime.dateFieldText(nowMillis)
-                    timeText = ManualDateTime.timeFieldText(nowMillis)
+                    dateText = ManualDateTime.dateFieldText(nowMillis, zone)
+                    timeText = ManualDateTime.timeFieldText(nowMillis, zone)
                     descriptionText = ""
                     selectedCategoryId = null
                     selectedCategoryName = null
@@ -514,7 +679,10 @@ private fun TransactionFormScreen(
                     // A further record is a further request: it gets its own key, and it
                     // records no note until the user names one again.
                     saveKey = newSaveRequestKey()
+                    chosenSourceEventId = null
+                    chosenSourceRevision = null
                     sourceEvent = null
+                    sourceEventLoadError = null
                     editedSinceOpen = false
                     discardPending = false
                 },
@@ -522,56 +690,157 @@ private fun TransactionFormScreen(
                 modifier = Modifier.padding(innerPadding),
             )
         } else {
-            TransactionForm(
-                amountText = amountText,
-                onAmountChange = { amountText = it; amountError = null; editedSinceOpen = true },
-                amountError = amountError,
-                selectedType = selectedType,
-                onTypeChange = {
-                    selectedType = it
-                    categoryError = null
-                    editedSinceOpen = true
-                },
-                dateText = dateText,
-                onDateChange = { dateText = it; dateError = null; editedSinceOpen = true },
-                dateError = dateError,
-                timeText = timeText,
-                onTimeChange = { timeText = it; timeError = null; editedSinceOpen = true },
-                timeError = timeError,
-                descriptionText = descriptionText,
-                onDescriptionChange = { descriptionText = it; editedSinceOpen = true },
-                categoryName = categoryButtonLabel,
-                categoryId = selectedCategoryId,
-                categoryArchived = currentSelectedCategory?.archived
-                    ?: (storedCategory?.archived == true &&
-                        selectedCategoryId == storedCategory.id),
-                categoryNote = categoryNote,
-                categoryError = categoryError,
-                onPickCategory = { categoryPickerVisible = true },
-                onChooseNoCategory = {
-                    selectedCategoryId = null
-                    selectedCategoryName = null
-                    categoryError = null
-                    editedSinceOpen = true
-                },
-                sourceEvent = sourceEvent,
-                sourceEventLoading = sourceEventLoading,
-                sourceEventLoadError = sourceEventLoadError,
-                onPickNote = { notePickerVisible = true },
-                onClearNote = {
-                    sourceEvent = null
-                    sourceEventLoadError = null
-                    editedSinceOpen = true
-                },
-                saveError = saveError,
-                saving = saving || sourceEventLoading,
-                editing = editing,
-                // The guard is checked before the coroutine starts, so two taps inside one
-                // frame still produce a single write; the button state only makes it visible.
-                onSave = { if (writeInFlight.compareAndSet(false, true)) save() },
-                onCancel = ::requestLeave,
-                modifier = Modifier.padding(innerPadding),
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                HeroAmountCard(
+                    amountText = amountText,
+                    onAmountChange = {
+                        amountText = it
+                        amountError = null
+                        editedSinceOpen = true
+                    },
+                    amountError = amountError,
+                    amountWords = amountWords,
+                    strings = strings,
+                    scope = scope,
+                )
+
+                TransactionTypePicker(
+                    selectedType = selectedType,
+                    onTypeChange = {
+                        selectedType = it
+                        categoryError = null
+                        editedSinceOpen = true
+                    },
+                    baseStrings = baseStrings,
+                )
+                if (selectedType == TransactionType.TRANSFER) {
+                    Text(
+                        text = strings.transferNoCategory,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    Text(
+                        text = if (selectedType == TransactionType.EXPENSE) {
+                            strings.typeExpenseHelp
+                        } else {
+                            strings.typeIncomeHelp
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    CategorySection(
+                        selectedCategoryId = selectedCategoryId,
+                        selectedCategoryRow = selectedCategoryRow,
+                        catalog = catalog,
+                        strings = strings,
+                        archivedLabel = baseStrings.archivedLabel,
+                        onSelect = { category ->
+                            selectedCategoryId = category.id
+                            selectedCategoryName = category.name
+                            categoryError = null
+                            editedSinceOpen = true
+                        },
+                        onChooseNone = {
+                            selectedCategoryId = null
+                            selectedCategoryName = null
+                            categoryError = null
+                            editedSinceOpen = true
+                        },
+                        onOpenAll = { categorySheetVisible = true },
+                        note = categoryNote,
+                        error = categoryError,
+                    )
+                }
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(
+                            text = strings.detailsSection.uppercase(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        MomentRow(
+                            label = strings.momentLabel,
+                            value = momentDisplay,
+                            onClick = { momentSheetVisible = true },
+                        )
+                        if (dateError != null || timeError != null) {
+                            Text(
+                                text = listOfNotNull(dateError, timeError).joinToString(" "),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                        OutlinedTextField(
+                            value = descriptionText,
+                            onValueChange = {
+                                descriptionText = it
+                                editedSinceOpen = true
+                            },
+                            label = { Text(strings.memoLabel) },
+                            placeholder = { Text(strings.memoPlaceholder) },
+                            minLines = 2,
+                            maxLines = 4,
+                            keyboardOptions = KeyboardOptions(
+                                capitalization = KeyboardCapitalization.Sentences,
+                            ),
+                            supportingText = { Text(strings.memoHelp) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("manual-memo")
+                                .focusedFieldBringIntoView(scope),
+                        )
+                    }
+                }
+
+                if (!editing) {
+                    SourceSection(
+                        sourceEvent = sourceEvent,
+                        chosenSourceEventId = chosenSourceEventId,
+                        loading = sourceEventLoading,
+                        error = sourceEventLoadError,
+                        strings = strings,
+                        zone = zone,
+                        onChoose = { noteSheetVisible = true },
+                        onClear = {
+                            chosenSourceEventId = null
+                            chosenSourceRevision = null
+                            sourceEvent = null
+                            sourceEventLoadError = null
+                            editedSinceOpen = true
+                        },
+                        onRetry = { sourceLoadToken += 1 },
+                    )
+                }
+
+                if (saveError != null) {
+                    Text(
+                        text = saveError.orEmpty(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+
+                // The sticky bar is the only primary action; this spacer keeps the last
+                // field clear of it while scrolling.
+                Spacer(modifier = Modifier.height(4.dp))
+            }
         }
     }
 
@@ -582,106 +851,826 @@ private fun TransactionFormScreen(
         )
     }
 
-    if (categoryPickerVisible) {
-        CategoryPickerDialog(
-            queryService = queryService,
-            // The retained option is the record's own archived category, and it is only
-            // offered while a row for it still exists: the stored snapshot is used just
-            // while the live list is still loading, so a category deleted during this form
-            // cannot come back as a picker choice.
-            retainedCategory = storedCategory
-                ?.takeIf { it.archived }
-                ?.let { stored ->
-                    when (val loaded = catalog) {
-                        null -> stored
-                        else -> loaded.firstOrNull { it.id == stored.id }
-                    }
-                },
+    if (categorySheetVisible) {
+        CategoryChoiceSheet(
+            catalog = catalog,
             selectedCategoryId = selectedCategoryId,
+            retainedCategory = storedCategory,
+            strings = strings,
+            archivedLabel = baseStrings.archivedLabel,
             onSelect = { id, name ->
                 selectedCategoryId = id
                 selectedCategoryName = name
                 categoryError = null
-                categoryPickerVisible = false
+                categorySheetVisible = false
                 editedSinceOpen = true
             },
-            onDismiss = { categoryPickerVisible = false },
+            onDismiss = { categorySheetVisible = false },
         )
     }
 
-    if (notePickerVisible) {
-        NoteEventPickerDialog(
+    if (momentSheetVisible) {
+        MomentSheet(
+            dateText = dateText,
+            timeText = timeText,
+            strings = strings,
+            zone = zone,
+            onApply = { day, time ->
+                dateText = day
+                timeText = time
+                dateError = null
+                timeError = null
+                momentSheetVisible = false
+                editedSinceOpen = true
+            },
+            onDismiss = { momentSheetVisible = false },
+        )
+    }
+
+    if (noteSheetVisible) {
+        NoteEventSheet(
             queryService = queryService,
+            strings = strings,
+            zone = zone,
             onSelect = { note ->
                 // Selecting a saved event fills the fields it actually states; every value
                 // remains editable and nothing is written until the user presses Save.
                 sourceEvent = note
                 sourceEventLoadError = null
+                chosenSourceEventId = note.eventId
+                chosenSourceRevision = note.revision
                 sourcePrefillApplied = true
                 note.amountVnd?.let { amount -> amountText = amount.toString() }
                 note.anchorDate?.let { day -> dateText = day }
                 note.anchorTime?.let { time -> timeText = time }
                 descriptionText = note.normalizedText.orEmpty()
-                notePickerVisible = false
+                noteSheetVisible = false
                 editedSinceOpen = true
             },
-            onDismiss = { notePickerVisible = false },
+            onDismiss = { noteSheetVisible = false },
         )
     }
 }
 
 /**
- * The saved notes that are still waiting to be recorded by hand.
+ * The hero amount: one large field on its own card, with the exact amount written out below.
  *
- * Only the notes that hold a complete reading and are not already recorded or linked to
- * a bank notification are offered: a note that is spent is not a candidate, and a note
- * whose bank notification is waiting is that notification's business.
+ * The field accepts the hardware/software number keyboard. Digits are the stored value; the
+ * words are only a reading of them. A refused amount says why under the same card, and the
+ * typed digits stay in place.
  */
 @Composable
-private fun NoteEventPickerDialog(
-    queryService: WorkflowQueryService,
-    onSelect: (UnrecordedNoteEvent) -> Unit,
-    onDismiss: () -> Unit,
+private fun HeroAmountCard(
+    amountText: String,
+    onAmountChange: (String) -> Unit,
+    amountError: String?,
+    amountWords: String?,
+    strings: ManualRecordStrings,
+    scope: CoroutineScope,
 ) {
-    var notes by remember { mutableStateOf<List<UnrecordedNoteEvent>?>(null) }
-    LaunchedEffect(queryService) {
-        notes = queryService.unrecordedNoteEvents(QueryPageRequest(LIST_PAGE_SIZE)).items
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = strings.amountSection.uppercase(),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            BasicTextField(
+                value = amountText,
+                onValueChange = onAmountChange,
+                textStyle = MaterialTheme.typography.displaySmall.copy(
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                ),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 64.dp)
+                    .testTag("manual-amount")
+                    .focusedFieldBringIntoView(scope),
+                decorationBox = { innerTextField ->
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (amountText.isEmpty()) {
+                            Text(
+                                text = strings.amountPlaceholder,
+                                style = MaterialTheme.typography.displaySmall.copy(
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                ),
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                        innerTextField()
+                    }
+                },
+            )
+            Text(
+                text = amountError
+                    ?: amountWords
+                    ?: strings.amountHint,
+                style = MaterialTheme.typography.bodyMedium,
+                color = when {
+                    amountError != null -> MaterialTheme.colorScheme.error
+                    amountWords != null -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                textAlign = TextAlign.Center,
+            )
+        }
     }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Record from a saved note") },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                when (val loaded = notes) {
-                    null -> Text("Loading your saved notes…")
-                    else -> if (loaded.isEmpty()) {
-                        Text("No saved note is waiting to be recorded.")
-                    } else {
-                        loaded.forEach { note ->
-                            OutlinedButton(shape = MaterialTheme.shapes.small, onClick = { onSelect(note) },
-                            modifier = Modifier.fillMaxWidth(),) { Text(noteLabel(note)) }
+}
+
+/** The quick category grid plus the route to every stored category. */
+@Composable
+private fun CategorySection(
+    selectedCategoryId: Long?,
+    selectedCategoryRow: CategoryEntity?,
+    catalog: List<CategoryEntity>?,
+    strings: ManualRecordStrings,
+    archivedLabel: String,
+    onSelect: (CategoryEntity) -> Unit,
+    onChooseNone: () -> Unit,
+    onOpenAll: () -> Unit,
+    note: String?,
+    error: String?,
+) {
+    val activeCategories = catalog?.filterNot { it.archived }.orEmpty()
+    val visible = mutableListOf<CategoryEntity>()
+    activeCategories.take(6).let(visible::addAll)
+    if (selectedCategoryRow != null && visible.none { it.id == selectedCategoryRow.id }) {
+        visible.add(0, selectedCategoryRow)
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = strings.categorySection.uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        when {
+            catalog == null -> Text(
+                text = strings.categoryLoading,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            visible.isEmpty() -> Text(
+                text = strings.categoryEmpty,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            else -> {
+                visible.chunked(2).forEach { row ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        row.forEach { category ->
+                            CategoryTile(
+                                category = category,
+                                selected = category.id == selectedCategoryId,
+                                archivedLabel = archivedLabel,
+                                onClick = { onSelect(category) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        if (row.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
-        },
-    )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedButton(
+                onClick = onOpenAll,
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp)
+                    .testTag("manual-category-all"),
+            ) { Text(strings.categoryAll) }
+            if (selectedCategoryId != null) {
+                TextButton(
+                    onClick = onChooseNone,
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) { Text(strings.categoryClear) }
+            }
+        }
+        Text(
+            text = note ?: strings.categoryOptional,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (note != null) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        )
+        if (error != null) {
+            Text(
+                text = error,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
 }
 
-/** How one saved note is named in the picker. */
-private fun noteLabel(note: UnrecordedNoteEvent): String {
+@Composable
+private fun CategoryTile(
+    category: CategoryEntity,
+    selected: Boolean,
+    archivedLabel: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val contentDescription = buildString {
+        append(category.name)
+        if (category.archived) append(", ").append(archivedLabel)
+    }
+    Surface(
+        modifier = modifier
+            .defaultMinSize(minHeight = 56.dp)
+            .selectable(
+                selected = selected,
+                role = Role.RadioButton,
+                onClick = onClick,
+            )
+            .semantics { this.contentDescription = contentDescription },
+        shape = MaterialTheme.shapes.medium,
+        color = if (selected) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+        },
+        border = if (selected) {
+            BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+        } else {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        },
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .background(
+                        color = CategoryPalette.color(
+                            categoryId = category.id,
+                            darkTheme = androidx.compose.foundation.isSystemInDarkTheme(),
+                            archived = category.archived,
+                            directory = true,
+                        ).copy(alpha = 0.18f),
+                        shape = RoundedCornerShape(9.dp),
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                CategorySwatch(
+                    categoryId = category.id,
+                    archived = category.archived,
+                    directory = true,
+                    size = 14.dp,
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = category.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (category.archived) {
+                    Text(
+                        text = archivedLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            if (selected) {
+                AegisIcon(
+                    glyph = AegisGlyph.CHECK,
+                    tint = MaterialTheme.colorScheme.primary,
+                    size = 18.dp,
+                )
+            }
+        }
+    }
+}
+
+/** The date and time row: one focused value that opens its own sheet. */
+@Composable
+private fun MomentRow(
+    label: String,
+    value: String,
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = "$label: $value" }
+            .testTag("manual-moment"),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            AegisIcon(
+                glyph = AegisGlyph.CHEVRON_RIGHT,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                size = 18.dp,
+            )
+        }
+    }
+}
+
+/** The optional saved-note source, shown as one card with its own chooser. */
+@Composable
+private fun SourceSection(
+    sourceEvent: UnrecordedNoteEvent?,
+    chosenSourceEventId: Long?,
+    loading: Boolean,
+    error: String?,
+    strings: ManualRecordStrings,
+    zone: TimeZone,
+    onChoose: () -> Unit,
+    onClear: () -> Unit,
+    onRetry: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = strings.sourceSection.uppercase(),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            when {
+                loading -> Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                    Text(strings.sourceLoading, style = MaterialTheme.typography.bodyMedium)
+                }
+
+                sourceEvent != null -> {
+                    Text(
+                        text = noteLabel(sourceEvent, zone),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = strings.sourceSelectedHelp,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(
+                            onClick = onChoose,
+                            modifier = Modifier.heightIn(min = 48.dp),
+                        ) { Text(strings.sourceChange) }
+                        TextButton(
+                            onClick = onClear,
+                            modifier = Modifier.heightIn(min = 48.dp),
+                        ) { Text(strings.sourceClear) }
+                    }
+                }
+
+                else -> {
+                    if (error != null) {
+                        Text(
+                            text = error,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    } else if (chosenSourceEventId != null) {
+                        Text(
+                            text = strings.sourceEmpty,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        text = strings.sourceHelp,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = onChoose,
+                            shape = MaterialTheme.shapes.small,
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 48.dp)
+                                .testTag("manual-source-choose"),
+                        ) { Text(strings.sourceChoose) }
+                        if (error != null) {
+                            TextButton(
+                                onClick = onRetry,
+                                modifier = Modifier.heightIn(min = 48.dp),
+                            ) { Text(strings.retry) }
+                        }
+                        if (chosenSourceEventId != null) {
+                            TextButton(
+                                onClick = onClear,
+                                modifier = Modifier.heightIn(min = 48.dp),
+                            ) { Text(strings.sourceClear) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The category chooser over the whole live catalog.
+ *
+ * "No category" keeps a manual record saveable. An archived category the record already
+ * carries is listed and marked so the existing filing is visible and can be kept, while no
+ * other archived category is offered for a new assignment.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CategoryChoiceSheet(
+    catalog: List<CategoryEntity>?,
+    selectedCategoryId: Long?,
+    retainedCategory: CategoryEntity?,
+    strings: ManualRecordStrings,
+    archivedLabel: String,
+    onSelect: (Long?, String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 16.dp)
+                .testTag("manual-category-sheet"),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(strings.categorySheetTitle, style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = strings.categorySheetHelp,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            CategoryChoiceRow(
+                name = strings.categoryNone,
+                archived = false,
+                archivedLabel = archivedLabel,
+                selected = selectedCategoryId == null,
+                onSelect = { onSelect(null, null) },
+            )
+            when {
+                catalog == null -> Text(
+                    text = strings.categoryLoading,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 12.dp),
+                )
+
+                catalog.isEmpty() -> Text(
+                    text = strings.categorySheetEmpty,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 12.dp),
+                )
+
+                else -> {
+                    val retained = retainedCategory?.takeIf { it.archived }
+                    val active = catalog.filterNot { it.archived }
+                    if (retained == null && active.isEmpty()) {
+                        Text(
+                            text = strings.categorySheetEmpty,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 12.dp),
+                        )
+                    } else {
+                        if (retained != null) {
+                            CategoryChoiceRow(
+                                name = retained.name,
+                                archived = true,
+                                archivedLabel = archivedLabel,
+                                selected = retained.id == selectedCategoryId,
+                                onSelect = { onSelect(retained.id, retained.name) },
+                            )
+                        }
+                        active.forEach { category ->
+                            CategoryChoiceRow(
+                                name = category.name,
+                                archived = false,
+                                archivedLabel = archivedLabel,
+                                selected = category.id == selectedCategoryId,
+                                onSelect = { onSelect(category.id, category.name) },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategoryChoiceRow(
+    name: String,
+    archived: Boolean,
+    archivedLabel: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = 48.dp)
+            .selectable(
+                selected = selected,
+                role = Role.RadioButton,
+                onClick = onSelect,
+            )
+            .padding(horizontal = 4.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Text(
+            text = name,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+        if (archived) {
+            ArchivedCategoryBadge(label = archivedLabel)
+        }
+    }
+}
+
+/** The focused date/time sheet; applying a well-formed moment changes nothing by itself. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MomentSheet(
+    dateText: String,
+    timeText: String,
+    strings: ManualRecordStrings,
+    zone: TimeZone,
+    onApply: (String, String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var date by rememberSaveable { mutableStateOf(dateText) }
+    var time by rememberSaveable { mutableStateOf(timeText) }
+    val scope = rememberCoroutineScope()
+    val dateProblem = ManualDateTime.dateError(date)
+    val timeProblem = ManualDateTime.timeError(time)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 16.dp)
+                .testTag("manual-moment-sheet"),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(strings.momentSheetTitle, style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = strings.momentSheetHelp,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedTextField(
+                value = date,
+                onValueChange = { date = it },
+                label = { Text(strings.dateLabel) },
+                placeholder = { Text(ManualDateTime.DATE_FORMAT) },
+                singleLine = true,
+                isError = dateProblem != null,
+                supportingText = {
+                    Text(if (dateProblem != null) strings.dateError else ManualDateTime.DATE_FORMAT)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("manual-date")
+                    .focusedFieldBringIntoView(scope),
+            )
+            OutlinedTextField(
+                value = time,
+                onValueChange = { time = it },
+                label = { Text(strings.timeLabel) },
+                placeholder = { Text(ManualDateTime.TIME_FORMAT) },
+                singleLine = true,
+                isError = timeProblem != null,
+                supportingText = {
+                    Text(if (timeProblem != null) strings.timeError else ManualDateTime.TIME_FORMAT)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("manual-time")
+                    .focusedFieldBringIntoView(scope),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val nowMillis = System.currentTimeMillis()
+                TextButton(
+                    onClick = { date = ManualDateTime.dateFieldText(nowMillis, zone) },
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) { Text(strings.momentToday) }
+                TextButton(
+                    onClick = { time = ManualDateTime.timeFieldText(nowMillis, zone) },
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) { Text(strings.momentNow) }
+            }
+            Button(
+                onClick = { onApply(date, time) },
+                enabled = dateProblem == null && timeProblem == null,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 52.dp)
+                    .testTag("manual-moment-apply"),
+            ) { Text(strings.momentApply) }
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
+            ) { Text(strings.momentCancel) }
+        }
+    }
+}
+
+/** The focused chooser of saved notes still waiting to be recorded by hand. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NoteEventSheet(
+    queryService: WorkflowQueryService,
+    strings: ManualRecordStrings,
+    zone: TimeZone,
+    onSelect: (UnrecordedNoteEvent) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var notes by remember { mutableStateOf<List<UnrecordedNoteEvent>?>(null) }
+    var failed by remember { mutableStateOf(false) }
+    LaunchedEffect(queryService) {
+        notes = try {
+            queryService.unrecordedNoteEvents(QueryPageRequest(LIST_PAGE_SIZE)).items
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            failed = true
+            null
+        }
+    }
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 16.dp)
+                .testTag("manual-source-sheet"),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(strings.sourceSheetTitle, style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = strings.sourceSheetHelp,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            val loaded = notes
+            when {
+                failed -> Text(
+                    text = strings.sourceLoadError,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+
+                loaded == null -> Text(
+                    text = strings.sourceLoading,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                loaded.isEmpty() -> Text(
+                    text = strings.sourceEmpty,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                else -> loaded.forEach { note ->
+                    OutlinedButton(
+                        onClick = { onSelect(note) },
+                        shape = MaterialTheme.shapes.small,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp),
+                    ) {
+                        Text(
+                            text = noteLabel(note, zone),
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Start,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** How one saved note is named in the chooser and on its source card. */
+private fun noteLabel(note: UnrecordedNoteEvent, zone: TimeZone): String {
     val reading = note.normalizedText ?: note.captureText ?: ""
-    val amount = note.amountVnd?.let { VndMoney.formatAmount(it) }
+    val amount = note.amountVnd?.let { VndMoney.formatAmount(it, " ₫") }
+    val date = note.anchorDate?.let { text ->
+        runCatching { ManualDateTime.dayStartEpochMillis(text, zone) }
+            .getOrNull()
+            ?.let { dayMonthYearText(it, zone) }
+            ?: text
+    }
     return listOfNotNull(
         reading.takeIf { it.isNotBlank() },
         amount,
-        note.anchorDate,
+        date,
         note.anchorTime,
     ).joinToString(" · ")
 }
@@ -689,345 +1678,90 @@ private fun noteLabel(note: UnrecordedNoteEvent): String {
 /** A key that names one save request; the same key stores one record. */
 private fun newSaveRequestKey(): String = "manual-save:" + UUID.randomUUID()
 
-/** The top bar of every editor state: one title and one Back control. */
+/** The amount stored by the form, or null when the text is not an exact positive amount. */
+private fun parseManualAmountOrNull(text: String): Long? = try {
+    VndMoney.parseManualAmount(text)
+} catch (_: LedgerValidationException) {
+    null
+}
+
+/** The moment as the form shows it, falling back to the two field texts if they are invalid. */
+private fun momentDisplayText(dateText: String, timeText: String, zone: TimeZone): String {
+    val millis = runCatching {
+        ManualDateTime.toEpochMillis(dateText, timeText, zone)
+    }.getOrNull() ?: return "$dateText · $timeText"
+    return dayMonthYearText(millis, zone) + " · " + ManualDateTime.timeFieldText(millis, zone)
+}
+
+/** The top bar of every editor state: one title and one close/back control. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EditorTopBar(
     title: String,
-    onNavigateUp: () -> Unit,
-    backEnabled: Boolean = true,
+    closeLabel: String,
+    editing: Boolean,
+    onClose: () -> Unit,
+    closeEnabled: Boolean = true,
 ) {
-    TopAppBar(
+    CenterAlignedTopAppBar(
         title = {
             Text(
-                title.uppercase(Locale.ROOT),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 0.6.sp,
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         },
         navigationIcon = {
-            TextButton(
-                onClick = onNavigateUp,
-                enabled = backEnabled,
-            ) { Text("Back") }
+            IconButton(
+                onClick = onClose,
+                enabled = closeEnabled,
+                modifier = Modifier.semantics { contentDescription = closeLabel },
+            ) {
+                AegisIcon(
+                    glyph = if (editing) AegisGlyph.ARROW_BACK else AegisGlyph.CROSS,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    size = 22.dp,
+                )
+            }
         },
     )
 }
 
-/** The moment between asking for a stored record and having it. */
+/** A loading, missing, or unreadable record, with one way to leave it. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun LoadingTransaction(onNavigateUp: () -> Unit, modifier: Modifier = Modifier) {
-    BackHandler(onBack = onNavigateUp)
+private fun ManualStateScaffold(
+    title: String,
+    strings: ManualRecordStrings,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    BackHandler(onBack = onClose)
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        topBar = { EditorTopBar("Transaction", onNavigateUp) },
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            EditorTopBar(
+                title = title,
+                closeLabel = strings.close,
+                editing = true,
+                onClose = onClose,
+            )
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 24.dp, vertical = 24.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(
-                text = "Loading transaction…",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-/** A record that was asked for but is no longer in the ledger. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun MissingTransaction(onNavigateUp: () -> Unit, modifier: Modifier = Modifier) {
-    BackHandler(onBack = onNavigateUp)
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = { EditorTopBar("Transaction", onNavigateUp) },
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 24.dp, vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = "This transaction no longer exists",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-            Text(
-                text = "It is not in the ledger, so there is nothing to show or change here.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-/** The fields of one manual record, empty for creation and prefilled for a correction. */
-@Composable
-private fun TransactionForm(
-    amountText: String,
-    onAmountChange: (String) -> Unit,
-    amountError: String?,
-    selectedType: TransactionType,
-    onTypeChange: (TransactionType) -> Unit,
-    dateText: String,
-    onDateChange: (String) -> Unit,
-    dateError: String?,
-    timeText: String,
-    onTimeChange: (String) -> Unit,
-    timeError: String?,
-    descriptionText: String,
-    onDescriptionChange: (String) -> Unit,
-    categoryName: String?,
-    categoryId: Long?,
-    categoryArchived: Boolean,
-    categoryNote: String?,
-    categoryError: String?,
-    onPickCategory: () -> Unit,
-    onChooseNoCategory: () -> Unit,
-    sourceEvent: UnrecordedNoteEvent?,
-    sourceEventLoading: Boolean,
-    sourceEventLoadError: String?,
-    onPickNote: () -> Unit,
-    onClearNote: () -> Unit,
-    saveError: String?,
-    saving: Boolean,
-    editing: Boolean,
-    onSave: () -> Unit,
-    onCancel: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .imePadding()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text(
-            text = if (editing) {
-                "Change what this record holds in exact whole dong. Nothing is stored until " +
-                    "you save, and leaving now changes nothing."
-            } else {
-                "Record what happened in exact whole dong. Nothing is stored until you save."
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        val amountPreview = try {
-            VndMoney.formatAmount(VndMoney.parseManualAmount(amountText))
-        } catch (rejection: LedgerValidationException) {
-            null
-        }
-        OutlinedTextField(
-            value = amountText,
-            onValueChange = onAmountChange,
-            textStyle = MaterialTheme.typography.headlineSmall.copy(
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-            ),
-            label = { Text("Amount (VND)") },
-            placeholder = { Text("45000") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            isError = amountError != null,
-            supportingText = amountError?.let { message -> { Text(message) } }
-                ?: amountPreview?.let { formatted -> { Text("Saves as $formatted") } },
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        Text(
-            text = "Type",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        TransactionTypePicker(
-            selectedType = selectedType,
-            onTypeChange = onTypeChange,
-        )
-        Text(
-            text = when (selectedType) {
-                TransactionType.EXPENSE -> "Money leaving · counted as spending after save"
-                TransactionType.INCOME -> "Money arriving · kept separate from spending"
-                TransactionType.TRANSFER -> "Between your own accounts · neither spend nor income"
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = when (selectedType) {
-                TransactionType.EXPENSE -> MaterialTheme.colorScheme.error
-                TransactionType.INCOME -> MaterialTheme.colorScheme.secondary
-                TransactionType.TRANSFER -> MaterialTheme.colorScheme.primary
-            },
-        )
-        OutlinedTextField(
-            value = dateText,
-            onValueChange = onDateChange,
-            label = { Text("Date") },
-            placeholder = { Text("2026-10-15") },
-            singleLine = true,
-            isError = dateError != null,
-            supportingText = dateError?.let { message -> { Text(message) } },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = timeText,
-            onValueChange = onTimeChange,
-            label = { Text("Time") },
-            placeholder = { Text("18:30") },
-            singleLine = true,
-            isError = timeError != null,
-            supportingText = timeError?.let { message -> { Text(message) } },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Text(
-            text = "Dates and times use your device's time zone.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        OutlinedTextField(
-            value = descriptionText,
-            onValueChange = onDescriptionChange,
-            label = { Text("Description (optional)") },
-            placeholder = { Text("Lunch") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        if (selectedType == TransactionType.TRANSFER) {
-            Text(
-                text = "An internal transfer moves money between your own accounts, so it " +
-                    "carries no category.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onPickCategory,
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 48.dp),) { Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                CategorySwatch(
-                    categoryId = categoryId,
-                    archived = categoryArchived,
-                    directory = true,
-                )
-                Text(
-                    categoryName?.removeSuffix(" (archived)")
-                        ?: "Select category (optional)",
-                    modifier = Modifier.weight(1f),
-                )
-                if (categoryArchived) {
-                    ArchivedCategoryBadge()
-                }
-            } }
-            if (categoryNote != null) {
-                Text(
-                    text = categoryNote,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (categoryError != null) {
-                Text(
-                    text = categoryError,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-        }
-        if (!editing) {
-            OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onPickNote,
-            enabled = !saving,
-            modifier = Modifier.fillMaxWidth(),) { Text("Record from a saved note") }
-            if (sourceEventLoading) {
-                Text("Loading the selected saved event before manual recording…")
-            }
-            sourceEventLoadError?.let { message ->
-                Text(message, color = MaterialTheme.colorScheme.error)
-            }
-            if (sourceEvent != null) {
-                Text(
-                    "Provenance reference: saved note #${sourceEvent.captureId}, " +
-                        "event #${sourceEvent.eventId}.",
-                    style = MaterialTheme.typography.labelMedium,
-                )
-                Text(
-                    text = "This record will resolve the saved event “${noteLabel(sourceEvent)}”. " +
-                        "It is only saved after you press Save transaction; a later bank " +
-                        "notification will not be matched to that event again.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                TextButton(onClick = onClearNote, enabled = !saving) {
-                    Text("Use no note")
-                }
-            }
-        }
-
-        if (saveError != null) {
-            Text(
-                text = saveError,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-            )
-        }
-
-        Button(shape = MaterialTheme.shapes.small, onClick = onSave,
-        enabled = !saving,
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp),) { Text(
-            text = when {
-                saving -> "Saving…"
-                editing -> "Save changes"
-                else -> "Save transaction"
-            },
-        ) }
-        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onCancel,
-        enabled = !saving,
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp),) { Text("Cancel") }
-    }
-}
-
-/**
- * Expense / Income / Internal transfer: the selected type of one record.
- *
- * All three segments share a single content-driven height: the row measures the tallest
- * intrinsic label — on a narrow phone "Internal transfer" already fills two lines — and
- * every segment fills that height, so the selected checkmark, the borders and the touch
- * targets stay aligned at the top and the bottom instead of the two-line segment sticking
- * out of a row of shorter ones.
- */
-@Composable
-internal fun TransactionTypePicker(
-    selectedType: TransactionType,
-    onTypeChange: (TransactionType) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    SingleChoiceSegmentedButtonRow(
-        modifier = modifier.fillMaxWidth().height(IntrinsicSize.Min),
-    ) {
-        TransactionType.entries.forEachIndexed { index, type ->
-            SegmentedButton(
-                selected = type == selectedType,
-                onClick = { onTypeChange(type) },
-                modifier = Modifier.fillMaxHeight(),
-                shape = MaterialTheme.shapes.small,
-                label = { Text(typeLabel(type)) },
-            )
+            content()
         }
     }
 }
@@ -1040,6 +1774,9 @@ internal fun TransactionTypePicker(
 private fun SavedTransactionPanel(
     record: TransactionEntity,
     categoryName: String?,
+    strings: ManualRecordStrings,
+    baseStrings: AegisStrings,
+    zone: TimeZone,
     onRecordAnother: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1048,186 +1785,277 @@ private fun SavedTransactionPanel(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .navigationBarsPadding()
+            .padding(horizontal = 20.dp, vertical = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text(
-            text = "Transaction saved",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        Text(
-            text = VndMoney.formatAmount(record.amountVnd),
-            style = MaterialTheme.typography.displaySmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        DetailRow("Type", typeLabel(record.type))
-        DetailRow(
-            label = "When",
-            value = ManualDateTime.formatMoment(record.occurredAtEpochMillis) + " device time",
-        )
-        if (record.description.isNotEmpty()) {
-            DetailRow("Description", record.description)
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = strings.savedTitle,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                )
+                AegisMoneyText(
+                    amountVnd = record.amountVnd,
+                    prefix = amountPrefix(record.type),
+                    style = MaterialTheme.typography.headlineSmall,
+                )
+                AegisStatusChip(
+                    status = if (record.confirmation ==
+                        io.github.triet4p.aegisf.data.ConfirmationStatus.CONFIRMED
+                    ) {
+                        AegisStatus.CONFIRMED
+                    } else {
+                        AegisStatus.NEEDS_REVIEW
+                    },
+                    label = if (record.confirmation ==
+                        io.github.triet4p.aegisf.data.ConfirmationStatus.CONFIRMED
+                    ) {
+                        baseStrings.statusConfirmed
+                    } else {
+                        baseStrings.statusDraft
+                    },
+                )
+            }
         }
-        DetailRow("Category", categoryName ?: "No category")
-        DetailRow("Status", statusLabel(record.confirmation))
-        DetailRow("Source", sourceLabel(record.source))
-        DetailRow("Recorded at", ManualDateTime.formatMoment(record.createdAtEpochMillis))
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                SavedDetailRow(strings.savedType, baseStrings.typeName(record.type))
+                SavedDetailRow(
+                    strings.savedWhen,
+                    weekdayMomentText(record.occurredAtEpochMillis, baseStrings.language, zone),
+                )
+                if (record.description.isNotEmpty()) {
+                    SavedDetailRow(strings.savedDescription, record.description)
+                }
+                SavedDetailRow(
+                    strings.savedCategory,
+                    categoryName ?: baseStrings.noCategory,
+                )
+                SavedDetailRow(strings.savedSource, baseStrings.sourceName(record.source))
+                SavedDetailRow(
+                    strings.savedRecordedAt,
+                    weekdayMomentText(record.createdAtEpochMillis, baseStrings.language, zone),
+                )
+            }
+        }
         Text(
-            text = "This is the stored record. Open Saved transactions in the Manual " +
-                "destination to view, correct, or delete it.",
-            style = MaterialTheme.typography.bodyMedium,
+            text = strings.savedBody,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Button(shape = MaterialTheme.shapes.small, onClick = onRecordAnother,
-        modifier = Modifier.fillMaxWidth(),) { Text("Record another") }
-        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = onDone,
-        modifier = Modifier.fillMaxWidth(),) { Text("Done") }
+        Button(
+            onClick = onDone,
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 52.dp),
+        ) { Text(strings.done, style = MaterialTheme.typography.titleMedium) }
+        TextButton(
+            onClick = onRecordAnother,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp),
+        ) { Text(strings.recordAnother) }
+    }
+}
+
+@Composable
+private fun SavedDetailRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(104.dp),
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
 /**
- * Single-choice category picker; "No category" keeps a manual record saveable.
+ * Expense / Income / Internal transfer: the selected type of one record.
  *
- * [retainedCategory] is the archived category the record being corrected already carries. It
- * is listed — marked archived — so the current filing is visible and can be kept, while no
- * other archived category is offered for a new assignment.
- *
- * The catalog is read page by page, so every stored category can be picked, not only the
- * ones on the first page. The chosen category is read by its own id and stays visible and
- * marked on every page, so walking the catalog never hides the current choice.
+ * At the normal text scale the three segments sit in one row and share the tallest intrinsic
+ * label, so a two-line "Internal transfer" does not leave the selected segment shorter than its
+ * neighbours. At a large accessibility scale three equal columns would clip the Vietnamese
+ * labels, so the same segments stack as full-width rows instead of truncating their words. Each
+ * segment is a 48dp target.
  */
 @Composable
-private fun CategoryPickerDialog(
-    queryService: WorkflowQueryService,
-    retainedCategory: CategoryEntity?,
-    selectedCategoryId: Long?,
-    onSelect: (Long?, String?) -> Unit,
-    onDismiss: () -> Unit,
+internal fun TransactionTypePicker(
+    selectedType: TransactionType,
+    onTypeChange: (TransactionType) -> Unit,
+    baseStrings: AegisStrings,
+    modifier: Modifier = Modifier,
 ) {
-    var pageIndex by rememberSaveable { mutableIntStateOf(0) }
-    val categoryQuery = remember(pageIndex) {
-        CategoryQuery(
-            state = CategoryState.ACTIVE,
-            bounds = QueryPageRequest(LIST_PAGE_SIZE, offset = pageIndex * LIST_PAGE_SIZE),
-        )
-    }
-    val categoryPage: QueryPage<CategoryEntity>? by remember(queryService, categoryQuery) {
-        queryService.observeCategories(categoryQuery)
-    }.collectAsState(initial = null)
-    val categories = categoryPage?.items
-    // The chosen category is read by its own id, so it is named and marked on whichever
-    // page of the catalog the picker is showing.
-    val selectedRow: CategoryEntity? by remember(queryService, selectedCategoryId) {
-        if (selectedCategoryId == null) {
-            flowOf(null)
-        } else {
-            queryService.observeCategory(selectedCategoryId)
-        }
-    }.collectAsState(initial = null)
-    // A page that lost its categories steps back to the nearest page that still holds
-    // some, so the picker never shows an empty page in the middle of the catalog.
-    ClampPageToRows(
-        pageIndex = pageIndex,
-        hasRows = categoryPage?.items?.isNotEmpty(),
-        onClamp = { pageIndex = it },
-    )
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Category") },
-        text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                if (categories == null) {
-                    Text(
-                        text = "Loading categories…",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
-                    PageControls(
-                        pageIndex = pageIndex,
-                        hasMore = categoryPage?.hasMore == true,
-                        onPrevious = { pageIndex -= 1 },
-                        onNext = { pageIndex += 1 },
-                    )
-                    CategoryOption(
-                        text = "No category",
-                        selected = selectedCategoryId == null,
-                        onSelect = { onSelect(null, null) },
-                    )
-                    if (retainedCategory != null) {
-                        CategoryOption(
-                            text = retainedCategory.name,
-                            categoryId = retainedCategory.id,
-                            archived = retainedCategory.archived,
-                            selected = retainedCategory.id == selectedCategoryId,
-                            onSelect = {
-                                onSelect(retainedCategory.id, retainedCategory.name)
-                            },
-                        )
-                    }
-                    val chosen = selectedRow
-                    if (chosen != null && categories.none { it.id == chosen.id }) {
-                        CategoryOption(
-                            text = chosen.name,
-                            categoryId = chosen.id,
-                            archived = chosen.archived,
-                            selected = true,
-                            onSelect = { onSelect(chosen.id, chosen.name) },
-                        )
-                    }
-                    categories.forEach { category ->
-                        CategoryOption(
-                            text = category.name,
-                            categoryId = category.id,
-                            archived = category.archived,
-                            selected = category.id == selectedCategoryId,
-                            onSelect = { onSelect(category.id, category.name) },
+    val stack = LocalDensity.current.fontScale >= 1.3f
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        if (stack) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    listOf(TransactionType.EXPENSE, TransactionType.INCOME).forEach { type ->
+                        TransactionTypeSegment(
+                            type = type,
+                            selected = type == selectedType,
+                            baseStrings = baseStrings,
+                            onTypeChange = onTypeChange,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
                         )
                     }
                 }
+                TransactionTypeSegment(
+                    type = TransactionType.TRANSFER,
+                    selected = selectedType == TransactionType.TRANSFER,
+                    baseStrings = baseStrings,
+                    onTypeChange = onTypeChange,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Done") }
-        },
-    )
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(4.dp)
+                    .height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                TransactionType.entries.forEach { type ->
+                    TransactionTypeSegment(
+                        type = type,
+                        selected = type == selectedType,
+                        baseStrings = baseStrings,
+                        onTypeChange = onTypeChange,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
-private fun CategoryOption(
-    text: String,
-    categoryId: Long? = null,
-    archived: Boolean = false,
+private fun TransactionTypeSegment(
+    type: TransactionType,
     selected: Boolean,
-    onSelect: () -> Unit,
+    baseStrings: AegisStrings,
+    onTypeChange: (TransactionType) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onSelect)
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    Surface(
+        modifier = modifier
+            .defaultMinSize(minHeight = 48.dp)
+            .selectable(
+                selected = selected,
+                role = Role.RadioButton,
+                onClick = { onTypeChange(type) },
+            )
+            .testTag("manual-type-${type.name}"),
+        shape = MaterialTheme.shapes.medium,
+        color = if (selected) {
+            MaterialTheme.colorScheme.surface
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0f)
+        },
+        border = if (selected) {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        } else {
+            null
+        },
+        tonalElevation = if (selected) 1.dp else 0.dp,
     ) {
-        RadioButton(selected = selected, onClick = onSelect)
-        CategorySwatch(
-            categoryId = categoryId,
-            archived = archived,
-            directory = true,
-        )
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onBackground,
+        Box(
             modifier = Modifier
-                .weight(1f)
-                .padding(start = 8.dp),
-        )
-        if (archived) {
-            ArchivedCategoryBadge()
+                .fillMaxWidth()
+                .defaultMinSize(minHeight = 48.dp)
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = baseStrings.typeName(type),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                color = if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
+}
+
+/**
+ * Keeps a focused edit field above the sticky Save bar once the keyboard has opened.
+ *
+ * The bar itself lifts above the keyboard, which shrinks the scrolling viewport after the
+ * field already has focus. A request made only at focus time would aim at the old geometry,
+ * so the field asks again after the inset animation has settled.
+ */
+@Composable
+private fun Modifier.focusedFieldBringIntoView(scope: CoroutineScope): Modifier {
+    val requester = remember { BringIntoViewRequester() }
+    return this
+        .bringIntoViewRequester(requester)
+        .onFocusChanged { state ->
+            if (state.isFocused) {
+                scope.launch {
+                    delay(280)
+                    requester.bringIntoView()
+                }
+            }
+        }
 }

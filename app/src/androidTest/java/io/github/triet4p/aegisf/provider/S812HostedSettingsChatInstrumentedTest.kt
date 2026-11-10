@@ -28,8 +28,8 @@ class S812HostedSettingsChatInstrumentedTest {
         selectPrimaryDestination("Home")
 
         compose.onNodeWithText("Manual record").performClick()
-        waitForText("NEW TRANSACTION")
-        compose.onNodeWithText("Back").performClick()
+        waitForText("New transaction")
+        compose.onNodeWithContentDescription("Close").performClick()
         waitForText("Manual record")
 
         selectPrimaryDestination("Review")

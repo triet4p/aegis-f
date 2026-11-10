@@ -179,7 +179,7 @@ class S104NotesJournalInstrumentedTest {
 
         scrollToText("Record a transaction")
         compose.onNodeWithText("Record a transaction").performClick()
-        assertTrue(waitForText("NEW TRANSACTION"))
+        assertTrue(waitForText("New transaction"))
         assertTrue(exists("Taxi ride", substring = true))
         screenshot("317-manual-handoff")
         leaveScreen()

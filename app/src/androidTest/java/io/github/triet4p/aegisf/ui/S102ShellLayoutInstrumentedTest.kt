@@ -127,7 +127,7 @@ class S102ShellLayoutInstrumentedTest {
         compose.waitForIdle()
         assertTrue(
             "the record form did not survive recreation",
-            compose.onAllNodesWithText("NEW TRANSACTION", substring = true)
+            compose.onAllNodesWithText("New transaction", substring = true)
                 .fetchSemanticsNodes().isNotEmpty(),
         )
         val restoredAmount = compose.onAllNodes(hasSetTextAction()).fetchSemanticsNodes()

@@ -9,6 +9,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextClearance
@@ -279,15 +280,15 @@ class S99MeasurementInstrumentedTest {
         // The S10.2 Home launcher opens the record form directly; the intermediate Manual
         // menu no longer exists.
         selectDestination("Manual entry")
-        awaitText("NEW TRANSACTION", 30_000, "editor")
+        awaitText("New transaction", 30_000, "editor")
         fillForm(day, "09:10", "89000", fuelDescription, "Transport")
-        tap(compose.onNodeWithText("Save transaction").performScrollTo())
+        tap(compose.onNodeWithTag("manual-save").performScrollTo())
         awaitText("Transaction saved", 30_000, "saved-1")
         mark("firstSaved")
         tap(compose.onNodeWithText("Record another"))
-        awaitText("NEW TRANSACTION", 30_000, "editor-2")
+        awaitText("New transaction", 30_000, "editor-2")
         fillForm(day, "09:35", "54000", snackDescription, "Food")
-        tap(compose.onNodeWithText("Save transaction").performScrollTo())
+        tap(compose.onNodeWithTag("manual-save").performScrollTo())
         awaitText("Transaction saved", 30_000, "saved-2")
         mark("secondSaved")
         tap(compose.onNodeWithText("Done"))
@@ -896,24 +897,29 @@ class S99MeasurementInstrumentedTest {
         description: String,
         category: String,
     ) {
-        typeInto(0, amount)
-        typeInto(1, day)
-        typeInto(2, time)
-        typeInto(3, description)
-        val chooser = compose.onNodeWithText("Select category (optional)")
+        typeIntoTag("manual-amount", amount)
+        tap(compose.onNodeWithTag("manual-moment").performScrollTo())
+        waitForText("Date & time")
+        typeIntoTag("manual-date", day)
+        typeIntoTag("manual-time", time)
+        tap(compose.onNodeWithTag("manual-moment-apply"))
+        typeIntoTag("manual-memo", description)
+        val chooser = compose.onNodeWithTag("manual-category-all")
         chooser.performScrollTo()
         tap(chooser)
-        waitForText("Category")
+        waitForText("Choose a category")
         tap(compose.onNodeWithText(category))
     }
 
-    private fun typeInto(index: Int, value: String) {
-        val field = compose.onAllNodes(hasSetTextAction())[index]
+    private fun typeIntoTag(tag: String, value: String) {
+        val field = compose.onNodeWithTag(tag)
         field.performScrollTo()
+        field.performClick()
         field.performTextClearance()
         characters += value.length
         actions += 1
         field.performTextInput(value)
+        compose.waitForIdle()
     }
 
     private fun chooseReviewCategory(name: String) {
