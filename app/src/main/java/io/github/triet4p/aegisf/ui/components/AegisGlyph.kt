@@ -42,6 +42,8 @@ internal enum class AegisGlyph {
     LINK,
     EYE,
     EYE_OFF,
+    HISTORY,
+    ADD,
 }
 
 /**
@@ -200,6 +202,24 @@ private fun DrawScope.drawAegisGlyph(glyph: AegisGlyph, tint: Color) {
                     12f + sin * 8.4f,
                 )
             }
+        }
+
+        AegisGlyph.HISTORY -> {
+            drawCircle(
+                color = tint,
+                radius = 8f * unit,
+                center = point(12f, 12f),
+                style = Stroke(width = stroke),
+            )
+            line(12f, 12f, 12f, 7f)
+            line(12f, 12f, 16f, 14f)
+            line(4f, 5f, 8f, 5f)
+            line(4f, 5f, 4f, 9f)
+        }
+
+        AegisGlyph.ADD -> {
+            line(12f, 5f, 12f, 19f)
+            line(5f, 12f, 19f, 12f)
         }
 
         AegisGlyph.ARROW_BACK -> {

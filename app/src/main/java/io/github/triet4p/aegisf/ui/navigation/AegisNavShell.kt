@@ -114,6 +114,9 @@ private sealed interface NotesRoute : Serializable {
 /** The secondary routes of the AI Chat destination. */
 private sealed interface ChatRoute : Serializable {
     data class RecordEvent(val eventId: Long) : ChatRoute
+
+    /** Provider configuration is a focused child, never a panel stacked inside the chat. */
+    data object ProviderSettings : ChatRoute
 }
 
 /** The secondary routes of the Review destination. */
@@ -350,6 +353,9 @@ internal fun AegisAppShell(
                             agentRunState = chatRunState,
                             agentRunScope = chatRunScope,
                             stack = chatStack,
+                            onOpenProviderSettings = {
+                                chatStack = chatStack + ChatRoute.ProviderSettings
+                            },
                             onRecordEvent = { eventId ->
                                 chatStack = chatStack + ChatRoute.RecordEvent(eventId)
                             },
@@ -643,19 +649,28 @@ private fun ChatDestination(
     agentRunState: ChatAgentRunState,
     agentRunScope: kotlinx.coroutines.CoroutineScope,
     stack: List<ChatRoute>,
+    onOpenProviderSettings: () -> Unit,
     onRecordEvent: (Long) -> Unit,
     onPop: () -> Unit,
 ) {
+    val networkAvailable = io.github.triet4p.aegisf.ui.chat.rememberNetworkAvailable()
     when (val route = stack.lastOrNull()) {
         null -> AiChatScreen(
             queryService = queryService,
             commandService = commandService,
-            hostedProviderSettingsStore = hostedProviderSettingsStore,
+            activeProvider = hostedProviderSettingsStore::active,
+            networkAvailable = networkAvailable,
             createHostedWorkflowHost = createHostedWorkflowHost,
             agentRunHistory = agentRunHistory,
             agentRunState = agentRunState,
             agentRunScope = agentRunScope,
+            onOpenProviderSettings = onOpenProviderSettings,
             onRecordEvent = onRecordEvent,
+        )
+
+        ChatRoute.ProviderSettings -> HostedProviderSettingsScreen(
+            store = hostedProviderSettingsStore,
+            onNavigateUp = onPop,
         )
 
         is ChatRoute.RecordEvent -> TransactionEditorScreen(
@@ -729,6 +744,7 @@ private fun NotesRoute.notesKey(): String = when (this) {
 }
 
 private fun ChatRoute.chatKey(): String = when (this) {
+    ChatRoute.ProviderSettings -> "provider-settings"
     is ChatRoute.RecordEvent -> "record-event-$eventId"
 }
 

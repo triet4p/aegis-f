@@ -101,6 +101,18 @@ abstract class AgentRunDao {
     )
     abstract suspend fun findPage(scopeId: String, limit: Int, offset: Int): List<AgentRunEntity>
 
+    /**
+     * The newest runs across every caller session, for the one conversation-history destination.
+     *
+     * Every production run is started by the Chat destination, which mints a fresh session
+     * identity per sent message; the history lists those messages by their durable rows. The
+     * query is bounded so a long history cannot load an unbounded number of rows.
+     */
+    @Query(
+        "SELECT * FROM `agent_runs` ORDER BY `createdAtEpochMillis` DESC, `id` DESC LIMIT :limit",
+    )
+    abstract suspend fun findRecent(limit: Int): List<AgentRunEntity>
+
     /** How many runs one session holds; the retention bound prunes above this count. */
     @Query("SELECT COUNT(*) FROM `agent_runs` WHERE `scopeId` = :scopeId")
     abstract suspend fun countOf(scopeId: String): Long

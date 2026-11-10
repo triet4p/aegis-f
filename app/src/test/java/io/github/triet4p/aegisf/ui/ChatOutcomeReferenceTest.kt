@@ -79,6 +79,29 @@ class ChatOutcomeReferenceTest {
     }
 
     @Test
+    fun `a Vietnamese kind reference resolves to the same visible card`() {
+        val visible = visibleRefsOf(completed(eventReading(11, 21, 0), linkState(31, 11, 12)))
+        assertEquals(
+            ChatVisibleRef(ChatVisibleRefKind.EVENT, 11, "event #11"),
+            resolveFollowUpReference("sửa sự kiện #11", visible),
+        )
+        assertEquals(
+            ChatVisibleRef(ChatVisibleRefKind.DRAFT, 12, "draft #12"),
+            resolveFollowUpReference("bản nháp #12 thì sao", visible),
+        )
+        assertEquals(
+            ChatVisibleRef(ChatVisibleRefKind.LINK, 31, "link #31"),
+            resolveFollowUpReference("liên kết 31", visible),
+        )
+    }
+
+    @Test
+    fun `a Vietnamese pronoun with one visible card resolves to it`() {
+        val visible = visibleRefsOf(completed(eventReading(11, 21, 0)))
+        assertEquals(visible.single(), resolveFollowUpReference("ghi nó đi", visible))
+    }
+
+    @Test
     fun `a qualified reference naming two visible ids stays ambiguous`() {
         val visible = visibleRefsOf(completed(eventReading(11, 21, 0), linkState(31, 12, 11)))
         assertNull(resolveFollowUpReference("fix event #11 and draft #11", visible))

@@ -356,6 +356,21 @@ class AgentRunHistory(
         conversation.findForRun(runId)
 
     /**
+     * The newest durable runs across the app's conversations, newest first.
+     *
+     * The Chat destination reads this bounded list for its history sheet and for the one
+     * conversation it shows after a process recreation. It is a read of the same run rows the
+     * executor writes: nothing is resumed, claimed or inferred from it.
+     */
+    suspend fun recentRuns(limit: Int): List<AgentRunEntity> {
+        require(limit in 1..MAX_RECENT_RUNS) { "A history page is bounded to $MAX_RECENT_RUNS runs." }
+        return runs.findRecent(limit)
+    }
+
+    /** One durable run row by identity, for a history row or an interrupted transcript. */
+    suspend fun runForId(runId: String): AgentRunEntity? = runs.findByRunId(runId)
+
+    /**
      * The complete local production trace of one run, in append order: the run admission, each
      * attempt start, every provider request/response body, every tool call and result, the
      * clarification question and reply, and the attempt/run outcomes.
@@ -844,6 +859,7 @@ class AgentRunHistory(
         const val MAX_REQUEST_CHARS = 2_000
         const val MAX_ANSWER_CHARS = 2_000
         const val MAX_LINE_CHARS = 2_000
+        const val MAX_RECENT_RUNS = 100
     }
 }
 
