@@ -2,13 +2,17 @@ package io.github.triet4p.aegisf.ui
 
 import android.content.Context
 import androidx.activity.compose.setContent
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performScrollToNode
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.triet4p.aegisf.MainActivity
 import io.github.triet4p.aegisf.data.*
+import io.github.triet4p.aegisf.ui.review.ReviewInboxScreen
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -52,13 +56,11 @@ class S95ReviewRefreshPhoneInstrumentedTest {
             }
             compose.runOnUiThread {
                 compose.activity.setContent {
-                    BankDraftReviewScreen(query, commands, draftId = null, onSelectDraft = {}, onNavigateUp = {})
+                    ReviewInboxScreen(queryService = query, onOpenDraft = {})
                 }
             }
-            compose.waitUntil(15_000) {
-                compose.onAllNodesWithText("Category not chosen yet").fetchSemanticsNodes().size == 1 &&
-                    compose.onAllNodesWithText("Needs attention: bank data needs attention").fetchSemanticsNodes().size == 1
-            }
+            awaitVisibleText("Category: not chosen")
+            awaitVisibleText("bank data needs attention")
             val result = runBlocking {
                 val draft = database.pendingBankDraftDao().findById(draftId)!!
                 commands.selectDraftCategory(
@@ -67,11 +69,9 @@ class S95ReviewRefreshPhoneInstrumentedTest {
                 )
             }
             assertTrue(result is WorkflowCommandOutcome.Applied)
-            compose.waitUntil(15_000) {
-                compose.onAllNodesWithText("Category chosen — confirm or dismiss").fetchSemanticsNodes().size == 1 &&
-                    compose.onAllNodesWithText("Category not chosen yet").fetchSemanticsNodes().isEmpty() &&
-                    compose.onAllNodesWithText("Needs attention: bank data needs attention").fetchSemanticsNodes().size == 1
-            }
+            awaitVisibleText("Ready to confirm")
+            awaitVisibleText("Category: Food")
+            awaitVisibleText("bank data needs attention")
             runBlocking {
                 assertEquals(IntakeReviewStatus.PENDING, database.pendingBankDraftDao().findById(draftId)!!.reviewStatus)
                 assertTrue(database.transactionDao().findAll().isEmpty())
@@ -79,5 +79,24 @@ class S95ReviewRefreshPhoneInstrumentedTest {
         } finally {
             database.close()
         }
+    }
+
+    /** Scrolls the real inbox until the text is composed, then proves it is visible. */
+    private fun awaitVisibleText(text: String) {
+        val deadline = System.currentTimeMillis() + 15_000
+        while (System.currentTimeMillis() < deadline) {
+            compose.waitForIdle()
+            if (compose.onAllNodesWithText(text, substring = true)
+                    .fetchSemanticsNodes().isNotEmpty()
+            ) {
+                return
+            }
+            runCatching {
+                compose.onNodeWithTag("review-inbox")
+                    .performScrollToNode(hasText(text, substring = true))
+            }
+            Thread.sleep(150)
+        }
+        error("'$text' never became visible in the inbox")
     }
 }

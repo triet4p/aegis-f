@@ -28,11 +28,11 @@ import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.provider.HostedProviderConfig
 import io.github.triet4p.aegisf.provider.HostedProviderSettingsStore
-import io.github.triet4p.aegisf.ui.BankDraftReviewScreen
 import io.github.triet4p.aegisf.ui.BankNotificationSettingsScreen
 import io.github.triet4p.aegisf.ui.CategoryManagerScreen
 import io.github.triet4p.aegisf.ui.AnalyticsScreen
 import io.github.triet4p.aegisf.ui.ChatAgentRunState
+import io.github.triet4p.aegisf.ui.ChatDraftContext
 import io.github.triet4p.aegisf.ui.ChatNoteContext
 import io.github.triet4p.aegisf.ui.DashboardListScope
 import io.github.triet4p.aegisf.ui.DashboardScopeState
@@ -49,6 +49,8 @@ import io.github.triet4p.aegisf.ui.TransactionDetailScreen
 import io.github.triet4p.aegisf.ui.TransactionEditorScreen
 import io.github.triet4p.aegisf.ui.TransactionFilterState
 import io.github.triet4p.aegisf.ui.chat.AiChatScreen
+import io.github.triet4p.aegisf.ui.review.DraftDetailScreen
+import io.github.triet4p.aegisf.ui.review.ReviewInboxScreen
 import io.github.triet4p.aegisf.ui.components.AegisBarItem
 import io.github.triet4p.aegisf.ui.components.AegisBottomBar
 import io.github.triet4p.aegisf.ui.components.AegisGlyph
@@ -368,6 +370,11 @@ internal fun AegisAppShell(
                             stack = reviewStack,
                             onOpenDraft = { draftId ->
                                 reviewStack = reviewStack + ReviewRoute.Draft(draftId)
+                            },
+                            onDiscussDraft = { draftId ->
+                                chatRunState.draftContext = ChatDraftContext(draftId)
+                                chatStack = emptyList()
+                                tab = ShellTab.CHAT
                             },
                             onPop = ::popCurrentRoute,
                         )
@@ -689,27 +696,22 @@ private fun ReviewDestination(
     commandService: WorkflowCommandService,
     stack: List<ReviewRoute>,
     onOpenDraft: (Long) -> Unit,
+    onDiscussDraft: (Long) -> Unit,
     onPop: () -> Unit,
 ) {
     when (val route = stack.lastOrNull()) {
-        null -> BankDraftReviewScreen(
+        null -> ReviewInboxScreen(
             queryService = queryService,
-            commandService = commandService,
-            draftId = null,
-            onSelectDraft = onOpenDraft,
-            onNavigateUp = {},
-            // The inbox is this destination's root: there is no previous screen to go back
-            // to, so it must not offer a Back control of its own.
-            showBack = false,
+            onOpenDraft = onOpenDraft,
         )
 
-        is ReviewRoute.Draft -> BankDraftReviewScreen(
+        is ReviewRoute.Draft -> DraftDetailScreen(
             queryService = queryService,
             commandService = commandService,
             draftId = route.draftId,
-            onSelectDraft = onOpenDraft,
+            onOpenDraft = onOpenDraft,
+            onDiscussDraft = onDiscussDraft,
             onNavigateUp = onPop,
-            showBack = true,
         )
     }
 }

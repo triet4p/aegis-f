@@ -44,13 +44,59 @@ internal data class ChatNoteContext(
 }
 
 /**
+ * A pending bank draft the user explicitly attached from Review, visible and removable on Chat.
+ *
+ * It holds only the draft's stable id: the screen reads the current evidence, so a draft that was
+ * confirmed or dismissed after the handoff is shown as stale instead of being sent as a snapshot
+ * that no longer describes the stored state.
+ */
+internal data class ChatDraftContext(val draftId: Long)
+
+/** The bank evidence of one attached draft, as the request names it. */
+internal fun draftContextEvidence(draft: io.github.triet4p.aegisf.data.PendingBankDraftEntity): String {
+    fun orUnstated(value: String?): String = value?.takeIf(String::isNotBlank) ?: "not stated"
+    val moment = listOfNotNull(draft.statedDate, draft.statedTime)
+        .takeIf(List<String>::isNotEmpty)
+        ?.joinToString(" ")
+        ?: "not stated"
+    return buildString {
+        append("Bank: ").append(draft.bank.ifBlank { "unknown" }).append('\n')
+        append("Amount: ")
+            .append(draft.amountVnd?.let(io.github.triet4p.aegisf.data.VndMoney::formatAmount) ?: "not stated")
+            .append('\n')
+        append("Date and time: ").append(moment).append('\n')
+        append("Description: ").append(orUnstated(draft.memo))
+    }
+}
+
+/**
  * The text one chat request carries.
  *
- * Without an attached note this is the user's own request, unchanged. With one, the same visible
- * text the chip shows is named before the request; removing the chip restores the typed request.
+ * Without an attached note or draft this is the user's own request, unchanged. Every attached
+ * context is named before the request with exactly the visible text the chips show; removing a
+ * chip removes it from the next request.
  */
-internal fun chatRequestText(prompt: String, note: ChatNoteContext?): String =
-    note?.toRequestText(prompt) ?: prompt
+internal fun chatRequestText(
+    prompt: String,
+    note: ChatNoteContext?,
+    draftEvidence: String? = null,
+): String {
+    if (note == null && draftEvidence == null) return prompt
+    return buildString {
+        if (note != null) {
+            append("Saved note context (attached by me):\n\"")
+            append(note.text)
+            append("\"\n\n")
+        }
+        if (draftEvidence != null) {
+            append("Bank draft context (attached by me):\n")
+            append(draftEvidence)
+            append("\n\n")
+        }
+        append("My request:\n")
+        append(prompt)
+    }
+}
 
 /** Where one visible assistant turn is in its lifecycle. */
 internal enum class ChatAnswerState {
@@ -132,9 +178,9 @@ internal enum class ChatHistoryStatus {
  * tool step, the settled answer and the last outcome stay alive. The Room rows remain the
  * authority for committed work; this type owns only the visible projection and the job handle.
  *
- * [noteContext] is the note handed over from the Notes destination. It is visible and removable
- * on the Chat screen and is included in a request only when the user sends one; attaching it
- * starts nothing by itself.
+ * [noteContext] is the note handed over from the Notes destination. [draftContext] is the pending
+ * bank draft handed over from Review. Both are visible and removable on the Chat screen and are
+ * included in a request only when the user sends one; attaching either starts nothing by itself.
  *
  * [projectionRevision] is bumped whenever an exchange settles so the capture list reloads and its
  * status projection cannot stay stale after an event is recorded.
@@ -145,6 +191,15 @@ internal class ChatAgentRunState {
     var progress by mutableStateOf<String?>(null)
     var busy by mutableStateOf(false)
     var noteContext by mutableStateOf<ChatNoteContext?>(null)
+
+    /**
+     * The pending bank draft handed over from Review, visible and removable on the Chat screen.
+     *
+     * Only the stable id is kept; the screen reads the draft's current evidence and refuses to
+     * send a context that was confirmed, dismissed or removed after the handoff. Attaching it
+     * starts nothing by itself.
+     */
+    var draftContext by mutableStateOf<ChatDraftContext?>(null)
     var runId by mutableStateOf<String?>(null)
     var executor by mutableStateOf<BoundedWorkflowExecutor?>(null)
     var continuation by mutableStateOf<WorkflowRunContinuation?>(null)

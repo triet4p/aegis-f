@@ -77,9 +77,11 @@ import io.github.triet4p.aegisf.data.CaptureSourceKind
 import io.github.triet4p.aegisf.data.DraftCandidateQuery
 import io.github.triet4p.aegisf.data.IntakeReviewStatus
 import io.github.triet4p.aegisf.data.LIST_PAGE_SIZE
+import io.github.triet4p.aegisf.data.PendingBankDraftEntity
 import io.github.triet4p.aegisf.data.QueryPageRequest
 import io.github.triet4p.aegisf.data.SourceQuery
 import io.github.triet4p.aegisf.data.SourceState
+import io.github.triet4p.aegisf.data.VndMoney
 import io.github.triet4p.aegisf.data.WorkflowCallerScope
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
@@ -93,7 +95,9 @@ import io.github.triet4p.aegisf.ui.ChatHistoryStatus
 import io.github.triet4p.aegisf.ui.ChatOutcomeSection
 import io.github.triet4p.aegisf.ui.ChatStatusTone
 import io.github.triet4p.aegisf.ui.ChatTranscriptEntry
+import io.github.triet4p.aegisf.ui.ChatDraftContext
 import io.github.triet4p.aegisf.ui.chatRequestText
+import io.github.triet4p.aegisf.ui.draftContextEvidence
 import io.github.triet4p.aegisf.ui.historyStatusOf
 import io.github.triet4p.aegisf.ui.text.AegisStrings
 import io.github.triet4p.aegisf.ui.text.LocalAegisStrings
@@ -129,6 +133,16 @@ private sealed interface AttachedContextCheck {
     data object Unreadable : AttachedContextCheck
     data object Missing : AttachedContextCheck
     data class Changed(val currentText: String) : AttachedContextCheck
+}
+
+/** What the pending bank draft attached from Review currently is. */
+private sealed interface DraftContextCheck {
+    data object NoDraft : DraftContextCheck
+    data object Checking : DraftContextCheck
+    data class Current(val draft: PendingBankDraftEntity) : DraftContextCheck
+    data object Missing : DraftContextCheck
+    data object Decided : DraftContextCheck
+    data object Unreadable : DraftContextCheck
 }
 
 /**
@@ -187,6 +201,31 @@ internal fun AiChatScreen(
         }
         contextCheck = AttachedContextCheck.Checking
         contextCheck = readAttachedContext(queryService, context)
+    }
+    // The attached draft is read live, so a confirmation or dismissal elsewhere becomes visible
+    // on the card at once and a stale snapshot is never sent as if it were current evidence.
+    var draftCheck by remember { mutableStateOf<DraftContextCheck>(DraftContextCheck.NoDraft) }
+    val attachedDraftId = agentRunState.draftContext?.draftId
+    LaunchedEffect(queryService, attachedDraftId) {
+        if (attachedDraftId == null) {
+            draftCheck = DraftContextCheck.NoDraft
+            return@LaunchedEffect
+        }
+        draftCheck = DraftContextCheck.Checking
+        try {
+            queryService.observeDraftCandidate(attachedDraftId).collect { draft ->
+                draftCheck = when {
+                    draft == null -> DraftContextCheck.Missing
+                    draft.reviewStatus != IntakeReviewStatus.PENDING ||
+                        draft.confirmedTransactionId != null -> DraftContextCheck.Decided
+                    else -> DraftContextCheck.Current(draft)
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            draftCheck = DraftContextCheck.Unreadable
+        }
     }
 
     val listState = rememberLazyListState()
@@ -286,7 +325,12 @@ internal fun AiChatScreen(
         }
     }
 
-    fun startRun(promptText: String, attached: ChatNoteContext?, provider: SavedHostedProvider) {
+    fun startRun(
+        promptText: String,
+        attached: ChatNoteContext?,
+        provider: SavedHostedProvider,
+        draftEvidence: String? = null,
+    ) {
         autoFollow = true
         val token = agentRunState.beginTurn(promptText)
         prompt = ""
@@ -320,9 +364,9 @@ internal fun AiChatScreen(
                 )
                 val request = WorkflowRunRequest(
                     intents = CHAT_INTENTS,
-                    // The visible attached note is named only here, at the moment the user
-                    // sends; removing the card removes it from the next request.
-                    userRequest = chatRequestText(promptText, attached),
+                    // The visible attached note and draft are named only here, at the moment
+                    // the user sends; removing either card removes it from the next request.
+                    userRequest = chatRequestText(promptText, attached, draftEvidence),
                     requiredIntents = emptySet(),
                 )
                 val host = createHostedWorkflowHost(
@@ -391,9 +435,21 @@ internal fun AiChatScreen(
             prompt = text
             return
         }
+        val draftContext = agentRunState.draftContext
+        val draftEvidence = if (draftContext == null) {
+            null
+        } else {
+            val checked = draftCheck
+            if (checked !is DraftContextCheck.Current) {
+                // Confirmed, dismissed, missing or still being checked: the visible card says
+                // why, and nothing is sent with a context the user has not resolved.
+                return
+            }
+            draftContextEvidence(checked.draft)
+        }
         val context = agentRunState.noteContext
         if (context == null) {
-            startRun(text, null, provider)
+            startRun(text, null, provider, draftEvidence)
             return
         }
         agentRunScope.launch {
@@ -401,8 +457,8 @@ internal fun AiChatScreen(
             val current = withContext(Dispatchers.IO) { readAttachedContext(queryService, context) }
             contextCheck = current
             when (current) {
-                AttachedContextCheck.Current -> startRun(text, context, provider)
-                AttachedContextCheck.NoContext -> startRun(text, null, provider)
+                AttachedContextCheck.Current -> startRun(text, context, provider, draftEvidence)
+                AttachedContextCheck.NoContext -> startRun(text, null, provider, draftEvidence)
                 // Changed or missing: nothing is sent until the user resolves the visible card.
                 else -> Unit
             }
@@ -597,11 +653,13 @@ internal fun AiChatScreen(
                 strings = strings,
                 online = networkAvailable,
                 busy = agentRunState.busy,
-                contextBlocked = agentRunState.noteContext != null &&
+                contextBlocked = (agentRunState.noteContext != null &&
                     (contextCheck is AttachedContextCheck.Changed ||
                         contextCheck is AttachedContextCheck.Missing ||
                         contextCheck is AttachedContextCheck.Unreadable ||
-                        contextCheck is AttachedContextCheck.Checking),
+                        contextCheck is AttachedContextCheck.Checking)) ||
+                    (agentRunState.draftContext != null &&
+                        draftCheck !is DraftContextCheck.Current),
                 clarificationPending = agentRunState.outcome is WorkflowRunOutcome.Clarifying &&
                     agentRunState.continuation != null,
                 onSend = ::submit,
@@ -651,6 +709,19 @@ internal fun AiChatScreen(
                             },
                             onUseCurrent = { current ->
                                 agentRunState.noteContext = context.copy(text = current)
+                            },
+                        )
+                    }
+                }
+                if (agentRunState.draftContext != null) {
+                    item(key = "draft-context") {
+                        AttachedDraftContextCard(
+                            check = draftCheck,
+                            strings = strings,
+                            enabled = !agentRunState.busy,
+                            onRemove = {
+                                agentRunState.draftContext = null
+                                draftCheck = DraftContextCheck.NoDraft
                             },
                         )
                     }
@@ -949,6 +1020,102 @@ private fun AttachedContextCard(
                         modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                     ) { Text(strings.contextUseCurrent) }
                 }
+                TextButton(
+                    onClick = onRemove,
+                    enabled = enabled,
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                ) { Text(strings.contextRemove) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AttachedDraftContextCard(
+    check: DraftContextCheck,
+    strings: ChatStrings,
+    enabled: Boolean,
+    onRemove: () -> Unit,
+) {
+    val semantic = LocalAegisSemanticColors.current
+    val stale = check !is DraftContextCheck.Current && check !is DraftContextCheck.Checking
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("chat-draft-context"),
+        shape = MaterialTheme.shapes.large,
+        color = if (stale) semantic.warningContainer else semantic.infoContainer,
+        contentColor = if (stale) {
+            semantic.onWarningContainer
+        } else {
+            semantic.onInfoContainer
+        },
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(strings.draftContextTitle, style = MaterialTheme.typography.labelLarge)
+            when (check) {
+                DraftContextCheck.Checking -> Text(
+                    text = strings.draftContextChecking,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+
+                is DraftContextCheck.Current -> {
+                    val draft = check.draft
+                    val moment = listOfNotNull(draft.statedDate, draft.statedTime)
+                        .filter(String::isNotBlank)
+                        .joinToString(" ")
+                        .ifEmpty { strings.draftContextNotStated }
+                    Text(
+                        text = "${strings.draftContextBank}: " +
+                            draft.bank.ifBlank { strings.draftContextNotStated },
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        text = "${strings.draftContextAmount}: " +
+                            (draft.amountVnd?.let { VndMoney.formatAmount(it, " ₫") }
+                                ?: strings.draftContextNotStated),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        text = "${strings.draftContextMoment}: $moment",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Text(
+                        text = "${strings.draftContextDescription}: " +
+                            (draft.memo?.takeIf(String::isNotBlank)
+                                ?: strings.draftContextNotStated),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Text(
+                        text = strings.draftContextHelp,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+
+                DraftContextCheck.Missing -> Text(
+                    text = strings.draftContextMissing,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+
+                DraftContextCheck.Decided -> Text(
+                    text = strings.draftContextDecided,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+
+                DraftContextCheck.Unreadable -> Text(
+                    text = strings.draftContextUnreadable,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+
+                DraftContextCheck.NoDraft -> Unit
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
                 TextButton(
                     onClick = onRemove,
                     enabled = enabled,

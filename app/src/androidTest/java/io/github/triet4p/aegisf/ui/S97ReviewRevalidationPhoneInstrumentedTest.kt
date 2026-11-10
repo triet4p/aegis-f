@@ -30,6 +30,7 @@ import io.github.triet4p.aegisf.data.WorkflowCommandOutcome
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.data.categoryCatalogRevision
+import io.github.triet4p.aegisf.ui.review.ReviewInboxScreen
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -104,18 +105,12 @@ class S97ReviewRevalidationPhoneInstrumentedTest {
 
             compose.runOnUiThread {
                 compose.activity.setContent {
-                    BankDraftReviewScreen(
-                        queries,
-                        commands,
-                        draftId = null,
-                        onSelectDraft = {},
-                        onNavigateUp = {},
-                    )
+                    ReviewInboxScreen(queryService = queries, onOpenDraft = {})
                 }
             }
             compose.waitUntil(15_000) {
-                compose.onAllNodesWithText("Category chosen — confirm or dismiss")
-                    .fetchSemanticsNodes().size == 1
+                compose.onAllNodesWithText("Category: Fuel")
+                    .fetchSemanticsNodes().isNotEmpty()
             }
 
             val outcome = runBlocking {
@@ -132,10 +127,8 @@ class S97ReviewRevalidationPhoneInstrumentedTest {
             assertTrue("the note edit was refused: $outcome", outcome is WorkflowCommandOutcome.Applied)
 
             compose.waitUntil(15_000) {
-                compose.onAllNodesWithText("Category not chosen yet")
-                    .fetchSemanticsNodes().size == 1 &&
-                    compose.onAllNodesWithText("Category chosen — confirm or dismiss")
-                        .fetchSemanticsNodes().isEmpty()
+                compose.onAllNodesWithText("Category: not chosen")
+                    .fetchSemanticsNodes().isNotEmpty()
             }
             runBlocking {
                 val draft = database.pendingBankDraftDao().findById(draftId)!!
