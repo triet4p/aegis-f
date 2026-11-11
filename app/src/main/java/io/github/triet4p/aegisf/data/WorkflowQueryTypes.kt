@@ -204,6 +204,17 @@ data class CategoryQuery(
 )
 
 /**
+ * A bounded read of the saved exact-description rules.
+ *
+ * A rule is stored as the user's standing decision for one canonical description and the
+ * category it names. [bounds] says how many of them this read returns and where its page
+ * starts; there is no unbounded form.
+ */
+data class CategoryRuleQuery(
+    val bounds: QueryPageRequest,
+)
+
+/**
  * How many stored categories there are, and how many of them are archived.
  *
  * The counts describe the whole catalog and not one page of it, so a screen that pages

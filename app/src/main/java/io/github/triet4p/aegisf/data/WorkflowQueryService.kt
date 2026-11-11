@@ -194,6 +194,31 @@ class WorkflowQueryService(
         return rememberedCategoryRuleDao.findActiveCategory(patternKey)
     }
 
+    /**
+     * A bounded page of the saved exact-description rules.
+     *
+     * The order is the canonical description, then the category id, so the list is stable while
+     * a category is renamed. A rule whose category is archived is still returned with that
+     * state; it is the user's stored decision and the screen decides how to present it.
+     */
+    suspend fun categoryRules(query: CategoryRuleQuery): QueryPage<CategoryRule> = pageOf(
+        rows = rememberedCategoryRuleDao.findPage(
+            limit = query.bounds.limit + 1,
+            offset = query.bounds.offset,
+        ),
+        bounds = query.bounds,
+    )
+
+    /** The same bounded page as [categoryRules], as a live stream. */
+    fun observeCategoryRules(query: CategoryRuleQuery): Flow<QueryPage<CategoryRule>> =
+        rememberedCategoryRuleDao.observePage(
+            limit = query.bounds.limit + 1,
+            offset = query.bounds.offset,
+        ).map { rows -> pageOf(rows, query.bounds) }
+
+    /** How many saved rules there are in the whole catalog, as a live count. */
+    fun observeCategoryRuleCount(): Flow<Int> = rememberedCategoryRuleDao.observeCount()
+
     // --- Ledger records -----------------------------------------------------
 
     /**

@@ -50,15 +50,17 @@ android {
 
     buildTypes {
         debug {
-            val targetPackage = project.findProperty("S812_ANDROID_TARGET_PACKAGE")?.toString()
+            val targetPackage = project.findProperty("S108_ANDROID_TARGET_PACKAGE")?.toString()
+                ?: project.findProperty("S812_ANDROID_TARGET_PACKAGE")?.toString()
                 ?: project.findProperty("S813_ANDROID_TARGET_PACKAGE")?.toString()
-            if (targetPackage == "io.github.triet4p.aegisf.s812evidence" ||
+            if (targetPackage == "io.github.triet4p.aegisf.s108evidence" ||
+                targetPackage == "io.github.triet4p.aegisf.s812evidence" ||
                 targetPackage == "io.github.triet4p.aegisf.s813evidence"
             ) {
-                applicationIdSuffix = if (targetPackage.endsWith(".s812evidence")) {
-                    ".s812evidence"
-                } else {
-                    ".s813evidence"
+                applicationIdSuffix = when {
+                    targetPackage.endsWith(".s108evidence") -> ".s108evidence"
+                    targetPackage.endsWith(".s812evidence") -> ".s812evidence"
+                    else -> ".s813evidence"
                 }
             }
         }

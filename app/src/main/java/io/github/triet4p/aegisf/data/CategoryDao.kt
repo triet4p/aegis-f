@@ -26,14 +26,12 @@ private const val CATEGORY_PAGE_SQL =
  * references at a different category. That is also what makes a deleted id permanently
  * invalid for a pending suggestion: the id can never come back as some other category.
  *
- * [deletePermanently] is the only write here that spans tables, because removing a
- * category is exactly the event that changes what those tables point at. It never deletes
- * a ledger row: a transaction filed under the category keeps its amount, type, moment,
- * description, confirmation, and provenance, and only loses the category link. The rules
- * that named the category go with it through the `ON DELETE CASCADE` declared on
- * [RememberedCategoryRuleEntity], which is enforced by the database (`PRAGMA
- * foreign_keys = ON`), while the stored transactions' own foreign key is `RESTRICT` and
- * therefore never fires: the links are cleared first, inside the same transaction.
+ * [deleteIfUnreferenced] is the only write here that spans tables. It refuses to remove a
+ * category while any stored transaction, exact-description rule or pending draft still
+ * references it; the reference counts and the delete are one transaction, so a reference
+ * created after a screen read its impact cannot slip between the check and the delete.
+ * Archive is the supported path that keeps history for a referenced category. When a delete
+ * is allowed, the category has no referencing rows, so no ledger or draft data is rewritten.
  */
 @Dao
 abstract class CategoryDao {
@@ -148,50 +146,44 @@ abstract class CategoryDao {
     )
     abstract suspend fun countReferencingPendingReviews(categoryId: Long): Int
 
-    /**
-     * Clears the category link on every stored transaction filed under it, leaving every
-     * other stored field — amount, type, moment, description, confirmation, provenance,
-     * creation and revision time — exactly as it was.
-     */
-    @Query(
-        "UPDATE transactions SET categoryId = NULL WHERE categoryId = :categoryId",
-    )
-    protected abstract suspend fun detachTransactions(categoryId: Long): Int
-
-    /**
-     * Undoes a still-pending draft's pre-set category: the id it named no longer exists, so
-     * the choice cannot stand and the reviewer is asked again. The revision is advanced in
-     * the same statement, so an editor holding the earlier revision is told the draft changed
-     * instead of writing the removed id back.
-     */
-    @Query(
-        "UPDATE pending_bank_drafts SET reviewCategoryId = NULL, reviewCategoryResolved = 0, " +
-            "reviewCategoryOrigin = 'NONE', " +
-            "reviewRevision = reviewRevision + 1 " +
-            "WHERE reviewStatus = 'PENDING' AND reviewCategoryId = :categoryId",
-    )
-    protected abstract suspend fun detachPendingReviews(categoryId: Long): Int
-
     @Query("DELETE FROM categories WHERE id = :id")
     protected abstract suspend fun deleteRow(id: Long): Int
 
     /**
-     * Removes [category] for good and reports what the removal changed, all in one database
-     * transaction: either every link below is cleared and the row is gone, or nothing is.
-     * Rules that named the category are removed by the declared cascade on the delete itself.
+     * Removes [category] for good only when nothing stored references it.
+     *
+     * The three reference counts and the delete are one database transaction: a transaction,
+     * rule or pending draft that appears after the screen read its impact cannot slip in
+     * between the check and the delete. When anything references the category, the row and
+     * every reference stay exactly as they are and the impact is returned for the caller to
+     * present. Archive is the supported way to keep history for a referenced category.
      */
     @Transaction
-    open suspend fun deletePermanently(category: CategoryEntity): CategoryDeletionImpact {
-        val uncategorizedTransactions = detachTransactions(category.id)
-        val clearedPendingReviews = detachPendingReviews(category.id)
-        val removedRules = countReferencingRules(category.id)
-        check(deleteRow(category.id) == 1) {
-            "Category ${category.id} was already removed before its deletion committed."
-        }
-        return CategoryDeletionImpact(
-            uncategorizedTransactionCount = uncategorizedTransactions,
-            removedRuleCount = removedRules,
-            clearedPendingReviewCount = clearedPendingReviews,
+    open suspend fun deleteIfUnreferenced(category: CategoryEntity): CategoryDeletionResult {
+        val impact = CategoryDeletionImpact(
+            uncategorizedTransactionCount = countReferencingTransactions(category.id),
+            removedRuleCount = countReferencingRules(category.id),
+            clearedPendingReviewCount = countReferencingPendingReviews(category.id),
         )
+        if (impact != CategoryDeletionImpact(0, 0, 0)) {
+            return CategoryDeletionResult.Blocked(impact)
+        }
+        return if (deleteRow(category.id) == 1) {
+            CategoryDeletionResult.Deleted(category.id)
+        } else {
+            CategoryDeletionResult.NotFound
+        }
     }
+}
+
+/**
+ * What one permanent-delete request did.
+ *
+ * [Blocked] is not a failure to report as a generic error: it carries the exact references
+ * that keep the category in place, so the screen can say what to archive for or remove.
+ */
+sealed interface CategoryDeletionResult {
+    data class Deleted(val categoryId: Long) : CategoryDeletionResult
+    data class Blocked(val impact: CategoryDeletionImpact) : CategoryDeletionResult
+    data object NotFound : CategoryDeletionResult
 }

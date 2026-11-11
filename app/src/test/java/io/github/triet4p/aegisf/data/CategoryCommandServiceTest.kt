@@ -216,7 +216,7 @@ class CategoryCommandServiceTest {
         }
 
     @Test
-    fun `a removal keeps every record and its totals and reports what it cleared`() = runTest {
+    fun `a referenced removal is refused and preserves every record, rule and draft`() = runTest {
         val database = open()
         try {
             val commands = commands(database)
@@ -242,25 +242,19 @@ class CategoryCommandServiceTest {
             assertEquals(1, impact.removedRuleCount)
             assertEquals(1, impact.clearedPendingReviewCount)
 
-            val removed = commands.deleteCategory(
+            val refused = commands.deleteCategory(
                 scope = WorkflowCallerScope.User,
                 request = DeleteCategoryRequest(idempotencyKey = "delete-food", categoryId = categoryId),
             )
-            assertTrue(removed is WorkflowCommandOutcome.Applied)
-            val change = (removed as WorkflowCommandOutcome.Applied).change
-            assertTrue(change is WorkflowChange.CategoryDeleted)
-            val applied = (change as WorkflowChange.CategoryDeleted).impact
-            assertEquals(1, applied.uncategorizedTransactionCount)
-            assertEquals(1, applied.removedRuleCount)
-            assertEquals(1, applied.clearedPendingReviewCount)
+            assertTrue("a referenced delete must be a Conflict", refused is WorkflowCommandOutcome.Conflict)
+            val reason = (refused as WorkflowCommandOutcome.Conflict).reason
+            assertTrue(reason.contains("1 transaction"))
+            assertTrue(reason.contains("1 saved rule"))
+            assertTrue(reason.contains("1 pending draft"))
 
-            assertNull(database.categoryDao().findById(categoryId))
+            assertNotNull(database.categoryDao().findById(categoryId))
             val record = database.transactionDao().findAll().single()
-            assertEquals(
-                "the record survives the removal and only loses the link",
-                null,
-                record.categoryId,
-            )
+            assertEquals("the record keeps its category", categoryId, record.categoryId)
             assertEquals(45_000L, record.amountVnd)
             assertEquals("Synthetic cafe", record.description)
             assertEquals(
@@ -268,15 +262,47 @@ class CategoryCommandServiceTest {
                 45_000L,
                 WorkflowQueryService(database).confirmedLedgerAggregate(monthRange()).spending.totalVnd,
             )
-            assertTrue(
-                "the rule that named the category is gone with it",
-                database.rememberedCategoryRuleDao().findAll().isEmpty(),
+            assertEquals(
+                "the rule that names the category stays",
+                categoryId,
+                database.rememberedCategoryRuleDao().findAll().single().categoryId,
             )
             assertEquals(
-                "the pending draft keeps its own state and loses only the pre-set category",
-                null,
+                "the pending draft keeps its pre-set category",
+                categoryId,
                 database.pendingBankDraftDao().findById(draftId)?.reviewCategoryId,
             )
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun `an unreferenced removal deletes only the category`() = runTest {
+        val database = open()
+        try {
+            val commands = commands(database)
+            val added = commands.addCategory(
+                scope = WorkflowCallerScope.User,
+                request = AddCategoryRequest(idempotencyKey = "add-unused", name = "Unused"),
+            ) as WorkflowCommandOutcome.Applied
+            val categoryId = (added.change as WorkflowChange.CategoryAdded).categoryId
+
+            val removed = commands.deleteCategory(
+                scope = WorkflowCallerScope.User,
+                request = DeleteCategoryRequest(
+                    idempotencyKey = "delete-unused",
+                    categoryId = categoryId,
+                ),
+            )
+            assertTrue(removed is WorkflowCommandOutcome.Applied)
+            val change = (removed as WorkflowCommandOutcome.Applied).change
+            assertEquals(
+                CategoryDeletionImpact(0, 0, 0),
+                (change as WorkflowChange.CategoryDeleted).impact,
+            )
+            assertNull(database.categoryDao().findById(categoryId))
+            assertTrue(database.transactionDao().findAll().isEmpty())
         } finally {
             database.close()
         }

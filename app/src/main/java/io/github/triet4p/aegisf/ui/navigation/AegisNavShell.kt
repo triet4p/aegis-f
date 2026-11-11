@@ -29,7 +29,7 @@ import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.provider.HostedProviderConfig
 import io.github.triet4p.aegisf.provider.HostedProviderSettingsStore
 import io.github.triet4p.aegisf.ui.BankNotificationSettingsScreen
-import io.github.triet4p.aegisf.ui.CategoryManagerScreen
+import io.github.triet4p.aegisf.ui.CategoryRulesScreen
 import io.github.triet4p.aegisf.ui.AnalyticsScreen
 import io.github.triet4p.aegisf.ui.ChatAgentRunState
 import io.github.triet4p.aegisf.ui.ChatDraftContext
@@ -37,6 +37,8 @@ import io.github.triet4p.aegisf.ui.ChatNoteContext
 import io.github.triet4p.aegisf.ui.DashboardListScope
 import io.github.triet4p.aegisf.ui.DashboardScopeState
 import io.github.triet4p.aegisf.ui.HostedProviderSettingsScreen
+import io.github.triet4p.aegisf.ui.SettingsPrivacyScreen
+import io.github.triet4p.aegisf.ui.SettingsSkillsHistoryScreen
 import io.github.triet4p.aegisf.ui.LedgerScreen
 import io.github.triet4p.aegisf.ui.NoteDetailScreen
 import io.github.triet4p.aegisf.ui.NoteDraftChooserScreen
@@ -73,6 +75,8 @@ private sealed interface HomeRoute : Serializable {
     data object Settings : HomeRoute
     data object BankNotifications : HomeRoute
     data object HostedProviderSettings : HomeRoute
+    data object SettingsSkillsHistory : HomeRoute
+    data object SettingsPrivacy : HomeRoute
 
     /** One confirmed-records list behind an analytics figure, with that figure's exact scope. */
     data class ScopedList(
@@ -306,6 +310,7 @@ internal fun AegisAppShell(
                             commandService = commandService,
                             notificationAccessStore = notificationAccessStore,
                             hostedProviderSettingsStore = hostedProviderSettingsStore,
+                            agentRunHistory = agentRunHistory,
                             stack = homeStack,
                             scope = dashboardScope,
                             onScopeChange = { dashboardScope = it },
@@ -317,6 +322,10 @@ internal fun AegisAppShell(
                             onOpenRoute = ::openHomeRoute,
                             onPop = ::popCurrentRoute,
                             onSelectTab = ::selectTab,
+                            onOpenChatFromSettings = {
+                                homeStack = emptyList()
+                                tab = ShellTab.CHAT
+                            },
                         )
 
                         ShellTab.LEDGER -> LedgerDestination(
@@ -391,6 +400,7 @@ private fun HomeDestination(
     commandService: WorkflowCommandService,
     notificationAccessStore: NotificationAccessStore,
     hostedProviderSettingsStore: HostedProviderSettingsStore,
+    agentRunHistory: AgentRunHistory,
     stack: List<HomeRoute>,
     scope: DashboardScopeState,
     onScopeChange: (DashboardScopeState) -> Unit,
@@ -402,7 +412,10 @@ private fun HomeDestination(
     onOpenRoute: (HomeRoute) -> Unit,
     onPop: () -> Unit,
     onSelectTab: (ShellTab) -> Unit,
+    onOpenChatFromSettings: () -> Unit,
 ) {
+    val providerNetworkAvailable =
+        io.github.triet4p.aegisf.ui.chat.rememberNetworkAvailable()
     when (val route = stack.lastOrNull()) {
         null -> HomeScreen(
             queryService = queryService,
@@ -435,7 +448,7 @@ private fun HomeDestination(
             onNavigateUp = onPop,
         )
 
-        HomeRoute.Categories -> CategoryManagerScreen(
+        HomeRoute.Categories -> CategoryRulesScreen(
             commandService = commandService,
             queryService = queryService,
             onNavigateUp = onPop,
@@ -446,18 +459,34 @@ private fun HomeDestination(
             onLanguageChange = onLanguageChange,
             themeMode = themeMode,
             onThemeModeChange = onThemeModeChange,
+            notificationAccessStore = notificationAccessStore,
+            hostedProviderSettingsStore = hostedProviderSettingsStore,
             onOpenBankNotifications = { onOpenRoute(HomeRoute.BankNotifications) },
             onOpenHostedProvider = { onOpenRoute(HomeRoute.HostedProviderSettings) },
+            onOpenSkillsHistory = { onOpenRoute(HomeRoute.SettingsSkillsHistory) },
+            onOpenPrivacy = { onOpenRoute(HomeRoute.SettingsPrivacy) },
             onNavigateUp = onPop,
         )
 
         HomeRoute.BankNotifications -> BankNotificationSettingsScreen(
             accessStore = notificationAccessStore,
+            queryService = queryService,
             onNavigateUp = onPop,
         )
 
         HomeRoute.HostedProviderSettings -> HostedProviderSettingsScreen(
             store = hostedProviderSettingsStore,
+            onNavigateUp = onPop,
+            networkAvailable = providerNetworkAvailable,
+        )
+
+        HomeRoute.SettingsSkillsHistory -> SettingsSkillsHistoryScreen(
+            agentRunHistory = agentRunHistory,
+            onOpenChat = onOpenChatFromSettings,
+            onNavigateUp = onPop,
+        )
+
+        HomeRoute.SettingsPrivacy -> SettingsPrivacyScreen(
             onNavigateUp = onPop,
         )
 
@@ -678,6 +707,7 @@ private fun ChatDestination(
         ChatRoute.ProviderSettings -> HostedProviderSettingsScreen(
             store = hostedProviderSettingsStore,
             onNavigateUp = onPop,
+            networkAvailable = networkAvailable,
         )
 
         is ChatRoute.RecordEvent -> TransactionEditorScreen(
@@ -723,6 +753,8 @@ private fun HomeRoute.homeKey(): String = when (this) {
     HomeRoute.Settings -> "settings"
     HomeRoute.BankNotifications -> "bank-notifications"
     HomeRoute.HostedProviderSettings -> "hosted-provider-settings"
+    HomeRoute.SettingsSkillsHistory -> "settings-skills-history"
+    HomeRoute.SettingsPrivacy -> "settings-privacy"
     is HomeRoute.ScopedList -> "scoped-list-${listScope.name}-${scope.fromText}-" +
         "${scope.throughText}-${scope.category}"
     is HomeRoute.Detail -> "record-detail-$transactionId"

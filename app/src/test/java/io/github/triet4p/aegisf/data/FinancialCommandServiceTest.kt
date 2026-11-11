@@ -704,7 +704,7 @@ class FinancialCommandServiceTest {
                     (refused as WorkflowCommandOutcome.Denied).reason,
                 )
 
-                // Deleting the category clears the link and keeps the record and its total.
+                // A referenced category is refused, so the record and total keep everything.
                 val before = WorkflowQueryService(database).confirmedLedgerAggregate(
                     LedgerDateRange(
                         fromEpochMillis = 0L,
@@ -712,7 +712,10 @@ class FinancialCommandServiceTest {
                         zoneId = CAPTURE_ZONE,
                     ),
                 )
-                ledger.deleteCategory(food)
+                assertEquals(
+                    CategoryDeletionResult.Blocked(CategoryDeletionImpact(1, 0, 0)),
+                    ledger.deleteCategory(food),
+                )
                 val after = WorkflowQueryService(database).confirmedLedgerAggregate(
                     LedgerDateRange(
                         fromEpochMillis = 0L,
@@ -722,7 +725,7 @@ class FinancialCommandServiceTest {
                 )
                 val records = WorkflowQueryService(database).ledgerRecords(ALL_LEDGER_RECORDS).items
                 assertEquals(1, records.size)
-                assertNull(records.single().categoryId)
+                assertEquals(food, records.single().categoryId)
                 assertEquals(46_000L, records.single().amountVnd)
                 assertEquals(before.spending.totalVnd, after.spending.totalVnd)
                 assertEquals(before.spending.recordCount, after.spending.recordCount)

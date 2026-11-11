@@ -1564,13 +1564,14 @@ class WorkflowCommandService(
     }
 
     /**
-     * Removes a category for good.
+     * Removes a category for good only while nothing stored references it.
      *
-     * The removal keeps every stored record — amount, type, moment, description, and the
-     * totals computed from them — and only clears the links to the category: the records
-     * that were filed under it become uncategorized, the saved rules that named it go
-     * with it, and a still-pending draft's pre-set category is cleared so the reviewer
-     * chooses again. The counts the change reports are the counts the removal applied.
+     * The command boundary re-checks the three reference counts in the same transaction as
+     * the delete, so a record, rule or pending draft created after the screen read its impact
+     * blocks the delete instead of being silently rewritten. A referenced category is
+     * answered with [WorkflowCommandOutcome.Conflict] carrying the counts; Archive is the
+     * supported path that keeps its history. An unreferenced delete reports the zero impact
+     * it applied and never changes a ledger row.
      */
     suspend fun deleteCategory(
         scope: WorkflowCallerScope,
@@ -1584,10 +1585,22 @@ class WorkflowCommandService(
     ) {
         val category = categoryDao.findById(request.categoryId)
             ?: return@runCommand WorkflowCommandOutcome.NotFound
-        val impact = ledger.deleteCategory(category.id)
-        WorkflowCommandOutcome.Applied(
-            WorkflowChange.CategoryDeleted(category.id, impact),
-        )
+        when (val result = ledger.deleteCategory(category.id)) {
+            is CategoryDeletionResult.Deleted -> WorkflowCommandOutcome.Applied(
+                WorkflowChange.CategoryDeleted(
+                    result.categoryId,
+                    CategoryDeletionImpact(0, 0, 0),
+                ),
+            )
+            is CategoryDeletionResult.Blocked -> WorkflowCommandOutcome.Conflict(
+                "The category is still referenced by " +
+                    "${result.impact.uncategorizedTransactionCount} transaction(s), " +
+                    "${result.impact.removedRuleCount} saved rule(s) and " +
+                    "${result.impact.clearedPendingReviewCount} pending draft(s). " +
+                    "Archive it to keep its history, or remove those references first.",
+            )
+            CategoryDeletionResult.NotFound -> WorkflowCommandOutcome.NotFound
+        }
     }
 
     /**

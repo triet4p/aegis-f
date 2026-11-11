@@ -257,19 +257,20 @@ class WorkflowQueryServiceTest {
     }
 
     @Test
-    fun `a deleted category leaves its spending in the uncategorized bucket`() = runTest {
+    fun `a referenced category cannot be deleted and keeps its spending bucket`() = runTest {
         val seeded = seedKnownLedger()
 
-        repository.deleteCategory(seeded.food)
+        val before = query.confirmedLedgerAggregate(monthRange())
+        val blocked = repository.deleteCategory(seeded.food)
 
-        val aggregate = query.confirmedLedgerAggregate(monthRange())
-        val uncategorized = aggregate.spending.categoryTotals.single { it.categoryId == null }
-        assertEquals(165_000L, uncategorized.totalVnd)
-        assertEquals(2, uncategorized.recordCount)
-        assertNull(uncategorized.categoryName)
-        assertFalse(
-            aggregate.spending.categoryTotals.any { it.categoryId == seeded.food },
+        assertTrue(blocked is CategoryDeletionResult.Blocked)
+        val after = query.confirmedLedgerAggregate(monthRange())
+        assertEquals(before.spending.totalVnd, after.spending.totalVnd)
+        assertEquals(before.spending.recordCount, after.spending.recordCount)
+        assertTrue(
+            after.spending.categoryTotals.any { it.categoryId == seeded.food },
         )
+        assertNotNull(query.findCategory(seeded.food))
     }
 
     @Test

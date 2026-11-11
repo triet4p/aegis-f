@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -188,7 +189,7 @@ class LedgerRepositoryRejectionTest {
     }
 
     @Test
-    fun `deleting a category with stored records detaches them instead of refusing`() = runTest {
+    fun `deleting a category with stored records is refused and changes nothing`() = runTest {
         val food = repository.addCategory("Food")
         val lunch = repository.addTransaction(
             TransactionInput(
@@ -199,18 +200,21 @@ class LedgerRepositoryRejectionTest {
                 categoryId = food,
             ),
         )
+        val storedBefore = query.findLedgerRecord(lunch)!!
 
-        val impact = repository.deleteCategory(food)
+        val result = repository.deleteCategory(food)
 
-        // The record keeps its amount and description and only loses the category link; the
-        // category row is gone, and a second delete of the same id is refused.
-        assertEquals(1, impact.uncategorizedTransactionCount)
-        val stored = query.findLedgerRecord(lunch)!!
-        assertEquals(45_000L, stored.amountVnd)
-        assertEquals("Lunch", stored.description)
-        assertNull(stored.categoryId)
-        assertNull(query.findCategory(food))
-        expectRejection { repository.deleteCategory(food) }
+        // The record, its amount/description/category and the category row all stay exactly
+        // as they were; a referenced category must be archived, not silently rewritten.
+        assertEquals(
+            CategoryDeletionResult.Blocked(CategoryDeletionImpact(1, 0, 0)),
+            result,
+        )
+        assertEquals(storedBefore, query.findLedgerRecord(lunch))
+        assertEquals(45_000L, query.findLedgerRecord(lunch)!!.amountVnd)
+        assertEquals("Lunch", query.findLedgerRecord(lunch)!!.description)
+        assertEquals(food, query.findLedgerRecord(lunch)!!.categoryId)
+        assertNotNull(query.findCategory(food))
     }
 
     @Test

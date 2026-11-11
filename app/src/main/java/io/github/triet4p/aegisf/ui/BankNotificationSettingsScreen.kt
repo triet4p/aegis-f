@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -13,10 +15,12 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -24,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -31,13 +36,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import io.github.triet4p.aegisf.data.IntakeReviewStatus
 import io.github.triet4p.aegisf.data.LedgerValidationException
 import io.github.triet4p.aegisf.data.NotificationAccessStore
+import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.notification.BankNotificationListener
 import io.github.triet4p.aegisf.notification.ListenerConnection
 import io.github.triet4p.aegisf.notification.ListenerRebindOutcome
@@ -46,45 +56,35 @@ import io.github.triet4p.aegisf.notification.isIntakePermitted
 import io.github.triet4p.aegisf.notification.isNotificationAccessGranted
 import io.github.triet4p.aegisf.notification.notificationAccessSettingsIntent
 import io.github.triet4p.aegisf.notification.requestListenerRebind
+import io.github.triet4p.aegisf.ui.components.AegisGlyph
+import io.github.triet4p.aegisf.ui.components.AegisIcon
+import io.github.triet4p.aegisf.ui.text.LocalAegisStrings
+import kotlinx.coroutines.flow.flowOf
 
 /**
- * Bank-notification opt-in: access status, the allowlist, and revocation handling.
+ * Bank-notification intake, as one focused destination.
  *
- * Everything here is a choice the user makes deliberately. Notification access is granted
- * or revoked only in the system settings — this screen opens that settings page and
- * re-reads the system's answer when it resumes. The allowlist is the set of bank package
- * names the user's notifications may come from: adding takes a user-typed package name,
- * storing it only when it has the application-id shape (never a display name or a
- * guess); removing narrows future intake and never touches stored records.
- *
- * The status line names what the app sees: access granted or not, the live listener
- * binding, and which packages are allowlisted. Revoking access in system settings stops
- * intake — nothing new may be processed — while manual recording keeps working exactly
- * as before. When access is granted but the listener is disconnected, one explicit
- * button asks the system to reconnect through the supported rebind; the system answers
- * asynchronously, and the status line keeps telling the truth meanwhile. Reconnecting
- * only re-reads the notifications still showing on the phone — never dismissed history
- * and never a bank statement — and drafts already saved stay exactly as they are.
- *
- * This screen requests no permission itself. Notification access is a system settings
- * grant, not the POST_NOTIFICATIONS runtime permission (which only lets an app show its
- * own notifications); the status copy says so explicitly. No notification content is read
- * or shown here, and nothing here writes to the ledger.
+ * The screen has one primary action — open the system's notification-access grant — and keeps
+ * everything else secondary: the live listener binding, the package allowlist, a supported
+ * reconnect request, the restricted-settings path, and a read-only diagnostic block. It never
+ * shows notification content, never tests intake with a fabricated notification, and never
+ * writes to the ledger. Revoking access stops new intake while manual recording is unchanged.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BankNotificationSettingsScreen(
+internal fun BankNotificationSettingsScreen(
     accessStore: NotificationAccessStore,
+    queryService: WorkflowQueryService,
     onNavigateUp: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val baseStrings = LocalAegisStrings.current
+    val strings = remember(baseStrings.language) { settingsStrings(baseStrings.language) }
     val context = LocalContext.current
 
-    // The system's answer, re-read on every resume: a revocation made in settings while
-    // the user was away must show the moment this screen is visible again. The stored
-    // allowlist is re-read alongside it, so it can never go stale on return.
     var accessGranted by remember { mutableStateOf(isNotificationAccessGranted(context)) }
     var allowedPackages by remember { mutableStateOf(accessStore.loadAllowedPackages()) }
+    var refreshToken by remember { mutableIntStateOf(0) }
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -92,14 +92,21 @@ fun BankNotificationSettingsScreen(
                 accessGranted = isNotificationAccessGranted(context)
                 allowedPackages = accessStore.loadAllowedPackages()
                 BankNotificationListener.updateAllowedPackages(allowedPackages)
+                refreshToken += 1
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val connection: ListenerConnection by
-        BankNotificationListener.connection.collectAsState()
+    val connection: ListenerConnection by BankNotificationListener.connection.collectAsState()
+    val pendingFlow = remember(queryService, refreshToken) {
+        runCatching {
+            queryService.observeDraftCandidateCount(IntakeReviewStatus.PENDING)
+        }.getOrElse { flowOf(-1) }
+    }
+    val pendingCount by pendingFlow.collectAsState(initial = null)
+
     var adding by rememberSaveable { mutableStateOf(false) }
     var packageInput by rememberSaveable { mutableStateOf("") }
     var inputError by rememberSaveable { mutableStateOf<String?>(null) }
@@ -112,9 +119,24 @@ fun BankNotificationSettingsScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("Bank notifications") },
+                title = {
+                    Text(
+                        text = strings.bankTitle,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                },
                 navigationIcon = {
-                    TextButton(onClick = onNavigateUp) { Text("Back") }
+                    IconButton(onClick = onNavigateUp) {
+                        AegisIcon(
+                            glyph = AegisGlyph.ARROW_BACK,
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            size = 22.dp,
+                            modifier = Modifier.semantics {
+                                contentDescription = strings.back
+                            },
+                        )
+                    }
                 },
             )
         },
@@ -124,34 +146,35 @@ fun BankNotificationSettingsScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            StatusSection(
-                accessGranted = accessGranted,
-                connection = connection,
-                allowedCount = allowedPackages.size,
-            )
-
             Text(
-                text = "Notification access lets the app see notifications from the bank " +
-                    "apps you choose, so it can prepare transaction drafts. This is the " +
-                    "system notification-access grant — not the permission an app uses " +
-                    "to show its own notifications. Nothing is captured until access is " +
-                    "granted and at least one bank app is listed below. Revoking access " +
-                    "stops new intake while manual recording keeps working.",
+                text = strings.bankAccessHelp,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-
             Button(
-                onClick = {
-                    context.startActivity(notificationAccessSettingsIntent())
-                },
-                modifier = Modifier.fillMaxWidth(),
+                onClick = { context.startActivity(notificationAccessSettingsIntent()) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 52.dp),
             ) {
-                Text(if (accessGranted) "Review notification access" else "Open notification settings")
+                Text(
+                    if (accessGranted) strings.bankReviewAccess else strings.bankOpenAccess,
+                )
             }
+
+            StatusGroup(strings = strings, content = {
+                StatusSection(
+                    strings = strings,
+                    accessGranted = accessGranted,
+                    connection = connection,
+                    allowedCount = allowedPackages.size,
+                    pendingCount = pendingCount?.takeIf { it >= 0 },
+                )
+            })
 
             if (accessGranted && connection is ListenerConnection.Disconnected) {
                 OutlinedButton(
@@ -159,17 +182,15 @@ fun BankNotificationSettingsScreen(
                         rebindFeedback = when (
                             requestListenerRebind(context, accessGranted = true)
                         ) {
-                            ListenerRebindOutcome.Requested ->
-                                "Reconnection requested. The system reconnects in its own " +
-                                    "time — the listener status above shows when it is back."
-                            ListenerRebindOutcome.RefusedNoAccess ->
-                                "Notification access is off, so nothing was requested. " +
-                                    "Grant access in the system settings first."
+                            ListenerRebindOutcome.Requested -> strings.bankReconnectRequested
+                            ListenerRebindOutcome.RefusedNoAccess -> strings.bankReconnectRefused
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp),
                 ) {
-                    Text("Ask the system to reconnect")
+                    Text(strings.bankReconnect)
                 }
                 rebindFeedback?.let { feedback ->
                     Text(
@@ -179,49 +200,71 @@ fun BankNotificationSettingsScreen(
                     )
                 }
                 Text(
-                    text = "Reconnecting only re-reads the notifications still showing on " +
-                        "the phone. Anything already dismissed is not recovered — drafts " +
-                        "already saved stay exactly as they are.",
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = strings.bankReconnectHelp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
             Text(
-                text = "If the switch for Aegis F cannot be turned on — the phone says the " +
-                    "setting is restricted for this install — open the app info page, choose " +
-                    "the three-dot menu, and allow restricted settings there first; that is " +
-                    "the phone's own protection for sideloaded apps. Then return to the " +
-                    "notification settings above.",
-                style = MaterialTheme.typography.bodyMedium,
+                text = strings.bankRestrictedHelp,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            OutlinedButton(
-                onClick = { context.startActivity(appInfoSettingsIntent(context)) },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Open app info")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = { context.startActivity(appInfoSettingsIntent(context)) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp),
+                ) {
+                    Text(strings.bankOpenAppInfo)
+                }
+                OutlinedButton(
+                    onClick = {
+                        accessGranted = isNotificationAccessGranted(context)
+                        allowedPackages = accessStore.loadAllowedPackages()
+                        BankNotificationListener.updateAllowedPackages(allowedPackages)
+                        refreshToken += 1
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
+                        .testTag("bank-refresh"),
+                ) {
+                    Text(strings.bankRefresh)
+                }
             }
 
             HorizontalDivider()
 
             Text(
-                text = "BANK APPS",
+                text = strings.bankDiagnosticsSection,
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = "Only notifications from these packages may become drafts. " +
-                    "Type the package name the phone shows for the bank app — not its " +
-                    "display name. Nothing is captured from any other app.",
-                style = MaterialTheme.typography.bodyMedium,
+                text = strings.bankDiagnosticsHelp,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            HorizontalDivider()
+
+            Text(
+                text = strings.bankAppsSection,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = strings.bankAppsHelp,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             if (allowedPackages.isEmpty()) {
                 Text(
-                    text = "No bank apps listed yet. Manual recording works unchanged; " +
-                        "automatic drafts start only after a package is added.",
+                    text = strings.bankAppsEmpty,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -235,6 +278,9 @@ fun BankNotificationSettingsScreen(
                                 allowedPackages = allowedPackages,
                                 packageName = packageName,
                             ),
+                            readyLabel = strings.bankAppReady,
+                            waitingLabel = strings.bankAppWaiting,
+                            removeLabel = strings.bankRemove,
                             onRemove = { removing = packageName },
                         )
                     }
@@ -247,26 +293,26 @@ fun BankNotificationSettingsScreen(
                     inputError = null
                     adding = true
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .testTag("bank-add"),
             ) {
-                Text("Add a bank app")
+                Text(strings.bankAddApp)
             }
 
-            HorizontalDivider()
-
             Text(
-                text = "These drafts are incomplete evidence, not a bank statement: the " +
-                    "app cannot see past notifications and misses anything the bank " +
-                    "does not send. Every draft stays a draft until it is reviewed and " +
-                    "confirmed.",
-                style = MaterialTheme.typography.bodyMedium,
+                text = strings.bankDraftDisclaimer,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 16.dp),
             )
         }
     }
 
     if (adding) {
         AddBankAppDialog(
+            strings = strings,
             input = packageInput,
             onInputChange = {
                 packageInput = it
@@ -280,9 +326,9 @@ fun BankNotificationSettingsScreen(
                     allowedPackages = accessStore.loadAllowedPackages()
                     BankNotificationListener.updateAllowedPackages(allowedPackages)
                     adding = false
-                } catch (rejection: LedgerValidationException) {
-                    // The typed value stays so it can be corrected; nothing is stored.
-                    inputError = rejection.message ?: "That package name cannot be stored."
+                    packageInput = ""
+                } catch (_: LedgerValidationException) {
+                    inputError = strings.bankPackageInvalid
                 }
             },
         )
@@ -291,13 +337,8 @@ fun BankNotificationSettingsScreen(
     removing?.let { packageName ->
         AlertDialog(
             onDismissRequest = { removing = null },
-            title = { Text("Remove this bank app?") },
-            text = {
-                Text(
-                    "Notifications from $packageName will no longer become drafts. " +
-                        "Stored records are unchanged.",
-                )
-            },
+            title = { Text(strings.bankRemoveTitle) },
+            text = { Text(strings.bankRemoveBody(packageName)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -306,85 +347,78 @@ fun BankNotificationSettingsScreen(
                         BankNotificationListener.updateAllowedPackages(allowedPackages)
                         removing = null
                     },
+                    modifier = Modifier.testTag("bank-remove-confirm"),
                 ) {
-                    Text("Remove")
+                    Text(strings.bankRemoveConfirm)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { removing = null }) { Text("Cancel") }
+                TextButton(onClick = { removing = null }) { Text(strings.cancel) }
             },
         )
     }
 }
 
-/**
- * What the app sees right now: the system grant, the live listener binding, and the
- * allowlist size. Each row names state, never content — no notification text appears.
- */
+@Composable
+private fun StatusGroup(
+    strings: SettingsStrings,
+    content: @Composable () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        Column {
+            Text(
+                text = strings.bankStatusSection,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp),
+            )
+            content()
+        }
+    }
+}
+
 @Composable
 private fun StatusSection(
+    strings: SettingsStrings,
     accessGranted: Boolean,
     connection: ListenerConnection,
     allowedCount: Int,
-    modifier: Modifier = Modifier,
+    pendingCount: Int?,
 ) {
     Column(
-        modifier = modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            text = "STATUS",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        StatusRow(
+            label = strings.bankAccessLabel,
+            value = if (accessGranted) strings.bankAccessGranted else strings.bankAccessNotGranted,
         )
         StatusRow(
-            label = "Notification access",
-            value = if (accessGranted) "Granted" else "Not granted",
+            label = strings.bankListenerLabel,
+            value = when (connection) {
+                is ListenerConnection.Connected -> strings.bankListenerConnected
+                ListenerConnection.Disconnected ->
+                    if (!accessGranted) {
+                        strings.bankListenerDisconnectedAccess
+                    } else {
+                        strings.bankListenerDisconnectedWaiting
+                    }
+            },
         )
-        val binding = when (connection) {
-            is ListenerConnection.Connected -> "Listener connected"
-            ListenerConnection.Disconnected ->
-                if (!accessGranted) {
-                    "Listener disconnected — access revoked"
-                } else {
-                    "Listener disconnected — waiting for the system"
-                }
-        }
-        StatusRow(label = "Listener", value = binding)
         StatusRow(
-            label = "Bank apps listed",
-            value = if (allowedCount == 1) "1 package" else "$allowedCount packages",
+            label = strings.bankAllowedLabel,
+            value = strings.bankAllowedCount(allowedCount),
         )
-        if (!accessGranted) {
-            Text(
-                text = if (allowedCount == 0) {
-                    "Access is off and no bank app is listed: nothing is captured, and " +
-                        "manual recording works unchanged."
-                } else {
-                    "Access is off: nothing is captured, even from the listed " +
-                        "packages. Manual recording works unchanged."
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-        } else if (connection is ListenerConnection.Disconnected) {
-            Text(
-                text = "Access is on but the system has not connected the listener: " +
-                    "nothing is captured until it reconnects. Drafts already saved " +
-                    "are unchanged.",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-        } else if (allowedCount == 0) {
-            Text(
-                text = "Access is on but no bank app is listed: nothing is captured yet.",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-        }
+        StatusRow(
+            label = strings.bankPendingLabel,
+            value = pendingCount?.let(strings.bankPendingCount) ?: strings.bankPendingUnread,
+        )
     }
 }
 
@@ -397,14 +431,18 @@ private fun StatusRow(label: String, value: String) {
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(start = 16.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.End,
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 16.dp),
         )
     }
 }
@@ -413,6 +451,9 @@ private fun StatusRow(label: String, value: String) {
 private fun AllowedPackageRow(
     packageName: String,
     intakeReady: Boolean,
+    readyLabel: String,
+    waitingLabel: String,
+    removeLabel: String,
     onRemove: () -> Unit,
 ) {
     Row(
@@ -425,19 +466,28 @@ private fun AllowedPackageRow(
                 text = packageName,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 2,
             )
             Text(
-                text = if (intakeReady) "Ready" else "Waiting for access",
+                text = if (intakeReady) readyLabel else waitingLabel,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        TextButton(onClick = onRemove) { Text("Remove") }
+        TextButton(
+            onClick = onRemove,
+            modifier = Modifier
+                .heightIn(min = 48.dp)
+                .testTag("bank-remove-$packageName"),
+        ) {
+            Text(removeLabel)
+        }
     }
 }
 
 @Composable
 private fun AddBankAppDialog(
+    strings: SettingsStrings,
     input: String,
     onInputChange: (String) -> Unit,
     error: String?,
@@ -446,19 +496,15 @@ private fun AddBankAppDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add a bank app") },
+        title = { Text(strings.bankAddTitle) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    "Enter the bank app's package name exactly as it appears on the " +
-                        "phone — for example from the system's app info for that bank " +
-                        "app. Display names are not accepted, and nothing here guesses " +
-                        "a package from a bank name.",
-                )
+                Text(strings.bankAddHelp)
                 OutlinedTextField(
                     value = input,
                     onValueChange = onInputChange,
-                    label = { Text("Package name") },
+                    modifier = Modifier.testTag("bank-package"),
+                    label = { Text(strings.bankPackageLabel) },
                     singleLine = true,
                     isError = error != null,
                     supportingText = error?.let { { Text(it) } },
@@ -466,10 +512,10 @@ private fun AddBankAppDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onConfirm) { Text("Add") }
+            TextButton(onClick = onConfirm) { Text(strings.save) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(strings.cancel) }
         },
     )
 }

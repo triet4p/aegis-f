@@ -58,7 +58,7 @@ class CategoryDeletionTest {
         val unused = repository.addCategory("Filters")
 
         assertEquals(CategoryDeletionImpact(0, 0, 0), repository.categoryDeletionImpact(unused))
-        assertEquals(CategoryDeletionImpact(0, 0, 0), repository.deleteCategory(unused))
+        assertEquals(CategoryDeletionResult.Deleted(unused), repository.deleteCategory(unused))
 
         assertNull(query.findCategory(unused))
         assertEquals(listOf(food), query.categories(ALL_CATEGORIES).items.map { it.id })
@@ -70,7 +70,7 @@ class CategoryDeletionTest {
     }
 
     @Test
-    fun `a referenced category keeps every record and total and only clears the link`() = runTest {
+    fun `a referenced category is refused and every record keeps its link and total`() = runTest {
         val food = repository.addCategory("Food")
         val transport = repository.addCategory("Transport")
         val lunch = repository.addTransaction(
@@ -95,113 +95,64 @@ class CategoryDeletionTest {
         val totalBefore = query.ledgerRecords(ALL_LEDGER_RECORDS).items.sumOf { it.amountVnd }
 
         assertEquals(CategoryDeletionImpact(1, 0, 0), repository.categoryDeletionImpact(food))
-        assertEquals(CategoryDeletionImpact(1, 0, 0), repository.deleteCategory(food))
+        assertEquals(
+            CategoryDeletionResult.Blocked(CategoryDeletionImpact(1, 0, 0)),
+            repository.deleteCategory(food),
+        )
 
-        // The record is identical except for the link: no amount, type, moment, description,
-        // confirmation, provenance, or timestamp is rewritten by a category deletion.
-        assertEquals(storedLunch.copy(categoryId = null), query.findLedgerRecord(lunch))
+        // Refused means refused: the record keeps its exact values and its category, the
+        // category row remains, and the month's rows and total do not move.
+        assertEquals(storedLunch, query.findLedgerRecord(lunch))
         assertEquals(transport, query.findLedgerRecord(salary)!!.categoryId)
         assertEquals(listOf(lunch, salary).sorted(), query.ledgerRecords(ALL_LEDGER_RECORDS).items.map { it.id }.sorted())
         assertEquals(totalBefore, query.ledgerRecords(ALL_LEDGER_RECORDS).items.sumOf { it.amountVnd })
-
-        // The month's own figures come from those same rows, so they do not move either: the
-        // detached expense now sits in the uncategorized bucket with its exact amount.
-        val summary = summarizeConfirmedSpending(
-            records = query.ledgerRecords(ALL_LEDGER_RECORDS).items,
-            fromEpochMillis = ManualDateTime.monthStartEpochMillis(OCCURRED_AT),
-            throughExclusiveEpochMillis = ManualDateTime.nextMonthStartEpochMillis(OCCURRED_AT),
-        )
-        assertEquals(1, summary.recordCount)
-        assertEquals(45_000L, summary.totalVnd)
-        assertEquals(listOf(null to 45_000L), summary.categoryTotals.map { it.categoryId to it.totalVnd })
-
-        // Gone from the category list and from the picker, while the unrelated one stays.
-        assertNull(query.findCategory(food))
-        assertEquals(listOf(transport), query.categories(ALL_ASSIGNABLE_CATEGORIES).items.map { it.id })
+        assertNotNull(query.findCategory(food))
+        assertEquals(food, query.findLedgerRecord(lunch)!!.categoryId)
     }
 
     @Test
-    fun `rules that named the category go with it and unrelated rules keep working`() = runTest {
+    fun `rules that name the category block deletion and stay stored`() = runTest {
         val food = repository.addCategory("Food")
         val transport = repository.addCategory("Transport")
         assertTrue(repository.rememberCategoryForDescription("Synthetic cafe", food))
         assertTrue(repository.rememberCategoryForDescription("Synthetic bus", transport))
 
         assertEquals(CategoryDeletionImpact(0, 1, 0), repository.categoryDeletionImpact(food))
-        assertEquals(CategoryDeletionImpact(0, 1, 0), repository.deleteCategory(food))
+        assertEquals(
+            CategoryDeletionResult.Blocked(CategoryDeletionImpact(0, 1, 0)),
+            repository.deleteCategory(food),
+        )
 
-        // The rule rows themselves are gone, not merely unresolvable: no stored rule still
-        // names the removed category, while the unrelated one is untouched.
-        assertEquals(0, database.categoryDao().countReferencingRules(food))
+        assertEquals(1, database.categoryDao().countReferencingRules(food))
         assertEquals(1, database.categoryDao().countReferencingRules(transport))
-        assertNull(repository.findRememberedCategoryForDescription("Synthetic cafe"))
+        assertEquals(food, repository.findRememberedCategoryForDescription("Synthetic cafe")?.id)
         assertEquals(
             transport,
             repository.findRememberedCategoryForDescription("Synthetic bus")?.id,
         )
-        // The freed description can be remembered again, for a category that does exist.
-        assertTrue(repository.rememberCategoryForDescription("Synthetic cafe", transport))
+        assertNotNull(query.findCategory(food))
     }
 
     @Test
-    fun `a pending draft loses a removed pre-set category and refuses the removed id`() = runTest {
+    fun `a pending draft pre-set to the category blocks deletion and keeps its choice`() = runTest {
         val food = repository.addCategory("Food")
-        val transport = repository.addCategory("Transport")
         val draftDao = database.pendingBankDraftDao()
         val draftId = draftDao.store(draftEntity(categoryId = food, resolved = true))
-        val review = reviewRepository()
-        assertEquals(0, draftDao.findById(draftId)!!.reviewRevision)
+        val before = draftDao.findById(draftId)!!
 
         assertEquals(CategoryDeletionImpact(0, 0, 1), repository.categoryDeletionImpact(food))
-        assertEquals(CategoryDeletionImpact(0, 0, 1), repository.deleteCategory(food))
+        assertEquals(
+            CategoryDeletionResult.Blocked(CategoryDeletionImpact(0, 0, 1)),
+            repository.deleteCategory(food),
+        )
 
-        val cleared = draftDao.findById(draftId)!!
-        assertNull(cleared.reviewCategoryId)
-        assertFalse(cleared.reviewCategoryResolved)
-        assertEquals(1, cleared.reviewRevision)
-
-        // An editor still holding the older revision is told the draft changed rather than
-        // being allowed to write the removed id back.
-        assertEquals(
-            BankDraftReviewResult.Changed,
-            review.saveReview(draftId, 0, edits(categoryId = food, resolved = true)),
-        )
-        // Even at the current revision, neither saving nor confirming can re-link the id.
-        assertEquals(
-            BankDraftReviewResult.CategoryUnavailable,
-            review.saveReview(draftId, 1, edits(categoryId = food, resolved = true)),
-        )
-        assertEquals(
-            BankDraftReviewResult.CategoryUnavailable,
-            review.confirmDraft(draftId, 1, edits(categoryId = food, resolved = true)),
-        )
-        // Both refusals wrote nothing: the draft is still pending with no ledger row.
-        val afterRefusals = draftDao.findById(draftId)!!
-        assertEquals(IntakeReviewStatus.PENDING, afterRefusals.reviewStatus)
-        assertNull(afterRefusals.reviewCategoryId)
+        assertEquals(before, draftDao.findById(draftId))
+        assertNotNull(query.findCategory(food))
         assertTrue(query.ledgerRecords(ALL_LEDGER_RECORDS).items.isEmpty())
-
-        // The draft stays reviewable by hand: another category, then No category, both work.
-        assertEquals(
-            BankDraftReviewResult.Saved(2),
-            review.saveReview(draftId, 1, edits(categoryId = transport, resolved = true)),
-        )
-        assertEquals(
-            BankDraftReviewResult.Saved(3),
-            review.saveReview(draftId, 2, edits(categoryId = null, resolved = true)),
-        )
-        assertTrue(
-            review.confirmDraft(draftId, 3, edits(categoryId = null, resolved = true)) is
-                BankDraftReviewResult.Confirmed,
-        )
-        val created = query.ledgerRecords(ALL_LEDGER_RECORDS).items.single()
-        assertEquals(DRAFT_AMOUNT_VND, created.amountVnd)
-        assertNull(created.categoryId)
-        assertEquals(transport, query.findCategory(transport)?.id)
     }
 
     @Test
-    fun `an archived category is deleted outright instead of being kept for reuse`() = runTest {
+    fun `an archived referenced category is still refused and keeps its history`() = runTest {
         val food = repository.addCategory("Food")
         val lunch = repository.addTransaction(
             TransactionInput(
@@ -215,13 +166,15 @@ class CategoryDeletionTest {
         repository.archiveCategory(food)
         val stored = query.findLedgerRecord(lunch)!!
 
-        assertEquals(CategoryDeletionImpact(1, 0, 0), repository.deleteCategory(food))
+        assertEquals(
+            CategoryDeletionResult.Blocked(CategoryDeletionImpact(1, 0, 0)),
+            repository.deleteCategory(food),
+        )
 
-        // No alias or archived remnant of the deleted category survives to be re-selected.
-        assertNull(query.findCategory(food))
-        assertNull(query.categories(ALL_CATEGORIES).items.firstOrNull { it.name == "Food" })
-        assertEquals(stored.copy(categoryId = null), query.findLedgerRecord(lunch))
+        assertNotNull(query.findCategory(food))
+        assertEquals(stored, query.findLedgerRecord(lunch))
         assertEquals(45_000L, query.findLedgerRecord(lunch)!!.amountVnd)
+        assertTrue(query.findCategory(food)!!.archived)
     }
 
     @Test

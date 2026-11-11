@@ -38,14 +38,15 @@ data class TransactionCorrection(
 )
 
 /**
- * What permanently removing one category affected: the stored transactions that are now
- * uncategorized, the saved rules that went with the category, and the still-pending bank
- * drafts whose pre-set category was cleared.
+ * What keeps a category from being deleted: the stored transactions, saved exact-description
+ * rules and still-pending bank drafts that reference it.
  *
- * The ledger rows themselves are never counted as removed, because none is: a delete keeps
- * every record and only clears a link. The same type reports what a deletion *would* change
- * (for the confirmation) and what it *did* change (the return value), so the two can be
- * compared rather than assumed equal.
+ * A non-zero count blocks permanent deletion; the category and every reference stay exactly
+ * as stored. The delete transaction reads these counts again, so a reference that appears
+ * after a confirmation cannot slip between the check and the delete. A successful delete of
+ * an unreferenced category reports all three counts as zero. The field names are retained
+ * from the earlier contract because stored operation rows refer to them, but they are
+ * reference counts, not effects that an allowed delete would apply.
  */
 data class CategoryDeletionImpact(
     val uncategorizedTransactionCount: Int,
@@ -172,28 +173,24 @@ internal class LedgerRepository(
     }
 
     /**
-     * Permanently deletes a category, its own row included, whether or not records refer to
-     * it. This is distinct from [archiveCategory]: archive keeps the category so past records
-     * stay filed under it, while a delete cannot be undone and no placeholder row is left
-     * behind.
+     * Permanently deletes an unreferenced category, or refuses while anything still uses it.
      *
-     * The removal runs as one database transaction that first clears every reference to the
-     * category — stored transactions lose the link and become uncategorized, still-pending
-     * drafts lose their pre-set choice — and removes the saved rules that named it, then
-     * deletes the row. No ledger row is ever deleted, and every other stored value is left
-     * untouched, so the month's totals do not move.
-     *
-     * @return what the removal changed, counted inside that transaction.
+     * The reference counts and the delete run as one database transaction. A stored
+     * transaction, saved rule or pending draft that references the category blocks the
+     * delete and is returned in [CategoryDeletionResult.Blocked]; nothing is rewritten.
+     * Archive is the supported path that keeps history for a referenced category. A refused
+     * or missing category changes nothing.
      */
-    suspend fun deleteCategory(categoryId: Long): CategoryDeletionImpact {
+    suspend fun deleteCategory(categoryId: Long): CategoryDeletionResult {
         val category = requireCategory(categoryId)
-        return categoryDao.deletePermanently(category)
+        return categoryDao.deleteIfUnreferenced(category)
     }
 
     /**
      * What deleting [categoryId] would change right now, for a confirmation that names the
-     * real impact instead of guessing. Reading never writes, and [deleteCategory] returns the
-     * counts it actually applied, so a change between the two is visible rather than hidden.
+     * real impact instead of guessing. Reading never writes; [deleteCategory] re-checks the
+     * same counts inside its transaction, so a reference that appears after this read blocks
+     * the delete instead of being silently rewritten.
      */
     suspend fun categoryDeletionImpact(categoryId: Long): CategoryDeletionImpact {
         val category = requireCategory(categoryId)

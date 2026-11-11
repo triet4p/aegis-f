@@ -258,9 +258,9 @@ sealed interface WorkflowChange {
     /**
      * A category was removed for good.
      *
-     * The counts say what the removal changed: the records that became uncategorized, the
-     * saved rules that went with the category, and the still-pending drafts whose pre-set
-     * category was cleared. No ledger record is ever removed by it.
+     * A delete is applied only when the category has no referencing transaction, saved rule
+     * or pending draft; the impact then reports zero counts. A referenced category is refused
+     * with a Conflict, so no ledger record, rule or draft is rewritten.
      */
     data class CategoryDeleted(
         val categoryId: Long,

@@ -73,6 +73,16 @@ data class WorkflowSkill(
 class WorkflowSkillCatalog private constructor(
     private val skills: Map<WorkflowSkillId, WorkflowSkill>,
 ) {
+    /**
+     * The bundled skills, in their stable declaration order.
+     *
+     * This is a read of the loaded, already validated catalog: a settings screen can show which
+     * workflows the app can select and their versions without loading an asset itself and
+     * without granting anything. Selecting a skill for a run remains the host's trusted
+     * decision.
+     */
+    fun all(): List<WorkflowSkill> = WorkflowSkillId.entries.mapNotNull { skills[it] }
+
     fun select(intents: Set<WorkflowIntent>): List<WorkflowSkill> {
         val selected = linkedSetOf<WorkflowSkillId>()
         intents.forEach { intent ->
