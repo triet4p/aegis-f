@@ -77,6 +77,48 @@ class ChatTranscriptStateTest {
     }
 
     @Test
+    fun `private reasoning shows a phase label only until answer text is visible`() {
+        val state = ChatAgentRunState()
+        val token = state.beginTurn("Question")
+
+        state.setReasoningActivity(token, "Thinking…")
+        val thinking = state.messages.last() as ChatTranscriptEntry.Assistant
+        assertEquals("", thinking.text)
+        assertEquals(ChatAnswerState.WAITING, thinking.state)
+        assertEquals("Thinking…", thinking.statusLine)
+
+        state.appendChunk(token, "Partial answer")
+        state.setReasoningActivity(token, "Thinking…")
+        val streaming = state.messages.last() as ChatTranscriptEntry.Assistant
+        assertEquals("Partial answer", streaming.text)
+        assertEquals(ChatAnswerState.STREAMING, streaming.state)
+        assertNull(streaming.statusLine)
+
+        state.completeTurn(token, "Partial answer done.", runId = "run-1")
+        val settled = state.messages.last() as ChatTranscriptEntry.Assistant
+        assertEquals(ChatAnswerState.COMPLETE, settled.state)
+        assertNull(settled.statusLine)
+    }
+
+    @Test
+    fun `a finished tool step clears its label without touching received text`() {
+        val state = ChatAgentRunState()
+        val token = state.beginTurn("Question")
+
+        state.setActivity(token, "Reading your saved note…")
+        val running = state.messages.last() as ChatTranscriptEntry.Assistant
+        assertEquals("", running.text)
+        assertEquals("Reading your saved note…", running.statusLine)
+
+        state.appendChunk(token, "Answer")
+        state.setActivity(token, null)
+        val finished = state.messages.last() as ChatTranscriptEntry.Assistant
+        assertEquals("Answer", finished.text)
+        assertEquals(ChatAnswerState.STREAMING, finished.state)
+        assertNull(finished.statusLine)
+    }
+
+    @Test
     fun `a stale completion cannot overwrite a stopped turn`() {
         val state = ChatAgentRunState()
         val first = state.beginTurn("Question one")

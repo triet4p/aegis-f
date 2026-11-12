@@ -204,6 +204,17 @@ class OpenAiChatCompletionsAdapter internal constructor(
                             }
                             val delta = choice.optJSONObject("delta")
                             if (delta != null) {
+                                // Providers such as DeepSeek stream private reasoning for a long
+                                // time before the first answer token. It is real activity, but its
+                                // text is never surfaced: only the fact that it is happening is,
+                                // so the screen does not sit on an unqualified "waiting" line.
+                                for (field in REASONING_DELTA_FIELDS) {
+                                    val thought = delta.opt(field)
+                                    if (thought is String && thought.isNotEmpty()) {
+                                        onProgress(HostedTurnProgress.Reasoning)
+                                        break
+                                    }
+                                }
                                 when (val content = delta.opt("content")) {
                                     null, JSONObject.NULL -> Unit
                                     is String -> if (content.isNotEmpty()) {
@@ -696,5 +707,11 @@ class OpenAiChatCompletionsAdapter internal constructor(
         const val EMPTY_ANSWER_REASON = "empty_answer"
         const val MAX_TRANSPORT_DETAIL = 200
         const val STREAM_DONE = "[DONE]"
+
+        /**
+         * Wire fields that carry a provider's private reasoning delta. Only their presence is
+         * reported; the text is never read into an answer, a trace or the continuation.
+         */
+        val REASONING_DELTA_FIELDS = listOf("reasoning_content", "reasoning")
     }
 }

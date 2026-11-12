@@ -328,6 +328,23 @@ internal class ChatAgentRunState {
         }
     }
 
+    /**
+     * Shows that the model is working privately, but only while no answer text is visible.
+     *
+     * A provider can report reasoning again after it has already sent answer text. Once the
+     * answer is on screen the receiving line already says the turn is live, so a late reasoning
+     * signal must not add a second status line under the words the user is reading.
+     */
+    fun setReasoningActivity(token: Int, label: String) {
+        updateActive(token) { entry ->
+            if (entry.text.isEmpty()) {
+                entry.copy(state = ChatAnswerState.WAITING, statusLine = label)
+            } else {
+                entry
+            }
+        }
+    }
+
     /** Settles the exchange with the verified final answer. */
     fun completeTurn(token: Int, answer: String, runId: String) {
         if (!isActive(token)) return

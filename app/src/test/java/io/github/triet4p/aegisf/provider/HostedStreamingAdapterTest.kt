@@ -103,6 +103,45 @@ class HostedStreamingAdapterTest {
     }
 
     @Test
+    fun `private reasoning is reported as activity and never as answer text`() = runBlocking {
+        val transport = ScriptedStreamTransport(
+            mutableListOf(
+                listOf(
+                    start(),
+                    event(
+                        """{"model":"deepseek-v4.1-flash","choices":[{"index":0,"delta":{"role":"assistant","reasoning_content":"private thought"}}]}""",
+                    ),
+                    event(
+                        """{"model":"deepseek-v4.1-flash","choices":[{"index":0,"delta":{"reasoning":"more private thought","content":"Visible."}}]}""",
+                    ),
+                    event("""{"model":"deepseek-v4.1-flash","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}"""),
+                    event("[DONE]"),
+                ),
+            ),
+        )
+        val adapter = OpenAiChatCompletionsAdapter(ProviderFixtures.chatConfig(), transport, transport)
+        val progress = mutableListOf<HostedTurnProgress>()
+        val result = adapter.streamGuarded(
+            adapter.begin("system", "user"),
+            emptyList(),
+            guard,
+        ) { progress += it }
+
+        val turn = ProviderFixtures.turn(result)
+        assertEquals("Visible.", turn.assistantText)
+        assertEquals(2, progress.count { it is HostedTurnProgress.Reasoning })
+        assertEquals(
+            listOf("Visible."),
+            progress.filterIsInstance<HostedTurnProgress.PublicText>().map { it.text },
+        )
+        assertFalse(
+            "private reasoning must never become public progress",
+            progress.filterIsInstance<HostedTurnProgress.PublicText>()
+                .any { it.text.contains("private thought") },
+        )
+    }
+
+    @Test
     fun `a truncated streamed tool call is never dispatchable`() = runBlocking {
         val transport = ScriptedStreamTransport(
             mutableListOf(

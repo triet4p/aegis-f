@@ -65,7 +65,29 @@ import org.json.JSONObject
 sealed interface WorkflowRunProgress {
     data class PublicText(val text: String) : WorkflowRunProgress
 
-    data class ToolActivity(val name: String, val completed: Boolean) : WorkflowRunProgress
+    /**
+     * The provider is producing private reasoning: real activity, reported without any text.
+     *
+     * A surface may say the model is working; it may never show, store or reconstruct the
+     * reasoning itself.
+     */
+    data object Reasoning : WorkflowRunProgress
+
+    /**
+     * A declared tool step is being prepared or executed.
+     *
+     * The provider's later "arguments complete" event is still the same running step: only
+     * [ToolStepFinished] means the work this label names is done.
+     */
+    data class ToolActivity(val name: String) : WorkflowRunProgress
+
+    /**
+     * Every tool call of the current turn has been applied: the named step is no longer running.
+     *
+     * Emitted by the executor after dispatch, never by the provider during argument streaming,
+     * so a surface clears the step label exactly when the work it named is done.
+     */
+    data object ToolStepFinished : WorkflowRunProgress
 
     data class StreamingUnavailable(val reason: String) : WorkflowRunProgress
 }
@@ -1260,6 +1282,10 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             answer.stop?.let { return TurnStep.Stop(it) }
         }
         run.toolCalls += calls.size
+        // The results of every call in this turn are applied. Only now is the named tool step
+        // finished; clearing it when the arguments completed would leave a stale label while the
+        // next model turn runs, and never clearing it would keep naming finished work.
+        run.progress?.invoke(WorkflowRunProgress.ToolStepFinished)
         clarification?.let { ask ->
             return TurnStep.Stop(clarifyingOutcome(run, ask))
         }
@@ -1958,8 +1984,11 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
     /** Maps a provider progress item onto the UI-facing progress vocabulary. */
     private fun HostedTurnProgress.toWorkflowRunProgress(): WorkflowRunProgress = when (this) {
         is HostedTurnProgress.PublicText -> WorkflowRunProgress.PublicText(text)
-        is HostedTurnProgress.ToolCallStarted -> WorkflowRunProgress.ToolActivity(name, completed = false)
-        is HostedTurnProgress.ToolCallCompleted -> WorkflowRunProgress.ToolActivity(name, completed = true)
+        is HostedTurnProgress.Reasoning -> WorkflowRunProgress.Reasoning
+        is HostedTurnProgress.ToolCallStarted -> WorkflowRunProgress.ToolActivity(name)
+        // The provider only finished the argument text; dispatch and local execution are still
+        // ahead, so this is the same running step, not its completion.
+        is HostedTurnProgress.ToolCallCompleted -> WorkflowRunProgress.ToolActivity(name)
         is HostedTurnProgress.StreamingUnavailable -> WorkflowRunProgress.StreamingUnavailable(reason)
     }
 

@@ -141,6 +141,9 @@ class MaskedHostedGateway(
             adapter.streamGuarded(conversation.inner, tools, this) { item ->
                 when (item) {
                     is HostedTurnProgress.PublicText -> gate.accept(item.text)
+                    // Reasoning carries no provider text: only its existence is forwarded, so
+                    // the surface can report honest activity without seeing a thought.
+                    is HostedTurnProgress.Reasoning,
                     is HostedTurnProgress.ToolCallStarted,
                     is HostedTurnProgress.ToolCallCompleted,
                     is HostedTurnProgress.StreamingUnavailable,

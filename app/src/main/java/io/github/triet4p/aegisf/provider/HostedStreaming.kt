@@ -158,6 +158,14 @@ sealed interface HostedTurnProgress {
     /** One accepted incremental piece of the model's user-visible answer. */
     data class PublicText(val text: String) : HostedTurnProgress
 
+    /**
+     * The provider is producing private reasoning for this turn.
+     *
+     * It is real activity the surface may report, but it deliberately carries no text: the
+     * reasoning itself is never displayed, stored or guarded as answer text.
+     */
+    data object Reasoning : HostedTurnProgress
+
     /** The provider began a tool call for a declared tool. */
     data class ToolCallStarted(val name: String) : HostedTurnProgress
 

@@ -905,10 +905,20 @@ private fun runProgressSink(
     if (agentRunState.isActive(token)) {
         when (item) {
             is WorkflowRunProgress.PublicText -> agentRunState.appendChunk(token, item.text)
-            is WorkflowRunProgress.ToolActivity -> agentRunState.setActivity(
-                token,
-                if (item.completed) null else strings.toolActivity(item.name),
-            )
+
+            // The model is producing private reasoning: show that it is working, never the
+            // reasoning itself. This replaces the unqualified waiting line as soon as the
+            // provider starts working, which is usually long before the first answer token.
+            is WorkflowRunProgress.Reasoning ->
+                agentRunState.setReasoningActivity(token, strings.thinking)
+
+            // A tool step stays named while the provider streams its arguments and while the
+            // local call runs. The provider's argument-completion event does not end it.
+            is WorkflowRunProgress.ToolActivity ->
+                agentRunState.setActivity(token, strings.toolActivity(item.name))
+
+            // The executor reports the applied result; only then is that named work done.
+            is WorkflowRunProgress.ToolStepFinished -> agentRunState.setActivity(token, null)
 
             is WorkflowRunProgress.StreamingUnavailable ->
                 agentRunState.setActivity(token, strings.streamingUnavailable)
@@ -1271,7 +1281,11 @@ private fun ChatTranscriptMessage(
                 ) {
                     val text = when {
                         entry.text.isNotEmpty() -> entry.text
-                        entry.state == ChatAnswerState.WAITING -> strings.waiting
+                        // A specific, truthful phase label below already says the model is
+                        // working; repeating the generic waiting line would contradict it.
+                        entry.state == ChatAnswerState.WAITING && entry.statusLine == null ->
+                            strings.waiting
+
                         else -> ""
                     }
                     if (text.isNotEmpty()) {
