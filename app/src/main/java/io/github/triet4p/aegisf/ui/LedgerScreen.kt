@@ -44,6 +44,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -131,21 +132,25 @@ fun LedgerScreen(
         )
     }
     val loadFlow: Flow<LedgerLoad> = remember(queryService, recordQuery, retryToken) {
-        queryService.observeLedgerRecords(recordQuery)
-            .flatMapLatest { page ->
-                flow<LedgerLoad> {
-                    emit(
-                        LedgerLoad.Ready(
-                            page = page,
-                            categories = queryService.categoriesByIds(
-                                page.items.mapNotNull { it.categoryId }.distinct(),
+        // A failed flow construction (closed or unreadable store) is reported by this screen's
+        // own error state rather than escaping composition.
+        runCatching {
+            queryService.observeLedgerRecords(recordQuery)
+                .flatMapLatest { page ->
+                    flow<LedgerLoad> {
+                        emit(
+                            LedgerLoad.Ready(
+                                page = page,
+                                categories = queryService.categoriesByIds(
+                                    page.items.mapNotNull { it.categoryId }.distinct(),
+                                ),
                             ),
-                        ),
-                    )
+                        )
+                    }
                 }
-            }
-            .onStart { emit(LedgerLoad.Loading) }
-            .catch { emit(LedgerLoad.Error) }
+                .onStart { emit(LedgerLoad.Loading) }
+                .catch { emit(LedgerLoad.Error) }
+        }.getOrElse { flowOf(LedgerLoad.Error) }
     }
     val load: LedgerLoad by loadFlow.collectAsState(initial = LedgerLoad.Loading)
 
@@ -153,9 +158,22 @@ fun LedgerScreen(
     // match nothing": one bounded row is enough to know, and the empty state and the
     // no-match state say different things to the user.
     val anyRecordFlow = remember(queryService, retryToken) {
-        queryService.observeLedgerRecords(
-            LedgerRecordQuery(bounds = QueryPageRequest(1)),
-        )
+        runCatching {
+            queryService.observeLedgerRecords(
+                LedgerRecordQuery(bounds = QueryPageRequest(1)),
+            ).catch {
+                emit(
+                    QueryPage(
+                        items = emptyList<TransactionEntity>(),
+                        offset = 0,
+                        limit = 1,
+                        hasMore = false,
+                    ),
+                )
+            }
+        }.getOrElse {
+            flowOf(QueryPage(items = emptyList<TransactionEntity>(), offset = 0, limit = 1, hasMore = false))
+        }
     }
     val anyRecordPage: QueryPage<TransactionEntity>? by anyRecordFlow.collectAsState(initial = null)
     val ledgerIsEmpty = anyRecordPage?.items?.isEmpty() == true
@@ -390,6 +408,7 @@ private fun SearchField(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
+            .testTag("ledger-search")
             .semantics { contentDescription = strings.searchDescription },
         singleLine = true,
         placeholder = { Text(strings.searchPlaceholder) },

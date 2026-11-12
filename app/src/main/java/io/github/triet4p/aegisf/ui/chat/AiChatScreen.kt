@@ -290,13 +290,13 @@ internal fun AiChatScreen(
 
     // Follow the stream only while the reader is already at the bottom. Each visible chunk
     // changes the transcript state, so this effect re-anchors the newest turn without waiting
-    // for a new list item.
+    // for a new list item. An empty transcript stays at the top: the explicit attached context
+    // must be fully readable before the first send, not scrolled under the app bar.
     LaunchedEffect(
         agentRunState.messages,
         agentRunState.outcome,
-        agentRunState.noteContext,
     ) {
-        if (autoFollow) {
+        if (autoFollow && agentRunState.messages.isNotEmpty()) {
             scrollToLatest()
         }
     }
@@ -1497,8 +1497,6 @@ private fun ChatComposerBar(
                     text = strings.maskingNote,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
                 )
             }
             Row(

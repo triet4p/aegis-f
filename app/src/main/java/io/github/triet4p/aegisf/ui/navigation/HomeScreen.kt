@@ -99,15 +99,19 @@ internal fun HomeScreen(
     }
     var retryToken by remember { mutableIntStateOf(0) }
     val glanceFlow: Flow<HomeGlance> = remember(queryService, resolved.range, retryToken) {
-        val range = resolved.range
-        if (range == null) {
-            flowOf(HomeGlance.Error)
-        } else {
-            queryService.observeConfirmedLedgerAggregate(range)
-                .map<LedgerAggregate, HomeGlance> { HomeGlance.Ready(it) }
-                .onStart { emit(HomeGlance.Loading) }
-                .catch { emit(HomeGlance.Error) }
-        }
+        // Creating the Room flow can itself fail (a closed or unreadable database), so it is
+        // folded into the same read state instead of escaping composition.
+        runCatching {
+            val range = resolved.range
+            if (range == null) {
+                flowOf(HomeGlance.Error)
+            } else {
+                queryService.observeConfirmedLedgerAggregate(range)
+                    .map<LedgerAggregate, HomeGlance> { HomeGlance.Ready(it) }
+                    .onStart { emit(HomeGlance.Loading) }
+                    .catch { emit(HomeGlance.Error) }
+            }
+        }.getOrElse { flowOf(HomeGlance.Error) }
     }
     val glance: HomeGlance by glanceFlow.collectAsState(initial = HomeGlance.Loading)
 
@@ -283,7 +287,7 @@ private fun SpendingGlance(
                         text = strings.thisMonthSpending,
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                     when (glance) {

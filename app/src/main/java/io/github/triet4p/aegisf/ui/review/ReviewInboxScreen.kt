@@ -217,16 +217,14 @@ fun ReviewInboxScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            item(key = "count") {
-                Text(
-                    text = when {
-                        !queueWaiting -> strings.inboxEmptyTitle
-                        knownWaitingCount != null -> strings.waiting(knownWaitingCount)
-                        else -> strings.inboxReading
-                    },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
+            if (queueWaiting && !readError) {
+                item(key = "count") {
+                    Text(
+                        text = knownWaitingCount?.let(strings::waiting) ?: strings.inboxReading,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
             item(key = "order-help") {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -292,16 +290,18 @@ fun ReviewInboxScreen(
                     )
                 }
             }
-            item(key = "page") {
-                PageControls(
-                    pageIndex = focus.pageIndex,
-                    hasMore = focus.page?.hasMore == true,
-                    onPrevious = { runRead { focus.previousPage() } },
-                    onNext = { runRead { focus.nextPage() } },
-                    previousLabel = strings.previous,
-                    nextLabel = strings.next,
-                    pageLabel = strings.pageLabel(focus.pageIndex),
-                )
+            if (queueWaiting && !readError) {
+                item(key = "page") {
+                    PageControls(
+                        pageIndex = focus.pageIndex,
+                        hasMore = focus.page?.hasMore == true,
+                        onPrevious = { runRead { focus.previousPage() } },
+                        onNext = { runRead { focus.nextPage() } },
+                        previousLabel = strings.previous,
+                        nextLabel = strings.next,
+                        pageLabel = strings.pageLabel(focus.pageIndex),
+                    )
+                }
             }
             if (entries.isEmpty()) {
                 if (!focus.reading && !readError) {

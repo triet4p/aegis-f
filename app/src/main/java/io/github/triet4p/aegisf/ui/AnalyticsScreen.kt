@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -123,15 +124,19 @@ fun AnalyticsScreen(
     var customRangeVisible by rememberSaveable { mutableStateOf(false) }
 
     val loadFlow: Flow<AnalyticsLoad> = remember(queryService, resolved.range, retryToken) {
-        val range = resolved.range
-        if (range == null) {
-            flowOf(AnalyticsLoad.Error)
-        } else {
-            queryService.observeConfirmedLedgerAggregate(range)
-                .map<LedgerAggregate, AnalyticsLoad> { AnalyticsLoad.Ready(it) }
-                .onStart { emit(AnalyticsLoad.Loading) }
-                .catch { emit(AnalyticsLoad.Error) }
-        }
+        // A closed or unreadable database can fail while the Room flow is being created; the
+        // screen reports that as its own read error instead of crashing.
+        runCatching {
+            val range = resolved.range
+            if (range == null) {
+                flowOf(AnalyticsLoad.Error)
+            } else {
+                queryService.observeConfirmedLedgerAggregate(range)
+                    .map<LedgerAggregate, AnalyticsLoad> { AnalyticsLoad.Ready(it) }
+                    .onStart { emit(AnalyticsLoad.Loading) }
+                    .catch { emit(AnalyticsLoad.Error) }
+            }
+        }.getOrElse { flowOf(AnalyticsLoad.Error) }
     }
     val load: AnalyticsLoad by loadFlow.collectAsState(initial = AnalyticsLoad.Loading)
 
@@ -167,6 +172,7 @@ fun AnalyticsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .navigationBarsPadding()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 12.dp),

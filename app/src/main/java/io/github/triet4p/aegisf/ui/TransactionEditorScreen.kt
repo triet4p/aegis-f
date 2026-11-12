@@ -963,6 +963,7 @@ private fun HeroAmountCard(
                     .fillMaxWidth()
                     .heightIn(min = 64.dp)
                     .testTag("manual-amount")
+                    .semantics { contentDescription = strings.amountSection }
                     .focusedFieldBringIntoView(scope),
                 decorationBox = { innerTextField ->
                     Box(

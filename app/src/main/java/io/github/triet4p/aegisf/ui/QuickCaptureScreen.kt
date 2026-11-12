@@ -38,6 +38,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
@@ -248,7 +249,8 @@ private fun NoteComposer(
                 onValueChange = onDraftChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 140.dp),
+                    .heightIn(min = 140.dp)
+                    .testTag("note-composer"),
                 enabled = !saving,
                 label = { Text(strings.noteEditLabel) },
                 placeholder = { Text(strings.noteComposerPlaceholder) },

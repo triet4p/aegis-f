@@ -115,9 +115,9 @@ import androidx.room.Room
  *
  * The opt-in `s105_real` stage is not scripted: it sends one synthetic prompt to the
  * owner-authorized DeepSeek route through the production adapter, masking gateway, executor and
- * history, over an emptied caller scope. It runs only in the isolated evidence package
- * (`io.github.triet4p.aegisf.s812evidence`) so no owner note, draft or profile can enter the
- * request, and its credential arrives in a pushed file that is deleted immediately.
+ * history, over an emptied caller scope. It runs only in an isolated evidence package (never the
+ * owner's package) so no owner note, draft or profile can enter the request, and its credential
+ * arrives in a pushed file that is deleted immediately.
  */
 @RunWith(AndroidJUnit4::class)
 class S105ChatInstrumentedTest {
@@ -620,7 +620,7 @@ class S105ChatInstrumentedTest {
             "real-provider provisioning was not requested",
             InstrumentationRegistry.getArguments().getString("s105_provision") == "yes",
         )
-        assertEquals(ISOLATED_PACKAGE, context.packageName)
+        assertIsolatedPackage()
         val secretFile = File(context.filesDir, SECRET_FILE)
         require(secretFile.isFile) { "no injected secret file ${secretFile.name}" }
         val values = secretFile.readLines().mapNotNull { line ->
@@ -661,7 +661,7 @@ class S105ChatInstrumentedTest {
             "real-provider cleanup was not requested",
             InstrumentationRegistry.getArguments().getString("s105_cleanup") == "yes",
         )
-        assertEquals(ISOLATED_PACKAGE, context.packageName)
+        assertIsolatedPackage()
         val store = HostedProviderSettingsStore(context)
         if (store.load().any { it.id == REAL_PROFILE_ID }) {
             store.delete(REAL_PROFILE_ID)
@@ -689,7 +689,7 @@ class S105ChatInstrumentedTest {
             "durable real-provider walkthrough was not requested",
             InstrumentationRegistry.getArguments().getString("s105_realdurable") == "yes",
         )
-        assertEquals(ISOLATED_PACKAGE, context.packageName)
+        assertIsolatedPackage()
         val container = (context.applicationContext as AegisApplication).container
         requireAuthorizedProvider(container.hostedProviderSettingsStore)
         context.deleteDatabase(DURABLE_DB)
@@ -804,7 +804,7 @@ class S105ChatInstrumentedTest {
             "durable re-entry check was not requested",
             InstrumentationRegistry.getArguments().getString("s105_realreentry") == "yes",
         )
-        assertEquals(ISOLATED_PACKAGE, context.packageName)
+        assertIsolatedPackage()
         val container = (context.applicationContext as AegisApplication).container
         requireAuthorizedProvider(container.hostedProviderSettingsStore)
         assertTrue(
@@ -1545,6 +1545,16 @@ class S105ChatInstrumentedTest {
         Thread.sleep(700)
     }
 
+    /** Refuses any live stage outside an installed isolated evidence package. */
+    private fun assertIsolatedPackage() {
+        val packageName = context.packageName
+        assertTrue(
+            "live chat evidence must run in an isolated app package, not $packageName",
+            packageName.startsWith("io.github.triet4p.aegisf.") &&
+                packageName != "io.github.triet4p.aegisf",
+        )
+    }
+
     private fun emit(message: String) {
         android.util.Log.i("S105UI", message)
     }
@@ -1617,8 +1627,6 @@ class S105ChatInstrumentedTest {
     private companion object {
         const val MODEL = "s105-scripted-model"
 
-        /** The isolated debug package used for real live probes; never the owner's package. */
-        const val ISOLATED_PACKAGE = "io.github.triet4p.aegisf.s812evidence"
 
         /** The temporary profile the owner-authorized live stage injects and later removes. */
         const val REAL_PROFILE_ID = "s105-authorized-deepseek"

@@ -33,6 +33,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -311,6 +313,7 @@ private fun DraftReviewContent(
     var confirmingDismiss by rememberSaveable(draft.id) { mutableStateOf(false) }
     var feedback by rememberSaveable(draft.id) { mutableStateOf<String?>(null) }
     var feedbackIsError by rememberSaveable(draft.id) { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
     var showDiscard by rememberSaveable(draft.id) { mutableStateOf(false) }
     var categorySheetOpen by rememberSaveable(draft.id) { mutableStateOf(false) }
     var addingContext by rememberSaveable(draft.id) { mutableStateOf(false) }
@@ -420,6 +423,9 @@ private fun DraftReviewContent(
     fun report(message: String, isError: Boolean) {
         feedback = message
         feedbackIsError = isError
+        // The action sits in a sticky bar, so an inline message far down the scroll would look
+        // like nothing happened. The snackbar is visible wherever the reader is.
+        scope.launch { snackbarHostState.showSnackbar(message) }
     }
 
     fun handleOutcome(outcome: WorkflowCommandOutcome, action: String) {
@@ -669,6 +675,7 @@ private fun DraftReviewContent(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {

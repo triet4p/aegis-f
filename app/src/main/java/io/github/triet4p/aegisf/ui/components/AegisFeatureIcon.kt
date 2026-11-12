@@ -141,7 +141,7 @@ private fun AegisFeatureLauncher(item: AegisLauncherItem, modifier: Modifier = M
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
-            maxLines = 2,
+            maxLines = 3,
             overflow = TextOverflow.Ellipsis,
         )
     }
