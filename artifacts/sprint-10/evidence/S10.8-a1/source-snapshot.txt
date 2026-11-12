@@ -1,0 +1,40 @@
+base/HEAD: 272ad24e9c79b0811f881109929bb0ccd37837d9
+candidate: S10.8-implementation-a1, round-2 correction, uncommitted working tree; no staging/commit/push
+review cycle: S10.8-evidence round 2 (round 1 changes_requested consumed)
+
+Wholly owned product/test paths (25 present + 1 deletion = 26 scope entries; authoritative manifest controls):
+d5da4a661498c77e587d4be93de9f2042302059b7f18fa6f9d1c73698aef261c  app/build.gradle.kts
+523841162d263f00bd8d37e3b00a5639cb51ae4dfef59affb0b160626867217b  app/src/androidTest/java/io/github/triet4p/aegisf/ui/S108SettingsInstrumentedTest.kt
+fc65bef2b9903ca93f8ea5313fc87c3ed0563b33152623b76c38f7002350ffb4  app/src/main/java/io/github/triet4p/aegisf/agent/WorkflowSkillCatalog.kt
+5c8d2393abaa18515f15a9fbbe3eaa24820fe2bc47374b872efb4d9f87931bea  app/src/main/java/io/github/triet4p/aegisf/data/CategoryDao.kt
+60b519daf9acd45e4c4f59aa881993af23cbcf7ed7f4c8fd305dd39b665a3133  app/src/main/java/io/github/triet4p/aegisf/data/LedgerRepository.kt
+92e99a2927b8a0d75e466d7af1aa5a8a1844887acb200c01bc70bd35abdd3157  app/src/main/java/io/github/triet4p/aegisf/data/RememberedCategoryRuleDao.kt
+afc74385c8b3a6ed708edf295725308d1888a13312ead3da403566f96b4e68fe  app/src/main/java/io/github/triet4p/aegisf/data/WorkflowCommandService.kt
+816bc808e46ce81d5162ddef7d6c1b6346772523745afc06c6278506a5494b7c  app/src/main/java/io/github/triet4p/aegisf/data/WorkflowCommandTypes.kt
+ad4d3a22ca91d4582b96e8e5ec2e14f6e809ad830128c982373fb74c8e35bf16  app/src/main/java/io/github/triet4p/aegisf/data/WorkflowQueryService.kt
+c74b5b4feac366a255b12609d50eaf4e79ca6d3f879806a44d592b20b38ee75c  app/src/main/java/io/github/triet4p/aegisf/data/WorkflowQueryTypes.kt
+80170029456b35b5eb227f5bf1c2b3e780462a700a54dc9a320a99230975b000  app/src/main/java/io/github/triet4p/aegisf/ui/BankNotificationSettingsScreen.kt
+a7719ea36950a6c3087ce278f43e08e43c316b2173ab53ff5a685ed1832f8ac4  app/src/main/java/io/github/triet4p/aegisf/ui/CategoryRulesScreen.kt
+b8434976cd1ec1aed578ec3cf68336df7bc88e18fcb8fba3b2f3aeac0d492319  app/src/main/java/io/github/triet4p/aegisf/ui/CategoryRulesStrings.kt
+7d8ed80996cf5105dcbcb82e42285952f7e81a5dffcd70dbd3b9936877aef94d  app/src/main/java/io/github/triet4p/aegisf/ui/HostedProviderSettingsScreen.kt
+9ff914029368ebb6dab3cfd4a1108c0427949ca935456814747a0336cc04aba9  app/src/main/java/io/github/triet4p/aegisf/ui/SettingsPrivacyScreen.kt
+c9a3448bb3e7b08373ad3ac79809323660bcff281c79befa3f421cd67289b0d0  app/src/main/java/io/github/triet4p/aegisf/ui/SettingsSkillsHistoryScreen.kt
+2625330cb8d3b92748719a68707d9d6c736013bb790003b7ad7118ea131283d6  app/src/main/java/io/github/triet4p/aegisf/ui/SettingsStrings.kt
+303080a1a5fd4d675498099482d2f03712b39c5f84e59fd450b2e33e78bb648e  app/src/main/java/io/github/triet4p/aegisf/ui/navigation/AegisNavShell.kt
+b95d302858bb94096e786fc01d87a9c45741f916f79baa9740bf834985e8020d  app/src/main/java/io/github/triet4p/aegisf/ui/navigation/SettingsHubScreen.kt
+abe2f8d60ea5e0edca6595d7f074312d873979c421fc5942c6bc26127639ad59  app/src/test/java/io/github/triet4p/aegisf/data/CategoryCommandServiceTest.kt
+573eec448e457f0c3018a0196c208810bbb6a02d828a63d73b665210d07211ec  app/src/test/java/io/github/triet4p/aegisf/data/CategoryDeletionTest.kt
+01b55d4fadb73b2266cf7245302c6499ddcfcb890e8518e47a3bef6fc655066d  app/src/test/java/io/github/triet4p/aegisf/data/CategoryRuleQueryTest.kt
+91e9993c1e5e5a5420bc8dcdf12511f0f22f45788216b9ffcf8811ce866efed0  app/src/test/java/io/github/triet4p/aegisf/data/FinancialCommandServiceTest.kt
+0952ee51548d4d5b5a10ec27a4c1bd769455a29c122887381d6a0729e07998d7  app/src/test/java/io/github/triet4p/aegisf/data/LedgerRepositoryRejectionTest.kt
+6c457bc866d425d1741fa6b035e43429fe54a362e93149af9c93e6f1400d221f  app/src/test/java/io/github/triet4p/aegisf/data/WorkflowQueryServiceTest.kt
+
+Deleted wholly owned path:
+app/src/main/java/io/github/triet4p/aegisf/ui/CategoryManagerScreen.kt (base blob 4d5a6e9a… remains in history)
+
+Mixed-ownership documentation (pre-existing S10.7 edits preserved; S10.8 sections only; exclude whole files from a checkpoint or stage only the S10.8 sections):
+12e7df897de619ae1bf0a6b5e828f2f5b6eb72510966c6b695a6951ebaea38d3  README.md
+03794507b8b6ea3f9a4ea3c4be9fccc58496f38ac58b4bbdf9d42c9e96da78f1  CHANGELOG.md
+
+Owned artifacts not hashed here: artifacts/sprint-10/evidence/S10.8-a1/**, artifacts/sprint-10/workers/S10.8-implementation-a1.md, artifacts/sprint-10/handoffs/S10.8-implementation-a1.md
+Foreign/preserved: .agents/memory/decisions.md, docs/PLAN.md, docs/sprint-plans/sprint-10.md, docs/sprint-plans/sprint-6.md, docs/sprint-plans/sprint-11.md, prior artifact trees, owner package/data.

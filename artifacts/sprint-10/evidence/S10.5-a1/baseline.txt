@@ -1,0 +1,31 @@
+# S10.5 production baseline and environment (observed before any owned UI write)
+
+Observed: 2026-11-10, HONOR ALT-LX2 (ALT_LX2), Android 14 / API 34, 720x1610 px, density 320,
+system night mode yes, system font scale 1.0, package io.github.triet4p.aegisf.
+
+App preferences before the walkthrough:
+- theme_mode = system
+- language = en
+
+Database snapshot (read-only copy of aegis-ledger.db + -wal + -shm while the app was stopped,
+in a temporary local copy that was deleted after the counts were extracted; no production row was modified):
+- transactions = 0
+- categories = 0
+- pending_bank_drafts = 6 (all PENDING)
+- capture_messages = 4
+- note_events = 2
+- context_links = 0
+- workflow_operations = 7
+- agent_runs = 0
+- agent_conversation = 0
+- agent_trace_events = 0
+- remembered_category_rules = 0
+
+The four capture rows include the three bank-evidence references and the S10.4 text-free
+USER_NOTE tombstone; the two note-event identity rows keep their S10.4 cleared readings. None of
+these rows belongs to S10.5.
+
+Provider configuration (observed in the app's own Settings screen only): one active hosted
+provider profile is selected. No credential, endpoint secret, profile payload or provider payload
+was read, copied, logged or included in this evidence. The task has no owner egress authorization
+for a real provider request; no request was sent by this worker.

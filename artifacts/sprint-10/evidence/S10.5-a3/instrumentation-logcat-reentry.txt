@@ -1,0 +1,6 @@
+--------- beginning of main
+11-10 13:08:00.472  4355  4384 I S105UI  : S105 screenshot=623-durable-reentry-after-process-death file=/data/user/0/io.github.triet4p.aegisf.s812evidence/files/s105-623-durable-reentry-after-process-death.png bytes=96313
+11-10 13:08:00.490  4355  4384 I S105UI  : 623 reentryShown=    Masked context → S10.5 authorized DeepSeek · deepseek-v4.1-flash Saved conversation  Completed You  Reply with the single word READY and nothing else. Today, 13:07 AI assistant  READY Today, 13:07    AI Chat    Only locally masked context is sent. Masking reduces direct personal values; it is no
+11-10 13:08:02.387  4355  4384 I S105UI  : S105 screenshot=624-durable-history-after-process-death file=/data/user/0/io.github.triet4p.aegisf.s812evidence/files/s105-624-durable-history-after-process-death.png bytes=114651
+11-10 13:08:03.624  4355  4384 I S105UI  : S105 screenshot=625-durable-history-loaded file=/data/user/0/io.github.triet4p.aegisf.s812evidence/files/s105-625-durable-history-loaded.png bytes=96482
+11-10 13:08:03.624  4355  4384 I S105UI  : 625 reentryLoaded=true duplicates=0

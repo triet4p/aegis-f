@@ -6,6 +6,13 @@
 **Assigned role / route:** Silver, Full; owner-selected  
 **Criterion:** [`docs/sprint-plans/sprint-10.md:81–85`](../../../../docs/sprint-plans/sprint-10.md)  
 **Product baseline:** accepted S10.9 checkpoint `d53d7fa57f63298e690bf48147b4ebe6f29bf6ec`  
+
+> **Status update (2026-11-12, S10-CLOSE):** The status line below records this index's
+> pre-review candidate snapshot. S10.10 independent review/checkpoint and final cross-feature
+> review were later completed; Sprint 10 was closed by owner direction after main-app feedback
+> and S10.11. The full owner walkthrough remains an unperformed procedure. See the [current
+> plan](../../../../docs/sprint-plans/sprint-10.md) and [closure package](../../closure/index.md).
+
 **Status:** Documentation candidate prepared for independent review. S10.10 review, checkpoint, final cross-feature review, and owner hands-on acceptance are not complete.
 
 This is a navigation and evidence guide, not a new runtime result. It reuses the existing accepted native evidence and does not rerun product suites, make a provider request, change product source, or claim final Sprint 10 acceptance.

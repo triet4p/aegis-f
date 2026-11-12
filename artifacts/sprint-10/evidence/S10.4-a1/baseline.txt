@@ -1,0 +1,23 @@
+# S10.4 production baseline and environment (observed before any owned UI write)
+
+Observed: 2026-11-09, HONOR ALT-LX2 (ALT_LX2), Android 14 / API 34, 720x1610 px, density 320,
+system night mode yes, system font scale 1.0, package io.github.triet4p.aegisf.
+
+App preferences before the walkthrough:
+- theme_mode = system
+- language = en
+
+Database snapshot (read-only copy of aegis-ledger.db + -wal + -shm while the app was stopped):
+- transactions = 0
+- categories = 0
+- pending_bank_drafts = 6 (all PENDING)
+- capture_messages = 3 (all BANK_EVIDENCE_REF; no active USER_NOTE)
+- note_events = 0
+- context_links = 0
+- workflow_operations = 2 (one manual save, one delete from earlier owner/agent activity)
+- agent_runs = 0
+- agent_conversation = 0
+- remembered_category_rules = 0
+
+The three capture rows are bank-evidence references (originRef BANK_DRAFT:2/3/4); they are not
+Notes list rows and are not modified by this task.

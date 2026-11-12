@@ -1,0 +1,51 @@
+# S10.5 production fixture and data reconciliation
+
+## Baseline (read-only DB copy while the app was stopped, before S10.5 work)
+
+- transactions = 0
+- categories = 0
+- pending_bank_drafts = 6 (all PENDING)
+- capture_messages = 4
+- note_events = 2
+- context_links = 0
+- workflow_operations = 7
+- agent_runs = 0
+- agent_conversation = 0
+- agent_trace_events = 0
+- remembered_category_rules = 0
+- preferences: language = en, theme_mode = system
+
+## After safe verification
+
+The candidate APK and the instrumentation APK were installed with `adb install -r` only; the app
+was never cleared or uninstalled. Production preferences were returned to exactly `en` / `system`
+and re-read from `aegis_ui_preferences.xml` after a force-stop/relaunch:
+
+- transactions = 0 (unchanged)
+- categories = 0 (unchanged)
+- pending_bank_drafts = 8 (2 new PENDING rows, ids 7 and 8)
+- capture_messages = 6 (the two matching BANK_EVIDENCE_REF rows for drafts 7 and 8)
+- note_events = 2 (unchanged)
+- context_links = 0 (unchanged)
+- workflow_operations = 7 (unchanged)
+- agent_runs = 0 (unchanged; no hosted request was sent)
+- agent_conversation = 0 (unchanged)
+- agent_trace_events = 0 (unchanged)
+- remembered_category_rules = 0 (unchanged)
+- app preferences: language = en, theme_mode = system
+
+The two additional pending drafts and their capture evidence are ordinary bank-notification
+intake by the app's existing reconciliation when the activity resumed during verification. They
+are the owner's real notifications, not S10.5 fixtures. Their amount text, account text and memo
+are not copied into this evidence. No row was deleted or edited by hand, no draft was confirmed or
+dismissed, no transaction/category/note/link changed, and no owner data was reconstructed.
+
+## Hosted egress
+
+No production hosted request was made by the worker. The app has no saved provider profile
+(Settings shows only preset choices; `activeProvider()` is null). Owner permission for S10.5
+verification is recorded by Main, but permission is not a credential: no usable credential exists
+in the app, so the mandatory real-provider criterion is unresolved. No credential, endpoint
+secret, profile payload or provider request/response body was read, copied, logged or recorded.
+The scripted instrumentation adapter runs with an isolated in-memory DB and never opens a network
+connection; the opt-in real-provider test asserts the absence of a profile and skips.

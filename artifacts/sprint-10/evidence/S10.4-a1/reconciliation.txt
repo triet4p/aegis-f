@@ -1,0 +1,49 @@
+# S10.4 production fixture reconciliation
+
+The walkthrough created exactly one owned user note through the installed production UI
+(`io.github.triet4p.aegisf`, install -r only) and deleted it through the guarded UI. No other row
+was edited by hand, and no user note, event, link, transaction, category, draft or credential was
+removed or rewritten by a script.
+
+## Baseline (observed before any owned write; read-only DB copy while stopped)
+
+- transactions = 0
+- categories = 0
+- pending_bank_drafts = 6 (all PENDING)
+- capture_messages = 3 (all BANK_EVIDENCE_REF; no active USER_NOTE)
+- note_events = 0
+- context_links = 0
+- workflow_operations = 2
+- agent_runs = 0
+- agent_conversation = 0
+- app preferences: language = en, theme_mode = system
+
+## Final (after UI delete; read-only DB copy while stopped)
+
+- transactions = 0 (unchanged)
+- categories = 0 (unchanged)
+- pending_bank_drafts = 6, all PENDING (unchanged)
+- capture_messages = 4: the same 3 bank-evidence rows plus exactly one owned USER_NOTE tombstone
+  (bodyText = null, tombstone = 1, revision = 2). The deleted text is not retained.
+- note_events = 2: both are the owned note's detail identities, cleared by the existing source
+  policy to status UNRESOLVED with normalizedText = null, amountVnd = null and no resolved
+  transaction. Their identity rows are the durable record of the source spans the app already
+  keeps; no reading, amount, merchant or link survives.
+- context_links = 0 (unchanged; no link was created in production)
+- workflow_operations = 7: the baseline 2 plus 5 audit rows for the owned commands (save capture,
+  revise capture, two update-event, delete capture). These rows hold command names, caller scope
+  and idempotency data, not the note text; the app records every user command this way.
+- agent_runs = 0 and agent_conversation = 0: saving, editing and the AI handoff started no hosted
+  run. The Chat screen showed the visible attached-note card and no send occurred.
+- app preferences restored: language = en, theme_mode = system.
+
+## Owned content check
+
+- Active user notes (USER_NOTE + USER_QUICK_CAPTURE + tombstone = 0) = 0.
+- No reading text, amount or link from the owned note remains in any active projection.
+- The Notes list is empty after deletion (`049-...`, `051-...`).
+- Transactions, categories, drafts and all three bank-evidence rows are byte-for-byte
+  unchanged in business content.
+
+User data was never deleted. The only deleted text was the owned fixture note, deleted by the same
+UI action a user would use.

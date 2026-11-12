@@ -1,0 +1,40 @@
+
+io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest:
+Error in vietnameseLargeTextKeepsTasksReachableAndLocalized(io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest):
+java.lang.AssertionError: Action performScrollTo() failed.
+Reason: Expected exactly '1' node but could not find any node that satisfies: (TestTag = 'category-row-2')
+
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrThrow(SemanticsNodeInteraction.kt:178)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrThrow$default(SemanticsNodeInteraction.kt:150)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchSemanticsNode(SemanticsNodeInteraction.kt:84)
+	at androidx.compose.ui.test.ActionsKt.performScrollTo(Actions.kt:82)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.vietnameseLargeTextKeepsTasksReachableAndLocalized(S108SettingsInstrumentedTest.kt:474)
+.
+Error in categoriesAddRenameArchiveAndDeleteWithReferenceSafety(io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest):
+java.lang.AssertionError: Semantic Node has no parent layout with a Scroll SemanticsAction
+	at androidx.compose.ui.test.ActionsKt.scrollToNode(Actions.kt:98)
+	at androidx.compose.ui.test.ActionsKt.performScrollTo(Actions.kt:83)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.categoriesAddRenameArchiveAndDeleteWithReferenceSafety(S108SettingsInstrumentedTest.kt:155)
+
+
+Time: 22,694
+There were 2 failures:
+1) vietnameseLargeTextKeepsTasksReachableAndLocalized(io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest)
+java.lang.AssertionError: Action performScrollTo() failed.
+Reason: Expected exactly '1' node but could not find any node that satisfies: (TestTag = 'category-row-2')
+
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrThrow(SemanticsNodeInteraction.kt:178)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchOneOrThrow$default(SemanticsNodeInteraction.kt:150)
+	at androidx.compose.ui.test.SemanticsNodeInteraction.fetchSemanticsNode(SemanticsNodeInteraction.kt:84)
+	at androidx.compose.ui.test.ActionsKt.performScrollTo(Actions.kt:82)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.vietnameseLargeTextKeepsTasksReachableAndLocalized(S108SettingsInstrumentedTest.kt:474)
+2) categoriesAddRenameArchiveAndDeleteWithReferenceSafety(io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest)
+java.lang.AssertionError: Semantic Node has no parent layout with a Scroll SemanticsAction
+	at androidx.compose.ui.test.ActionsKt.scrollToNode(Actions.kt:98)
+	at androidx.compose.ui.test.ActionsKt.performScrollTo(Actions.kt:83)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.categoriesAddRenameArchiveAndDeleteWithReferenceSafety(S108SettingsInstrumentedTest.kt:155)
+
+FAILURES!!!
+Tests run: 3,  Failures: 2
+
+

@@ -1,0 +1,9 @@
+# Installed main-app APK identity (round-2 candidate)
+package=io.github.triet4p.aegisf
+built app-debug.apk sha256=8117858839cc7fab54d232ead74332f6336c253218dd679b97ab29d9fa8a9954
+installed base.apk sha256=8117858839cc7fab54d232ead74332f6336c253218dd679b97ab29d9fa8a9954
+install mode=adb install -r -d over the existing owner install (same signer), no clear/uninstall
+# The installed hash was read from `adb shell pm path` + `adb exec-out cat` immediately after the
+# install and matched the built APK byte for byte (recorded in this attempt's tool output). The
+# device disconnected from adb after the live capture, so it was not re-read at snapshot-freeze
+# time; no further install or data change happened after that verified read.

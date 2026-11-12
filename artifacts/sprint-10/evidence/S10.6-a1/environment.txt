@@ -1,0 +1,25 @@
+Task: S10.6
+Attempt: S10.6-implementation-a1
+Worker: S106Implementation
+Date: 2026-11-10
+Host: Windows 11 10.0.26200, Android SDK at C:\Users\admin\AppData\Local\Android\Sdk
+Device: HONOR ALT-LX2 (ALT_LX2), Android API 34, 720x1610 px, 320 dpi
+Base commit: 6f3459fcbcc6b2827a088c4a9a66f5f46389a139 (refs/heads/main)
+Worktree: F:/ai-ml/aegis-f (git dir F:/ai-ml/aegis-f/.git)
+Evidence package: io.github.triet4p.aegisf.s812evidence
+Evidence test package: io.github.triet4p.aegisf.s812evidence.test
+Owner package io.github.triet4p.aegisf was not installed over, launched, cleared or instrumented.
+Network: not used by Review; fixtures are in-memory Room databases.
+Locale states: English and Vietnamese (in-app language), font scale 1.0 and 1.5.
+Build:
+  ./gradlew.bat --no-daemon :app:testDebugUnitTest --tests "io.github.triet4p.aegisf.ui.ChatNoteContextTest" --tests "io.github.triet4p.aegisf.ui.ReviewQueueFocusTest" --tests "io.github.triet4p.aegisf.data.BankDraftReviewTest" --tests "io.github.triet4p.aegisf.data.ReviewQueueTest" :app:assembleDebug :app:assembleDebugAndroidTest -PS812_ANDROID_TARGET_PACKAGE=io.github.triet4p.aegisf.s812evidence --console=plain
+  Result: BUILD SUCCESSFUL; focused host tests passed.
+Instrumentation:
+  adb shell am instrument -w -e class "io.github.triet4p.aegisf.ui.S106ReviewInstrumentedTest,io.github.triet4p.aegisf.ui.S95ReviewRefreshPhoneInstrumentedTest,io.github.triet4p.aegisf.ui.S97ReviewRevalidationPhoneInstrumentedTest" io.github.triet4p.aegisf.s812evidence.test/androidx.test.runner.AndroidJUnitRunner
+  Result: OK (7 tests); raw output in logs/instrumentation-final.txt.
+APK identity: apk-sha256.txt (installed copies hashed from device paths).
+Capture hygiene: the Android global `heads_up_notifications_enabled` setting was set to 0 for
+the capture run and restored to 1 immediately afterwards, so a third-party heads-up could not
+cover the app in the evidence frames. No notification content, account or app data was read or
+changed; the owner app/package was never installed over, launched or instrumented.
+Owner data: unchanged; no owner database/preference was read or written by the isolated fixtures.

@@ -1,0 +1,51 @@
+# S10.4 instrumentation render index (app-scoped, 1.5x text, real phone)
+
+All renders come from `S104NotesJournalInstrumentedTest` on HONOR ALT-LX2 (720x1610, density
+320). The screens are composed against an in-memory Room database owned by the test (or a deleted
+file-backed test database for the reopen case); the owner's production rows are untouched. The
+1.5x font scale is applied to the test process only; the system font scale is 1.0.
+
+Every image below was personally opened and compared with
+`artifacts/sprint-10/renders/07_quick_capture.webp`, the approved tokens/hierarchy and the
+authoritative S10.4/Main direction (focused root; saved list as its own child). PNGs are
+local-only under the artifacts ignore policy.
+
+- `309-after-save-click.png` — immediate root frame after Save; retained text gone on success.
+- `310-notes-root-saved.png` — focused Notes root after save: uppercase QUICK NOTE, one Save,
+  humane offline copy, Saved notes entry; no list/banner stack. Viewed.
+- `310b-saved-notes-browse.png` — focused Saved notes child with one row and count. Viewed.
+- `311-note-detail.png` — note detail top: full text, Source/Recorded provenance, primary AI
+  handoff, manual route, stacked details header at 1.5x. Viewed.
+- `312-chat-attached-note.png` — Chat first item is the visible attached-note card with Remove;
+  provider disclosure below; nothing sent. Viewed.
+- `313-chat-context-removed.png` — Chat after Remove; card gone, no run started. Viewed.
+- `314-note-edited.png` — detail after edit save, green confirmation, side-by-side Edit/Delete,
+  red destructive action, empty details body style. Viewed.
+- `315-note-details.png` — two independent detail rows with exact amounts and Ready status. Viewed.
+- `316-event-detail.png` — focused detail editor: source card, fixed excerpt, fields, Save. Viewed.
+- `317-manual-handoff.png` — existing manual form prefilled from the selected detail. Viewed.
+- `318-note-deleted.png` — empty Saved notes child with deletion feedback. Viewed.
+- `320-notes-empty.png` — empty Saved notes child, context-correct copy. Viewed.
+- `321-notes-read-error.png` — isolated storage read failure with recovery copy. Viewed.
+- `322-notes-save-error.png` — isolated save failure; typed text retained. Viewed.
+- `323-stale-note-edit.png` — note edit conflict; typed text retained; explicit reload. Viewed.
+- `323b-after-reload-click.png` — reload confirmation present (dialog window not captured by
+  onRoot screenshot; semantics test proves it). Viewed.
+- `324-stale-note-reloaded.png` — explicit reload replaced the form with the stored note. Viewed.
+- `325-stale-detail-conflict.png` — detail conflict message now at the top; typed text retained. Viewed.
+- `325a-after-detail-save-click.png` — immediate refused-save frame. Viewed.
+- `326-stale-detail-stored.png` — a detail whose source changed is not editable; offers a new
+  detail from current text. Viewed.
+- `327-reopen-edit-saved.png` — file-DB edit saved before close. Viewed.
+- `328-reopened-after-store-close.png` — note text survived closing and reopening the store. Viewed.
+- `330-editor-save-probe.png` — focused editor save persisted the expected text. Viewed.
+- `331-notes-root-vi-1.5x.png` — Vietnamese root. Viewed.
+- `332-saved-notes-vi-1.5x.png` — Vietnamese saved list. Viewed.
+- `333-note-detail-vi-1.5x.png` — Vietnamese detail. Viewed.
+- `334-notes-root-dark-1.5x.png` — English dark root. Viewed.
+- `335-saved-notes-dark-1.5x.png` — English dark list. Viewed.
+- `336-note-detail-dark-1.5x.png` — English dark detail. Viewed.
+- `337-proposal-chooser-1.5x.png` — proposed link chooser: one synthetic pending draft, no auto-selection, explicit Attach/Reject, plain limited-list copy. Viewed.
+- `337b-proposal-accepted-chooser-1.5x.png` — accepted state in the chooser: “Already attached to this detail.” and the ledger-unchanged message. Viewed.
+- `338-proposal-refused-1.5x.png` — refused state: “Refused before. This pair cannot be suggested again.” and the kept-decision message. Viewed.
+- `339-event-attached-1.5x.png` — event link section after Attach: “Linked to a bank notification”, exact bank facts and Unlink; no ledger confirmation. Viewed.

@@ -1,0 +1,25 @@
+S10.10 documentation candidate snapshot
+
+Task/attempt/agent: S10.10 / S10.10-implementation-a1 / S1010Docs
+Base product checkpoint: d53d7fa57f63298e690bf48147b4ebe6f29bf6ec
+Repository/worktree: F:/ai-ml/aegis-f
+Git -C root: F:/ai-ml/aegis-f
+Git directory: F:/ai-ml/aegis-f/.git
+Target ref assigned by Main: refs/heads/main
+Canonical manifest SHA-256: 99bb413717dd1283befd65fd23d4217e21406e83217f94380cc0996a6652fd99
+
+Canonical manifest bytes are these sorted lines (`sha256  path`), each terminated by LF and UTF-8 encoded:
+
+075a96f673cbf95518f884ecb88e6b097aeb64780e5e852938d38f65374f9b0f  CHANGELOG.md
+e4313b9fe7f6352529ed3565f0737b20fc08f9cc3082850b0bccbb30390c43fa  README.md
+aa8d7980f57b1b3f80a78eb196e6c4284a7cb45305730c9986d58fc7c565a055  artifacts/sprint-10/evidence/S10.10-a1/before-after.md
+2ab213fb4a6d52d79c3a055f101aa61d2d0b6b3b806187c1694e8c60268eba07  artifacts/sprint-10/evidence/S10.10-a1/coverage-matrix.md
+51a90875fd7c3017d8aea67d21cce20896fa34616ae1ff6e169a286e3b9fc718  artifacts/sprint-10/evidence/S10.10-a1/index.md
+162cea42a7aa897671cc9f97b3d3ea0e9fcf233c6b25700a18cdd6dccd241222  artifacts/sprint-10/evidence/S10.10-a1/owner-walkthrough.md
+6c6c9b1423e9b7083618c3757350e91ce7b85fc0539729e9511d0eb2f8dbc527  artifacts/sprint-10/evidence/S10.10-a1/verification.md
+ea5d587500624825837b7f4747342cbe0af994a8bd60692720d917026c244435  artifacts/sprint-10/evidence/S10.10-a1/visual-review.md
+62b2e5f69bdd464500612c3971fb99e06993ea6105119a9c122b52ad73661cd0  docs/developer-setup.md
+
+File hashes cover the complete bytes of these nine documentation files. `README.md` and `CHANGELOG.md` are mixed-ownership files: their whole-file hashes bind the review candidate, but only the S10.10-owned additions/edits described in `index.md` are eligible for this task's checkpoint. `docs/developer-setup.md` scope is limited to current navigation/text guidance and the historical-runbook notice.
+
+Not included: this manifest itself, `artifacts/sprint-10/workers/S10.10-implementation-a1.md`, reviewer/checkpoint records, prior evidence files, or unrelated/foreign files. No Git status/index operation was run by this worker; `d53d7fa57f63298e690bf48147b4ebe6f29bf6ec` is the accepted product baseline, not a claim that the current worktree was otherwise clean. No file was staged, committed, or pushed.

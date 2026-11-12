@@ -1,0 +1,13 @@
+candidate a2 / round 2 (S10.7-implementation-a1)
+
+local
+94a1437ae36fbcb5035f74f1b7608a2e96a55d9919b89881104ae51fde5e2f33  app/build/outputs/apk/debug/app-debug.apk
+9dd6acedc0c6f14be5e2d8c9386d5b371e6273c7ea9c9b0f5da43beb309ffb9a  app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+
+device (same bytes as the local outputs)
+94a1437ae36fbcb5035f74f1b7608a2e96a55d9919b89881104ae51fde5e2f33  /data/app/~~N98pFk5RM9eeRBgyItVF9Q==/io.github.triet4p.aegisf.s812evidence-OF9IWh8Q51YlSW4R4M5qbQ==/base.apk
+9dd6acedc0c6f14be5e2d8c9386d5b371e6273c7ea9c9b0f5da43beb309ffb9a  /data/app/~~NGM6QgV5A1HMkM7i1uaBQA==/io.github.triet4p.aegisf.s812evidence.test-bPrW2pTJRurXXolQmJ79qQ==/base.apk
+
+round 1 (superseded, retained for record)
+cde8ccf2157119edd41434ad096363e63a721de5ad91f9a5da9953b771772d22  app-debug.apk
+924cbf70b0a43c43f88b77b4f1994d65c61c8888c880db80ee2d9c84fdeb57c8  app-debug-androidTest.apk

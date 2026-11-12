@@ -1,0 +1,49 @@
+
+io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest:
+Error in vietnameseLargeTextKeepsTasksReachableAndLocalized(io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest):
+androidx.compose.ui.test.ComposeTimeoutException: Condition still not satisfied after 20000 ms
+	at androidx.compose.ui.test.AndroidComposeUiTestEnvironment$AndroidComposeUiTestImpl.waitUntil(ComposeUiTest.android.kt:901)
+	at androidx.compose.ui.test.junit4.AndroidComposeTestRule.waitUntil(AndroidComposeTestRule.android.kt:500)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.awaitText(S108SettingsInstrumentedTest.kt:655)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.awaitText$default(S108SettingsInstrumentedTest.kt:654)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.vietnameseLargeTextKeepsTasksReachableAndLocalized(S108SettingsInstrumentedTest.kt:464)
+...
+Error in bankSettingsShowsDiagnosticsAndManagesTheAllowlist(io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest):
+java.lang.AssertionError: Semantic Node has no parent layout with a Scroll SemanticsAction
+	at androidx.compose.ui.test.ActionsKt.scrollToNode(Actions.kt:98)
+	at androidx.compose.ui.test.ActionsKt.performScrollTo(Actions.kt:83)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.typeField(S108SettingsInstrumentedTest.kt:667)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.bankSettingsShowsDiagnosticsAndManagesTheAllowlist(S108SettingsInstrumentedTest.kt:308)
+..
+Error in categoriesAddRenameArchiveAndDeleteWithReferenceSafety(io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest):
+java.lang.AssertionError: Semantic Node has no parent layout with a Scroll SemanticsAction
+	at androidx.compose.ui.test.ActionsKt.scrollToNode(Actions.kt:98)
+	at androidx.compose.ui.test.ActionsKt.performScrollTo(Actions.kt:83)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.categoriesAddRenameArchiveAndDeleteWithReferenceSafety(S108SettingsInstrumentedTest.kt:155)
+.
+
+Time: 74,337
+There were 3 failures:
+1) vietnameseLargeTextKeepsTasksReachableAndLocalized(io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest)
+androidx.compose.ui.test.ComposeTimeoutException: Condition still not satisfied after 20000 ms
+	at androidx.compose.ui.test.AndroidComposeUiTestEnvironment$AndroidComposeUiTestImpl.waitUntil(ComposeUiTest.android.kt:901)
+	at androidx.compose.ui.test.junit4.AndroidComposeTestRule.waitUntil(AndroidComposeTestRule.android.kt:500)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.awaitText(S108SettingsInstrumentedTest.kt:655)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.awaitText$default(S108SettingsInstrumentedTest.kt:654)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.vietnameseLargeTextKeepsTasksReachableAndLocalized(S108SettingsInstrumentedTest.kt:464)
+2) bankSettingsShowsDiagnosticsAndManagesTheAllowlist(io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest)
+java.lang.AssertionError: Semantic Node has no parent layout with a Scroll SemanticsAction
+	at androidx.compose.ui.test.ActionsKt.scrollToNode(Actions.kt:98)
+	at androidx.compose.ui.test.ActionsKt.performScrollTo(Actions.kt:83)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.typeField(S108SettingsInstrumentedTest.kt:667)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.bankSettingsShowsDiagnosticsAndManagesTheAllowlist(S108SettingsInstrumentedTest.kt:308)
+3) categoriesAddRenameArchiveAndDeleteWithReferenceSafety(io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest)
+java.lang.AssertionError: Semantic Node has no parent layout with a Scroll SemanticsAction
+	at androidx.compose.ui.test.ActionsKt.scrollToNode(Actions.kt:98)
+	at androidx.compose.ui.test.ActionsKt.performScrollTo(Actions.kt:83)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.categoriesAddRenameArchiveAndDeleteWithReferenceSafety(S108SettingsInstrumentedTest.kt:155)
+
+FAILURES!!!
+Tests run: 9,  Failures: 3
+
+

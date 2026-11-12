@@ -1,0 +1,8 @@
+
+io.github.triet4p.aegisf.ui.S107ManualRecordInstrumentedTest:......
+
+Time: 41,301
+
+OK (6 tests)
+
+

@@ -1,0 +1,69 @@
+S10.5 attempt a3 — verification environment (observed 2026-11-10)
+Repository/worktree: F:/ai-ml/aegis-f
+Git directory: F:/ai-ml/aegis-f/.git
+Ref: refs/heads/main
+Candidate: uncommitted working tree; no commit/staging/push. Source snapshot in
+`source-snapshot.txt`; APK identity in `apk-sha256.txt`.
+
+Device
+- HONOR ALT-LX2, Android 14 / API 34, model ALT-LX2.
+- Display 720x1610 px, density 320 dpi, system font scale 1.0.
+- Physical device over adb; package manager and run-as used for local data inspection.
+
+Packages
+- Owner package under test for the product surface: io.github.triet4p.aegisf (not modified by this
+  attempt; see `reconciliation.txt`).
+- Isolated evidence package for all live-provider work: io.github.triet4p.aegisf.s812evidence
+  (app APK sha256 f73f4ac7…c0e27c02) and its test APK
+  io.github.triet4p.aegisf.s812evidence.test (sha256 5434242b…380e009b). Built from the frozen
+  source with `-PS812_ANDROID_TARGET_PACKAGE=io.github.triet4p.aegisf.s812evidence`, the project's
+  existing isolated-evidence convention. Cleared before and after live work; no owner row exists
+  in it.
+
+Authorized provider route
+- Owner correction: the repository `.env` holds usable keys and only DeepSeek through OpenCode Go
+  or the direct DeepSeek API may be used for the minimal synthetic live checks.
+- `.env` was read locally only to copy the `OPENCODE_GO_API_KEY` assignment into a temporary
+  one-file staging file. Only the key name was printed; the value was never printed, logged,
+  recorded in an artifact, or placed on a command line.
+- Staging path (repo build directory, git-ignored): app/build/s105-secret/s105_secret.env.
+  It was pushed to /data/local/tmp, transferred with `run-as` into the isolated package's
+  `files/s105_secret.env`, the /data/local/tmp copy was deleted, and the local staging file was
+  deleted. The instrumentation read it once, saved the profile through the production encrypted
+  store, and deleted the file in `finally` (`S105CONFIG secretDeleted=true`).
+- Active profile for the live stage: name "S10.5 authorized DeepSeek", preset
+  `opencode-go-deepseek`, protocol OPENAI_CHAT_COMPLETIONS, endpoint host opencode.ai, model
+  deepseek-v4.1-flash. No credential appears in any record.
+- After verification the profile was removed through the production store
+  (`S105CONFIG cleaned remaining=0 active=null`) and the isolated package was cleared.
+
+Build/test environment
+- Android SDK C:\Users\admin\AppData\Local\Android\Sdk; JDK 21; Gradle wrapper in the worktree.
+- Commands (from the repository root):
+  - isolated: `./gradlew.bat --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest
+    -PS812_ANDROID_TARGET_PACKAGE=io.github.triet4p.aegisf.s812evidence --console=plain`
+  - frozen base candidate: `./gradlew.bat --no-daemon :app:testDebugUnitTest --tests
+    "io.github.triet4p.aegisf.ui.ChatTranscriptStateTest" --tests
+    "io.github.triet4p.aegisf.ui.ChatOutcomeReferenceTest" :app:assembleDebug
+    :app:assembleDebugAndroidTest --console=plain`
+
+Privacy boundary of the live stages
+- The real screen stage uses `realHost`, which rewrites the production caller scope to empty
+  capture/draft sets and a complete empty draft scope; the Room database is the dedicated
+  `s105_durable.db` file, never the app's ledger database.
+- The re-entry stage reopens the same file database in a fresh process and sends nothing; its
+  provider-host factory fails the test if a request is attempted.
+- The synthetic prompt is the only business content that can cross the boundary; no note, draft,
+  event, link, ledger or owner preference is in scope or in the request.
+
+Presentation changes inside this attempt
+- `ui/chat/ChatMarkdown.kt` renders assistant answers for the conversation surface: ATX headings
+  bold with the `#` run removed, `**…**` emphasis bold with markers removed, `-`/`*` bullets to a
+  bullet glyph, horizontal-rule lines to a separator, paired backticks monospace without the
+  backticks, and an unpaired marker held out of the visible text while it streams.
+- `chatVisibleText` replaces any complete internal mask token `⟦…⟧` with the localized
+  "a masked value" copy on the conversation surface (assistant text, restored turns, history
+  titles). This is display-only: the stored answer, the provider request/response and the masking
+  boundary are unchanged, and no value is revealed.
+- The live verification uses the numeral prompt specifically so the mask-token path is exercised;
+  no value is recorded or shown.

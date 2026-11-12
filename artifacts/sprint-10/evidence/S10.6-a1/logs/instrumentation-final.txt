@@ -1,0 +1,10 @@
+
+io.github.triet4p.aegisf.ui.S106ReviewInstrumentedTest:.....
+io.github.triet4p.aegisf.ui.S95ReviewRefreshPhoneInstrumentedTest:.
+io.github.triet4p.aegisf.ui.S97ReviewRevalidationPhoneInstrumentedTest:.
+
+Time: 39,521
+
+OK (7 tests)
+
+

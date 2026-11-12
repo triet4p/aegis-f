@@ -1,0 +1,9 @@
+
+io.github.triet4p.aegisf.ui.S105ChatInstrumentedTest:
+io.github.triet4p.aegisf.ui.S105ChatInstrumentedTest:.............
+
+Time: 76,94
+
+OK (14 tests)
+
+

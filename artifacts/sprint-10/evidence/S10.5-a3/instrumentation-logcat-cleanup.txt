@@ -1,0 +1,2 @@
+--------- beginning of main
+11-10 13:08:39.305  5367  5416 I S105UI  : S105CONFIG cleaned remaining=0 active=null

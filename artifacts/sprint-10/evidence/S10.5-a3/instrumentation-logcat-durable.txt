@@ -1,0 +1,10 @@
+--------- beginning of main
+11-10 13:07:31.827  3921  3966 I S105UI  : S105 screenshot=620-durable-streaming-a bytes=142365
+11-10 13:07:32.092  3921  3966 I S105UI  : S105 screenshot=620-durable-streaming-b bytes=145985
+11-10 13:07:32.092  3921  3966 I S105UI  : 620 durableChunks=30
+11-10 13:07:33.567  3921  3966 I S105UI  : S105 screenshot=621-durable-stopped file=/data/user/0/io.github.triet4p.aegisf.s812evidence/files/s105-621-durable-stopped.png bytes=160193
+11-10 13:07:37.606  3921  3966 I S105UI  : 621 durableStopLength=515 noLateChunk=true
+11-10 13:07:39.953  3921  3966 I S105UI  : S105 screenshot=621b-durable-stopped-start file=/data/user/0/io.github.triet4p.aegisf.s812evidence/files/s105-621b-durable-stopped-start.png bytes=178050
+11-10 13:07:45.370  3921  3966 I S105UI  : S105 screenshot=622-durable-next file=/data/user/0/io.github.triet4p.aegisf.s812evidence/files/s105-622-durable-next.png bytes=144111
+11-10 13:07:45.385  3921  3966 I S105UI  : 622 durableNext=READY
+11-10 13:07:45.387  3921  3966 I S105UI  : 622 durableRuns=[SUCCEEDED, CANCELLED]

@@ -1,0 +1,16 @@
+S10.5 attempt a2 — production package walkthrough captures
+Package io.github.triet4p.aegisf installed with `adb install -r`; owner data preserved.
+Device: HONOR ALT-LX2, Android 14 / API 34, 720x1610, density 320, system dark, font 1.0.
+Preferences at start: language=en, theme_mode=system. No hosted provider profile exists.
+
+700-chat-root-en-dark.png (+ .xml)          AI Chat root: one conversation task, History/New chat,
+                                           no-provider guidance, one composer with disabled Send.
+701-chat-settings-child-en-dark.png (+ .xml) Focused Hosted provider child, Back present, no
+                                           bottom navigation; presets only, no saved profile row.
+702-chat-return-from-settings-en-dark.png (+ .xml) Back returns to the same Chat root.
+703-chat-root-vi-dark.png (+ .xml)         Chat after switching the actual in-app language to
+                                           Vietnamese: title, empty state, no-provider guidance,
+                                           composer and Send all Vietnamese.
+
+After capture: language restored to English and appearance to System through the same UI,
+verified after force-stop/relaunch (`language=en`, `theme_mode=system`).

@@ -6,7 +6,7 @@ Make the existing ledger and AI value easy to reach through Dashboard, Chat / Qu
 
 ## Status and Dependencies
 
-- Status: Complete and user-accepted on 2026-10-24 — S6.1–S6.9 delivered, S6.9 installed on the user's phone with a data-preserving update, and the user explicitly confirmed “đã ổn, end s6”. Fresh designer, independent evidence and [final differential review](../../artifacts/sprint-6/reviews/S6-final-review-03.md) PASS; AF-1 closed. Recovery/signing/privacy obligations remain in [Sprint 10](sprint-10.md).
+- Status: Complete and user-accepted on 2026-10-24 — S6.1–S6.9 delivered, S6.9 installed on the user's phone with a data-preserving update, and the user explicitly confirmed “đã ổn, end s6”. Fresh designer, independent evidence and [final differential review](../../artifacts/sprint-6/reviews/S6-final-review-03.md) PASS; AF-1 closed. Recovery/signing/privacy obligations now remain in [Sprint 11](sprint-11.md), moved intact from the former Sprint 10 after the owner inserted a complete UI/UX redesign.
 - Dependencies: Sprint 5 migrated data and shared command/query boundaries.
 - Workflow: **Light**; mandatory independent evidence-reviewer gate per **S6.1–S6.9**, then assigned end-of-sprint differential review. The previous differential PASS predates S6.9; a fresh differential review is required after its gate passes. No automatic checkpoint or commit/push permission. Fresh role authority required.
 - Worker/reviewer direct ADB checks authorized; one consolidated final user pass at sprint end. Evidence root: `artifacts/sprint-6/`.

@@ -1,0 +1,19 @@
+base/HEAD: 2581b11f0087ae93a1e1e80a7e11808db83c875b
+candidate: S10.7-implementation-a1 / candidate a2 (round 2), uncommitted working tree; no staging/commit/push
+round1: changes_requested (artifacts/sprint-10/reviews/S10.7-review-01.md); F1-F3 fixed in this candidate
+
+02b4bfe8f76f24730c5618400d44ef10565f53ea281ef26d9609dcc50aa97fc7  app/src/main/java/io/github/triet4p/aegisf/ui/TransactionEditorScreen.kt
+07c270393305bf7694a29a826bdf0251269b8c8d61cef6cc820305e420ed7e97  app/src/main/java/io/github/triet4p/aegisf/ui/ManualAmountWords.kt
+2e14abcba76be2d93491a5f95199106dbb4b7f3ebff2152efe2f46ee2da22cab  app/src/main/java/io/github/triet4p/aegisf/ui/ManualRecordStrings.kt
+f6bb9c0eb7e82f2c668c343ce2279a3ee85d6ed710d4336d994e79636e33d230  app/src/test/java/io/github/triet4p/aegisf/ui/ManualAmountWordsTest.kt
+adfe0a2728de3aa8d2914cafa34bdf08f8fb1ede06a5cbf06548f38e0a79baeb  app/src/androidTest/java/io/github/triet4p/aegisf/ui/S107ManualRecordInstrumentedTest.kt
+729a3403a179a81c47378a8351da0ad419f9c066f3721ee3ad0839a1e7d0cf00  app/src/androidTest/java/io/github/triet4p/aegisf/ui/S102ShellLayoutInstrumentedTest.kt
+efb2546fcd814c6dc11e347e596020ab9adb9d6c1d50b6b6a682c59ebc20702f  app/src/androidTest/java/io/github/triet4p/aegisf/ui/S104NotesJournalInstrumentedTest.kt
+a610b69bdecf2b64e6e5faeeca438fd0a1be178a28e200dada6d77ab4704a281  app/src/androidTest/java/io/github/triet4p/aegisf/ui/S99MeasurementInstrumentedTest.kt
+073133b72c228fd6efe7c6b8edd40f4ad88de54492bf4e7fa0777c3e0c9c9616  app/src/androidTest/java/io/github/triet4p/aegisf/provider/S812HostedSettingsChatInstrumentedTest.kt
+c0798e6f72d637bc1647bdd6a612f76009ca4ae755ec1674a70f623e74257c0b  README.md
+7a66f6e4b4c4e38491934da63ce21fe8e60e084e6522082afee7965adeb4ce71  CHANGELOG.md
+
+Owned paths not hashed here: artifacts/sprint-10/evidence/S10.7-a1/**, artifacts/sprint-10/workers/S10.7-implementation-a1.md, artifacts/sprint-10/handoffs/S10.7-implementation-a1.md
+
+Foreign preserved: .agents/memory/decisions.md, docs/PLAN.md, docs/sprint-plans/sprint-10.md, docs/sprint-plans/sprint-6.md, docs/sprint-plans/sprint-11.md, pre-S10.7 artifact trees, owner device data.

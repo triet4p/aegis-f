@@ -1,0 +1,184 @@
+# S10.3 native walkthrough state index
+
+Each line names the captured state and the visible app text/content descriptions at that moment.
+The matching .xml holds the full uiautomator tree; the .png is local-only under the artifacts PNG ignore policy.
+
+## 010-home-fixtures
+Spending this month | 1,084,000 ₫ | [Hide amounts] | Analytics | What would you like to do? | [Open Ledger] | Ledger | [Open Analytics] | Analytics | [Open Notes] | Notes | [Open AI Chat] | AI Chat | [Open Review] | 6 | Review | [Open Manual record] | Manual record | [Open Categories & rules] | Categories & rules | [Open Settings] | Settings | Good afternoon | [Review, 6 waiting] | 6 | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 011-home-masked
+Spending this month | ••• ••• ₫ | [Amounts hidden] | [Show amounts] | Analytics | What would you like to do? | [Open Ledger] | Ledger | [Open Analytics] | Analytics | [Open Notes] | Notes | [Open AI Chat] | AI Chat | [Open Review] | 6 | Review | [Open Manual record] | Manual record | [Open Categories & rules] | Categories & rules | [Open Settings] | Settings | Good afternoon | [Review, 6 waiting] | 6 | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 012-home-unmasked
+Spending this month | 1,084,000 ₫ | [Hide amounts] | Analytics | What would you like to do? | [Open Ledger] | Ledger | [Open Analytics] | Analytics | [Open Notes] | Notes | [Open AI Chat] | AI Chat | [Open Review] | 6 | Review | [Open Manual record] | Manual record | [Open Categories & rules] | Categories & rules | [Open Settings] | Settings | Good afternoon | [Review, 6 waiting] | 6 | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 020-launch-ledger-back
+Spending this month | 1,084,000 ₫ | [Hide amounts] | Analytics | What would you like to do? | [Open Ledger] | Ledger | [Open Analytics] | Analytics | [Open Notes] | Notes | [Open AI Chat] | AI Chat | [Open Review] | 6 | Review | [Open Manual record] | Manual record | [Open Categories & rules] | Categories & rules | [Open Settings] | Settings | Good afternoon | [Review, 6 waiting] | 6 | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 020-launch-ledger
+[Search records] | Search description or note | All types | Expense | Income | Internal transfer | Filters | Previous | Page 1 | Next | Stored on this device | 06/11/2026 | S103 unconfirmed draft probe | No category | 10:00 · Manual | [Draft] | Draft | -9,999,999 ₫ | 05/11/2026 | Petrolimex Cây Xăng | No category | 08:20 · Manual | -120,000 ₫ | 03/11/2026 | Uniqlo Đồng Khởi | S103 Shopping | 15:45 · Manual | -899,000 ₫ | Ledger | [Add record] | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 030-launch-analytics-back
+Spending this month | 1,084,000 ₫ | [Hide amounts] | Analytics | What would you like to do? | [Open Ledger] | Ledger | [Open Analytics] | Analytics | [Open Notes] | Notes | [Open AI Chat] | AI Chat | [Open Review] | 6 | Review | [Open Manual record] | Manual record | [Open Categories & rules] | Categories & rules | [Open Settings] | Settings | Good afternoon | [Review, 6 waiting] | 6 | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 030-launch-analytics
+[Previous month] | November 2026 | 01/11/2026 – 30/11/2026 · 30 days | [Next month] | Spending | 1,084,000 ₫ | 3 records | Income | +28,500,000 ₫ | 1 record | Net cash flow | Income minus spending · internal transfers excluded | +27,416,000 ₫ | Internal transfers | Money moved between your own accounts | 5,000,000 ₫ | Spending by category | [Proportional category distribution. S103 Shopping: 899,000 ₫, 82.9%; —: 120,000 ₫, 11.1%; S103 Food: 65,000 ₫, 6.0%] | S103 Shopping | 82.9% · 1 record | 899,000 ₫ | No category | 11.1% · 1 record | 120,000 ₫ | S103 Food | 6.0% · 1 record | 65,000 ₫ | Select a row to open its records. | Daily spending | Show as list | [Back] | Analytics | Custom range
+
+## 040-launch-notes-back
+Spending this month | 1,084,000 ₫ | [Hide amounts] | Analytics | What would you like to do? | [Open Ledger] | Ledger | [Open Analytics] | Analytics | [Open Notes] | Notes | [Open AI Chat] | AI Chat | [Open Review] | 6 | Review | [Open Manual record] | Manual record | [Open Categories & rules] | Categories & rules | [Open Settings] | Settings | Good afternoon | [Review, 6 waiting] | 6 | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 040-launch-notes
+NEW QUICK CAPTURE | Save any note locally. It stays source text until you take a separate manual action. | Write anything | No financial fields are required. | Save capture | Availability | Quick Capture does not run model extraction. When an event interpretation or permitted bank notification arrives, complete unique evidence may link them; ambiguous or incomplete evidence stays for review. Saving a note never creates a financial record. | Record a transaction | NOTES | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 050-launch-chat-back
+Spending this month | 1,084,000 ₫ | [Hide amounts] | Analytics | What would you like to do? | [Open Ledger] | Ledger | [Open Analytics] | Analytics | [Open Notes] | Notes | [Open AI Chat] | AI Chat | [Open Review] | 6 | Review | [Open Manual record] | Manual record | [Open Categories & rules] | Categories & rules | [Open Settings] | Settings | Good afternoon | [Review, 6 waiting] | 6 | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 050-launch-chat
+HOSTED AGENT · NOT CONFIGURED | Hosted requests require internet access and send locally masked context to the selected endpoint. Masking is not anonymity; remaining context may still identify you. Check the endpoint and provider terms before sending. Without an active provider, Chat remains a local note journal; manual entry and intake work offline. | ASK THE HOSTED AGENT | Choose its allowed workflow skills. Only verified application effects are reported as changes. | INTERPRET EVENTS | SEARCH DRAFTS | LINK EVENT TO DRAFT | AI CHAT | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 060-launch-review-back
+Spending this month | 1,084,000 ₫ | [Hide amounts] | Analytics | What would you like to do? | [Open Ledger] | Ledger | [Open Analytics] | Analytics | [Open Notes] | Notes | [Open AI Chat] | AI Chat | [Open Review] | 6 | Review | [Open Manual record] | Manual record | [Open Categories & rules] | Categories & rules | [Open Settings] | Settings | Good afternoon | [Review, 6 waiting] | 6 | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 060-launch-review
+Pending bank notifications are evidence to review, not transactions. Unsupported formats and fields that need attention stay here until you decide. | 6 waiting | Oldest first | Needs attention | Needs your decision first, then drafts that still need a category, then drafts ready to confirm. Within a section, the oldest comes first. | Visible drafts update when their review state changes. | Refresh | Previous | Page 1 | Next | Needs your decision | Unresolved matches and bank data that needs attention come first. · 5 on this page | Unsupported bank | Unsupported format | Needs attention: possible duplicate, bank data needs attention | Source: com.VCB | Date and time: Not available — not stated | REVIEW NOTIFICATIONS | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 070-launch-manual-back
+Spending this month | 1,084,000 ₫ | [Hide amounts] | Analytics | What would you like to do? | [Open Ledger] | Ledger | [Open Analytics] | Analytics | [Open Notes] | Notes | [Open AI Chat] | AI Chat | [Open Review] | 6 | Review | [Open Manual record] | Manual record | [Open Categories & rules] | Categories & rules | [Open Settings] | Settings | Good afternoon | [Review, 6 waiting] | 6 | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 070-launch-manual
+Record what happened in exact whole dong. Nothing is stored until you save. | Amount (VND) | Type | Income | Internal transfer | Expense | Money leaving · counted as spending after save | 2026-11-09 | Date | 14:22 | Time | Dates and times use your device's time zone. | Description (optional) | Select category (optional) | Record from a saved note | Back | NEW TRANSACTION
+
+## 080-launch-categories-back
+Spending this month | 1,084,000 ₫ | [Hide amounts] | Analytics | What would you like to do? | [Open Ledger] | Ledger | [Open Analytics] | Analytics | [Open Notes] | Notes | [Open AI Chat] | AI Chat | [Open Review] | 6 | Review | [Open Manual record] | Manual record | [Open Categories & rules] | Categories & rules | [Open Settings] | Settings | Good afternoon | [Review, 6 waiting] | 6 | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 080-launch-categories
+Previous | Page 1 | Next | 2 categories | S103 Food | Rename | Archive | Delete | S103 Shopping | Rename | Archive | Delete | Previous | Page 1 | Back | Categories | Add category
+
+## 090-launch-settings-back
+Spending this month | 1,084,000 ₫ | [Hide amounts] | Analytics | What would you like to do? | [Open Ledger] | Ledger | [Open Analytics] | Analytics | [Open Notes] | Notes | [Open AI Chat] | AI Chat | [Open Review] | 6 | Review | [Open Manual record] | Manual record | [Open Categories & rules] | Categories & rules | [Open Settings] | Settings | Good afternoon | [Review, 6 waiting] | 6 | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 090-launch-settings
+PREFERENCES | Language | English | Appearance | System | CONFIGURATION | Bank notification settings | Choose which bank apps may become reviewable drafts. Manual recording works with or without it. | Hosted provider settings | Choose a provider, endpoint, model and credential. Hosted requests need network access and send locally masked context. | [Back] | Settings
+
+## 100-analytics-figures
+[Previous month] | November 2026 | 01/11/2026 – 30/11/2026 · 30 days | [Next month] | Spending | 1,084,000 ₫ | 3 records | Income | +28,500,000 ₫ | 1 record | Net cash flow | Income minus spending · internal transfers excluded | +27,416,000 ₫ | Internal transfers | Money moved between your own accounts | 5,000,000 ₫ | Spending by category | [Proportional category distribution. S103 Shopping: 899,000 ₫, 82.9%; —: 120,000 ₫, 11.1%; S103 Food: 65,000 ₫, 6.0%] | S103 Shopping | 82.9% · 1 record | 899,000 ₫ | No category | 11.1% · 1 record | 120,000 ₫ | S103 Food | 6.0% · 1 record | 65,000 ₫ | Select a row to open its records. | Daily spending | Show as list | [Back] | Analytics | Custom range
+
+## 101-analytics-categories
+Net cash flow | Income minus spending · internal transfers excluded | +27,416,000 ₫ | Internal transfers | Money moved between your own accounts | 5,000,000 ₫ | Spending by category | [Proportional category distribution. S103 Shopping: 899,000 ₫, 82.9%; —: 120,000 ₫, 11.1%; S103 Food: 65,000 ₫, 6.0%] | S103 Shopping | 82.9% · 1 record | 899,000 ₫ | No category | 11.1% · 1 record | 120,000 ₫ | S103 Food | 6.0% · 1 record | 65,000 ₫ | Select a row to open its records. | Daily spending | Show as list | 964,000 ₫ | 03/11 | 120,000 ₫ | 05/11 | Select a row to open its records. | Stored on this device | [Back] | Analytics | Custom range
+
+## 102-scoped-food
+01/11/2026 – 30/11/2026 · S103 Food | 65,000 ₫ | 1 record | Exactly the confirmed expenses behind the spending figure. Income, internal transfers and unconfirmed drafts are not in this list. | Stored on this device | Previous | Page 1 | Next | 03/11/2026 | Phở Thìn Bờ Hồ | S103 Food | 12:30 · Manual | -65,000 ₫ | [Back] | Spending in this period
+
+## 103-receipt-from-report
+Phở Thìn Bờ Hồ | -65,000 ₫ | [Confirmed] | Confirmed | Type | Expense | Category | S103 Food | When | Tuesday, 3 Nov 2026 · 12:30 | Source | Manual | Note | Phở Thìn Bờ Hồ | Record ID | 2 | Recorded | 2026-11-01 08:00 | Stored on this device | [Back] | Transaction | Edit transaction | Delete transaction
+
+## 104-scoped-back
+01/11/2026 – 30/11/2026 · S103 Food | 65,000 ₫ | 1 record | Exactly the confirmed expenses behind the spending figure. Income, internal transfers and unconfirmed drafts are not in this list. | Stored on this device | Previous | Page 1 | Next | 03/11/2026 | Phở Thìn Bờ Hồ | S103 Food | 12:30 · Manual | -65,000 ₫ | [Back] | Spending in this period
+
+## 105-analytics-back
+[Previous month] | November 2026 | 01/11/2026 – 30/11/2026 · 30 days | [Next month] | Spending | 1,084,000 ₫ | 3 records | Income | +28,500,000 ₫ | 1 record | Net cash flow | Income minus spending · internal transfers excluded | +27,416,000 ₫ | Internal transfers | Money moved between your own accounts | 5,000,000 ₫ | Spending by category | [Proportional category distribution. S103 Shopping: 899,000 ₫, 82.9%; —: 120,000 ₫, 11.1%; S103 Food: 65,000 ₫, 6.0%] | S103 Shopping | 82.9% · 1 record | 899,000 ₫ | No category | 11.1% · 1 record | 120,000 ₫ | S103 Food | 6.0% · 1 record | 65,000 ₫ | Select a row to open its records. | Daily spending | Show as list | [Back] | Analytics | Custom range
+
+## 106-home-after-analytics
+Spending this month | 1,084,000 ₫ | [Hide amounts] | Analytics | What would you like to do? | [Open Ledger] | Ledger | [Open Analytics] | Analytics | [Open Notes] | Notes | [Open AI Chat] | AI Chat | [Open Review] | 6 | Review | [Open Manual record] | Manual record | [Open Categories & rules] | Categories & rules | [Open Settings] | Settings | Good afternoon | [Review, 6 waiting] | 6 | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 110-ledger-root
+[Search records] | Search description or note | All types | Expense | Income | Internal transfer | Filters | Previous | Page 1 | Next | Stored on this device | 06/11/2026 | S103 unconfirmed draft probe | No category | 10:00 · Manual | [Draft] | Draft | -9,999,999 ₫ | 05/11/2026 | Petrolimex Cây Xăng | No category | 08:20 · Manual | -120,000 ₫ | 03/11/2026 | Uniqlo Đồng Khởi | S103 Shopping | 15:45 · Manual | -899,000 ₫ | Ledger | [Add record] | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 111-ledger-search
+uniqlo | [Search records] | [Clear search] | All types | Expense | Income | Internal transfer | Filters | 1 active filter | Previous | Page 1 | Next | Stored on this device | 03/11/2026 | Uniqlo Đồng Khởi | S103 Shopping | 15:45 · Manual | -899,000 ₫ | Ledger | [Add record] | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 112-ledger-filters
+[Search records] | Search description or note | All types | Expense | Income | Internal transfer | Hide filters | Clear all | Dates | Inclusive YYYY-MM-DD days · device time zone. | From | Previous | Page 1 | Next | Stored on this device | 06/11/2026 | S103 unconfirmed draft probe | No category | 10:00 · Manual | [Draft] | Draft | -9,999,999 ₫ | 05/11/2026 | Ledger | [Add record] | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 113-ledger-date-fields
+[Search records] | Search description or note | All types | Expense | Income | Internal transfer | Hide filters | 2 active filters | 2026-11-03 | Through | Category | All categories | Previous | Page 1 | Next | Stored on this device | 03/11/2026 | Uniqlo Đồng Khởi | S103 Shopping | 15:45 · Manual | -899,000 ₫ | Phở Thìn Bờ Hồ | S103 Food | 12:30 · Manual | -65,000 ₫ | Ledger | [Add record] | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 113-ledger-date-filter
+2026-11-03 | [Search records] | [Clear search] | All types | Expense | Income | Internal transfer | Hide filters | 1 active filter | Clear all | Category | All categories | Calendar days (YYYY-MM-DD) in your device's time zone, both ends included. | No matching transactions | No saved records match these filters. | Clear filters | Ledger | [Add record] | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 114-ledger-date-filtered
+[Search records] | Search description or note | All types | Expense | Income | Internal transfer | Filters | 2 active filters | Previous | Page 1 | Next | Stored on this device | 03/11/2026 | Uniqlo Đồng Khởi | S103 Shopping | 15:45 · Manual | -899,000 ₫ | Phở Thìn Bờ Hồ | S103 Food | 12:30 · Manual | -65,000 ₫ | Ledger | [Add record] | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 115-category-dialog
+Category | Previous | Page 1 | Next | All categories | No category | S103 Food | S103 Shopping | Close
+
+## 116-ledger-category-filtered
+[Search records] | Search description or note | All types | Expense | Income | Internal transfer | Hide filters | 3 active filters | Clear all | Dates | Inclusive YYYY-MM-DD days · device time zone. | 2026-11-03 | From | Previous | Page 1 | Next | Stored on this device | 03/11/2026 | Phở Thìn Bờ Hồ | S103 Food | 12:30 · Manual | -65,000 ₫ | Ledger | [Add record] | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 117-ledger-restored
+[Search records] | Search description or note | All types | Expense | Income | Internal transfer | Filters | Previous | Page 1 | Next | Stored on this device | 06/11/2026 | S103 unconfirmed draft probe | No category | 10:00 · Manual | [Draft] | Draft | -9,999,999 ₫ | 05/11/2026 | Petrolimex Cây Xăng | No category | 08:20 · Manual | -120,000 ₫ | 03/11/2026 | Uniqlo Đồng Khởi | S103 Shopping | 15:45 · Manual | -899,000 ₫ | Ledger | [Add record] | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 118-receipt
+Uniqlo Đồng Khởi | -899,000 ₫ | [Confirmed] | Confirmed | Type | Expense | Category | S103 Shopping | When | Tuesday, 3 Nov 2026 · 15:45 | Source | Manual | Note | Uniqlo Đồng Khởi | Record ID | 3 | Recorded | 2026-11-01 08:00 | Stored on this device | [Back] | Transaction | Edit transaction | Delete transaction
+
+## 119-edit-form
+Change what this record holds in exact whole dong. Nothing is stored until you save, and leaving now changes nothing. | 899000 | Amount (VND) | Saves as 899,000 VND | Type | Income | Internal transfer | Expense | Money leaving · counted as spending after save | 2026-11-03 | Date | 15:45 | Time | Dates and times use your device's time zone. | Uniqlo Đồng Khởi | Description (optional) | S103 Shopping | Back | EDIT TRANSACTION
+
+## 120-receipt-after-edit-back
+Uniqlo Đồng Khởi | -899,000 ₫ | [Confirmed] | Confirmed | Type | Expense | Category | S103 Shopping | When | Tuesday, 3 Nov 2026 · 15:45 | Source | Manual | Note | Uniqlo Đồng Khởi | Record ID | 3 | Recorded | 2026-11-01 08:00 | Stored on this device | [Back] | Transaction | Edit transaction | Delete transaction
+
+## 121-delete-dialog
+Delete this transaction? | -899,000 ₫ · Expense | Uniqlo Đồng Khởi | Tuesday, 3 Nov 2026 · 15:45 | S103 Shopping | Deleting removes this record from the ledger. This cannot be undone. | Cancel | Delete
+
+## 122-delete-cancelled
+Uniqlo Đồng Khởi | -899,000 ₫ | [Confirmed] | Confirmed | Type | Expense | Category | S103 Shopping | When | Tuesday, 3 Nov 2026 · 15:45 | Source | Manual | Note | Uniqlo Đồng Khởi | Record ID | 3 | Recorded | 2026-11-01 08:00 | Stored on this device | [Back] | Transaction | Edit transaction | Delete transaction
+
+## 123-ledger-after-receipt
+[Search records] | Search description or note | All types | Expense | Income | Internal transfer | Filters | Previous | Page 1 | Next | Stored on this device | 06/11/2026 | S103 unconfirmed draft probe | No category | 10:00 · Manual | [Draft] | Draft | -9,999,999 ₫ | 05/11/2026 | Petrolimex Cây Xăng | No category | 08:20 · Manual | -120,000 ₫ | 03/11/2026 | Uniqlo Đồng Khởi | S103 Shopping | 15:45 · Manual | -899,000 ₫ | Ledger | [Add record] | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 124-home-returned
+Spending this month | 1,084,000 ₫ | [Hide amounts] | Analytics | What would you like to do? | [Open Ledger] | Ledger | [Open Analytics] | Analytics | [Open Notes] | Notes | [Open AI Chat] | AI Chat | [Open Review] | 6 | Review | [Open Manual record] | Manual record | [Open Categories & rules] | Categories & rules | [Open Settings] | Settings | Good afternoon | [Review, 6 waiting] | 6 | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 129-language-sheet
+[Đóng trang tính] | [Nút kéo] | Interface language | English | Tiếng Việt
+
+## 130-settings-vi
+TÙY CHỌN | Ngôn ngữ | Tiếng Việt | Giao diện | Theo hệ thống | CẤU HÌNH | Cài đặt thông báo ngân hàng | Chọn ứng dụng ngân hàng được tạo bản nháp để duyệt. Ghi tay vẫn dùng được dù bật hay tắt mục này. | Cài đặt nhà cung cấp AI | Chọn nhà cung cấp, địa chỉ, mô hình và khóa. Yêu cầu trực tuyến cần mạng và gửi ngữ cảnh đã được che cục bộ. | [Quay lại] | Cài đặt
+
+## 131-home-vi
+Chi tiêu tháng này | 1,084,000 ₫ | [Ẩn số tiền] | Báo cáo | Bạn muốn thực hiện tác vụ nào? | [Mở Sổ quỹ] | Sổ quỹ | [Mở Báo cáo] | Báo cáo | [Mở Ghi chép] | Ghi chép | [Mở Trợ lý AI] | Trợ lý AI | [Mở Duyệt tin] | 6 | Duyệt tin | [Mở Nhập tay] | Nhập tay | [Mở Danh mục & quy tắc] | Danh mục & quy tắc | [Mở Cài đặt] | Cài đặt | Chào buổi chiều | [Duyệt tin, 6 đang chờ] | 6 | [Trang chủ] | Trang chủ | [Sổ quỹ] | Sổ quỹ | [Ghi chép] | Ghi chép | [Trợ lý AI] | Trợ lý AI | [Duyệt tin, 6 đang chờ] | 6 | Duyệt tin
+
+## 132-analytics-vi
+[Tháng trước] | Tháng 11/2026 | 01/11/2026 – 30/11/2026 · 30 ngày | [Tháng sau] | Chi tiêu | 1,084,000 ₫ | 3 giao dịch | Thu nhập | +28,500,000 ₫ | 1 giao dịch | Dòng tiền ròng | Thu nhập trừ chi tiêu · không tính chuyển khoản nội bộ | +27,416,000 ₫ | Chuyển khoản nội bộ | Tiền chuyển giữa các tài khoản của bạn | 5,000,000 ₫ | Chi tiêu theo danh mục | [Proportional category distribution. S103 Shopping: 899,000 ₫, 82.9%; —: 120,000 ₫, 11.1%; S103 Food: 65,000 ₫, 6.0%] | S103 Shopping | 82.9% · 1 giao dịch | 899,000 ₫ | Không có danh mục | 11.1% · 1 giao dịch | 120,000 ₫ | S103 Food | 6.0% · 1 giao dịch | 65,000 ₫ | Chọn một dòng để mở các giao dịch của dòng đó. | Chi tiêu theo ngày | Xem dạng danh sách | [Quay lại] | Báo cáo | Khoảng tự chọn
+
+## 133-ledger-vi
+[Tìm giao dịch] | Tìm theo mô tả hoặc ghi chú | Tất cả loại | Chi tiêu | Thu nhập | Chuyển khoản nội bộ | Bộ lọc | Trước | Trang 1 | Sau | Lưu trên thiết bị | 06/11/2026 | S103 unconfirmed draft probe | Không có danh mục | 10:00 · Nhập tay | [Bản nháp] | Bản nháp | -9,999,999 ₫ | 05/11/2026 | Petrolimex Cây Xăng | Không có danh mục | 08:20 · Nhập tay | -120,000 ₫ | 03/11/2026 | Uniqlo Đồng Khởi | S103 Shopping | 15:45 · Nhập tay | -899,000 ₫ | Sổ quỹ | [Thêm giao dịch] | [Trang chủ] | Trang chủ | [Sổ quỹ] | Sổ quỹ | [Ghi chép] | Ghi chép | [Trợ lý AI] | Trợ lý AI | [Duyệt tin, 6 đang chờ] | 6 | Duyệt tin
+
+## 134-receipt-vi
+Phở Thìn Bờ Hồ | -65,000 ₫ | [Đã xác nhận] | Đã xác nhận | Loại | Chi tiêu | Danh mục | S103 Food | Thời gian | Thứ Ba, 03/11/2026 · 12:30 | Nguồn | Nhập tay | Ghi chú | Phở Thìn Bờ Hồ | Mã giao dịch | 2 | Đã ghi | 2026-11-01 08:00 | Lưu trên thiết bị | [Quay lại] | Chi tiết giao dịch | Chỉnh sửa giao dịch | Xóa giao dịch
+
+## 135-home-vi
+Chi tiêu tháng này | 1,084,000 ₫ | [Ẩn số tiền] | Báo cáo | Bạn muốn thực hiện tác vụ nào? | [Mở Sổ quỹ] | Sổ quỹ | [Mở Báo cáo] | Báo cáo | [Mở Ghi chép] | Ghi chép | [Mở Trợ lý AI] | Trợ lý AI | [Mở Duyệt tin] | 6 | Duyệt tin | [Mở Nhập tay] | Nhập tay | [Mở Danh mục & quy tắc] | Danh mục & quy tắc | [Mở Cài đặt] | Cài đặt | Chào buổi chiều | [Duyệt tin, 6 đang chờ] | 6 | [Trang chủ] | Trang chủ | [Sổ quỹ] | Sổ quỹ | [Ghi chép] | Ghi chép | [Trợ lý AI] | Trợ lý AI | [Duyệt tin, 6 đang chờ] | 6 | Duyệt tin
+
+## 140-settings-dark
+PREFERENCES | Language | English | Appearance | Dark | CONFIGURATION | Bank notification settings | Choose which bank apps may become reviewable drafts. Manual recording works with or without it. | Hosted provider settings | Choose a provider, endpoint, model and credential. Hosted requests need network access and send locally masked context. | [Back] | Settings
+
+## 141-home-dark
+Spending this month | 1,084,000 ₫ | [Hide amounts] | Analytics | What would you like to do? | [Open Ledger] | Ledger | [Open Analytics] | Analytics | [Open Notes] | Notes | [Open AI Chat] | AI Chat | [Open Review] | 6 | Review | [Open Manual record] | Manual record | [Open Categories & rules] | Categories & rules | [Open Settings] | Settings | Good afternoon | [Review, 6 waiting] | 6 | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 142-analytics-dark
+[Previous month] | November 2026 | 01/11/2026 – 30/11/2026 · 30 days | [Next month] | Spending | 1,084,000 ₫ | 3 records | Income | +28,500,000 ₫ | 1 record | Net cash flow | Income minus spending · internal transfers excluded | +27,416,000 ₫ | Internal transfers | Money moved between your own accounts | 5,000,000 ₫ | Spending by category | [Proportional category distribution. S103 Shopping: 899,000 ₫, 82.9%; —: 120,000 ₫, 11.1%; S103 Food: 65,000 ₫, 6.0%] | S103 Shopping | 82.9% · 1 record | 899,000 ₫ | No category | 11.1% · 1 record | 120,000 ₫ | S103 Food | 6.0% · 1 record | 65,000 ₫ | Select a row to open its records. | Daily spending | Show as list | [Back] | Analytics | Custom range
+
+## 143-ledger-dark
+[Search records] | Search description or note | All types | Expense | Income | Internal transfer | Filters | Previous | Page 1 | Next | Stored on this device | 03/11/2026 | Uniqlo Đồng Khởi | S103 Shopping | 15:45 · Manual | -899,000 ₫ | Phở Thìn Bờ Hồ | S103 Food | 12:30 · Manual | -65,000 ₫ | 02/11/2026 | Move to savings | No category | 18:00 · Manual | 5,000,000 ₫ | Salary October | No category | 09:15 · Manual | +28,500,000 ₫ | Ledger | [Add record] | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 150-home-restored
+Spending this month | 1,084,000 ₫ | [Hide amounts] | Analytics | What would you like to do? | [Open Ledger] | Ledger | [Open Analytics] | Analytics | [Open Notes] | Notes | [Open AI Chat] | AI Chat | [Open Review] | 6 | Review | [Open Manual record] | Manual record | [Open Categories & rules] | Categories & rules | [Open Settings] | Settings | Good afternoon | [Review, 6 waiting] | 6 | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 160-home-empty-after-cleanup
+Spending this month | 0 ₫ | [Hide amounts] | Analytics | What would you like to do? | [Open Ledger] | Ledger | [Open Analytics] | Analytics | [Open Notes] | Notes | [Open AI Chat] | AI Chat | [Open Review] | 6 | Review | [Open Manual record] | Manual record | [Open Categories & rules] | Categories & rules | [Open Settings] | Settings | Good afternoon | [Review, 6 waiting] | 6 | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 161-ledger-empty-after-cleanup
+[Search records] | Search description or note | All types | Expense | Income | Internal transfer | Filters | No transactions yet | Confirmed records you save appear here, newest first. | Ledger | [Add record] | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 200-analytics-kpi-en-1.0
+[Previous month] | November 2026 | 01/11/2026 – 30/11/2026 · 30 days | [Next month] | Spending | 1,084,000 ₫ | 3 records | Income | +28,500,000 ₫ | 1 record | Net cash flow | Income minus spending · internal transfers excluded | +27,416,000 ₫ | Internal transfers | Money moved between your own accounts | 5,000,000 ₫ | Spending by category | [Proportional category distribution. S103 Shopping: 899,000 ₫, 82.9%; —: 120,000 ₫, 11.1%; S103 Food: 65,000 ₫, 6.0%] | S103 Shopping | 82.9% · 1 record | 899,000 ₫ | No category | 11.1% · 1 record | 120,000 ₫ | S103 Food | 6.0% · 1 record | 65,000 ₫ | Select a row to open its records. | Daily spending | Show as list | 964,000 ₫ | 120,000 ₫ | [Back] | Analytics | Custom range
+
+## 201-ledger-row-en-1.0
+[Search records] | Search description or note | All types | Expense | Income | Internal transfer | Filters | Previous | Page 1 | Next | Stored on this device | 06/11/2026 | S103 unconfirmed draft probe | -9,999,999 ₫ | No category · 10:00 · Manual | [Draft] | Draft | 05/11/2026 | Petrolimex Cây Xăng | -120,000 ₫ | No category · 08:20 · Manual | 03/11/2026 | Uniqlo Đồng Khởi | -899,000 ₫ | S103 Shopping · 15:45 · Manual | Ledger | [Add record] | [Home] | Home | [Ledger] | Ledger | [Notes] | Notes | [AI Chat] | AI Chat | [Review, 6 waiting] | 6 | Review
+
+## 202-analytics-kpi-vi-1.0
+[Tháng trước] | Tháng 11/2026 | 01/11/2026 – 30/11/2026 · 30 ngày | [Tháng sau] | Chi tiêu | 1,084,000 ₫ | 3 giao dịch | Thu nhập | +28,500,000 ₫ | 1 giao dịch | Dòng tiền ròng | Thu nhập trừ chi tiêu · không tính chuyển khoản nội bộ | +27,416,000 ₫ | Chuyển khoản nội bộ | Tiền chuyển giữa các tài khoản của bạn | 5,000,000 ₫ | Chi tiêu theo danh mục | [Proportional category distribution. S103 Shopping: 899,000 ₫, 82.9%; —: 120,000 ₫, 11.1%; S103 Food: 65,000 ₫, 6.0%] | S103 Shopping | 82.9% · 1 giao dịch | 899,000 ₫ | Không có danh mục | 11.1% · 1 giao dịch | 120,000 ₫ | S103 Food | 6.0% · 1 giao dịch | 65,000 ₫ | Chọn một dòng để mở các giao dịch của dòng đó. | Chi tiêu theo ngày | Xem dạng danh sách | 964,000 ₫ | 120,000 ₫ | [Quay lại] | Báo cáo | Khoảng tự chọn
+
+## 203-ledger-row-vi-1.0
+[Tìm giao dịch] | Tìm theo mô tả hoặc ghi chú | Tất cả loại | Chi tiêu | Thu nhập | Chuyển khoản nội bộ | Bộ lọc | Trước | Trang 1 | Sau | Lưu trên thiết bị | 06/11/2026 | S103 unconfirmed draft probe | -9,999,999 ₫ | Không có danh mục · 10:00 · Nhập tay | [Bản nháp] | Bản nháp | 05/11/2026 | Petrolimex Cây Xăng | -120,000 ₫ | Không có danh mục · 08:20 · Nhập tay | 03/11/2026 | Uniqlo Đồng Khởi | -899,000 ₫ | S103 Shopping · 15:45 · Nhập tay | Sổ quỹ | [Thêm giao dịch] | [Trang chủ] | Trang chủ | [Sổ quỹ] | Sổ quỹ | [Ghi chép] | Ghi chép | [Trợ lý AI] | Trợ lý AI | [Duyệt tin, 6 đang chờ] | 6 | Duyệt tin

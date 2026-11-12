@@ -1,0 +1,6 @@
+# S10 closure privacy handling — Main
+
+- Matched close-a1-p1 fromS10ClosePackage/S10-CLOSE-a1: inventory progressing, ownerdecisionneededfor6MDserial/realchattext. HEAD/ref1e0c679,stage0,7modified,213untrackedregularfilesin47groups initially. No credential/contactscanfindings. Ignoredimages/DBsnotGitcandidates, preserved.
+- Initialoneaskreturned sanitize_with_backup(defaulttimeoutsubmission): verifiedoriginalcopybeforeprivacyredaction, provenance/outcomespreserved. No secrets/rawvalues intrackedreports.
+- SUBSEQUENTOWNERINTERJECTION supersedes externalbackupdestination: 'sao k lưu cùng folder xong ignore đi'. Main chose artifacts/sprint-10/private-originals/ plus narrow.gitignoreentry, preservingrelativepaths+hashverifiedraworiginalsinsideignoredfolder; sanitizedtechnicaldocsremainGitcandidates. Scopeallows surgical.gitignoreupdate, notblanketartifactignore. Verify ignorebeforecopy and gitcheck-ignoreafter. If externalcopyalreadyexistsleaveunchangedratherthanautomaticallydelete.
+- Workerupdated, no furtherconsentneededforlocalarchiveoption. Existingignoredimages/DBslocalasis/no forceadd. Gitcleanexcludesignoredfiles, notclaimfile-erasure. Generation2bg_94observes20minutes. Thisnoteupdatedbeforefreeze, workerreinventoryrequired. No product/device/AIfixes.

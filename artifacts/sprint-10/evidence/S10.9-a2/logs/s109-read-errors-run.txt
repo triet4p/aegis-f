@@ -1,0 +1,8 @@
+
+io.github.triet4p.aegisf.ui.S109CompleteExperienceInstrumentedTest:.
+
+Time: 7,51
+
+OK (1 test)
+
+

@@ -1,0 +1,15 @@
+# S10.11-UI-a1 frozen working-tree source snapshot (round-2 candidate)
+# base HEAD: fc1b9b22f97406a27c4436536dbb15606457e761
+# base product checkpoint: d53d7fa57f63298e690bf48147b4ebe6f29bf6ec
+# captured: 2026-11-12T12:37:15+07:00
+
+5e6bcfc8226af26d968b38a14afebeb0bd24321338715e5adc8ba47ad5b47657  app/src/main/java/io/github/triet4p/aegisf/provider/HostedStreaming.kt
+40726be93f66142a33ac5c817268251acb0feacb16dde15476514b7146c4c817  app/src/main/java/io/github/triet4p/aegisf/provider/OpenAiChatCompletionsAdapter.kt
+31c268e1262fc70bdfb6bf05ceadc99b0ce7415b27ecc12c45e99c924aaba95e  app/src/main/java/io/github/triet4p/aegisf/privacy/MaskedHostedGateway.kt
+1f76d999cc7f477a8f4fd0a550652a453bb8917a3f0c11da0177ed565d113008  app/src/main/java/io/github/triet4p/aegisf/agent/BoundedWorkflowExecutor.kt
+54e5e25e0e87c69e989f6c4b628a3a86913d31397e4d83745cfbeb27682588ef  app/src/main/java/io/github/triet4p/aegisf/ui/chat/AiChatScreen.kt
+c7a03dbecd6c3542f08009055a315e507adbb96093ea6581b96c3f55bd7d4193  app/src/main/java/io/github/triet4p/aegisf/ui/ChatAgentRunState.kt
+ff8bd87568d472536462040f484e9b8b3b83e6249f3b33d5494d7b39c7586886  app/src/main/java/io/github/triet4p/aegisf/ui/chat/ChatStrings.kt
+66f542404e92d1c54b211d99c72e43dc475a415ff6b41eb8d750d6cf50b69765  app/src/test/java/io/github/triet4p/aegisf/provider/HostedStreamingAdapterTest.kt
+00209fcba478f4544fe2605b49975e13aff47e2f7dd4e2c0b2266af3a3107de1  app/src/test/java/io/github/triet4p/aegisf/ui/ChatTranscriptStateTest.kt
+05bbf0fdca5b308fc0c2d640c701af105c934c68a44d85401d8d031f7cbc6876  CHANGELOG.md

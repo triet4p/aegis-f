@@ -203,9 +203,24 @@ Manual checks after installing and opening:
 
 - The screen shows **Aegis F**, **Vietnamese dong**, **VND**, and the `₫` symbol; it presents no fictitious accounts, balances, transactions, or actions.
 - In portrait the content stays readable and clear of the status and navigation bars; scrolling works when the available height is reduced.
-- Text stays legible after increasing the system font size, and the screen stays readable in both light and dark system themes.
+- Use the in-app Language and Appearance controls for English/Vietnamese and light/dark checks.
+  Larger-text evidence is app-scoped; do not alter device-wide font/theme settings for this
+  documentation walkthrough.
 - Close the app from the recent-apps view, reopen it from the launcher (or the component command), and confirm the same screen appears with no crash.
-- For the four-destination workflow, repeat the primary tabs at a 1.3× system font scale on an authorized isolated package. Check all four labels and the numeric Review count, confirm selected tabs have a non-color indicator, and verify each touch target is at least 48 dp. Use TalkBack or keyboard accessibility focus to reach and activate a critical action; do not infer accessibility from source or UI-tree text alone. Open Manual and Quick Capture fields with the IME visible, confirm the toolbar stays below the status bar and scrolling keeps Save reachable, then exercise tab/back and restart restoration. Return font scale and accessibility services to their recorded starting values.
+- Current navigation has five root tabs: **Home, Ledger, Notes, AI Chat, Review**. Home has eight
+  labelled launchers: **Ledger, Analytics, Notes, AI Chat, Review, Manual record, Categories &
+  rules, Settings**. Focused child routes hide the bottom bar; Back returns to the parent context.
+  Use the [S10.10 package](../artifacts/sprint-10/evidence/S10.10-a1/index.md) for its native
+  screenshots, capability/state evidence, and known limitations. Its full owner walkthrough is
+  a procedure, not an executed result: Sprint 10 was closed by owner direction after main-app
+  feedback and S10.11, without claiming every walkthrough step was performed. Chat
+  retry/clarification/history/date repairs remain S11.C1–C3; raw provider-trace retention/export/
+  backup privacy review remains S11.4. Administrative closure evidence and remaining gates are in
+  the [Sprint 10 closure package](../artifacts/sprint-10/closure/index.md).
+
+The S2.x/S3.x task procedures below are retained as historical verification records, not current
+navigation instructions. The S10.10 package above documents current routes and the unperformed
+owner-walkthrough procedure; it does not assert that the full walkthrough occurred.
 
 Category management checks (S2.3, consolidated for the S2.8 run; the exact step list with expected results lives in the [S2.3 category management proof](../artifacts/sprint-2/S2.3-a1/category-proof.md)):
 

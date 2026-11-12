@@ -1,0 +1,38 @@
+# S10.5 native production walkthrough state index
+
+Captures are from the installed production package `io.github.triet4p.aegisf` (install -r, no
+clear/uninstall), HONOR ALT-LX2, 720x1610, density 320, system dark unless named light, system
+font scale 1.0. Each `.xml` is the matching uiautomator tree; `.png` is local-only under the
+artifacts PNG ignore policy. No hosted request was sent: no provider profile is configured.
+
+## 500-chat-empty-en-dark
+Chat root with no configured provider. One task, one guidance block, one composer.
+Text: What can I help with? | Ask about a saved note or a waiting bank notification... | AI Chat |
+No AI provider is set up | Set up a provider, endpoint, model and credential... | Open AI settings |
+Ask about your notes or bank drafts… | Send | Home | Ledger | Notes | AI Chat | 8 | Review.
+Descriptions: History | New chat | Home | Ledger | Notes | AI Chat | Review, 8 waiting.
+
+## 501-chat-provider-settings-child-en-dark
+Provider configuration is a focused child reached from Chat: title "Hosted agent", endpoint/
+masking disclosure, presets and profile fields, Back, and no bottom navigation.
+
+## 502-chat-return-from-settings-en-dark
+Back returned to the Chat root with the same composer and no-provider guidance; the child route
+did not become a second stacked settings panel.
+
+## 503-chat-history-empty-en-dark
+History sheet: "Conversation history", Close, "No conversations yet", and the explanation that a
+conversation appears after a message is sent. It is a sheet over the Chat root, not a new tab.
+
+## 504-chat-composer-multiline-ime-en-dark
+Two-line draft with the keyboard open. The composer, Send and transcript area stay above the IME;
+the transcript's empty/help content scrolls rather than being clipped behind the keyboard.
+
+## 505-chat-empty-en-light
+The same Chat root in the app's light appearance, still one guidance block and one primary route.
+Restored afterwards to system appearance.
+
+## 506-chat-empty-vi-light
+The same Chat root in Vietnamese: "Trợ lý AI", "Tôi có thể giúp gì?", provider guidance and
+"Mở cài đặt AI", composer placeholder and "Gửi", and localized History/New chat descriptions.
+English and system appearance restored afterwards and verified in `aegis_ui_preferences.xml`.

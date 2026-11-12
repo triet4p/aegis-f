@@ -15,67 +15,128 @@ opt-in notification review inbox — every bank-derived record still requires th
 
 ## What the app does today
 
-- **Four destinations** — a bottom navigation bar leads to **Dashboard**, **Chat** (Chat / Quick
-  Capture), **Review** (Review notifications, with a live waiting count) and **Manual**. The
-  numeric Review badge's accessible description includes the full number of drafts waiting.
-  Categories, settings and transaction detail/edit screens are routes opened from those
-  destinations. At 1.3× system font scale, all four tab labels remain on one line. Switching
-  destinations or going back keeps unsaved form input and list filters, and the open destination,
-  route and draft survive process recreation.
-- **Chat / Quick Capture** — a persistent local journal and an optional hosted workflow. Saving a note is local and does not send it or create a ledger record. Captures can hold multiple editable event interpretations tied to exact source excerpts. When an event interpretation or bank notification arrives, the app reconciles it against bounded pending evidence; only a complete unique match may be linked automatically, while incomplete or ambiguous evidence stays for review. Only drafts still awaiting review compete as candidates: a draft you already dismissed or confirmed does not make a later identical draft ambiguous. Bounded pending-draft browsing lets you explicitly attach, permanently reject, or unlink context; missing or multiple candidates are never selected automatically, stale source conflicts stay visible, and link decisions never change a bank-stated amount. An unmatched event can open a prefilled Manual form with its saved-note/event provenance; it becomes a ledger record only after you explicitly save it.
+- **Five destinations** — a bottom navigation bar leads to **Home**, **Ledger**, **Notes**,
+  **AI Chat** and **Review** (with a live waiting count). Home is a task launcher with labelled
+  icons for Ledger, Analytics, Notes, AI Chat, Review, Manual record, Categories & rules and
+  Settings; focused child screens hide the bottom bar and Back returns to the same parent with its
+  filters, page and unsaved form input. The numeric Review badge's accessible description includes
+  the full number of drafts waiting. Switching destinations or going back keeps unsaved form input
+  and list filters, and the open destination, route, draft and unsaved form survive activity
+  recreation. **Settings** is a navigation hub rather than a form stack: it chooses the interface
+  language (English/Vietnamese) and light/dark appearance and opens focused children for **Bank
+  notifications**, **Provider & model**, **Skills & history** and **Privacy & retention**. Advanced
+  provider, notification and destructive controls stay inside those children. Leaving a form with
+  unsaved edits asks before discarding them.
+- **Notes and AI Chat** — two separate destinations: a focused local note journal on **Notes**,
+  and the optional hosted workflow on **AI Chat**. Note entry has one primary action,
+  **Save note**, which writes the text on this device and never starts hosted processing. Saved
+  notes are a list; opening one shows its text, saved moment, source, details and actions on a
+  focused screen. Editing the note, adding or editing a detail, choosing a pending bank
+  notification and the manual-record form each open a focused child screen or sheet instead of
+  stacking under the composer. A note can hold several details, each tied to an exact, unique
+  excerpt of its own text; each is opened, edited, linked or recorded independently.
+  **Discuss with AI** hands the note to Chat as a visible, removable attached-note card; nothing
+  is sent until you start a request, and removing the card leaves the next request exactly as
+  typed. **AI Chat** streams a hosted reply into the conversation while it arrives and turns the
+  send action into **Stop** while a reply is running; Stop keeps the text already received and
+  admits no later chunk. Headings, bold emphasis, bullet markers and inline code in a reply are
+  shown as readable formatting rather than raw Markdown punctuation, while amounts and every other
+  delivered character stay unchanged; a reply, restored turn or history title that quotes an
+  internal masking token shows "a masked value" instead of the token encoding. **History** lists
+  the stored conversations by the request's own title, local time and lifecycle word and opens the
+  stored transcript instead of resuming a run.
+  Scrolling up pauses the automatic follow and a labelled jump action returns to the newest turn.
+  A changed or deleted attached note blocks sending until it is removed or explicitly refreshed.
+  A settled run shows its verified effects as conversation cards: note readings, bank-draft links,
+  saved categories and replay receipts. Attach, Reject and Unlink on a link card are explicit,
+  revision-checked decisions that never confirm a draft or change the ledger. When the assistant
+  needs one fact it asks a single clarification question with one answer field and **Continue**.
+  Chat copy, including these cards and states, is English/Vietnamese.
+  With no provider or no network, Chat explains the state and cannot send; provider settings open
+  as a focused child screen. Saving a note does not create a ledger record, and linking a detail
+  never confirms a bank notification or changes the ledger. When an event interpretation or bank notification arrives, the app reconciles it against bounded pending evidence; only a complete unique match may be linked automatically, while incomplete or ambiguous evidence stays for review. Only drafts still awaiting review compete as candidates: a draft you already dismissed or confirmed does not make a later identical draft ambiguous. Bounded pending-draft browsing lets you explicitly attach, permanently reject, or unlink context; missing or multiple candidates are never selected automatically, stale source conflicts stay visible, and link decisions never change a bank-stated amount. An unmatched event can open a prefilled Manual form with its saved-note/event provenance; it becomes a ledger record only after you explicitly save it.
   When you explicitly start a hosted run, selected notes, drafts, and tool results are masked on-device before being sent to the endpoint shown in Settings. The assistant can interpret notes, search drafts, attach only eligible links, save one existing category on a draft as review state, or ask one visible clarification. Automatic attachment requires unique local evidence and a complete current search that confirms the full pending scope; ambiguous proposals wait for your explicit choice, and you can reject one and choose another. Undo checks the link revision. The assistant cannot confirm or dismiss a bank draft, delete a ledger record, or create a financial record; review and confirmation remain separate user actions. A failed run stays visibly incomplete with retry/manual options, and cancellation does not roll back an effect already recorded. Local notes, intake, Manual entry, and review remain available without hosted inference.
-- **Hosted provider privacy disclosure** — before sending, Chat and provider settings warn that the selected HTTPS endpoint receives locally masked context and that masking is not anonymity. Review the endpoint and its terms before starting a request.
+- **Hosted provider privacy disclosure** — before sending, AI Chat and provider settings warn that the selected HTTPS endpoint receives locally masked context and that masking is not anonymity. Review the endpoint and its terms before starting a request.
 - **Hosted output budget** — a provider profile sends no output-token limit by default, so the
   selected model's own limit applies; that is what lets a reasoning model finish its thinking and
   still call a tool. An explicit limit is optional, must be at least 32768 tokens, and is sent as
   the protocol's own limit field. Profiles created by earlier builds stored a fixed 8192 (or 4096)
   limit; those values now read as the model default, so an existing profile is never silently
   truncated again.
-- **Manual → Record a transaction** — amount, type (expense, income, internal transfer), date (`YYYY-MM-DD`),
-  time (`HH:mm`, device time zone), optional description, and a category. Starting from an unmatched
-  note event pre-fills the stated amount, date, description and provenance reference; nothing is
-  written until you explicitly save. Amounts accept digits only: zero, negative, fractional, or
-  out-of-range input is refused with a message and stores nothing. An internal transfer carries no
-  category. The selected type is marked with a check and label as well as color.
-- **Manual → Manage categories** — add, rename, archive, and permanently delete categories. A duplicate
-  active name is refused inline. Archiving keeps the category and its history: records already filed
-  under it keep it, it is shown as `(archived)`, and it is no longer offered for new records.
-  **Delete** is a separate, clearly labelled action for a category you no longer want at all, and
-  its confirmation names what that specific delete will change: how many saved transactions become
-  uncategorized, how many remembered rules for it are removed, and whether a draft awaiting review
-  had it pre-set. Cancelling changes nothing. The transactions themselves are never deleted — they
-  keep their amounts, types, dates, and descriptions, and monthly totals do not move — and the
-  removed category is gone from the picker, from later suggestions, and from the stored rules. A
-  delete that fails reports the reason instead of looking like a success.
-- **Manual → Saved transactions** — every stored record, newest first, with amount, type, description,
-  category, and moment, including records saved in earlier sessions. Opening a record shows its
-  detail with **Edit** (the same form, prefilled) and a **Delete** confirmation that names the record.
+- **Manual record (Home, Ledger, or Notes)** — one focused form with one primary action, **Save to
+  ledger**. The exact amount is the hero field with its written-out reading; choose expense, income
+  or internal transfer, then a category from the quick tile grid or the full category sheet. Date
+  and time open their own sheet in the device time zone; the optional memo stays on the device with
+  the record. Starting from an unmatched saved note pre-fills the stated amount, date, text and
+  source and resolves that note when saved; nothing is written until you explicitly save. Amounts
+  accept digits only: zero, negative, fractional, or out-of-range input is refused with a message
+  and stores nothing. An internal transfer carries no category. Archived categories are not offered
+  for a new record; a record that already carries one keeps it, marked, unless you choose another.
+  **Edit transaction** is the same prefilled form and writes exactly the user-editable fields once;
+  a record changed elsewhere is reported instead of overwritten, and closing or discarding the form
+  writes nothing.
+- **Categories & rules (Home)** — one focused destination with two task tabs. **Categories** lists
+  every stored category and can filter Active/Archived; every category, including one that came with
+  the app, can be renamed, archived or deleted, and a duplicate active name is refused inline with
+  the typed name intact. Archiving keeps the category and its history: records already filed under
+  it keep it, it is marked `Archived`, and it is no longer offered for new records.
+  **Rules** lists the saved exact-description rules with the category each one names. A rule is
+  added, moved to another active category or removed through focused sheets; matching ignores letter
+  case and repeated spaces only. The stored rule is one normalized exact description — the existing
+  matcher has no prefix/wildcard column — so the screen labels it truthfully; the illustrative
+  wildcard examples in the design render are not implemented as a new backend matcher.
+  **Delete** is a separate destructive action that first reads what that category is attached to.
+  A category still referenced by a saved transaction, an exact-description rule or a pending draft
+  is **not deletable**: the dialog names those references, offers **Archive instead**, and has no
+  destructive button. The delete is re-checked inside the same database transaction, so a
+  reference that appears after the read blocks it too. Unreferenced categories delete only their
+  own row; deleting a category never rewrites a record, rule or draft. Cancelling or an unreadable
+  impact changes nothing.
+- **Settings children** — **Bank notifications** shows the system notification-access grant, the
+  live listener binding, allowlist size, drafts waiting and intake diagnostics, with one primary
+  action to open the system access page; bank packages are added by exact application id and
+  removed only after a confirmation, and notification content is never shown. **Provider & model**
+  manages encrypted profiles with protocol, preset, profile name, HTTPS endpoint, model, credential,
+  optional output limit, reasoning budget and parallel tool calls. A connection is tested before a
+  profile is saved; an offline or failed test keeps every typed value and changes no profile.
+  Editing can keep the stored credential by leaving the field blank, and the credential is never
+  rendered. **Skills & history** reports the bundled assistant workflows and the durable
+  conversations stored on the device and links back to AI Chat. **Privacy & retention** states what
+  stays on the device, the Keystore-encrypted credential storage, the hosted-request and masking
+  boundary, and what is retained. This release deliberately has no backup, restore or cache-clear
+  control; those remain Sprint 11 obligations.
+- **Ledger** — every stored record, newest first, with amount, type, description, category,
+  moment, and provenance, including records saved in earlier sessions. A search field matches the
+  record's description — the merchant, note, or label the user wrote — as literal text, so `%` and
+  `_` are characters rather than wildcards. Rows are grouped by device-local day and the bounded
+  read is paged; **Previous**/**Next** walk the rest of the same read, and a page that loses its rows
+  steps back to the nearest page that still holds some. Tapping a row opens its digital receipt with
+  the exact signed amount, type, category (marked when archived), device-local moment, provenance,
+  note, record id, and recorded/corrected times, plus **Edit** (the same prefilled form) and a
+  **Delete** confirmation that names the record. A record changed elsewhere is reported and
+  reloaded rather than deleting a row the screen never saw.
 - **Filters** — narrow the saved list by type, by category (including `No category` and archived
-  categories), and by an inclusive from/through calendar-day range, combined with AND. Accepted
-  non-zero-padded month/day values are ordered by calendar day; a reversed range is refused instead
-  of applied. The controls start collapsed behind a one-line **Show filters** / **Hide filters**
-  toggle that reports how many dimensions are active. Filters only read: they never change or delete
-  records, and they are not persisted between sessions.
-- **Dashboard summaries and scoped filters** — the Dashboard destination shows exact whole-dong
-  figures for the inclusive calendar days and selected spending category. Confirmed spending is
-  the primary figure; a compact secondary strip keeps confirmed income, internal transfers, and
-  Review separate. Income is money arriving, transfers move money between your own accounts, and
-  neither is added to spending. Review shows the count of bank notifications waiting for review
-  and, separately, unconfirmed records in the chosen date range; neither is summed into a ledger
-  figure. Both date fields are inclusive `YYYY-MM-DD` days in the device's time zone and are
-  required; an unfinished or reversed range shows no figure at all and says why. The scope
-  button shows zero-padded compact labels from resolved days, and its helper keeps the full
-  inclusive ISO dates; the date fields retain the user's typed text while editing. The category
-  narrows spending only — income and transfers remain for every category in the date range.
-  Spending-by-category rows show each category's exact VND amount, share, and confirmed-expense
-  count beside a proportional chart; the daily trend shows exact amounts and counts with a
-  text-list alternative. Each category and day opens only its matching spending records, without
-  an `Other` bucket or a broadened scope. Category hues are stable by stored category identity and
-  shared across charts, selectors, and transaction rows. Archived categories keep a separate
-  `ARCHIVED` marker, and `No category` is a named, selectable scope. The Dashboard's chosen days and
-  category survive destination changes,
-  record navigation, and restart. These figures cover records stored in the app, not a complete
-  bank history: the app is not connected to your bank accounts.
+  categories), by an inclusive from/through calendar-day range, and by the description search,
+  combined with AND. Accepted non-zero-padded month/day values are ordered by calendar day; a
+  reversed range is refused instead of applied. The type chips and search sit on the surface; the
+  remaining controls start collapsed behind a one-line **Filters** / **Hide filters** toggle that
+  reports how many dimensions are active. Selections, the typed search, and the current page are
+  kept while the app is open and across activity recreation; they are a browsing preference and are
+  never written to the ledger or to disk.
+- **Analytics (Home launcher)** — a focused reports screen with one chosen period. The
+  `<`/`>` chevrons walk whole calendar months and **Custom range** accepts two inclusive
+  `YYYY-MM-DD` device-local days; an unfinished or reversed range reads no figure at all and says
+  why. The screen keeps four separate exact statements: confirmed **spending**, confirmed
+  **income**, **net cash flow** (income minus spending), and **internal transfers** (money moved
+  between your own accounts — neither spending nor income, and never added to net). Unconfirmed
+  drafts are in none of them. Category rows show each category's exact VND amount and share beside a
+  proportional bar and open only its confirmed spending records; the daily spending chart, with a
+  text-list alternative, shows exact amounts and counts and opens that day's confirmed spending
+  records. Archived categories keep a visible marker and `No category` is its own row. Each
+  drill-down opens a scoped ledger with its own period and category snapshot, so Back returns to the
+  same period, figures, and list position; there is no `Other` bucket and no broadened scope. These
+  figures cover records stored in the app, not a complete bank history: the app is not connected to
+  your bank accounts.
 - **Local persistence** — the ledger survives closing the app, swiping it away from the recent-apps
   view, and force-stopping it. The manual ledger does not require a model file, login, network, or
   bank integration. Bank-notification access is optional and off by default.
@@ -91,17 +152,15 @@ opt-in notification review inbox — every bank-derived record still requires th
   commands are no longer current; use [developer setup](docs/developer-setup.md) for the
   supported build path.
 - **Bank notification setup, filtering, parsing, and pending drafts (opt-in, no
-  auto-confirmation)** — the **Dashboard → Settings → Bank notification settings** page shows whether
-  system notification access is granted, whether the listener is connected, and which
-  bank app packages may become draft sources. Access is granted or revoked only in the
-  system settings (the page opens that screen and the app-info screen for
-  restricted-settings installs); the allowlist stores only user-typed package names,
-  never display names or guesses. The access check asks the system directly on
-  supported Android versions and the listener loads the stored allowlist off the main
-  thread when it connects, publishing connected only once the snapshot is ready. A
-  post that arrives before readiness is queued without reading its content and is
-  processed in order once the snapshot loads; revocation clears the queue so no
-  post-revoke draft is written, while drafts already stored stay in the database.
+  auto-confirmation)** — open **Bank notifications** from the Home screen's **Settings** launcher
+  (Home → Settings → Bank notifications) shows access, listener status, allowlist size, and intake
+  diagnostics. Access changes only in system settings; the screen can open system access and
+  app-info pages for restricted-settings installs. The allowlist accepts user-entered package names
+  only, never display names or guesses. The system grant is checked directly; the listener is not
+  reported connected until the stored allowlist has loaded.
+  A post received before readiness is queued without reading content, then processed after the
+  allowlist snapshot loads. Revoking access clears the queue so no post-revoke draft is written;
+  drafts already stored remain in the database.
   A notification from any other package is then dropped before its content is read at
   all, and one from a listed package is screened before anything is kept: one-time
   passwords, verification and security messages, group summaries, and payloads with no
@@ -135,29 +194,21 @@ opt-in notification review inbox — every bank-derived record still requires th
   A draft the user has already confirmed or dismissed keeps that state and its
   draft-to-ledger link through any replay of its own delivery. Drafts survive closing and
   reopening the database and are recovered for review; they enter
-  no summary and are never confirmed automatically. The **Review** destination
-  opens the pending inbox, where the bank/source, stated date, amount, direction, memo, and any
-  unresolved reason are visible. The inbox is ordered by how much attention a draft needs: a
-  possible duplicate, an undecided note match, or bank data that needs you comes first, then the
-  drafts without a current suggestion (never classified, stale, no-fit, or answered by a saved
-  rule or a category name), then comparable suggestions from the least certain to the most. Each
-  group is headed and states why it is there, a card states its own status and evaluated
-  scope where a suggestion applies, and very confident suggestions sort later instead of being
-  hidden or confirmed. A card also says whether the stored check is queued, running, failed, or
-  cancelled, while the list order stays exactly as read. Opening a draft shows the stored
-  suggestion with its evaluated options and shares, the no-fit share and overall sharpness, how
-  many active categories were evaluated and how many were not offered, when it was recorded and
-  by which model revision and candidate set, and which linked readings it used. A fresh dominant
-  category is called relatively confident only with those numbers and only among the evaluated
-  options; it is never a guarantee of accuracy, it is never auto-confirmed, and every option
-  remains an explicit choice. A failed or cancelled check offers **Retry**, a waiting or running
-  one offers **Cancel** (a late native answer is discarded), and a missing model links to model
-  setup. Adding note context or saving a corrected description and then tapping **Refresh**
-  reads the improved stored suggestion without leaving review. Every pending draft is reachable
-  page by page, an always-available arrival order shows the same drafts oldest first, and the
-  list stays exactly as read until you tap Refresh, change the order, or return from a draft —
-  so a suggestion that changes in the background can never reorder the inbox or move a draft
-  under your finger. **Next work** opens the oldest draft that still needs you. You can correct amount, date, time, or optional description,
+  no summary and are never confirmed automatically. The **Review** destination opens a focused
+  inbox whose cards show the bank/source, stated date, amount, direction, memo, category state,
+  and any unresolved reason. Drafts are grouped as **Needs your decision** (a possible duplicate,
+  an undecided note match, unsupported format, or bank data that needs you), **Needs a category**,
+  and **Ready to confirm**; a chronological order shows the same drafts oldest first, and every
+  pending draft remains reachable page by page. Cards update in place when their stored review
+  state changes, and **Refresh** re-reads the bounded page without changing the chosen order or
+  page. Opening a card and coming Back keeps the same order, page and scroll position, so
+  background work never moves a draft under your finger. Opening a card is a separate focused
+  screen for that one draft. It shows the digital receipt, the parsed fields kept as evidence
+  (the raw notification body is not stored), the duplicate family, the category and whether you
+  chose it or the hosted model suggested it, and your saved note excerpts as provenance. A
+  secondary action opens **AI Chat** with the draft's evidence attached as visible, removable
+  context; nothing is sent until you send a message, and the assistant can never confirm the
+  draft. You can correct amount, date, time, or optional description,
   explicitly choose Expense, Income, or Internal transfer, and choose a category or explicitly
   choose No category. A debit or credit never selects the ledger type. Missing or invalid amount,
   date, time, type, and applicable category choices must be resolved before confirmation; an
@@ -184,6 +235,30 @@ opt-in notification review inbox — every bank-derived record still requires th
   and the same delivery/evidence identity, so a re-read post writes nothing, a later
   equal-evidence post becomes its own flagged candidate, and a confirmed or dismissed draft
   is never reopened. Anything already dismissed is not recovered.
+
+## Current native screen snapshots
+
+The screenshots below are physical-device captures of the actual Android Compose app from isolated
+evidence packages. They use synthetic fixture records, not owner data. The Chat stream frame is
+from the authorized provider run in the linked S10.9 evidence; scripted Chat fixtures are labeled
+synthetic in-frame. These are not screenshots of the web prototype and do not claim that every
+owner-walkthrough step was performed. Sprint 10's owner-directed closure after main-app feedback
+and S10.11 is documented in Status; the package retains the original walkthrough procedure.
+<table>
+<tr>
+<td><img src="artifacts/sprint-10/evidence/S10.9-a3/screens/s109/s109-01-home-en.png" width="210" alt="Native Home screen with five tabs and eight launchers"><br><strong>Home:</strong> five tabs and eight launchers.</td>
+<td><img src="artifacts/sprint-10/evidence/S10.9-a2/screens/s109-02-analytics-en.png" width="210" alt="Native Analytics screen with exact spending and category drill-down"><br><strong>Analytics:</strong> confirmed totals and category drill-down.</td>
+<td><img src="artifacts/sprint-10/evidence/S10.9-a3/screens/s109/s109-14-notes-composing-en.png" width="210" alt="Native local Notes composer with Save note action"><br><strong>Notes:</strong> local Save note, separate from AI.</td>
+</tr>
+<tr>
+<td><img src="artifacts/sprint-10/evidence/S10.9-a2/screens/chat/s105-620-durable-streaming-a.png" width="210" alt="Native AI Chat during authorized provider streaming with Stop available"><br><strong>AI Chat:</strong> real authorized stream; Stop remains available.</td>
+<td><img src="artifacts/sprint-10/evidence/S10.9-a2/screens/s109-17-review-en.png" width="210" alt="Native Review inbox with uncertainty-first draft grouping"><br><strong>Review:</strong> draft evidence stays pending.</td>
+<td><img src="artifacts/sprint-10/evidence/S10.9-a2/screens/s109-33-draft-preview-en.png" width="210" alt="Native financial confirmation preview showing the exact values to be recorded"><br><strong>Confirm:</strong> preview exact values before the separate user action.</td>
+</tr>
+<tr>
+<td><img src="artifacts/sprint-10/evidence/S10.9-a3/screens/s109/s109-06-settings-en.png" width="210" alt="Native Settings hub with focused settings children"><br><strong>Settings:</strong> focused child destinations.</td>
+</tr>
+</table>
 
 ## Supported bank notification formats and what is verified
 
@@ -231,18 +306,6 @@ arriving through the listener on a phone. What is actually verified today:
 
 The following capabilities are not available yet:
 
-- **Manual review and the hosted category choice.** A supported bank notification is stored as a
-  reviewable draft; nothing is classified on the device. Review shows every waiting draft in the
-  uncertainty-first order (unresolved link or bank-data conflicts, then drafts that still need a
-  category, then drafts ready for confirm or dismiss), with a chronological override. The category
-  is chosen by you in Review, or by the hosted workflow when you explicitly ask it to categorize a
-  draft: the model receives the draft's current active category choices and submits one existing
-  category through the ordinary draft-review update. The app re-checks the draft revision and the
-  live catalog before writing, so a stale or archived choice is refused instead of applied. A saved
-  category is review state only: the draft stays pending and confirmation remains a separate user
-  action. Manual category selection, saved exact-description rules, intake and the ledger work
-  without a hosted provider. Historical local predictions remain stored as provenance but are never
-  presented or treated as hosted decisions.
 - **No bank account connection.** The review inbox uses only permitted notification drafts; the app
   does not log in to a bank or request SMS, accessibility, or notification-posting permissions.
 - **No app-operated cloud service, sync, or account.** There is no login and no Aegis server; the
@@ -251,12 +314,14 @@ The following capabilities are not available yet:
 - **No multi-currency, receipt OCR, voice input, or shared accounts**, and no published release: the
   APK is built and installed privately by its owner.
 
-Planned work (real-bank device verification; the four-screen workflow and persistent quick
-capture; the uncertainty-first review queue with its focus controls and the hosted category
-choice described above are implemented and measured on the phone (S7.7 quality bounds and S7.8
-paired review effort, [review effort](docs/sprint-7-review-effort.md)); evidence-backed offline
-model/tool research; multi-event note orchestration; recovery and personal daily-use delivery) is
-described in [docs/PLAN.md](docs/PLAN.md).
+Sprint 10's current native redesign is the five-tab/eight-launcher experience described above.
+S10.1–S10.10 technical gates/checkpoints and the final cross-feature review passed; S10.11 product
+evidence/checkpoint and affected differential passed at `1e0c679`. The owner directed closure
+after main-app hands-on feedback and the S10.11 correction. This does not claim that every step
+of the full owner walkthrough was performed; the package retains it as a procedure.
+Chat retry/clarification/history/date repairs remain Sprint 11 S11.C1–C3; the raw provider-trace
+retention/export/backup privacy audit remains S11.4. Recovery and private-release work remain
+planned. See [the project plan](docs/PLAN.md) and [the S10.10 evidence package](artifacts/sprint-10/evidence/S10.10-a1/index.md).
 
 The legacy Sprint 5 SLM benchmark remains partial, paused, and unapproved; no model was adopted.
 Its generated run reports and raw device outputs are preserved locally but are not versioned.
@@ -316,12 +381,14 @@ developer setup guide rather than uninstalling the app.
 
 - [docs/developer-setup.md](docs/developer-setup.md) — pinned toolchain, SDK and environment setup,
   build and install commands, manual checks, update path, troubleshooting.
+- [S10.10 native UI evidence and owner walkthrough](artifacts/sprint-10/evidence/S10.10-a1/index.md) — consolidated native capability/state map, baseline observations, limitations, and the original walkthrough procedure (not a report of completed owner steps).
+- [Sprint 10 administrative closure](artifacts/sprint-10/closure/index.md) — owner-directed closure status, candidate inventory, safety review, and remaining administrative gates.
 - [docs/PLAN.md](docs/PLAN.md) — product scope, milestones, and the sprint roadmap.
 - [CHANGELOG.md](CHANGELOG.md) — what each completed sprint delivered.
 - [docs/sprint-plans/](docs/sprint-plans/) — the individual sprint plans.
 
 ## Status
 
-- **Current:** Sprint 9 is complete and owner-accepted after hands-on use; S9.1–S9.9 evidence gates, checkpoints and final cross-feature review passed. Latest product checkpoint: `1b585b8`. The actual phone workflow produced two source-backed links, two hosted-selected categories and two explicit user confirmations, reconciling 40,000 VND / 2 records to 110,000 VND / 4. Sprint 10 is planned, not started. Schema version 18; local pending-draft scan cap 500 and hosted first-32 grant unchanged; incomplete scopes cannot auto-attach. Provider-default output limits replace the forced 8K cap. Sprints 1–7 remain user-accepted; Sprint 8 technical/CAT1 acceptance and its separate consolidated owner-experience status are unchanged. Authority: [project plan](docs/PLAN.md), [Sprint 9 closure and known limits](docs/sprint-plans/sprint-9.md).
+- **Current:** Sprint 9 remains owner-accepted after hands-on use at `1b585b8`. Sprint 10's S10.1–S10.10 technical gates/checkpoints and final cross-feature review passed; S10.11 product evidence/checkpoint and affected differential passed at `1e0c679`. The owner directed closure after main-app hands-on feedback and the S10.11 correction. This records that closure decision, not a claim that every step of the full owner walkthrough was performed. The app has five root tabs (Home, Ledger, Notes, AI Chat, Review) and eight Home launchers (Ledger, Analytics, Notes, AI Chat, Review, Manual record, Categories & rules, Settings). Final documentation/evidence archival review and clean-worktree verification remain administrative closure steps. Retry/clarification/history/date repairs remain S11.C1–C3; raw provider-trace retention/export/backup privacy review remains S11.4. See the [S10.10 evidence package](artifacts/sprint-10/evidence/S10.10-a1/index.md).
 - **Historical (not current build state):** Sprint 1 published to `origin/main`; Sprint 2 delivery commit local-only; Sprint 4 host suite 185 tests/0 failures/0 skips, `ManualCategorySuggestionMachineTest`, `RememberedCategoryRulePersistenceTest`, and the S4.7-A2 phone check; S4.9 evaluation/tooling. Active Laya runtime/provisioning/translation and any on-device classifier were removed by CAT1 (checkpoint `165376fe`); current review ordering is unresolved data/link conflicts, then drafts missing a category, then ready drafts (no confidence-ranked active queue). See linked artifacts under `artifacts/`.
 - Host checks do not render Compose or exercise Android-native inference. Hosted category selection and review remain opt-in; offline manual/intake/review/dashboard remain usable without a hosted provider.

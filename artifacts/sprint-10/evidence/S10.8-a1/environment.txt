@@ -1,0 +1,19 @@
+Host: Windows_NT 10.0
+Java: java version "21.0.1" 2023-10-17 LTS
+Gradle: Gradle 9.3.1
+Device: HONOR ALT-LX2
+Android: API 34 (14)
+Display: Physical size: 720x1610, Physical density: 320
+Isolated package: io.github.triet4p.aegisf.s108evidence
+Test package: io.github.triet4p.aegisf.s108evidence.test
+Owner package left installed and untouched: io.github.triet4p.aegisf
+Prior isolated S10.7 package left untouched: io.github.triet4p.aegisf.s812evidence
+
+Radio/connectivity state:
+- Before the offline check: airplane_mode_on=0, wifi_on=0, mobile_data=1, bluetooth_on=0.
+- Offline check (pre-round2 candidate, before the reference-block correction): airplane_mode_on verified 1 before the two local category/rule tests, then set back to 0/disabled and verified 0. It was not repeated on the final candidate because the owner restricted further radio changes; the final candidate's local category/rule behavior is covered by the native suite without any network use.
+- Current verified state: airplane_mode_on=0 (cmd connectivity airplane-mode = disabled), wifi_on=0, mobile_data=1, bluetooth_on=0.
+- No Wi-Fi/mobile-data/Bluetooth toggle was issued. A planned second provider-offline airplane attempt was stopped after the owner concern; no provider test ran in that state.
+- Heads-up notifications were set from 1 to 0 only for clean screenshots and restored to 1 (verified). No other system setting changed.
+
+Owner data: the owner package `io.github.triet4p.aegisf`, its database, preferences, drafts and installed state were never cleared, instrumented or replaced. All app writes above are in the isolated `.s108evidence` package or in-memory test databases.

@@ -1,0 +1,37 @@
+S10.5 attempt a2 — native Compose instrumentation captures
+Device: HONOR ALT-LX2, Android 14 / API 34, 720x1610, density 320, system dark, font 1.0.
+All images are uiAutomation screenshots of the real AiChatScreen composed in the app process on
+the physical phone. Each test owns an in-memory Room database; the provider is the local scripted
+seam unless noted. No production row, credential or network request is involved. Full suite: OK
+(14 tests), 76.09 s.
+
+510-chat-streaming-en.png            Scripted chunks appended progressively; waiting/streaming state.
+511-chat-stopped-en.png              Stop keeps the received partial text; stopped lifecycle line.
+512-chat-next-message-en.png         Next message accepted after Stop; no late chunk in 511.
+513-chat-history-sheet-en.png        Durable history sheet with request title/time/status.
+514-chat-history-loaded-en.png       Stored transcript loaded once; no duplicate turn.
+515-chat-stale-context-en.png        Changed attached note blocks Send with visible guidance.
+516-chat-context-updated-en.png      Explicit "Use current text" resolves the block.
+517-chat-no-provider-en.png          No-provider guidance, disabled Send, focused settings route.
+518-chat-large-text-en.png           Multiline composer and actions at 1.5x text.
+519-chat-offline-en.png              Offline warning and disabled Send (validated-network input).
+520-chat-scrolled-up-en.png          Reading older turns pauses auto-follow; jump action appears.
+521-chat-still-scrolled-up-en.png     A later chunk does not yank the reader to the bottom.
+522-chat-jumped-latest-en.png        Labelled jump-to-latest restores following.
+524-chat-provider-failure-en.png     Provider failure keeps typed/received text and explains it.
+525-chat-retry-limit-en.png          Bounded retry truthfully says it cannot repeat automatically.
+540-chat-outcome-links-en.png        Two competing proposed links on the current screen; the first
+                                     carries a genuine revision drift (0 vs 1) and its notice.
+541-chat-link-attached-en.png        Attach on card 1 accepted; card 2 still proposed; ledger empty.
+542-chat-link-rejected-en.png        Reject on card 2 retained; no financial record written.
+543-chat-link-unlinked-en.png        Unlink removes the active link; draft pending; ledger empty.
+544-chat-link-stale-refused-en.png   Concurrent revision bump after load: Reject refused with a
+                                     conflict, stored link remains PROPOSED at revision 1.
+545-chat-outcome-cards-en.png        Settled outcome cards in English with human rationale text.
+546-chat-outcome-cards-vi.png        The same cards in Vietnamese (heading/actions/boundary copy).
+547-chat-clarification-ask-en.png    Real scripted list_drafts -> ask_user run: one clarification
+                                     card, question shown once, composer Send disabled.
+548-chat-clarification-answered-en.png  Answer + Continue resumed the same run to completion.
+
+Not captured: 530-532 (real configured provider) because no saved/active provider profile exists
+on the device; the opt-in test skipped itself. No synthetic evidence is offered for that criterion.

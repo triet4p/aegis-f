@@ -1,0 +1,7 @@
+# installed app: /data/app/~~gq5YqUgUpteMeG-UvgI-GQ==/io.github.triet4p.aegisf.s812evidence-AAlB2GdBATvMmc7hhUJ7ZQ==/base.apk
+4e92f97f67e98292d14b53ba6b06197ae47bf4bb00c946b0b3405a9d6d8cb2f2  -
+# installed test: /data/app/~~B0Kmav64jOmIizE_3XsCTg==/io.github.triet4p.aegisf.s812evidence.test-TRGn713HoWR7E7XfdBrR-w==/base.apk
+ee0a86b6241701d41e8c55497c0599d67d11e4056fc966d6616c205c75e3e9ce  -
+# local build outputs
+4e92f97f67e98292d14b53ba6b06197ae47bf4bb00c946b0b3405a9d6d8cb2f2  app/build/outputs/apk/debug/app-debug.apk
+ee0a86b6241701d41e8c55497c0599d67d11e4056fc966d6616c205c75e3e9ce  app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk

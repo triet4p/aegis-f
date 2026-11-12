@@ -1,0 +1,9 @@
+Host: Windows_NT 10.0
+Java: java version "21.0.1" 2023-10-17 LTS
+Gradle: Gradle 9.3.1
+Device: HONOR ALT-LX2
+Android: API 34 (14)
+Display: Physical size: 720x1610, Physical density: 320
+Isolated package: io.github.triet4p.aegisf.s812evidence
+Test package: io.github.triet4p.aegisf.s812evidence.test
+Owner package left installed and untouched: io.github.triet4p.aegisf

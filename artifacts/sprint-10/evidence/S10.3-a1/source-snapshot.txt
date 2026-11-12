@@ -1,0 +1,31 @@
+# S10.3 frozen source snapshot (candidate 2 for round-2 review)
+# sha256  path
+# excludes artifacts/, build/, deleted files, and foreign working-tree changes
+
+3cc4dfa0999346b3354abb1d8d0cd550a142756a22df0754483fb4da77d0a0d0  app/src/main/java/io/github/triet4p/aegisf/data/TransactionDao.kt
+6b7006e9d580c547b16bb5964f20effc2735fd98816457345f477ae5538cab87  app/src/main/java/io/github/triet4p/aegisf/data/WorkflowQueryService.kt
+24a7f5ed2e51e2b306642d567c36e571e26da73d4f1212f2ccc5dae96138cf49  app/src/main/java/io/github/triet4p/aegisf/data/WorkflowQueryTypes.kt
+b3b0ab2e3c0224bfc05782cead0a12c22ce32c3a0b5ea12805dffa4add92390b  app/src/main/java/io/github/triet4p/aegisf/ui/AegisDateText.kt
+1166d3d4d68d86f685a3529fb7bdca1e9730bd0979d6d9bc4bc0eea2e57f40ed  app/src/main/java/io/github/triet4p/aegisf/ui/AnalyticsScreen.kt
+6d3486127985feb95aa322a3a42c468cf93a2e76a0224380b308d7d440878e68  app/src/main/java/io/github/triet4p/aegisf/ui/CategoryPalette.kt
+0c853caa256b10ba6cfefefdf9c4c99a148a943f74d47ada77c948f3b189210f  app/src/main/java/io/github/triet4p/aegisf/ui/DashboardScope.kt
+f80216cc870349c05ca60edd4659e9b572cccb4651ea633ae467ec9767fbc902  app/src/main/java/io/github/triet4p/aegisf/ui/LedgerDisplay.kt
+5d2c43538c0bbef55d31d03a9a24d659f1918298d3c0d63b2430b14ec29f8868  app/src/main/java/io/github/triet4p/aegisf/ui/LedgerScreen.kt
+fe65d1deec0ea28ab622012e6681d827c2008aa2e7e3482a047e4225e394cc0d  app/src/main/java/io/github/triet4p/aegisf/ui/PagedBrowsing.kt
+2b50dba6fa80d6886adc7dd03572d311be5b2445f6684dacf5072c9d4d8ec8f7  app/src/main/java/io/github/triet4p/aegisf/ui/TransactionDetailScreen.kt
+e716a8edad869b3983c61ee7691c715bd106e32f7b88b10eb3351a0277eae3f3  app/src/main/java/io/github/triet4p/aegisf/ui/TransactionFilter.kt
+32704934e768021c0f8547bc382327ca5456d4bf6cfe60846f26858bd2828a34  app/src/main/java/io/github/triet4p/aegisf/ui/components/AegisControls.kt
+09606a9645fee597117c72fba63365bff994ef00dc86eaeef9e633cfc90044d0  app/src/main/java/io/github/triet4p/aegisf/ui/components/AegisGlyph.kt
+bb46adaa58eefb56b1c7d28b1bcab8338152f44649b05122331bc3de9fba1252  app/src/main/java/io/github/triet4p/aegisf/ui/navigation/AegisNavShell.kt
+b13b055d7b3f5ea3ce4e6b26946c0fb3e46a06e36eaaea14a0ab01b7fdd7f48a  app/src/main/java/io/github/triet4p/aegisf/ui/navigation/HomeScreen.kt
+499384802ccc390c22ffb53ccf8f8a4e5c89f9fe7ac282879383000c95131ed0  app/src/main/java/io/github/triet4p/aegisf/ui/text/AegisStrings.kt
+1476b9c796bc3becd1adc70ad1eaecd4c463426d589a061b3f7e0bfbb3471ee3  app/src/test/java/io/github/triet4p/aegisf/data/LedgerSearchTest.kt
+d8faf685e55be508d1e5550326e0142860c93f19aa0ec9787c472b6cf11a551c  app/src/test/java/io/github/triet4p/aegisf/ui/DashboardScopeTest.kt
+2ee02820c894255001ad8529cd2e46b7a699a32520c8bbfe70f76b3e80ee46dc  app/src/test/java/io/github/triet4p/aegisf/ui/TransactionFilterTest.kt
+b2c9f179b7fb8349fc82a4b949978b3486878bf959e0d6edf29f75e2b6d7dbf5  app/src/androidTest/java/io/github/triet4p/aegisf/ui/S103BrowsingLayoutInstrumentedTest.kt
+de0356ecbbdccac840735b04c460496e104fb867db4619a0ac9448183c9e4df6  README.md
+65690ae82bdd128ba0b4abcd2945cf3198f6c8bfdfcf6c9c37f57195f5902b32  CHANGELOG.md
+
+DELETED  app/src/main/java/io/github/triet4p/aegisf/ui/DashboardScreen.kt
+DELETED  app/src/main/java/io/github/triet4p/aegisf/ui/TransactionListScreen.kt
+DELETED  app/src/main/java/io/github/triet4p/aegisf/ui/navigation/HomeLauncherScreen.kt

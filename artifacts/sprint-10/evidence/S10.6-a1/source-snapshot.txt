@@ -1,0 +1,70 @@
+Task: S10.6  Attempt: S10.6-implementation-a1  Worker: S106Implementation
+Base commit: 6f3459fcbcc6b2827a088c4a9a66f5f46389a139  (refs/heads/main)
+Git dir: F:/ai-ml/aegis-f/.git
+Worktree: F:/ai-ml/aegis-f
+Date: 2026-11-10
+
+# Owned source files (sha256)
+416334a0ddee76070d1f4efd458e201b0757ea8c70559df10378f22b9a71223e  app/src/main/java/io/github/triet4p/aegisf/ui/review/ReviewStrings.kt
+85f2cc960e59870857c35ad975a09982538f046f5f70ba9215c4d29dc0110525  app/src/main/java/io/github/triet4p/aegisf/ui/review/ReviewInboxScreen.kt
+a7332e86a5215814c072af639e6fdec063a93c2af44426f56ec31404afefcb9d  app/src/main/java/io/github/triet4p/aegisf/ui/review/DraftDetailScreen.kt
+20d238d6968faac1ce842db40530ae3031320eacd9693524d0b9c3987c1dbb61  app/src/main/java/io/github/triet4p/aegisf/ui/review/DraftReceiptCard.kt
+1d0d6e2353f688fb05b2c9bdce59841bcaba45df731a759891c969ae3b1d203d  app/src/main/java/io/github/triet4p/aegisf/ui/review/DraftContextSection.kt
+93c161a10828aa5979e485d1a6d6a7f651cecdfed43104e052994b62a6aba6b2  app/src/main/java/io/github/triet4p/aegisf/ui/navigation/AegisNavShell.kt
+3dd66a258015444f7287ef38daca6a5fa6a491d72a8b0528817a287904a6090f  app/src/main/java/io/github/triet4p/aegisf/ui/ChatAgentRunState.kt
+de4fb642115e81d5fc8a468397fce96b838b830d0255d88475804314e79795a0  app/src/main/java/io/github/triet4p/aegisf/ui/chat/AiChatScreen.kt
+478fa7d767502eaab64d6944a145b1fc432652ce8140ebfe1c6a645a233dc2cc  app/src/main/java/io/github/triet4p/aegisf/ui/chat/ChatStrings.kt
+
+# Deleted obsolete source (blob at base)
+deleted app/src/main/java/io/github/triet4p/aegisf/ui/BankDraftReviewScreen.kt
+d31dff8489b983d4a7aa2c96df9170c102a56924
+
+# Owned test files (sha256)
+00482815037be037218bd5b1ddced86452243a1fc98cbca3734b813a21b1d8b7  app/src/test/java/io/github/triet4p/aegisf/ui/ChatNoteContextTest.kt
+b1cb2767147cd1eaf25d00ecdace54f19c2cef2c211aa68ea1680b2baae4ace1  app/src/androidTest/java/io/github/triet4p/aegisf/ui/S95ReviewRefreshPhoneInstrumentedTest.kt
+bff99d8016cd75ba6cab147431ed489c8f915cea9a8b9f7a20e870efb1c37e44  app/src/androidTest/java/io/github/triet4p/aegisf/ui/S97ReviewRevalidationPhoneInstrumentedTest.kt
+c2b2118accf774e974f437ef72991dbb7b530eb92edd0440045f0e03b10264e4  app/src/androidTest/java/io/github/triet4p/aegisf/ui/S106ReviewInstrumentedTest.kt
+
+# Product docs (mixed ownership; current hashes, own sections only)
+90fb8a1ea39c1563a63efa58df7018c53c731da4155e5428882ee90baf7d46a2  README.md
+10a83005505de87ab67c931b5908a2152f37093b166e1523e2bbdd544b7b8277  CHANGELOG.md
+
+# Working tree status (foreign changes preserved, not in owned scope)
+ M .agents/memory/decisions.md
+ M CHANGELOG.md
+ M README.md
+ M app/src/androidTest/java/io/github/triet4p/aegisf/ui/S95ReviewRefreshPhoneInstrumentedTest.kt
+ M app/src/androidTest/java/io/github/triet4p/aegisf/ui/S97ReviewRevalidationPhoneInstrumentedTest.kt
+ D app/src/main/java/io/github/triet4p/aegisf/ui/BankDraftReviewScreen.kt
+ M app/src/main/java/io/github/triet4p/aegisf/ui/ChatAgentRunState.kt
+ M app/src/main/java/io/github/triet4p/aegisf/ui/chat/AiChatScreen.kt
+ M app/src/main/java/io/github/triet4p/aegisf/ui/chat/ChatStrings.kt
+ M app/src/main/java/io/github/triet4p/aegisf/ui/navigation/AegisNavShell.kt
+ M app/src/test/java/io/github/triet4p/aegisf/ui/ChatNoteContextTest.kt
+ M docs/PLAN.md
+ M docs/sprint-plans/sprint-10.md
+ M docs/sprint-plans/sprint-6.md
+?? app/src/androidTest/java/io/github/triet4p/aegisf/ui/S106ReviewInstrumentedTest.kt
+?? app/src/main/java/io/github/triet4p/aegisf/ui/review/
+?? artifacts/sprint-10/checkpoints/
+?? artifacts/sprint-10/evidence/S10.3-a1/
+?? artifacts/sprint-10/evidence/S10.4-a1/
+?? artifacts/sprint-10/evidence/S10.5-a1/
+?? artifacts/sprint-10/evidence/S10.5-a2/
+?? artifacts/sprint-10/evidence/S10.5-a3/
+?? artifacts/sprint-10/evidence/S10.6-a1/
+?? artifacts/sprint-10/handoffs/S10.3-implementation-a1.md
+?? artifacts/sprint-10/handoffs/S10.4-implementation-a1.md
+?? artifacts/sprint-10/handoffs/S10.5-implementation-a1.md
+?? artifacts/sprint-10/handoffs/S10.5-implementation-a2.md
+?? artifacts/sprint-10/handoffs/S10.5-implementation-a3.md
+?? artifacts/sprint-10/renders/07_capture_chat.webp
+?? artifacts/sprint-10/reviews/
+?? artifacts/sprint-10/state/
+?? artifacts/sprint-10/workers/S10.1-design-a1.md
+?? artifacts/sprint-10/workers/S10.3-implementation-a1.md
+?? artifacts/sprint-10/workers/S10.4-implementation-a1.md
+?? artifacts/sprint-10/workers/S10.5-implementation-a1.md
+?? artifacts/sprint-10/workers/S10.5-implementation-a2.md
+?? artifacts/sprint-10/workers/S10.5-implementation-a3.md
+?? docs/sprint-plans/sprint-11.md

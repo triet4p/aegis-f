@@ -1,0 +1,3 @@
+
+io.github.triet4p.aegisf.ui.S105ChatInstrumentedTest:........INSTRUMENTATION_RESULT: shortMsg=Process crashed.
+INSTRUMENTATION_CODE: 0

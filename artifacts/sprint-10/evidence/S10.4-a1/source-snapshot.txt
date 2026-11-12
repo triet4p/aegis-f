@@ -1,0 +1,19 @@
+# S10.4 frozen source snapshot (candidate 2 for round-2 review)
+# sha256  path
+# excludes artifacts/, build/, evidence records, and foreign working-tree changes
+
+fa66d18d2ee52e5c96921904c4957666a20c6db2ab255a6e34d4c3e6c03fbd52  app/src/main/java/io/github/triet4p/aegisf/ui/QuickCaptureScreen.kt
+cf3a71397c1293d0624103b6cf9f7f146dbee38d3191cd9ec9761f8aeafe9c1c  app/src/main/java/io/github/triet4p/aegisf/ui/QuickCaptureEvents.kt
+9b7ede72578cc4ea9cb67f0f12b3f1db098111369d56eb6c5b9adca047daa1b5  app/src/main/java/io/github/triet4p/aegisf/ui/SavedNotesScreen.kt
+3cad5d53a9f8da91909d4b6ed2bb95cb46cfe01879a0ebac3545eb49be3432eb  app/src/main/java/io/github/triet4p/aegisf/ui/NoteDetailScreen.kt
+135a1299ad56c40a8e346e0b1804f8f7010efd02d9c677f3299dff92f2d03636  app/src/main/java/io/github/triet4p/aegisf/ui/NoteEditorScreen.kt
+83c422b54c7bc6aa2c368e8d35671228a2e0984150c64957f0f5aa3b0e713e4d  app/src/main/java/io/github/triet4p/aegisf/ui/NoteEventScreen.kt
+c59609aa544eab1c147d5e1d1a37b964b01a5a1678a57bca74b3b39c918b5ea5  app/src/main/java/io/github/triet4p/aegisf/ui/NoteDraftChooserScreen.kt
+f6bf6453c5faaf5a5af74decba928c2014bb80cfe9aaebbac463ad4380d5fd72  app/src/main/java/io/github/triet4p/aegisf/ui/ChatAgentRunState.kt
+dfa10ac7a96008cee923cbd41e189fbc1f2d6de57b0081420f45c2303a0eedb0  app/src/main/java/io/github/triet4p/aegisf/ui/chat/AiChatScreen.kt
+fb4ecca53159ea4319693b1415552ee9816530082961e5749936fb8c03c758f7  app/src/main/java/io/github/triet4p/aegisf/ui/navigation/AegisNavShell.kt
+edbc539a0396d986780e13ee09a6e75ed4ceb2cd4d798283ee6029b1129e44cd  app/src/main/java/io/github/triet4p/aegisf/ui/text/AegisStrings.kt
+ccac6601d7a1a57e14a057bcbf12a81672e6fe83a81b1112124d63b58dd54ab2  app/src/test/java/io/github/triet4p/aegisf/ui/ChatNoteContextTest.kt
+41f2594e68a75abc201e8898cd7fefe160ccea0a0bec3d3a809d0853c7cf692f  app/src/androidTest/java/io/github/triet4p/aegisf/ui/S104NotesJournalInstrumentedTest.kt
+b14aec7b5a228d849ce54163d55dd5826458a705e4ba634351f290e0df4333de  README.md
+a7465a424e626360df0ac501900dc2b71e6628ed43c99ff6f1e7e321c073731f  CHANGELOG.md

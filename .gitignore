@@ -109,6 +109,8 @@ __pycache__/
 
 # Repository hygiene (HYGIENE2): private/generated/local evidence under artifacts/.
 # Tracks reviewed sanitized reports/manifests/checkpoints/memory/docs; ignores raw traces.
+# Owner-authorized byte-identical originals remain local to this one closure.
+/artifacts/sprint-10/private-originals/
 /artifacts/**/*.db
 /artifacts/**/*.sqlite
 /artifacts/**/*.sqlite3

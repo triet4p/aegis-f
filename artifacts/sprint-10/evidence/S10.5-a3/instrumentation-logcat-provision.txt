@@ -1,0 +1,3 @@
+--------- beginning of main
+11-10 12:12:32.625 14551 14575 I S105UI  : S105CONFIG provisioned id=s105-authorized-deepseek protocol=OPENAI_CHAT_COMPLETIONS model=deepseek-v4.1-flash host=opencode.ai credentialNonBlank=true credentialMatch=true
+11-10 12:12:32.625 14551 14575 I S105UI  : S105CONFIG secretDeleted=true

@@ -1,0 +1,63 @@
+=== everyDestinationAndChildOpensAndReturnsToItsOwnContext ===
+
+Time: 35,442
+
+OK (1 test)
+
+
+=== emptyStatesStayTruthfulOnEveryDestination ===
+
+Time: 12,53
+
+OK (1 test)
+
+
+=== ambiguousStaleAndCancelledReviewStatesStayTruthful ===
+
+Time: 15,575
+
+OK (1 test)
+
+
+=== readErrorsStayTruthfulOnEveryDataDestination ===
+
+Time: 6,962
+
+OK (1 test)
+
+
+=== activityRecreationKeepsRouteFiltersAndUnsavedText ===
+
+Time: 5,983
+
+OK (1 test)
+
+
+=== longListsLongTextAndExactMoneyStayExact ===
+
+Time: 8,533
+
+OK (1 test)
+
+
+=== englishDarkStaysLegible ===
+
+Time: 5,639
+
+OK (1 test)
+
+
+=== vietnameseLightStaysLegible ===
+
+Time: 5,56
+
+OK (1 test)
+
+
+=== vietnameseDarkAndOneAndAHalfTextKeepEveryDestinationUsable ===
+
+Time: 19,183
+
+OK (1 test)
+
+

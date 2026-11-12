@@ -1,0 +1,22 @@
+# S10.5 attempt a3 frozen source snapshot (candidate for evidence)
+# sha256  path
+# uncommitted working tree; no commit/staging/push
+11ec37c37b18aac24d034d516c3d4628ad9189f36382d303bfc8e9e6807b8b03  app/src/main/AndroidManifest.xml
+2b0cfc41cb47db04ac6a8efe26a2185b3ba8a9ebd205545e619ec11c488f6547  app/src/main/java/io/github/triet4p/aegisf/data/AgentRunDao.kt
+3e50e3878e2cd09c85051608636e5d603be3742e8468f858415ac7ec84a64af0  app/src/main/java/io/github/triet4p/aegisf/agent/AgentRunHistory.kt
+49b0d3041413217dbffef5bdb95b85c8ed01495654582aaf247e57a728f355c7  app/src/main/java/io/github/triet4p/aegisf/ui/ChatAgentRunState.kt
+5d111dc13a9001046d364c7262c6c940298ffee6f663c09ebe0f59533e3e53ad  app/src/main/java/io/github/triet4p/aegisf/ui/ChatOutcomeCards.kt
+128d8bb3cfceb18f42d01ce69c292f6fe57a517b75f5eb0986c423b8aa8e3ef6  app/src/main/java/io/github/triet4p/aegisf/ui/chat/AiChatScreen.kt
+4c1cabcec3bb2f2da2426db52051a112fac4509a6ad6ece2067ebee803ac0ab4  app/src/main/java/io/github/triet4p/aegisf/ui/chat/ChatHistorySheet.kt
+fbdc08351c2ece8d30318cf6c7feeedabcbfb4e36a0763206dc703bf54fffc8f  app/src/main/java/io/github/triet4p/aegisf/ui/chat/ChatMarkdown.kt
+716b5949fe025c7897cb6dbae75e18810bde833fd1f4c4234dd785ff78a3ad07  app/src/main/java/io/github/triet4p/aegisf/ui/chat/ChatOutcomeStrings.kt
+63f64355b62d50be09fc0a95fda87bc309fce04ad0e31e0e1c5df490d02829a1  app/src/main/java/io/github/triet4p/aegisf/ui/chat/ChatStrings.kt
+54e695fd76b00f8bfc62dc5b05bce705e4b51d0eecf55b47b39d306449308d40  app/src/main/java/io/github/triet4p/aegisf/ui/chat/NetworkAvailability.kt
+f10664c1ab6072b45ef2c0ae887ad4f2363ab64c57b931868b432d10df458654  app/src/main/java/io/github/triet4p/aegisf/ui/components/AegisGlyph.kt
+6cc2b949137dffd24f44e6c979062f2d61dfdfacdc372cf6ddd11b3d095a7bba  app/src/main/java/io/github/triet4p/aegisf/ui/navigation/AegisNavShell.kt
+45f3294d4f63f3cfdcef32d7221dca5c06832c610ca4123849486a645a66e2d5  app/src/test/java/io/github/triet4p/aegisf/ui/ChatMarkdownTest.kt
+b0fb3d20eb5136bacdd21b43d1984393607498c61737dafa3db90e39028223fb  app/src/test/java/io/github/triet4p/aegisf/ui/ChatOutcomeReferenceTest.kt
+61473127bc26f13bb004d6392195c31db90b37b3010dec292a734e358233a652  app/src/test/java/io/github/triet4p/aegisf/ui/ChatTranscriptStateTest.kt
+3c9b07b548b4d8046e158f4b451fd6d850ee13d5c0ddc5a9005c79f22447164a  app/src/androidTest/java/io/github/triet4p/aegisf/ui/S105ChatInstrumentedTest.kt
+51b2c51d2b43bfee6cd2ce9e088a3a44a920eacb2c29fcaef4ac3cb9bd11cd5e  README.md
+53e953a37fa4f72ab854b83cb1f90c8d0592539dc37d100dd0f979310f61812b  CHANGELOG.md

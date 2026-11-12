@@ -1,0 +1,23 @@
+S10.5 attempt a2 — production data reconciliation (owner data, no content copied)
+
+Production database pulled before and after the package walkthrough and the instrumentation run
+(`databases/aegis-ledger.db` + WAL/SHM under `_db_before/` and `_db_after/`). Instrumentation uses
+separate in-memory databases, so it does not touch these files.
+
+                        before   after
+transactions                 0       0
+pending_bank_drafts          8       8
+capture_messages             6       6
+note_events                  2       2
+context_links                0       0
+agent_runs                   0       0
+draft review states   PENDING:8 PENDING:8
+Huy hiệu Review (bottom nav) 8       8
+
+- No transaction, capture, event, link, run or draft row was added, removed or changed by this
+  attempt. No financial amount was confirmed, dismissed or edited.
+- No hosted request was sent: no saved provider profile/credential exists, and the scripted seam
+  was used only in isolated in-memory test databases.
+- Preferences were restored to language=en, theme_mode=system and re-read after force-stop.
+- The only device writes are the test screenshots under the app's private files directory
+  (`s105-*.png`) and temporary UI dumps; neither is owner financial data.

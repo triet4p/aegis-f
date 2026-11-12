@@ -1,0 +1,72 @@
+# S10.5 native instrumentation state index
+
+All captures are full-device screenshots (`UiAutomation.takeScreenshot`) from the S10.5
+instrumentation run on the same HONOR ALT-LX2 / 720x1610 / density 320, package
+`io.github.triet4p.aegisf`, with an isolated in-memory Room database and the production executor,
+history and screen. Only the provider seam is scripted (a local adapter that emits visible chunks
+with real delays). No hosted request was sent and no production row was read or written by these
+tests. The production package's app-private screenshots were pulled and then removed.
+
+## 510-chat-streaming-en
+Progressive answer text ("First part.") is visible before the reply completes, with the streaming
+caret, the "Receiving the reply…" state line, and the composer's Stop action.
+
+## 511-chat-stopped-en
+After Stop, the received text remains and the stopped lifecycle line says the words above were
+received before stopping. The screen is idle and the main composer is back to Send.
+
+## 512-chat-next-message-en
+The next message was accepted after Stop and completed ("Second reply."). The stopped turn and the
+new turn both remain in the transcript; no second composer or stacked outcome form is present.
+
+## 513-chat-history-sheet-en
+History sheet over the completed conversation: the user's stored request as the title, the local
+time, and the "Completed" lifecycle word.
+
+## 514-chat-history-loaded-en
+Selecting the history row replaced the transcript with the stored conversation: "Saved
+conversation · Completed", one user turn, one stored answer. No duplicate turn and no live run.
+
+## 515-chat-stale-context-en
+Attached note text differs from the stored note. The card reports the changed note and blocks
+sending; the user can remove it or explicitly use the current text.
+
+## 516-chat-context-updated-en
+After choosing "Use current text", the attached note matches the stored note and Send is enabled.
+No message was sent by refreshing context.
+
+## 517-chat-no-provider-en
+No configured provider: guidance, the focused "Open AI settings" route, and a disabled Send.
+No dead send path.
+
+## 518-chat-large-text-en
+The Chat root at 1.5x font scale: title, empty guidance, attachments/transcript area and composer
+stay readable, with Send reachable and no overlap.
+
+## 519-chat-offline-en
+Validated network unavailable: persistent offline guidance and disabled Send; the prompt remains
+in the composer. No provider request is attempted.
+
+## 520-chat-scrolled-up-en
+While a long answer streams, a manual scroll up pauses the automatic follow and shows the
+jump-to-latest action.
+
+## 521-chat-still-scrolled-up-en
+A later streaming chunk arrived but did not yank the reader back to the bottom; the jump action is
+still present.
+
+## 522-chat-jumped-latest-en
+The jump action returned to the newest turn and the jump action disappeared at the bottom.
+
+## 524-chat-provider-failure-en
+A transport failure is reported in the conversation without losing the typed/received text; the
+screen offers the app's bounded retry action.
+
+## 525-chat-retry-limit-en
+Retrying after the bounded attempts are spent reports that this attempt cannot be retried
+automatically and asks for a new message; it does not start an unlimited silent run.
+
+## Missing state (blocked)
+No `530/531/532` real-provider captures exist: the app has no saved provider profile, so no
+authorized real provider output is available. The opt-in test is present and skips itself in that
+state. This is the one mandatory S10.5 criterion not verified.

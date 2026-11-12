@@ -363,3 +363,23 @@ financial confirmation.
 **Reason:** The acceptance requires newer user choices to survive and old-context hosted work not to leave a draft ready. Clearing every category would overwrite a newer user choice; the digest check only rejects writes that arrive after a change, not a category already stored from the changed context. A confirmed record's link is provenance of finalized money, while an unconfirmed link is derived review context.
 
 **Consequences:** Every context-changing write (capture edit/delete, event reading revision, propose/accept/reject/unlink) must revalidate affected pending drafts. A hosted category is valid only until its context changes; the workflow re-observes after context changes. Link decisions to confirmed drafts are denied with `CONFIRMED_RECORD`, and the capture dialog and link cards must state that the note reference is retained. Legacy rows migrate as `NONE` because the old schema did not record the chooser.
+
+## [2026-11-09] Redesign all mobile UI/UX before recovery and private release
+
+**Decision:** Replace planned Sprint 10 with a complete mobile UI/UX redesign beginning with research + design, and move every former Sprint 10 recovery/privacy/private-release obligation to Sprint 11 as S11.1–S11.10.
+
+**Alternatives considered:** Continue directly to recovery/release with the existing frontend; retain the current stacked-card structure and apply cosmetic changes.
+
+**Reason:** The owner reports that the frontend is unattractive and difficult to use despite increasingly stable backend capabilities, and explicitly requests mobile app references including MoMo and VietinBank iPay, with feature icons opening focused screens instead of stacked functional cards.
+
+**Consequences:** The fixed four-screen frontend structure is no longer binding. S10.1 must establish researched navigation, complete screen/state coverage, visual specifications and a prototype, with owner design-direction approval before implementation. Preserve Kotlin/Compose, backend contracts, offline paths, financial confirmation and privacy boundaries; no backup, restore, migration, signing or release requirement is waived. Both sprints remain planned, not started.
+
+## [2026-11-09] Use single-task mobile screens and a dedicated streaming AI conversation
+
+**Decision:** Owner approved the refined S10.1 design direction: one defined task and primary action per screen, a lightweight Home task launcher, and a dedicated streaming AI Chat destination separate from local quick-note capture.
+
+**Alternatives considered:** Keep a large financial hero, feature-grid container, review alert and recent/ledger shortcuts stacked on Home; expose AI only as a note-analysis action on the capture screen.
+
+**Reason:** The owner explicitly asked to limit stacked component blocks and give each screen a clear purpose, then requested a screen for streaming chat. The earlier visually polished card stack still mixed unrelated tasks and duplicated routes.
+
+**Consequences:** Detailed financial metrics belong in Reports, pending work is badged on its entry point, and secondary workflows open focused child screens or contextual sheets. AI Chat must progressively render user-visible replies, support Stop with truthful partial/applied-effect state and preserve the existing privacy/financial-authority boundaries. The accepted prototype is synthetic design evidence, not production Android implementation; native keyboard/insets and actual provider streaming still require implementation-stage proof.

@@ -1,0 +1,49 @@
+S10.5 attempt a3 — data, profile and secret reconciliation
+
+Owner package io.github.triet4p.aegisf (untouched)
+- The package was not installed over, cleared, force-stopped, launched or instrumented by this
+  attempt. All instrumentation components named in the run logs target
+  io.github.triet4p.aegisf.s812evidence.test, and every command was scoped to that package.
+- shared_prefs before and after the work:
+  - aegis_ui_preferences.xml, 156 bytes, mtime 2026-11-10 11:37 (attempt a2's language/theme write)
+  - bank_notification_settings.xml, 198 bytes, mtime 2026-11-03 00:45
+  - no hosted_provider_settings.xml exists, so no profile was added to the owner package.
+- databases before and after:
+  - aegis-ledger.db 253952 bytes, mtime 2026-11-09 16:55 (unchanged)
+  - aegis-ledger.db-shm mtime 2026-11-10 11:37; aegis-ledger.db-wal mtime 2026-11-10 10:42
+  No owner financial, note, link, run or preference content was read, copied or changed by this
+  attempt; totals and draft counts from a2's reconciliation remain the baseline.
+- The owner package's existing files directory still holds the a2 instrumentation PNGs and its
+  `profileInstalled` marker; nothing was deleted from it.
+
+Isolated evidence package io.github.triet4p.aegisf.s812evidence
+- Cleared with `pm clear` before the run and again after cleanup; `shared_prefs` and `databases`
+  no longer exist, so the encrypted profile, the durable verification database and any local
+  notification-derived copies are gone.
+- Before clearing, the injected profile was removed through the production store:
+  `S105CONFIG cleaned remaining=0 active=null`. The injected secret file had already been deleted
+  by the provisioning test (`secretDeleted=true`).
+- During the earlier rejected installed-shell attempt, the package's notification reconciliation
+  had copied pending bank drafts into its own ledger. Those copies were never part of the live
+  request scope used in the accepted stages, were not copied into this evidence, and were removed
+  by the final `pm clear`.
+
+Secret handling
+- Only the key name OPENCODE_GO_API_KEY was printed while preparing the staging file.
+- The value traveled: repository `.env` → git-ignored staging file → adb push /data/local/tmp →
+  `run-as` copy into the isolated package → production AES-GCM store → removal. The staging file,
+  the /data/local/tmp copy and the on-device file were deleted; the local staging directory was
+  removed (`app/build/s105-secret` no longer exists).
+- No credential, Authorization header, provider payload or profile content appears in any
+  artifact, log, screenshot or source file. The retained durable database contains only the two
+  synthetic runs and their synthetic turns (0 drafts, 0 transactions, 0 links). Its stored user
+  request text contains the mask token the outbound boundary minted for the synthetic numeral;
+  that token is an internal placeholder, its value is not stored in any artifact, and the app's
+  mapping vault was cleared with the isolated package. The conversation surface displays readable
+  "a masked value" copy for it; the stored text is unchanged by that presentation rule.
+
+Verification database artifact
+- `s105_durable.db` is the dedicated file database used only by the live durable stages. It has
+  two runs (CANCELLED/USER_CANCELLED and SUCCEEDED), 2 USER and 1 AGENT conversation lines, and no
+  pending bank draft, transaction or context link. It contains no provider request body and no
+  credential.

@@ -1,0 +1,44 @@
+candidate snapshot (S10.9-implementation-a2)
+2026-11-11T18:41:53Z
+HEAD 6813d71e3c7ed0053207fb79e9e45ad1ca9ef689
+ref refs/heads/main
+base 6813d71e3c7ed0053207fb79e9e45ad1ca9ef689
+diff_hash cc94734eb15f4b1e04bdaa00287d9d6eff8077e5
+status_hash 89bed152c0a880f2060fcf1a6893ff1425e1230e
+--- owned paths ---
+ M CHANGELOG.md
+ M app/build.gradle.kts
+ M app/src/androidTest/java/io/github/triet4p/aegisf/ui/S105ChatInstrumentedTest.kt
+ M app/src/main/java/io/github/triet4p/aegisf/ui/AnalyticsScreen.kt
+ M app/src/main/java/io/github/triet4p/aegisf/ui/LedgerScreen.kt
+ M app/src/main/java/io/github/triet4p/aegisf/ui/NoteDraftChooserScreen.kt
+ M app/src/main/java/io/github/triet4p/aegisf/ui/QuickCaptureScreen.kt
+ M app/src/main/java/io/github/triet4p/aegisf/ui/SavedNotesScreen.kt
+ M app/src/main/java/io/github/triet4p/aegisf/ui/TransactionDetailScreen.kt
+ M app/src/main/java/io/github/triet4p/aegisf/ui/TransactionEditorScreen.kt
+ M app/src/main/java/io/github/triet4p/aegisf/ui/chat/AiChatScreen.kt
+ M app/src/main/java/io/github/triet4p/aegisf/ui/components/AegisFeatureIcon.kt
+ M app/src/main/java/io/github/triet4p/aegisf/ui/navigation/HomeScreen.kt
+ M app/src/main/java/io/github/triet4p/aegisf/ui/review/DraftDetailScreen.kt
+ M app/src/main/java/io/github/triet4p/aegisf/ui/review/ReviewInboxScreen.kt
+?? app/src/androidTest/java/io/github/triet4p/aegisf/data/S109FixtureInstrumentedTest.kt
+?? app/src/androidTest/java/io/github/triet4p/aegisf/ui/S109CompleteExperienceInstrumentedTest.kt
+?? artifacts/sprint-10/evidence/S10.9-a1/
+?? artifacts/sprint-10/evidence/S10.9-a2/
+?? artifacts/sprint-10/handoffs/S10.9-implementation-a1.md
+?? artifacts/sprint-10/workers/S10.9-implementation-a2.md
+--- device APKs ---
+package:/data/app/~~w7GtWECevu0v-PnhkAqW5g==/io.github.triet4p.aegisf.s109evidence-to6ohsssG4X5nAnUSLfDTg==/base.apk
+package:/data/app/~~fSoqI7gv3CGD6482nAe9yA==/io.github.triet4p.aegisf.s109evidence.test-AlmLCblluPQHfiIPsLrDAA==/base.apk
+--- device APK sha256 ---
+e1b58dcb28580f0e256eb756e5de4a452fd099c2fefffdee25036e26cb1c2ccd  /data/app/~~w7GtWECevu0v-PnhkAqW5g==/io.github.triet4p.aegisf.s109evidence-to6ohsssG4X5nAnUSLfDTg==/base.apk
+5fa9a539bc16136d561766b6d848d7112baa35609914f1744f761a34a60fa570  /data/app/~~fSoqI7gv3CGD6482nAe9yA==/io.github.triet4p.aegisf.s109evidence.test-AlmLCblluPQHfiIPsLrDAA==/base.apk
+--- foreign / pre-existing working-tree changes (not owned by S10.9 a2) ---
+.agents/memory/decisions.md
+README.md
+docs/PLAN.md
+docs/sprint-plans/sprint-10.md
+docs/sprint-plans/sprint-6.md
+docs/sprint-plans/sprint-11.md (untracked)
+artifacts/sprint-10/checkpoints/, renders/07_capture_chat.webp, reviews/, state/, evidence/S10.2-a1 .. S10.8-a1, prior handoffs/workers
+CHANGELOG.md is mixed: only the 'Sprint 10 - S10.9' subsection is this attempt's

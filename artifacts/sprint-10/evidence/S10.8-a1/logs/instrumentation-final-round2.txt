@@ -1,0 +1,8 @@
+
+io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest:..............
+
+Time: 82,365
+
+OK (14 tests)
+
+

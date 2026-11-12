@@ -1,0 +1,25 @@
+
+io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest:.
+Error in categoriesAddRenameArchiveAndDeleteWithReferenceSafety(io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest):
+androidx.compose.ui.test.ComposeTimeoutException: Condition still not satisfied after 20000 ms
+	at androidx.compose.ui.test.AndroidComposeUiTestEnvironment$AndroidComposeUiTestImpl.waitUntil(ComposeUiTest.android.kt:901)
+	at androidx.compose.ui.test.junit4.AndroidComposeTestRule.waitUntil(AndroidComposeTestRule.android.kt:500)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.awaitText(S108SettingsInstrumentedTest.kt:678)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.awaitText$default(S108SettingsInstrumentedTest.kt:677)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.categoriesAddRenameArchiveAndDeleteWithReferenceSafety(S108SettingsInstrumentedTest.kt:167)
+
+
+Time: 40,059
+There was 1 failure:
+1) categoriesAddRenameArchiveAndDeleteWithReferenceSafety(io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest)
+androidx.compose.ui.test.ComposeTimeoutException: Condition still not satisfied after 20000 ms
+	at androidx.compose.ui.test.AndroidComposeUiTestEnvironment$AndroidComposeUiTestImpl.waitUntil(ComposeUiTest.android.kt:901)
+	at androidx.compose.ui.test.junit4.AndroidComposeTestRule.waitUntil(AndroidComposeTestRule.android.kt:500)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.awaitText(S108SettingsInstrumentedTest.kt:678)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.awaitText$default(S108SettingsInstrumentedTest.kt:677)
+	at io.github.triet4p.aegisf.ui.S108SettingsInstrumentedTest.categoriesAddRenameArchiveAndDeleteWithReferenceSafety(S108SettingsInstrumentedTest.kt:167)
+
+FAILURES!!!
+Tests run: 2,  Failures: 1
+
+

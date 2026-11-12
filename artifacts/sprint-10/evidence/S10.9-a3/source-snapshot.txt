@@ -1,0 +1,65 @@
+candidate snapshot (S10.9-implementation-a3, round-2 F1 correction)
+2026-11-12T07:40Z
+repository F:/ai-ml/aegis-f/.git
+worktree  F:/ai-ml/aegis-f
+git -C    F:/ai-ml/aegis-f
+ref       refs/heads/main
+HEAD      6813d71e3c7ed0053207fb79e9e45ad1ca9ef689
+base      6813d71e3c7ed0053207fb79e9e45ad1ca9ef689
+
+snapshot hashes (method: `git diff | sha256sum` / `git status --porcelain | sha256sum`
+in the worktree above; untracked artifact/test files are listed separately below):
+diff_hash        ee4ba941aeba8f766f68a7c0683e434e866fef374884953e73aecaa8190609f7
+status_hash      036bb22075a3e23c854e833500605dbf49799ebd54fb2d6cecf6f38c5f6d0961
+reviewer R1 manifest snapshot (unchanged provenance, a2 candidate):
+be5ff8960af1b54dc12f1b6039ff51c6a57f2608ab853c83435b508c491bddac
+a2 round-2 hashes recorded in handoff a2 (predecessor method, carried for provenance):
+diff fcf1124a121465f0440702788bdc648a56b09d1d / status 6cad43d00b59c1d63f524b3b058c979fad2fa936
+
+--- owned candidate files (sha256, candidate working tree) ---
+15b8bcd31eef6efaebaa2d9a5d6340354f0dc5ac0dcf388f4438b05f875a9f2b  app/build.gradle.kts
+3b3eb9e12b833582b75f8a3a80c397f0ea3b862be0b565c891a3df5ab7609ae5  app/src/androidTest/java/io/github/triet4p/aegisf/ui/S105ChatInstrumentedTest.kt
+6776b96e1a32a7ff0868334dacbddae1f058a0e8231b5ef1609699e0271abb8f  app/src/androidTest/java/io/github/triet4p/aegisf/data/S109FixtureInstrumentedTest.kt
+42aab0f9aca3aab9955d2aea5dbb8d6d5df01bc5f4827ad15ab8384ca871860a  app/src/androidTest/java/io/github/triet4p/aegisf/ui/S109CompleteExperienceInstrumentedTest.kt
+296a415d37788e57abe41a5101a046d068dc64b2359ae2492010cce1ff25e960  app/src/main/java/io/github/triet4p/aegisf/ui/AnalyticsScreen.kt
+1a78795ef91d505c47bca2b5ec928a9c52eafa771e0b8de0eb95ba5a76695a98  app/src/main/java/io/github/triet4p/aegisf/ui/LedgerScreen.kt
+1733af671116da68873814f478c23cb462438c5d39efab732af866a363d885fa  app/src/main/java/io/github/triet4p/aegisf/ui/NoteDraftChooserScreen.kt
+02059998a820415317de5bbc2d5cb5bbb15b1556da2b9d23d9a58f2145ef14be  app/src/main/java/io/github/triet4p/aegisf/ui/QuickCaptureScreen.kt
+c0a47c271224fae1321d7e40a87ad46d3b579e1eeaa5c4b9572dce3b9a85fb0c  app/src/main/java/io/github/triet4p/aegisf/ui/SavedNotesScreen.kt
+46d676032e3e9514d5d7a8eaf3b2b9afe4f805974827ae7de4f6c2f2086798c1  app/src/main/java/io/github/triet4p/aegisf/ui/TransactionDetailScreen.kt
+1679cae00c3b68747fe54bd6e7d35010b2945617f43e97b89d56f9e2e4ad2ad5  app/src/main/java/io/github/triet4p/aegisf/ui/TransactionEditorScreen.kt
+b34f468f9cac842ee221635516a5643a19d1677457fb174a78c952315eb1df57  app/src/main/java/io/github/triet4p/aegisf/ui/chat/AiChatScreen.kt
+7359388078a210a0c9def741bd70c6760d840cb26fcb7cab1be2bcb618254723  app/src/main/java/io/github/triet4p/aegisf/ui/components/AegisFeatureIcon.kt
+86580722e8ee06f988caa1591ef35e83056907ee54fe936cde6b0f36c9708e03  app/src/main/java/io/github/triet4p/aegisf/ui/navigation/HomeScreen.kt
+75b72935b2a17684e18e931393c793801e6773c94853e5082751496019e4967c  app/src/main/java/io/github/triet4p/aegisf/ui/review/DraftDetailScreen.kt
+bcc4c2b710885c0644db8fec98eb87542e5ccf01a5a8cd1d3542537da55be208  app/src/main/java/io/github/triet4p/aegisf/ui/review/ReviewInboxScreen.kt
+
+--- owned mixed-ownership file (S10.9 subsection only) ---
+CHANGELOG.md  (mixed: only the "Sprint 10 - S10.9" subsection belongs to this task; foreign
+pre-S10.9 content preserved)
+
+--- F1 correction state ---
+AiChatScreen.kt maskingNote Text no longer carries maxLines = 2 / TextOverflow.Ellipsis
+(verified in the current source diff); the caveat wraps fully at 1.5x text.
+
+--- candidate APKs (built from this source; source files older than the APK) ---
+7304307fd7ab47e54c019b9eac8ebf9bf58b7dbcc990e3667ca1b6e891be691b  app/build/outputs/apk/debug/app-debug.apk
+5fa9a539bc16136d561766b6d848d7112baa35609914f1744f761a34a60fa570  app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+
+--- device APKs (sha256 on device, isolated package only) ---
+7304307fd7ab47e54c019b9eac8ebf9bf58b7dbcc990e3667ca1b6e891be691b  /data/app/~~jyWq1b3pHdeHWJW1yaDLIA==/io.github.triet4p.aegisf.s109evidence-K-cyP11SWc4wzy25oM8o4A==/base.apk
+5fa9a539bc16136d561766b6d848d7112baa35609914f1744f761a34a60fa570  /data/app/~~TTcu39nT1MzlsZwYfGdKog==/io.github.triet4p.aegisf.s109evidence.test-0QhdZphxxiBtPnZLE3OlZA==/base.apk
+
+--- foreign / pre-existing working-tree changes (not owned by S10.9 a3) ---
+.agents/memory/decisions.md
+README.md
+docs/PLAN.md
+docs/sprint-plans/sprint-10.md
+docs/sprint-plans/sprint-6.md
+docs/sprint-plans/sprint-11.md (untracked)
+artifacts/sprint-10/checkpoints/, renders/07_capture_chat.webp, reviews/, state/,
+evidence/S10.2-a1 .. S10.9-a2, prior handoffs/workers, owner package/data
+
+--- note ---
+Source was not edited by a3. `find app -type f -newer app/build/outputs/apk/debug/app-debug.apk`
+returns no app source/test file, so the installed corrected APK corresponds to this source.

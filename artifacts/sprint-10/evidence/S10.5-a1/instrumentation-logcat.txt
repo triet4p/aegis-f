@@ -1,0 +1,5 @@
+--------- beginning of main
+11-10 11:01:28.311 14580 14602 I S105UI  : S105 screenshot=524-chat-provider-failure-en file=/data/user/0/io.github.triet4p.aegisf/files/s105-524-chat-provider-failure-en.png bytes=96956
+11-10 11:01:28.311 14580 14602 I S105UI  : 524 failureShown=true
+11-10 11:01:29.493 14580 14602 I S105UI  : S105 screenshot=525-chat-retry-limit-en file=/data/user/0/io.github.triet4p.aegisf/files/s105-525-chat-retry-limit-en.png bytes=127622
+11-10 11:01:29.493 14580 14602 I S105UI  : 525 retryLimit=true

@@ -1,0 +1,8 @@
+# S10.5 attempt a3 APK identity
+# Base candidate built from the frozen source snapshot (package io.github.triet4p.aegisf).
+e4a80113f6310977a999f981c370727fa9dabea8751f3ef66b8ac3540549371c  app/build/outputs/apk/debug/app-debug.apk
+3f81d9c120978d76d6ab3cf42ce1ff2682cc2470872556c8a9bbba83ecb78d7f  app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+# Isolated evidence APKs installed for the live proof (package io.github.triet4p.aegisf.s812evidence);
+# hashed from the installed base.apk paths, copies not retained.
+06bde99d539827c42b3183d56880fb81a54c53887ecdc6dd03d3ca5bc85b265c  installed-isolated-app.apk
+e4a7155dc45111bf1ca0c0cc486a7b65d247d3d67288ebeeba94bed1df1b5a80  installed-isolated-test.apk

@@ -1,0 +1,17 @@
+S10.5 attempt a2 — verification environment (observed 2026-11-10)
+Repository/worktree: F:/ai-ml/aegis-f (Git dir F:/ai-ml/aegis-f/.git, ref refs/heads/main)
+Candidate: uncommitted working tree; no commit/staging/push.
+Device: HONOR ALT-LX2, Android 14 / API 34, 720x1610 px, density 320, system font 1.0
+Package under test: io.github.triet4p.aegisf (data preserved with adb install -r)
+Test package: io.github.triet4p.aegisf.test
+
+Provider configuration check (the mandatory prerequisite):
+- shared_prefs contains only aegis_ui_preferences.xml and bank_notification_settings.xml.
+- No hosted_provider_settings.xml exists, so no saved profile and no active provider.
+- UI preferences at the start: language=en, theme_mode=system.
+- No hosted request was sent during this attempt; no secret was read or recorded.
+
+Captures:
+- instrumentation PNGs: native Compose renders on the physical phone, isolated in-memory
+  Room databases and the scripted provider seam; no production row or network request.
+- device PNGs: production package walkthrough with data preserved.

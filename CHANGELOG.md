@@ -7,6 +7,302 @@ and no release has been tagged or published. Format follows
 
 ## [Unreleased]
 
+### Sprint 10 — S10.11 real Chat progress visibility
+
+- **AI Chat** now says *Thinking through your request…* while the model is working, instead of
+  showing *Waiting for the model…* for the whole time before the first answer word. The status
+  changes to the named tool step as soon as a tool is used and stays there while that step runs,
+  then makes way for answer text as it arrives. The new progress signal is presence-only: it does
+  not display or persist reasoning text through this UI path. A pre-existing local provider-stream
+  trace retains raw chunks, including reasoning; its retention/export/backup implications remain
+  for the Sprint 11 S11.4 privacy audit.
+- **AI Chat** no longer prints the generic waiting line underneath a specific progress line, so
+  one turn shows one truthful status instead of two competing messages.
+- Chat retry/clarification/history/date defects remain Sprint 11 S11.C1–C3; the S10.11 UI correction did not fix them.
+
+### Sprint 10 — S10.10 native UI documentation and owner-directed closure
+
+- Replaced the stale current bank-notification path with **Home → Settings → Bank notifications**
+  and documented the actual five-tab/eight-launcher shell and focused child routes in the user and
+  developer guides.
+- Added native Android screenshots and a consolidated capability/state evidence package. Isolated
+  fixture data and scripted Chat output are labeled; the package records actual-provider evidence
+  separately.
+- The owner directed Sprint 10 closure after main-app hands-on feedback and the S10.11 correction. The full owner-walkthrough procedure in this package remains unperformed; no full-walkthrough result is claimed. S10.10's independent review/checkpoint and final cross-feature review are complete; S10.11's affected differential is PASS at `1e0c679`.
+- Administrative inventory, safety review, and the remaining independent-review, Bronze-checkpoint,
+  and clean-worktree gates are tracked in the [S10-CLOSE package](artifacts/sprint-10/closure/index.md).
+- Chat retry/clarification/history/date repairs remain S11.C1–C3; raw provider-trace retention/export/backup privacy review remains S11.4. No such repair or trace-policy change is claimed.
+
+### Sprint 10 — S10.9 complete native experience verification
+
+- **Review inbox** states a single empty result when no bank draft is waiting and no longer draws
+  page controls for an empty queue. Previously the heading appeared twice and a meaningless
+  `Page 1` pager followed it. When the queue cannot be read, it also no longer shows
+  *Reading the review queue…* or an empty pager beside the read-error copy.
+- **Draft review** now shows a failed preview or confirmation reason in a snackbar above the
+  sticky action instead of only inline partway down the scroll. Tapping *Confirm and add to
+  ledger* with an unreadable amount or unchosen type now visibly explains what to correct.
+- **AI Chat** opens with an attached note fully readable. An empty transcript no longer scrolls
+  to the placeholder card and hides the attached-note header and first lines under the app bar.
+  The masking caveat above the composer now wraps fully at larger text instead of cutting
+  *it is not anonymity* off with an ellipsis.
+- **Home, Analytics and Ledger** now show their own *the stored records could not be read* state
+  with **Try again** when the database cannot even be opened for reading. Previously such a
+  failure at flow creation could close the app instead of naming the problem.
+- **Manual record** names the large amount field for screen readers (*Amount (VND)* /
+  *Số tiền giao dịch (VND)*) instead of announcing only an unlabelled edit box.
+- **Analytics**, **transaction detail**, **saved notes** and the **note-draft chooser** now keep
+  their last line above the system navigation bar. Previously the report's final category row
+  and the detail's *stored on this device* line could sit under the system buttons, at normal and
+  1.5× text.
+- **Home** allows the spending-period label and the longest launcher label (*Categories & rules*)
+  to use a second/third line at 1.5× text instead of cutting the words off.
+
+### Sprint 10 — S10.8 categories, rules and focused settings destinations
+
+- **Categories & rules** is now one focused destination with two task tabs. **Categories** lists
+  every stored category with an Active/Archived filter; any category — including one that came
+  with the app — can be renamed, archived or deleted. A duplicate active name is refused inline
+  with the typed name intact. Archiving keeps every past record attached and removes the category
+  only from new-record choices.
+- **Delete** is a separate destructive action that first reads what that category is attached to.
+  A category referenced by a saved transaction, a saved rule or a pending draft is not deletable:
+  the dialog names the references, offers **Archive instead**, and has no destructive button. The
+  same reference check runs inside the delete transaction, so a reference that appears after the
+  read blocks it too. Unreferenced categories delete only their own row; no record, rule or draft
+  is rewritten. A failed or unreadable impact changes nothing.
+- **Rules** lists the saved exact-description rules with the category each one names, including a
+  rule whose category is archived. A rule can be added, moved to another active category or removed;
+  matching ignores case and repeated spaces only, and the screen says so instead of presenting
+  prefix or wildcard patterns the data layer cannot match.
+- **Settings** is a navigation hub, not a form stack. It keeps language and appearance on the hub
+  and opens focused children for **Bank notifications**, **Provider & model**, **Skills & history**
+  and **Privacy & retention**. Advanced controls and destructive actions live in those children.
+- **Bank notifications** shows the system access grant, live listener binding, allowlist size,
+  drafts waiting and intake diagnostics, with one primary action to open the system access page.
+  The allowlist takes exact package names, refuses display names, confirms removal, and never shows
+  notification content. Reconnect and restricted-settings guidance remain secondary.
+- **Provider & model** manages multiple encrypted profiles. One screen covers protocol, preset,
+  profile name, HTTPS endpoint, model, credential, optional output limit, reasoning budget and
+  parallel tool calls. The connection is tested before a profile is saved; a failed or offline
+  test keeps every typed value and changes no profile. Editing can keep the stored credential by
+  leaving the field blank, the credential is never rendered, and deleting a profile requires a
+  separate confirmation.
+- **Skills & history** reports the bundled assistant workflows with their versions and the durable
+  conversations stored on the device, and links back to AI Chat. **Privacy & retention** states
+  local storage, Keystore-encrypted provider profiles, the hosted-request/masking boundary and what
+  is retained. This release has no backup, restore or cache-clear control; those remain Sprint 11
+  obligations rather than fake working buttons.
+- All four children and the category/rule tabs are available in English and Vietnamese. Local
+  category, rule and bank configuration remains usable offline. The category/rule tabs and the
+  provider form were exercised at 1.5× text with the keyboard open; the provider save action
+  stayed reachable above the IME.
+
+### Sprint 10 — S10.7 focused manual recording and record correction
+
+- **Manual record** (Home, Ledger's add action, a saved note, or the record form reached from a
+  note/AI event) is now one focused form with one primary action: **Save to ledger**. The exact
+  amount is the hero field with its written-out reading, the type is one segmented choice
+  (expense, income, internal transfer), and the category is a quick tile grid with a full
+  category sheet. No second Save, confirmation or competing filled action exists on the form.
+- Date and time open their own sheet in the device's time zone, the memo stays on the device with
+  the record, and an optional saved note is chosen from a focused sheet that prefills its amount,
+  moment and text. Saving from a note resolves that note so a later bank notification cannot
+  record the same occurrence again.
+- **Edit transaction** uses the same form, prefilled from the stored row. One Save changes exactly
+  the user-editable amount, type, moment, memo and category on the same record; the id, creation
+  time, confirmation and provenance are kept. A storage or revision refusal says what happened,
+  keeps every typed value and lets Save be pressed again instead of overwriting a record that
+  moved elsewhere.
+- Archived categories are no longer offered for a new assignment; a record that already carries
+  an archived category keeps it, visibly marked, unless the user chooses another. Amount input is
+  whole-dong digits only, and leaving with unsaved edits still asks before discarding. No record
+  is written by closing, Back, Cancel or a discarded form, and the duplicate-tap guard writes one
+  record per Save.
+- The form works offline against the local database and displays in English or Vietnamese. The
+  amount, category, moment and source sheets stay above the keyboard and system insets, and the
+  single Save bar remains reachable at larger text sizes without clipping the type labels.
+
+### Sprint 10 — S10.6 focused draft inbox and review confirmation
+
+- **Review** is now a focused inbox. Draft cards show the bank, stated amount and moment, memo,
+  category state and any unresolved reason, and are grouped as **Needs your decision** (possible
+  duplicate, undecided note link, unsupported format or bank data that needs attention),
+  **Needs a category**, and **Ready to confirm**. The chosen order, bounded page and scroll
+  position survive opening a draft and coming Back.
+- Opening a card is a separate screen for one draft. It shows the digital receipt, the parsed bank
+  evidence kept on the device (the raw notification body is not stored), the possible-duplicate
+  family, the applied category and whether the user chose it or the hosted model suggested it,
+  focused amount/date/time/description/type edits, and the linked saved-note excerpts.
+- The category picker, note **Attach**, **Refuse**, **Unlink**, and **Save corrections** change
+  only the draft or its link rows; none of them moves a confirmed total.
+- **Confirm and add to ledger** is the one primary action. It first names the exact values it
+  would write; if the draft or the fields moved after that preview, the preview is marked stale
+  and Confirm is withheld until the user checks the current values. Confirming writes one linked
+  ledger record with the exact amount, and **Dismiss** writes no record.
+- A secondary action opens **AI Chat** with the draft's evidence attached as visible, removable
+  context; nothing is sent until the user sends a message, and the assistant cannot confirm a
+  draft.
+- The inbox and detail handle empty, loading, read-error, missing, already-confirmed and
+  already-dismissed drafts truthfully, work offline against the local database, and display in
+  English or Vietnamese at larger text sizes with the keyboard and system insets applied.
+
+### Sprint 10 — S10.5 dedicated streaming AI Chat, history and link interaction
+
+- **AI Chat** is now a dedicated conversation screen with one primary action. While idle it sends
+  the typed request; while a reply is arriving it offers **Stop**. Waiting, streaming, working,
+  completed, stopped and failed states are visible, and the assistant text appears as the provider
+  route delivers it instead of after the whole answer.
+- **Stop** keeps the partial answer already received, ends the run durably as stopped and allows
+  the next message immediately. No chunk received after Stop is appended, and stored effects from
+  the ended run are never claimed as rolled back.
+- **History** is a sheet over the durable run rows: each row shows the request's own title, the
+  local time and a lifecycle word (completed, stopped, failed, needs answer, interrupted). Opening
+  one replaces the transcript with that stored conversation; it never resumes a provider run or
+  adds a second copy of a turn. After recreation the newest durable conversation is re-read the
+  same way, and a run left running is shown as interrupted.
+- The conversation follows new text only while the reader is at the bottom. Scrolling up pauses
+  the follow, and a labelled **Jump to latest** action returns to the newest turn. The multiline
+  composer, Send/Stop and transcript stay above the keyboard and system insets.
+- A note handed over from **Notes** is a visible, removable attached context. It is checked against
+  the stored note before sending; a changed or deleted note blocks the send until the user removes
+  it or explicitly uses the current text. Nothing is sent by attaching a note.
+- With no configured provider or no validated network, Chat explains the state and cannot send.
+  Provider configuration opens as a focused child screen and Back returns to the conversation.
+  Provider failure keeps the typed and received text, explains the failure and offers only the
+  retry the app can actually perform.
+- When a run settles, its verified effects appear as in-conversation cards: a note reading with
+  its source excerpt and revision, a bank-draft link with the draft amount and evidence, a saved
+  category, or a replay receipt. Link cards offer explicit **Attach draft**, **Reject** and
+  **Unlink draft** actions; each re-reads the stored row, applies the current revision, reports a
+  concurrent change instead of overwriting it, and never confirms a draft or changes the ledger.
+  A question the assistant asks appears as one clarification card with one answer field and
+  **Continue**; an expired question says so instead of resuming a run.
+- Chat conversation, clarification, outcome and link-card text and states are available in English
+  and Vietnamese; the screen uses the shared theme, type scale, 48dp controls, safe insets and
+  non-colour lifecycle words.
+- Assistant replies display the provider's headings, **bold** emphasis, bullet markers and inline
+  code as readable conversation formatting instead of raw Markdown punctuation. Plain words,
+  exact amounts and every other delivered character are unchanged; a marker that is still
+  arriving is held out of the visible text until its closing marker arrives.
+- A reply, restored turn or history title that quotes an internal masking token now shows "a
+  masked value" in the conversation instead of the opaque token encoding. The stored answer and
+  the masking boundary are unchanged; no value is revealed.
+
+### Sprint 10 — S10.4 local notes, saved-note browsing and detail editing
+
+- **Notes** is now a focused local note journal. The composer has one primary action, **Save
+  note**, which writes the text on this device with immediate in-page feedback; no hosted request
+  starts and no ledger record is created. A failed save keeps the typed text and offers the same
+  request again, and clearing an unsaved draft asks first.
+- Saved notes are a chronological, paged list with each note's saved moment and a plain summary of
+  its details and bank links. Opening a note shows a focused saved-note screen with the full text,
+  its saved time and source, the details read from it, **Discuss with AI**, **Record a
+  transaction**, and the guarded **Edit note**/**Delete note** actions.
+- Editing a note, adding or editing a detail, choosing a pending bank notification and the manual
+  form each open a focused child screen or sheet instead of stacking forms under the composer. A
+  note can hold multiple details; each is opened, edited, linked or recorded on its own. A new
+  detail must name an exact, unique excerpt of the current note, so every reading still traces back
+  to the text it came from.
+- **Discuss with AI** hands the saved note to the separate **AI Chat** destination as a visible,
+  removable attached-note card. Nothing is sent until the user starts a request; the attached note
+  is included only while the card is attached, and removing it leaves the next request exactly as
+  typed. A note that changed while its editor was open keeps the typed text and reports the
+  conflict; reloading the stored note or detail is an explicit, confirmed choice. Deleting a note
+  keeps the existing source policy: derived details and links awaiting review are cleared while
+  refusals and links to confirmed records stay, and no ledger record changes.
+- The owned screens use plain English/Vietnamese copy without database, token or debug wording, and
+  keep their actions reachable at larger text, with the keyboard and system insets, and with 48dp
+  minimum targets.
+- Verified with 608 host tests (0 failures, 3 skipped), 9/9 app-scoped phone checks at 1.5× in
+  English/Vietnamese/light/dark, and a production-phone walkthrough with real force-stop restarts:
+  the saved note, its edit and two independent details persisted; the visible attached-note card
+  was removable with no send and no hosted run; the manual route stayed separate; and the owned
+  note was deleted through the guarded UI with production counts reconciled. No push.
+- Independent round-2 evidence PASS and Bronze checkpoint `22c0415` complete, exactly 13
+  source/test paths; no push. Worker and reviewer personally opened native captures against the
+  approved design and final focused-screen contract. Fixed a proposed-link chooser dead end;
+  runtime proof covers propose → attach → unlink → reject and preserved refusal. Mixed docs and
+  evidence remain local outside the source checkpoint.
+
+### Sprint 10 — S10.3 focused Home, reports and ledger browsing
+
+- Home is now a compact task launcher: a time-of-day greeting, a Review bell with its waiting
+  count, one exact current-month spending glance with a privacy toggle and a direct Reports route,
+  and the eight labelled launchers sitting directly on the surface. The old dashboard cards, recent
+  record feed, warning block and duplicate shortcuts are gone from Home.
+- Reports is a focused analytics screen: month chevrons and a custom inclusive calendar range, exact
+  confirmed spending, confirmed income, net cash flow and internal-transfer figures that are never
+  mixed, a proportional category breakdown whose rows open their own confirmed spending records, and
+  a daily spending chart with a text-list alternative. Unconfirmed drafts are in no figure, and a
+  refused or reversed range reads none.
+- Ledger browsing gains literal description search alongside the type, category and date filters,
+  device-local day grouping and the paged read. The current page is kept while opening a record, and
+  a drill-down from reports carries its own period/category snapshot so Back returns to the same
+  figures and position.
+- The transaction receipt shows the exact signed amount, status, category, device-local moment,
+  provenance, note and record id, with Edit and a guarded Delete anchored at the bottom. A record
+  that changed elsewhere reports the conflict and reloads instead of deleting an unseen row.
+- English/Vietnamese and light/dark now cover Home, Reports, Ledger and the receipt. Report and
+  filter state is kept while the app is open and across activity recreation; it is never written to
+  the ledger.
+- Independent round-2 evidence PASS and Bronze checkpoint `f52d251` complete (24 source/test paths,
+  three retired screens deleted), no push. Fixed observed amount-digit wrapping, compressed ledger
+  metadata and large-text receipt actions. Physical phone proof covers exact totals/draft exclusion,
+  drill/Back, search/filter, guarded actions and EN/VI/themes; host 605 tests/0 failures/3 skips,
+  S10.3 native 8/8 plus shell 2/2 and settings/chat smoke 1/1. Read-error recovery used isolated
+  in-memory storage failure; 501-row pagination used app-scoped in-memory data. Production fixtures
+  cleaned and original counts restored. System network toggle and forced process death were not
+  exercised. Mixed documentation/evidence remain local outside the source checkpoint.
+
+### Sprint 10 — S10.2 navigation shell and design system
+
+- Replaced the four-destination shell with five root destinations: **Home**, **Ledger**,
+  **Notes**, **AI Chat** and **Review**. Home is a task launcher with labelled icons for Ledger,
+  Analytics, Notes, AI Chat, Review, Manual record, Categories & rules and Settings.
+- Notes and AI Chat are separate destinations. Saving a note stays local and never starts a hosted
+  run; the conversation keeps its existing hosted-agent behaviour and its in-flight state across
+  tab switches.
+- Focused child screens (record form, receipt detail, draft detail, settings children) hide the
+  bottom bar, and Back returns to the exact parent with its filters, page and form input intact.
+  Activity recreation was verified to restore the destination and unsaved input; process death was
+  not forced. Leaving the record form with unsaved edits now asks before discarding them.
+- Added the shared mobile design system: light/dark/system theme, type scale with tabular figures,
+  exact `₫` amount presentation with masking, vector icons, labelled feature launchers, status
+  chips with non-colour cues, setting rows, bottom-sheet choices and the discard guard.
+- Added an English/Vietnamese interface choice and an appearance choice in **Settings**. The shell
+  and shared primitives are translated; individual feature screens keep their current copy until
+  their own redesign task.
+- The former Manual hub is retired: its record, ledger and category actions are reachable from
+  Home, the Ledger tab and the record form. The reports view is now Home's Analytics destination.
+  No financial, provenance, consent or masking behaviour changed.
+- Independent evidence and committed-representation reviews passed; Bronze checkpoint `ddaa816`
+  contains 36 reviewed paths, with only standard Git CRLF→LF normalization. Native phone proof,
+  595 host tests (0 failures, 3 skipped), recreation/1.5× instrumentation and a provider-free
+  selector smoke were exercised. Full opt-in S99 provider flows were not run. No push; S10.3
+  is not started, and the feature-screen redesign/streaming implementation remains later work.
+
+### Sprint 10 — S10.1 design accepted
+
+- Completed mobile UI/UX research, capability/screen mapping, design specifications and an
+  interactive synthetic prototype. Owner approved the refined single-task-per-screen direction.
+- Home is a focused task launcher; local quick notes and the dedicated streaming AI Chat screen
+  are separate. Prototype walkthroughs verified incremental replies, Stop without late chunks,
+  conversation history loading, context handoff, offline feedback and safe re-entry.
+- Independent design and packaging evidence gates passed. Exact 45-path checkpoint: `095a098`.
+  Native Android UI and provider-streaming implementation remain unchanged; S10.2 is not started.
+- Aligned S10.2–S10.10 implementation backlog to the approved S10.1 screen/route/state contracts,
+  task dependencies and native-phone acceptance evidence. Clarified precedence over historical
+  navigation/token-document examples; the reviewed design snapshot and production code are unchanged.
+
+### Roadmap re-plan
+
+- Owner replaced the planned Sprint 10 with a complete mobile UI/UX redesign, not a theme refresh.
+- S10.1 researches MoMo, VietinBank iPay and other mobile products and delivers a full navigation,
+  screen/state design and prototype before implementation; labelled feature icons open focused screens.
+- The former Sprint 10 recovery/privacy/private-release tasks move intact to Sprint 11 as
+  S11.1–S11.10. Both sprints are planned, not started; no UI implementation or completed research is claimed.
+
 ### Sprint 9 closure
 
 - Owner accepted Sprint 9 after hands-on use. All S9.1–S9.9 evidence gates and exact-snapshot

@@ -1,0 +1,195 @@
+# S10.4 native device walkthrough state index
+
+Each line names the captured state, its purpose and the visible app text/content descriptions at
+that moment. Matching .xml holds the full uiautomator tree; the .png is local-only under the
+artifacts PNG ignore policy. Captures are from the installed production package
+io.github.triet4p.aegisf (install -r, data preserved), HONOR ALT-LX2, 720x1610, density 320,
+system dark, system font scale 1.0. Restart states are real force-stop/relaunch cycles.
+
+## 000-home
+Home context before entering Notes (S10.3-owned).
+Spending this month | 0 ₫ | Hide amounts | Analytics | What would you like to do? | Open Ledger | Ledger | Open Analytics | Open Notes | Notes | Open AI Chat | AI Chat | Open Review | 6 | Review | Open Manual record | Manual record | Open Categories & rules | Categories & rules | Open Settings | Settings | Good afternoon | Review, 6 waiting | Home
+
+## 010-notes-root-empty-en-dark-1.0
+Production Notes root: focused local composer, Saved notes entry, empty draft.
+QUICK NOTE | Note text | Saved on this device · Works offline · Instant | Save note | Saved notes | See every note saved on this device. | Notes | Home | Ledger | AI Chat | Review, 6 waiting | 6 | Review
+
+## 011-saved-notes-empty-en-dark-1.0
+Saved notes browse child with no active user notes.
+No saved notes yet | Notes you save on this device appear here. Save one from the Notes screen. | Back | Saved notes
+
+## 012-notes-composer-ime-en-dark-1.0
+Long note draft with software keyboard open; Save stays above the IME.
+QUICK NOTE | S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end | Note text | Saved on this device · Works offline · Instant | Save note | Clear draft | Saved notes | Notes | Home | Ledger | AI Chat | Review, 6 waiting | 6 | Review
+
+## 013-notes-root-draft-preserved-en-dark-1.0
+Draft preserved after opening Saved notes child and returning.
+QUICK NOTE | S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end | Note text | Saved on this device · Works offline · Instant | Save note | Clear draft | Saved notes | See every note saved on this device. | Notes | Home | Ledger | AI Chat | Review, 6 waiting | 6 | Review
+
+## 014-notes-root-saved-en-dark-1.0
+Local save completed; success feedback; note starts no hosted run.
+QUICK NOTE | Note text | Saved on this device · Works offline · Instant | Save note | Saved on this device. | Saved notes | See every note saved on this device. | Notes | Home | Ledger | AI Chat | Review, 6 waiting | 6 | Review
+
+## 015-saved-notes-one-en-dark-1.0
+Browse list shows the saved note with saved moment and summary.
+1 note | Open saved note: S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end | S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end | Monday, 9 Nov 2026 · 16:44 | Back | Saved notes
+
+## 016-note-detail-en-dark-1.0
+Selected-note detail: text, source, saved moment, AI handoff, manual route, details, Edit/Delete.
+S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end | Source: Written on this device | Recorded: Monday, 9 Nov 2026 · 16:44 | Discuss with AI | Opens AI Chat with this note attached. Nothing is sent until you send it. | Record a transaction | Details from this note | Add detail | No details yet. Add what the note says happened so you can match it with a bank notification or record it. | Back | Sav
+
+## 017-note-edit-en-dark-1.0
+Focused note editor; one Save action and consequence copy.
+S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end | Note text | Saving new text clears the details read from the old text and the links still waiting for review. Ledger records do not change. | Back | Edit saved note | Save changes
+
+## 017b-note-edit-ime-en-dark-1.0
+Editor with IME open; Save changes remains reachable above the keyboard.
+S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | Note text | Saving new text clears the details read from the old text and the links still waiting for review. Ledger records do not change. | Back | Edit saved note | Save changes
+
+## 018-note-edited-en-dark-1.0
+Edit saved with confirmation; detail reread the stored text.
+Changes saved on this device. | Close | S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | Source: Written on this device | Recorded: Monday, 9 Nov 2026 · 16:44 | Discuss with AI | Opens AI Chat with this note attached. Nothing is sent until you send it. | Record a transaction | Details from this note | Add detail | No details yet. Add what the note says happened so you can match it with
+
+## 019-note-after-restart-edited-en-dark-1.0
+Actual force-stop/relaunch: edited note text persisted.
+S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | Source: Written on this device | Recorded: Monday, 9 Nov 2026 · 16:44 | Discuss with AI | Opens AI Chat with this note attached. Nothing is sent until you send it. | Record a transaction | Details from this note | Add detail | No details yet. Add what the note says happened so you can match it with a bank notification or record it. | Bac
+
+## 020-add-detail-en-dark-1.0
+Focused Add detail child with neutral optional-amount hint, no premature error.
+Note text | S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | Exact text from the note | Choose a phrase that appears once in the note. | What happened | Describe only what this text says. No match is chosen automatically. | Amount in VND (optional) | Add an amount, or explain what is missing. | Where (optional) | Date in the note (optional) | YYYY-MM-DD | Back | Add detail | Save detai
+
+## 021a-add-detail-corrected-excerpt-en-dark-1.0
+Exact unique source excerpt selected for the detail.
+Note text | S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | taxi 120k | Exact text from the note | Choose a phrase that appears once in the note. | What happened | Describe only what this text says. No match is chosen automatically. | Amount in VND (optional) | Add an amount, or explain what is missing. | Where (optional) | Date in the note (optional) | YYYY-MM-DD | Back | Add detail 
+
+## 021b-add-detail-complete-en-dark-1.0
+Excerpt, reading and exact amount complete; Save detail enabled.
+S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | taxi 120k | Exact text from the note | Choose a phrase that appears once in the note. | What happened | Describe only what this text says. No match is chosen automatically. | 120000 | Amount in VND (optional) | Where (optional) | Date in the note (optional) | YYYY-MM-DD | Time in the note (optional) | HH:mm | Back | Add detail | Save det
+
+## 022-note-one-detail-en-dark-1.0
+First detail saved and visible with its exact amount; full source policy preserved.
+Detail saved. | Close | S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | Source: Written on this device | Recorded: Monday, 9 Nov 2026 · 16:44 | 1 detail | Discuss with AI | Opens AI Chat with this note attached. Nothing is sent until you send it. | Record a transaction | Details from this note | Add detail | What it says: taxi 120k. Ready | taxi 120k | 120,000 ₫ | Ready | Back | Saved
+
+## 023-note-after-restart-one-detail-en-dark-1.0
+Actual force-stop/relaunch: saved detail persisted.
+S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | Source: Written on this device | Recorded: Monday, 9 Nov 2026 · 16:44 | 1 detail | Discuss with AI | Opens AI Chat with this note attached. Nothing is sent until you send it. | Record a transaction | Details from this note | Add detail | What it says: taxi 120k. Ready | taxi 120k | 120,000 ₫ | Ready | Back | Saved note | Edit note | Dele
+
+## 023b-note-one-detail-en-dark-1.0
+Detail reopened before the second detail.
+S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | Source: Written on this device | Recorded: Monday, 9 Nov 2026 · 16:44 | 1 detail | Discuss with AI | Opens AI Chat with this note attached. Nothing is sent until you send it. | Record a transaction | Details from this note | Add detail | What it says: taxi 120k. Ready | taxi 120k | 120,000 ₫ | Ready | Back | Saved note | Edit note | Dele
+
+## 024-second-add-detail-en-dark-1.0
+Second independent Add detail child.
+Note text | S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | Exact text from the note | Choose a phrase that appears once in the note. | What happened | Describe only what this text says. No match is chosen automatically. | Amount in VND (optional) | Add an amount, or explain what is missing. | Where (optional) | Date in the note (optional) | YYYY-MM-DD | Back | Add detail | Save detai
+
+## 024b-second-detail-state-en-dark-1.0
+Browse state before entering the second detail.
+1 note | Open saved note: S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | Monday, 9 Nov 2026 · 16:44 | 1 detail | Back | Saved notes
+
+## 025-second-detail-excerpt-en-dark-1.0
+Second exact excerpt selected; reading auto-filled.
+Note text | S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | coffee 45k | Exact text from the note | Choose a phrase that appears once in the note. | What happened | Describe only what this text says. No match is chosen automatically. | Amount in VND (optional) | Back | Add detail | Save detail
+
+## 026-second-detail-complete-en-dark-1.0
+Second detail complete with amount before save.
+S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | coffee 45k | Exact text from the note | Choose a phrase that appears once in the note. | What happened | Describe only what this text says. No match is chosen automatically. | 45000 | Amount in VND (optional) | Where (optional) | Date in the note (optional) | YYYY-MM-DD | Time in the note (optional) | HH:mm | Back | Add detail | Save det
+
+## 027-note-two-details-en-dark-1.0
+Two independent details on one note.
+Detail saved. | Close | S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | Source: Written on this device | Recorded: Monday, 9 Nov 2026 · 16:44 | 2 details | Discuss with AI | Opens AI Chat with this note attached. Nothing is sent until you send it. | Record a transaction | Details from this note | Add detail | What it says: taxi 120k. Ready | taxi 120k | 120,000 ₫ | Ready | What it say
+
+## 028-note-two-details-after-restart-scrolled-en-dark-1.0
+Actual force-stop/relaunch: both details and exact amounts persisted.
+S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | Source: Written on this device | Recorded: Monday, 9 Nov 2026 · 16:44 | 2 details | Discuss with AI | Opens AI Chat with this note attached. Nothing is sent until you send it. | Record a transaction | Details from this note | Add detail | What it says: taxi 120k. Ready | taxi 120k | 120,000 ₫ | Ready | What it says: coffee 45k. Ready | c
+
+## 029-event-detail-coffee-en-dark-1.0
+Independent second detail opened with its own source excerpt.
+Note text | S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | Exact text from the note | coffee 45k | The text this detail came from stays fixed. | What happened | Describe only what this text says. No match is chosen automatically. | 45000 | Amount in VND (optional) | Where (optional) | Date in the note (optional) | YYYY-MM-DD | Back | Edit detail | Save detail
+
+## 030-event-detail-lower-en-dark-1.0
+Link section and manual handoff on one detail.
+Time in the note (optional) | HH:mm | End date (optional) | End time (optional) | What is missing (optional) | Bank notification | Linking never confirms a bank notification and never changes the ledger. | No bank notification is linked or suggested for this detail. | Choose a pending bank notification | Record a transaction | Back | Edit detail | Save detail
+
+## 031-manual-handoff-en-dark-1.0
+Existing manual form prefilled from the detail; nothing written yet.
+Record what happened in exact whole dong. Nothing is stored until you save. | 45000 | Amount (VND) | Saves as 45,000 VND | Type | Income | Internal transfer | Expense | Money leaving · counted as spending after save | 2026-11-09 | Date | 16:57 | Time | Dates and times use your device's time zone. | coffee 45k | Description (optional) | Select category (optional) | Record from a saved note | Back | NEW TRANSACTION
+
+## 033-chat-attached-note-en-dark-1.0
+Explicit AI handoff: visible attached-note card in Chat; no run started.
+Attached note | S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | This text is included when you send. Nothing has been sent. | Remove attached note | HOSTED AGENT · NOT CONFIGURED | Hosted requests require internet access and send locally masked context to the selected endpoint. Masking is not anonymity; remaining context may still identify you. Check the endpoint and provider terms be
+
+## 034-chat-context-removed-en-dark-1.0
+Attached note removed; nothing sent and no run started.
+HOSTED AGENT · NOT CONFIGURED | Hosted requests require internet access and send locally masked context to the selected endpoint. Masking is not anonymity; remaining context may still identify you. Check the endpoint and provider terms before sending. Without an active provider, Chat remains a local note journal; manual entry and intake work offline. | ASK THE HOSTED AGENT | Choose its allowed workflow skills. Only v
+
+## 035-home-context-en-dark-1.0
+Home route used to reach Settings for the language/theme checks.
+Spending this month | 0 ₫ | Hide amounts | Analytics | What would you like to do? | Open Ledger | Ledger | Open Analytics | Open Notes | Notes | Open AI Chat | AI Chat | Open Review | 6 | Review | Open Manual record | Manual record | Open Categories & rules | Categories & rules | Open Settings | Settings | Good afternoon | Review, 6 waiting | Home
+
+## 036-settings-en-dark-1.0
+Settings hub before language change.
+PREFERENCES | Language | English | Appearance | System | CONFIGURATION | Bank notification settings | Choose which bank apps may become reviewable drafts. Manual recording works with or without it. | Hosted provider settings | Choose a provider, endpoint, model and credential. Hosted requests need network access and send locally masked context. | Back | Settings
+
+## 037-language-sheet-en-dark-1.0
+Language sheet selecting Vietnamese.
+Đóng trang tính | Nút kéo | Interface language | English | Tiếng Việt
+
+## 039-note-detail-vi-dark-1.0
+Vietnamese note detail with two details, amounts and destructive action.
+S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | Nguồn: Viết trên thiết bị này | Đã ghi: Thứ Hai, 09/11/2026 · 16:44 | 2 chi tiết | Thảo luận với Trợ lý AI | Mở Trợ lý AI với ghi chú này được đính kèm. Chưa có gì được gửi cho đến khi bạn gửi. | Ghi giao dịch | Chi tiết từ ghi chú | Thêm chi tiết | Nội dung ghi: taxi 120k. Đã đủ thông tin | taxi 120k | 120,000 ₫ | Đã đủ thông tin | Nội 
+
+## 040-saved-notes-vi-dark-1.0
+Vietnamese saved notes browse.
+1 ghi chú | Mở ghi chú đã lưu: S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | Thứ Hai, 09/11/2026 · 16:44 | 2 chi tiết | Quay lại | Ghi chú đã lưu
+
+## 041-notes-root-vi-dark-1.0
+Vietnamese focused Notes root.
+GHI CHÚ NHANH | Nội dung ghi chú | Lưu trên thiết bị · Không cần mạng · Tức thì | Lưu ghi chú | Ghi chú đã lưu | Xem mọi ghi chú đã lưu trên thiết bị. | Ghi chép | Trang chủ | Sổ quỹ | Trợ lý AI | Duyệt tin, 6 đang chờ | 6 | Duyệt tin
+
+## 042-language-sheet-vi-dark-1.0
+Language sheet while the interface is Vietnamese.
+Đóng trang tính | Nút kéo | Ngôn ngữ giao diện | English | Tiếng Việt
+
+## 043-appearance-sheet-en-dark-1.0
+Appearance sheet selecting Light.
+Đóng trang tính | Nút kéo | Appearance | System | Light | Dark
+
+## 044-notes-root-en-light-1.0
+English light-theme Notes root.
+QUICK NOTE | Note text | Saved on this device · Works offline · Instant | Save note | Saved notes | See every note saved on this device. | Notes | Home | Ledger | AI Chat | Review, 6 waiting | 6 | Review
+
+## 045-saved-notes-en-light-1.0
+English light-theme saved notes list.
+1 note | Open saved note: S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | Monday, 9 Nov 2026 · 16:44 | 2 details | Back | Saved notes
+
+## 046-note-detail-en-light-1.0
+English light-theme note detail.
+S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | Source: Written on this device | Recorded: Monday, 9 Nov 2026 · 16:44 | 2 details | Discuss with AI | Opens AI Chat with this note attached. Nothing is sent until you send it. | Record a transaction | Details from this note | Add detail | What it says: taxi 120k. Ready | taxi 120k | 120,000 ₫ | Ready | What it says: coffee 45k. Ready | c
+
+## 047-delete-confirm-en-light-1.0
+Delete confirmation names the note and consequence; pre-red-confirm capture.
+Delete this note? | S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | This removes the note and its details from this device. This cannot be undone. | Editing or deleting this note also clears the details read from the old text and removes links to bank notifications still waiting for review. A refusal you already made and a link to a confirmed record stay. Your saved ledger records do 
+
+## 048-delete-confirm-red-en-light-1.0
+Final destructive confirmation with red Delete note action.
+Delete this note? | S104 UNIQUE NOTE LONG TEXT lunch 65k taxi 120k coffee 45k water 10k end edited | This removes the note and its details from this device. This cannot be undone. | Editing or deleting this note also clears the details read from the old text and removes links to bank notifications still waiting for review. A refusal you already made and a link to a confirmed record stay. Your saved ledger records do 
+
+## 049-saved-notes-empty-after-delete-en-light-1.0
+Owned production note deleted through UI; empty list and completion feedback.
+Note deleted from this device. | Close | No saved notes yet | Notes you save on this device appear here. Save one from the Notes screen. | Back | Saved notes
+
+## 050a-appearance-sheet-en-light-1.0
+Appearance sheet restoring System theme.
+Đóng trang tính | Nút kéo | Appearance | System | Light | Dark
+
+## 051-notes-root-after-cleanup-en-dark-1.0
+Post-cleanup root in restored system dark theme; no active notes.
+QUICK NOTE | Note text | Saved on this device · Works offline · Instant | Save note | Saved notes | See every note saved on this device. | Notes | Home | Ledger | AI Chat | Review, 6 waiting | 6 | Review
+
+## 032-after-manual-back-en-dark-1.0
+Back from the existing manual form returned to the selected detail; no financial change.
+(Visible state: Edit detail with the bank notification/manual section and Save detail.)
+
+## 050-appearance-sheet-en-light-1.0
+Appearance sheet opened to restore System after the light-theme captures.
+(Visible state: Appearance with System/Light/Dark choices.)
