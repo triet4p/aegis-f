@@ -244,7 +244,7 @@ class WorkflowRunHost(
             "The privacy boundary belongs to a different trusted session."
         }
         require(declarations.map(HostedToolDeclaration::name).toSet() == AgentInterface.TOOL_NAMES) {
-            "The run needs exactly the closed eleven-tool agent catalog."
+            "The run needs exactly the closed agent tool catalog."
         }
     }
 

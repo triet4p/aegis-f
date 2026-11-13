@@ -24,6 +24,14 @@ enum class IssuedValueShape(val wire: String) {
  */
 data class IssuedMaskToken(val token: String, val shape: IssuedValueShape)
 
+/**
+ * The calendar components one date token names, with an unresolved year kept explicit.
+ *
+ * A `null` [year] is the token's own "no year was stated", not a missing read: it is what lets
+ * a caller decide which trusted chronology may resolve the day without the vault borrowing one.
+ */
+data class IssuedMaskDateParts(val year: Int?, val month: Int, val day: Int)
+
 /** Masking refused to produce outbound text; no request was emitted. The reason names no raw value. */
 class MaskingBlockedException(message: String) : IllegalStateException(message)
 
@@ -197,6 +205,46 @@ class SensitiveVault(
             throw TokenValidationException("the selected value is not a wall-clock time")
         }
         return canonical
+    }
+
+    /**
+     * The stored calendar components a date token names, keeping an unstated year as `null`.
+     *
+     * This is a read, not a resolution: it never supplies a year the value did not state, so a
+     * caller that needs one must choose the trusted chronology itself. A value that is not a
+     * calendar date (an amount, a time, a year-only answer) returns null.
+     */
+    fun dateParts(token: String): IssuedMaskDateParts? {
+        val canonical = validatedEntry(token).canonical
+        ISO_DATE_FULL.matchEntire(canonical)?.let { match ->
+            return IssuedMaskDateParts(
+                year = match.groupValues[1].toIntOrNull() ?: return null,
+                month = match.groupValues[2].toIntOrNull() ?: return null,
+                day = match.groupValues[3].toIntOrNull() ?: return null,
+            )
+        }
+        YEARLESS_DATE_FULL.matchEntire(canonical)?.let { match ->
+            return IssuedMaskDateParts(
+                year = null,
+                month = match.groupValues[1].toIntOrNull() ?: return null,
+                day = match.groupValues[2].toIntOrNull() ?: return null,
+            )
+        }
+        return null
+    }
+
+    /**
+     * The four-digit calendar year a year-only answer token names, or a refusal.
+     *
+     * A year is not a date: it selects a chronology, never the day or month it applies to. The
+     * caller combines it with a day and month only when that day/month is itself grounded.
+     */
+    fun parseYear(token: String): Int {
+        val canonical = validatedEntry(token).canonical
+        val match = YEAR_ONLY_FULL.matchEntire(canonical)
+            ?: throw TokenValidationException("the selected value is not a four-digit year")
+        return match.groupValues[1].toIntOrNull()
+            ?: throw TokenValidationException("the selected value is not a four-digit year")
     }
 
     /** Whether [token] was minted by this vault; used to tell unknown tokens from foreign ones. */
@@ -456,8 +504,9 @@ class SensitiveVault(
         private val SLASH_DATE_PATTERN = Regex("(?<![\\d/])(\\d{1,2})/(\\d{1,2})(?:/(\\d{4}))?(?![\\d/])")
         private val SLASH_DATE_FULL = Regex("^(\\d{1,2})/(\\d{1,2})/(\\d{4})$")
         private val SLASH_DATE_PARTIAL = Regex("^(\\d{1,2})/(\\d{1,2})$")
-        private val ISO_DATE_FULL = Regex("^\\d{4}-\\d{2}-\\d{2}$")
+        private val ISO_DATE_FULL = Regex("^(\\d{4})-(\\d{2})-(\\d{2})$")
         private val YEARLESS_DATE_FULL = Regex("^\\?{4}-(\\d{2})-(\\d{2})$")
+        private val YEAR_ONLY_FULL = Regex("^(\\d{4})$")
         private val DATE_CUE_BEFORE =
             Regex("(?i)(?:ngày|ngay|hôm|hom|date|on)\\s*:?\\s*$")
         private val TIME_PATTERN = Regex("\\b(?:[01][0-9]|2[0-3]):[0-5][0-9]\\b")

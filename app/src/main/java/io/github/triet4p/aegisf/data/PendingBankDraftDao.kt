@@ -107,6 +107,26 @@ abstract class PendingBankDraftDao {
     @Query("SELECT * FROM pending_bank_drafts WHERE id = :id")
     abstract suspend fun findById(id: Long): PendingBankDraftEntity?
 
+    /**
+     * The granted pending drafts whose effective stated day is one of [dates].
+     *
+     * A user correction is the effective day, exactly as the app reads it elsewhere, so the
+     * stored row is narrowed by the same value the caller will compare and a bounded date search
+     * never has to page over rows outside its granted ids or its short day list.
+     */
+    @Query(
+        "SELECT * FROM pending_bank_drafts WHERE id IN (:draftIds) " +
+            "AND reviewStatus = :reviewStatus " +
+            "AND (CASE WHEN reviewDateText IS NOT NULL THEN reviewDateText ELSE statedDate END) IN (:dates) " +
+            "ORDER BY createdAtEpochMillis DESC, id DESC LIMIT :limit",
+    )
+    abstract suspend fun findPendingOnDates(
+        draftIds: List<Long>,
+        reviewStatus: String,
+        dates: List<String>,
+        limit: Int,
+    ): List<PendingBankDraftEntity>
+
     @Query("SELECT * FROM pending_bank_drafts ORDER BY createdAtEpochMillis DESC, id DESC")
     abstract suspend fun findAll(): List<PendingBankDraftEntity>
 

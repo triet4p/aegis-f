@@ -38,6 +38,7 @@ import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.data.categoryCatalogRevision
 import io.github.triet4p.aegisf.data.workingDescription
 import io.github.triet4p.aegisf.privacy.InboundScan
+import io.github.triet4p.aegisf.privacy.IssuedMaskDateParts
 import io.github.triet4p.aegisf.privacy.MaskedApplicationEffect
 import io.github.triet4p.aegisf.privacy.MaskedPath
 import io.github.triet4p.aegisf.privacy.MaskedPromptBoundary
@@ -55,17 +56,81 @@ data class AgentToolSession(
     val boundary: MaskedPromptBoundary,
     val registry: AgentReferenceRegistry,
     val clock: WorkflowRunClock = WorkflowRunClock { System.currentTimeMillis() },
+    /** The trusted device chronology fixed when this run was admitted. */
+    val runChronology: RunChronology = RunChronology.of(clock.nowMillis(), TimeZone.getDefault().id),
+) {
+    /**
+     * The chronology each clarification question was asked under, keyed by the subject handle.
+     *
+     * It is fixed once, when the question is raised, and read again when the answer arrives and
+     * on every continuation or retry of that same run. A `năm nay` answer therefore keeps the
+     * year it was answered in even if the exchange spans midnight on 31 December, and an old
+     * note's day is never reinterpreted against a newer clock.
+     */
+    val clarificationChronologies: MutableMap<String, ClarificationChronology> = mutableMapOf()
+}
+
+/**
+ * The trusted device chronology of one run: the local year and zone at admission.
+ *
+ * It is the only reference a *current* statement (`năm nay`, today) may use. A note's own
+ * chronology is read from the note itself and is never replaced by this one.
+ */
+data class RunChronology(
+    val year: Int,
+    val zoneId: String,
+) {
+    companion object {
+        fun of(instantEpochMillis: Long, timezoneId: String): RunChronology {
+            val zone = SpelledTemporalExpressions.trustZone(timezoneId)
+                ?: TimeZone.getDefault()
+            val calendar = Calendar.getInstance(zone).apply { timeInMillis = instantEpochMillis }
+            return RunChronology(calendar.get(Calendar.YEAR), zone.id)
+        }
+    }
+}
+
+/**
+ * Which trusted chronology resolved one temporal statement.
+ *
+ * The three are never interchangeable: a note's day word is resolved from the note's own
+ * recorded instant, an answer such as `năm nay` from the exchange's fixed answer time, and a
+ * `get_current_time` read from the device at that read. Nothing here ever borrows a year from
+ * another chronology, and the label travels with the reference so a continuation or retry
+ * reuses the same interpretation.
+ */
+enum class TemporalChronology(val wire: String) {
+    CAPTURE_CHRONOLOGY("capture-chronology"),
+    CLARIFICATION_ANSWER_TIME("clarification-answer-time"),
+    CURRENT_TIME("device-current-time"),
+
+    /** The value itself stated its year, so no chronology had to supply one. */
+    STATED_YEAR("stated-year"),
+}
+
+/**
+ * The chronologies a date clarification answer may be resolved against.
+ *
+ * [captureYear] is the note's own recorded local year; it is null when the capture records no
+ * usable instant or zone. [answerYear] is the device-local year fixed when the question was
+ * asked. A bare day/month resolves from the note's year when there is one, while an explicit
+ * `năm nay`-style answer resolves from the answer year, and the choice is always reported.
+ */
+data class ClarificationChronology(
+    val captureYear: Int?,
+    val answerYear: Int,
+    val zoneId: String,
 )
 
 /**
- * The one production implementation of the closed eleven-tool agent interface.
+ * The one production implementation of the closed agent tool interface.
  *
  * Every tool returns the shared [AgentEnvelope] result and, for settled mutations, a local
  * [AgentEffectClaim] the executor re-reads before the run may claim completion. The runtime
  * owns reference issuance/resolution, source mapping, atomic event recording, trusted link
  * inspection, the ordinary draft-review update that stores the hosted workflow's category
- * choice, and journal replay. It never widens scope, invents a value, runs SQL/shell/filesystem
- * work or writes a ledger row.
+ * choice, bounded data-first retrieval and journal replay. It never widens scope, invents a
+ * value, runs SQL/shell/filesystem work or writes a ledger row.
  */
 class AgentToolRuntime(
     private val commands: WorkflowCommandService,
@@ -150,6 +215,8 @@ class AgentToolRuntime(
                 "observe" -> observe(arguments)
                 "select_source" -> selectSource(arguments)
                 "list_drafts" -> listDrafts(arguments)
+                "get_current_time" -> getCurrentTime()
+                "find_candidates" -> findCandidates(arguments)
                 "make_time_anchor" -> makeTimeAnchor(arguments)
                 "record_event" -> recordEvent(arguments, operationKey)
                 "inspect_link" -> inspectLink(arguments)
@@ -339,6 +406,12 @@ class AgentToolRuntime(
             quote = quote,
             eventId = existing?.id,
         )
+        val spelledDates = spelledDateRefs(
+            capture = capture,
+            sourceKey = sourceRefKey(sourceStart, sourceEnd, capture.id),
+            quote = quote,
+            eventId = existing?.id,
+        )
         val anchors = existing?.let { event -> anchorsFor(event, capture.id, sourceRefKey(sourceStart, sourceEnd, capture.id)) }.orEmpty()
         val eventObservation = existing?.let { eventObservation(it) }
         // Selecting an occurrence that already has a verified reading is truthful evidence that
@@ -355,6 +428,7 @@ class AgentToolRuntime(
             .put("event", eventObservation ?: JSONObject.NULL)
             .put("values", JSONArray(values))
             .put("relative_dates", JSONArray(relativeDates))
+            .put("spelled_dates", JSONArray(spelledDates))
             .put("anchors", JSONArray(anchors))
         return AgentToolExecution(
             envelope = AgentEnvelope.ok(
@@ -469,6 +543,640 @@ class AgentToolRuntime(
             ),
         )
     }
+
+    // ---- get_current_time ----------------------------------------------------------------
+
+    /**
+     * Reads the trusted device-local current time, and nothing about the user's stored data.
+     *
+     * The observation carries calendar components rather than a rendered date string so the
+     * masking boundary never has to tokenize the very fact it is reporting: the model can state
+     * "today" without the host unmasking anything. The issued `today_ref` is a masked value
+     * alias bound to this read's own chronology, which is what lets a candidate search ask
+     * about today without the model supplying a raw date.
+     *
+     * This is the current time, not a note's chronology and not a bank transaction time. A note
+     * is always interpreted from its own recorded instant, never from this read.
+     */
+    private fun getCurrentTime(): AgentToolExecution {
+        val instant = session.clock.nowMillis()
+        // The zone is the trusted one this run was admitted in, not a fresh global read: the
+        // reported time and the run's chronology then always describe the same device zone.
+        val zoneId = session.runChronology.zoneId
+        val calendar = Calendar.getInstance(TimeZone.getTimeZone(zoneId)).apply { timeInMillis = instant }
+        val year = calendar.get(Calendar.YEAR)
+        val month = calendar.get(Calendar.MONTH) + 1
+        val day = calendar.get(Calendar.DAY_OF_MONTH)
+        val hour = calendar.get(Calendar.HOUR_OF_DAY)
+        val minute = calendar.get(Calendar.MINUTE)
+        val offsetMinutes =
+            (calendar.get(Calendar.ZONE_OFFSET) + calendar.get(Calendar.DST_OFFSET)) / 60_000
+        val todayRef = issueCurrentDateValue(year, month, day)
+        val data = JSONObject()
+            .put("kind", "current_time")
+            .put("local_date", JSONObject().put("year", year).put("month", month).put("day", day))
+            .put("local_time", JSONObject().put("hour", hour).put("minute", minute))
+            .put("weekday", weekdayName(calendar.get(Calendar.DAY_OF_WEEK)))
+            .put("timezone", zoneId)
+            .put("utc_offset_minutes", offsetMinutes)
+            .put("today_ref", todayRef ?: JSONObject.NULL)
+            .put(
+                "semantics",
+                "Device-local time read when this tool ran. It is the current-time reference only: " +
+                    "a saved note keeps its own recorded chronology, and a bank draft transaction " +
+                    "time is never derived from this read.",
+            )
+        return AgentToolExecution(AgentEnvelope.ok(tool = "get_current_time", data = data))
+    }
+
+    private fun issueCurrentDateValue(year: Int, month: Int, day: Int): String? {
+        val token = mintDateToken(year, month, day) ?: return null
+        val handle = registry.nextHandle()
+        return registry.issue(
+            AgentReference(
+                handle = handle,
+                kind = AgentReferenceKind.VALUE,
+                scopeId = scope.scopeId,
+                valueToken = token,
+                display = token,
+                linkedSubjectKey = "current-time:$year-$month-$day",
+                temporalChronology = TemporalChronology.CURRENT_TIME.wire,
+            ),
+        )
+    }
+
+    // ---- find_candidates -----------------------------------------------------------------
+
+    /**
+     * One bounded, read-only candidate search that does not need a grounded exact date.
+     *
+     * The criterion this implements is data-first clarification: a vague or year-less date must
+     * not stop the run from looking. The search reads only the session's already-granted rows,
+     * only the calendar days inside an explicit bound, and only the two kinds of stored evidence
+     * that carry a stated day — pending bank drafts and stored note readings. An unresolved year
+     * widens the search to at most two trusted chronologies (the note's own recorded year and
+     * the run's current year) instead of picking one, and the outcome reports which chronologies
+     * were used. It never writes, links, confirms or files anything, and no row here comes from
+     * model text.
+     */
+    private suspend fun findCandidates(arguments: JSONObject): AgentToolExecution {
+        val dateRef = registry.resolveAny(
+            arguments.getString("date_ref"),
+            setOf(AgentReferenceKind.VALUE, AgentReferenceKind.RELATIVE_DATE),
+            "$.date_ref",
+        )
+        val endRef = optionalReferenceAny(arguments, "end_date_ref", "$.end_date_ref")
+        val amountRef = optionalReference(arguments, "amount_ref", AgentReferenceKind.VALUE, "$.amount_ref")
+        val timeRef = optionalReference(arguments, "time_ref", AgentReferenceKind.VALUE, "$.time_ref")
+        val kinds = when (val raw = arguments.getString("kinds")) {
+            "DRAFTS" -> CandidateKinds.DRAFTS
+            "NOTES" -> CandidateKinds.NOTES
+            "BOTH" -> CandidateKinds.BOTH
+            else -> throw AgentToolException(
+                AgentErrorCode.SCHEMA_INVALID,
+                "$.kinds",
+                "enum",
+                JSONObject().put("enum", JSONArray(listOf("DRAFTS", "NOTES", "BOTH"))),
+                "Choose one declared candidate kind.",
+            )
+        }
+        val dayWindow = arguments.getInt("day_window")
+        if (listOfNotNull(amountRef, timeRef).any { !isGroundedValue(it) }) {
+            AgentErrorCode.REFERENCE_KIND_MISMATCH.asIssue(
+                "$.amount_ref",
+                "value_from_selected_occurrence",
+                "The comparison values must come from the selected occurrence or its linked clarification.",
+            )
+        }
+        listOfNotNull(amountRef, timeRef).forEach { component ->
+            // A current-time anchor is a device day, not a second occurrence, so occurrence
+            // evidence of one selected source may be compared with it. Every other anchor keeps
+            // the same-occurrence rule.
+            val currentTimeAnchor = dateRef.linkedSubjectKey?.startsWith("current-time:") == true
+            if (!currentTimeAnchor && !bindingCompatible(dateRef, component)) {
+                AgentErrorCode.REFERENCE_KIND_MISMATCH.asIssue(
+                    "$.date_ref",
+                    "same_occurrence_binding",
+                    "A comparison value came from another occurrence. Use values of the same selected source or its clarification.",
+                )
+            }
+        }
+        val anchorTime = timeRef?.let { parseTimeValue(it, "$.time_ref") }
+        val anchorAmount = amountRef?.let { reference ->
+            try {
+                boundary.vault.parseAmount(requireNotNull(reference.valueToken))
+            } catch (_: TokenValidationException) {
+                throw AgentToolException(
+                    AgentErrorCode.TEMPORAL_CONSTRAINT,
+                    "$.amount_ref",
+                    "selected_value_is_a_whole_dong_amount",
+                    message = "The selected value is not a whole-dong amount the host can read.",
+                )
+            }
+        }
+        val window = searchWindow(
+            dateRef = dateRef,
+            endRef = endRef,
+            dayWindow = dayWindow,
+        )
+        val drafts = if (kinds != CandidateKinds.NOTES) {
+            queries.pendingDraftsOnDates(
+                draftIds = scope.draftIds,
+                dates = window.days,
+                bounds = QueryPageRequest(MAX_OBSERVATION_ROWS, 0),
+            )
+        } else {
+            null
+        }
+        val notes = if (kinds != CandidateKinds.DRAFTS) {
+            queries.noteEventsByAnchorDates(
+                anchorDates = window.days,
+                captureIds = scope.captureIds,
+                bounds = QueryPageRequest(MAX_OBSERVATION_ROWS, 0),
+            )
+        } else {
+            null
+        }
+        val candidates = mutableListOf<SearchCandidate>()
+        drafts?.items?.forEach { draft ->
+            val date = effectiveCandidateDate(draft) ?: return@forEach
+            if (date !in window.days) return@forEach
+            val offset = window.dayOffset(date)
+            candidates += SearchCandidate(
+                kind = SearchCandidateKind.DRAFT,
+                subjectId = draft.id,
+                dayOffset = offset,
+                referenceYear = window.yearLabelFor(date),
+                amount = when {
+                    anchorAmount == null || effectiveCandidateAmount(draft) == null ->
+                        DraftCandidateEvidenceState.MISSING
+                    anchorAmount == effectiveCandidateAmount(draft) ->
+                        DraftCandidateEvidenceState.MATCH
+                    else -> DraftCandidateEvidenceState.CONFLICT
+                },
+                timeDistanceMinutes = sameDayMinuteDistance(
+                    anchorTime = anchorTime,
+                    anchorDays = window.referenceDays,
+                    date = date,
+                    time = effectiveCandidateTime(draft),
+                ),
+                revision = draft.reviewRevision,
+            )
+        }
+        notes?.items?.forEach { event ->
+            val date = event.anchorDate ?: return@forEach
+            if (date !in window.days) return@forEach
+            val offset = window.dayOffset(date)
+            candidates += SearchCandidate(
+                kind = SearchCandidateKind.NOTE,
+                subjectId = event.id,
+                dayOffset = offset,
+                referenceYear = window.yearLabelFor(date),
+                amount = when {
+                    anchorAmount == null || event.amountVnd == null ->
+                        DraftCandidateEvidenceState.MISSING
+                    anchorAmount == event.amountVnd -> DraftCandidateEvidenceState.MATCH
+                    else -> DraftCandidateEvidenceState.CONFLICT
+                },
+                timeDistanceMinutes = sameDayMinuteDistance(
+                    anchorTime = anchorTime,
+                    anchorDays = window.referenceDays,
+                    date = date,
+                    time = event.anchorTime,
+                ),
+                revision = event.revision,
+            )
+        }
+        candidates.sortWith(
+            compareBy<SearchCandidate> { kotlin.math.abs(it.dayOffset) }
+                .thenByDescending { it.amount == DraftCandidateEvidenceState.MATCH }
+                .thenBy { it.timeDistanceMinutes ?: Int.MAX_VALUE }
+                .thenBy { it.kind.ordinal }
+                .thenBy { it.subjectId },
+        )
+        val signature = candidateSignature(window, kinds, candidates)
+        val cursorValue = optionalString(arguments, "cursor")
+        val startOffset = if (cursorValue == null) {
+            0
+        } else {
+            val cursor = registry.resolve(cursorValue, AgentReferenceKind.CURSOR, "$.cursor")
+            if (cursor.cursorSignature != signature) {
+                throw AgentToolException(
+                    AgentErrorCode.CURSOR_STALE,
+                    "$.cursor",
+                    "cursor_matches_observed_candidate_page",
+                    JSONObject().put("fresh_cursor", issueCandidateCursor(signature)),
+                    "The observed candidate page changed. Restart the bounded search from the returned cursor.",
+                )
+            }
+            cursor.cursorOffset ?: 0
+        }
+        val page = candidates.drop(startOffset).take(CANDIDATE_PAGE_SIZE)
+        val more = startOffset + page.size < candidates.size
+        val nextCursor = if (more) issueCandidateCursor(signature, startOffset + page.size) else null
+        val completeWithinScope = (drafts == null || (!drafts.hasMore && scope.draftScopeComplete)) &&
+            (notes == null || !notes.hasMore)
+        val items = JSONArray()
+        page.forEach { candidate ->
+            items.put(candidateObservation(candidate))
+        }
+        val outcome = when {
+            candidates.isEmpty() -> "NONE"
+            candidates.size == 1 -> "ONE"
+            else -> "MANY"
+        }
+        val data = JSONObject()
+            .put(
+                "search",
+                JSONObject()
+                    .put("anchor_kind", window.anchorKind)
+                    .put("anchor_ref", dateRef.handle)
+                    .put("day_window", dayWindow)
+                    .put("explicit_range", window.explicitRange)
+                    .put("kinds", kinds.name)
+                    .put("chronology", JSONArray(window.chronologies))
+                    .put("days_searched", window.days.size)
+                    .put("honest_range", window.honestRange)
+                    .put("max_days_per_search", MAX_SEARCH_DAYS)
+                    .put("receipt_time_used", false),
+            )
+            .put("outcome", outcome)
+            .put("items", items)
+            .put("page_size", CANDIDATE_PAGE_SIZE)
+            .put("next_cursor", nextCursor ?: JSONObject.NULL)
+            .put("complete_within_scope", completeWithinScope)
+            .put(
+                "scope_note",
+                if (completeWithinScope) {
+                    "The search covered every granted pending draft and every granted stored note reading " +
+                        "whose stated day is inside the reported range."
+                } else {
+                    "The session's granted rows are incomplete, or more stored readings exist than one " +
+                        "bounded page returned; an empty list does not prove absence in the database."
+                },
+            )
+            .put(
+                "semantics",
+                "Read-only bounded retrieval. No candidate, ranking or temporal inference writes, links, " +
+                    "confirms or files anything.",
+            )
+        return AgentToolExecution(AgentEnvelope.ok(tool = "find_candidates", data = data))
+    }
+
+    /** The bounded calendar window one candidate search may read. */
+    private data class SearchWindow(
+        val days: List<String>,
+        /** The anchored calendar days one year each; a yearless search has one per chronology. */
+        val referenceDays: List<String>,
+        val anchorKind: String,
+        val chronologies: List<String>,
+        val explicitRange: Boolean,
+        val honestRange: String,
+        /** The chronology label each searched day belongs to, for per-row disclosure. */
+        val dayLabels: Map<String, String>,
+    ) {
+        /** The signed whole-day distance from the nearest anchored day to [date]. */
+        fun dayOffset(date: String): Int =
+            referenceDays.mapNotNull { SpelledTemporalExpressions.daysApart(it, date) }
+                .minByOrNull { kotlin.math.abs(it) } ?: 0
+
+        fun yearLabelFor(date: String): String =
+            dayLabels[date] ?: TemporalChronology.STATED_YEAR.wire
+    }
+
+    /**
+     * Resolves the requested search window without ever choosing a year the source did not state.
+     *
+     * A fully stated date (or a host-resolved relative day) searches the stated day plus the
+     * requested days on each side. A day/month with no year searches the same day in the note's
+     * own recorded year and in the run's current year — at most two trusted chronologies, both
+     * reported. An explicit end date must be fully stated, so an "open" range never silently
+     * borrows a year, and every window is capped by [MAX_SEARCH_DAYS].
+     */
+    private suspend fun searchWindow(
+        dateRef: AgentReference,
+        endRef: AgentReference?,
+        dayWindow: Int,
+    ): SearchWindow {
+        val startParts: IssuedMaskDateParts = if (dateRef.kind == AgentReferenceKind.RELATIVE_DATE) {
+            val resolved = resolveRelativeDay(dateRef, referenceCaptureOf(dateRef), "$.date_ref")
+            SpelledTemporalExpressions.parts(resolved)
+                ?.let { IssuedMaskDateParts(year = it.first, month = it.second, day = it.third) }
+                ?: throw AgentToolException(
+                    AgentErrorCode.TEMPORAL_CONSTRAINT,
+                    "$.date_ref",
+                    "relative_day_resolves_to_one_day",
+                    message = "The relative day did not resolve to one calendar day.",
+                )
+        } else {
+            boundary.vault.dateParts(requireNotNull(dateRef.valueToken))
+                ?: throw AgentToolException(
+                    AgentErrorCode.TEMPORAL_CONSTRAINT,
+                    "$.date_ref",
+                    "selected_value_is_a_calendar_date",
+                    message = "The selected value is not a calendar date the host can read for a bounded search.",
+                )
+        }
+        val month = startParts.month
+        val day = startParts.day
+        val resolvedStart = startParts.year?.let { year ->
+            SpelledTemporalExpressions.format(year, month, day)
+        }
+        val yearLabels = LinkedHashMap<String, String>()
+        val chronologies = LinkedHashSet<String>()
+        if (resolvedStart != null) {
+            val label = dateRef.temporalChronology
+                ?: if (dateRef.kind == AgentReferenceKind.RELATIVE_DATE) {
+                    TemporalChronology.CAPTURE_CHRONOLOGY.wire
+                } else {
+                    TemporalChronology.STATED_YEAR.wire
+                }
+            yearLabels[resolvedStart] = label
+            chronologies += label
+        } else {
+            val captureYear = referenceCaptureOf(dateRef)?.let(::captureReferenceYear)
+            if (captureYear != null) {
+                SpelledTemporalExpressions.format(captureYear, month, day)?.let { resolved ->
+                    yearLabels[resolved] = TemporalChronology.CAPTURE_CHRONOLOGY.wire
+                    chronologies += TemporalChronology.CAPTURE_CHRONOLOGY.wire
+                }
+            }
+            SpelledTemporalExpressions.format(session.runChronology.year, month, day)?.let { resolved ->
+                if (yearLabels.putIfAbsent(resolved, TemporalChronology.CURRENT_TIME.wire) == null) {
+                    chronologies += TemporalChronology.CURRENT_TIME.wire
+                }
+            }
+            if (yearLabels.size > MAX_SEARCH_YEARS) {
+                AgentErrorCode.TEMPORAL_CONSTRAINT.asIssue(
+                    "$.date_ref",
+                    "bounded_chronology_set",
+                    "The day/month resolved against more chronologies than one bounded search allows. " +
+                        "Select the occurrence again or state the year.",
+                )
+            }
+        }
+        if (resolvedStart == null && endRef != null) {
+            AgentErrorCode.TEMPORAL_CONSTRAINT.asIssue(
+                "$.date_ref",
+                "range_start_states_its_year",
+                "An explicit range start must state its year. Use the day window around a day/month instead.",
+            )
+        }
+        if (resolvedStart != null && endRef != null) {
+            val endParts: IssuedMaskDateParts = if (endRef.kind == AgentReferenceKind.RELATIVE_DATE) {
+                SpelledTemporalExpressions.parts(
+                    resolveRelativeDay(endRef, referenceCaptureOf(endRef), "$.end_date_ref"),
+                )?.let { IssuedMaskDateParts(year = it.first, month = it.second, day = it.third) }
+                    ?: throw AgentToolException(
+                        AgentErrorCode.TEMPORAL_CONSTRAINT,
+                        "$.end_date_ref",
+                        "relative_day_resolves_to_one_day",
+                        message = "The range end did not resolve to one calendar day.",
+                    )
+            } else {
+                boundary.vault.dateParts(requireNotNull(endRef.valueToken))
+                    ?: throw AgentToolException(
+                        AgentErrorCode.TEMPORAL_CONSTRAINT,
+                        "$.end_date_ref",
+                        "selected_value_is_a_calendar_date",
+                        message = "The range end is not a calendar date the host can read.",
+                    )
+            }
+            val resolvedEnd = endParts.year?.let { year ->
+                SpelledTemporalExpressions.format(year, endParts.month, endParts.day)
+            } ?: AgentErrorCode.TEMPORAL_CONSTRAINT.asIssue(
+                "$.end_date_ref",
+                "range_end_states_its_year",
+                "An explicit range end must state its year. Use the day window around a day/month instead.",
+            )
+            val days = SpelledTemporalExpressions.daysBetween(resolvedStart, resolvedEnd)
+            if (days.isEmpty() || resolvedEnd < resolvedStart) {
+                AgentErrorCode.TEMPORAL_CONSTRAINT.asIssue(
+                    "$.end_date_ref",
+                    "end_not_before_start",
+                    "An explicit range must be ordered and readable. Correct the grounded end, do not swap it.",
+                )
+            }
+            requireBoundedDays(days.size)
+            val label = yearLabels[resolvedStart] ?: TemporalChronology.STATED_YEAR.wire
+            return SearchWindow(
+                days = days,
+                referenceDays = listOf(resolvedStart),
+                anchorKind = if (dateRef.kind == AgentReferenceKind.RELATIVE_DATE) "relative-day" else "stated-date",
+                chronologies = chronologies.toList(),
+                explicitRange = true,
+                honestRange = "an explicit start-through-end range of ${days.size} calendar days " +
+                    "inside the stated chronology ($label)",
+                dayLabels = days.associateWith { label },
+            )
+        }
+        val days = LinkedHashMap<String, String>()
+        yearLabels.forEach { (referenceDay, label) ->
+            for (delta in -dayWindow..dayWindow) {
+                SpelledTemporalExpressions.shift(referenceDay, delta)?.let { shifted ->
+                    days.putIfAbsent(shifted, label)
+                }
+            }
+        }
+        requireBoundedDays(days.size)
+        val orderedDays = days.keys.sorted()
+        val span = if (dayWindow == 0) {
+            "the single anchored calendar day"
+        } else {
+            "${dayWindow * 2 + 1} consecutive calendar days centred on the anchored day"
+        }
+        val honestRange = if (resolvedStart != null) {
+            "$span, inside the " + when (chronologies.singleOrNull()) {
+                TemporalChronology.CAPTURE_CHRONOLOGY.wire -> "note's own recorded year"
+                TemporalChronology.CURRENT_TIME.wire -> "current device year"
+                else -> "stated year"
+            }
+        } else {
+            "$span, searched across the " + chronologies.joinToString(" and ") { label ->
+                when (label) {
+                    TemporalChronology.CAPTURE_CHRONOLOGY.wire -> "note's own recorded year"
+                    TemporalChronology.CURRENT_TIME.wire -> "current device year"
+                    else -> "stated year"
+                }
+            }
+        }
+        return SearchWindow(
+            days = orderedDays,
+            referenceDays = yearLabels.keys.toList(),
+            anchorKind = when {
+                dateRef.kind == AgentReferenceKind.RELATIVE_DATE -> "relative-day"
+                resolvedStart != null -> "stated-date"
+                else -> "yearless-day-month"
+            },
+            chronologies = chronologies.toList(),
+            explicitRange = false,
+            honestRange = honestRange,
+            dayLabels = days,
+        )
+    }
+
+    private fun requireBoundedDays(size: Int) {
+        if (size == 0 || size > MAX_SEARCH_DAYS) {
+            AgentErrorCode.TEMPORAL_CONSTRAINT.asIssue(
+                "$.date_ref",
+                "bounded_search_window",
+                "A candidate search reads at most $MAX_SEARCH_DAYS calendar days. Narrow the window or the explicit range.",
+            )
+        }
+    }
+
+    /** The reference capture a temporal alias belongs to, when it is still in this session. */
+    private suspend fun referenceCaptureOf(reference: AgentReference): CaptureMessageEntity? {
+        val captureId = reference.captureId ?: return null
+        if (captureId !in scope.captureIds) return null
+        return runCatching { requireCapture(captureId) }.getOrNull()
+    }
+
+    /** One candidate row before its alias is minted; carries host facts only. */
+    private data class SearchCandidate(
+        val kind: SearchCandidateKind,
+        val subjectId: Long,
+        val dayOffset: Int,
+        val referenceYear: String,
+        val amount: DraftCandidateEvidenceState,
+        val timeDistanceMinutes: Int?,
+        val revision: Int,
+    )
+
+    private enum class SearchCandidateKind { DRAFT, NOTE }
+
+    private enum class CandidateKinds { DRAFTS, NOTES, BOTH }
+
+    private fun sameDayMinuteDistance(
+        anchorTime: String?,
+        anchorDays: List<String>,
+        date: String,
+        time: String?,
+    ): Int? {
+        if (anchorTime == null || time == null) return null
+        if (date !in anchorDays) return null
+        return kotlin.math.abs(minutesOfDay(anchorTime) - minutesOfDay(time))
+    }
+
+    private fun minutesOfDay(time: String): Int {
+        val parts = time.split(":")
+        val hour = parts.getOrNull(0)?.toIntOrNull() ?: 0
+        val minute = parts.getOrNull(1)?.toIntOrNull() ?: 0
+        return hour * 60 + minute
+    }
+
+    /** One candidate's masked, value-free observation; the application's own label names the row. */
+    private suspend fun candidateObservation(candidate: SearchCandidate): JSONObject {
+        val observation = JSONObject()
+            .put("day_offset", candidate.dayOffset)
+            .put("reference_year", candidate.referenceYear)
+            .put("amount", candidate.amount.wireValue())
+            .put(
+                "time_distance_minutes",
+                candidate.timeDistanceMinutes ?: JSONObject.NULL,
+            )
+            .put(
+                "ranking_rationale",
+                JSONArray(
+                    buildList {
+                        add(
+                            when (candidate.amount) {
+                                DraftCandidateEvidenceState.MATCH ->
+                                    "The stated amount agrees exactly with the selected occurrence."
+                                DraftCandidateEvidenceState.MISSING ->
+                                    "Amount evidence is missing on one or both sides."
+                                DraftCandidateEvidenceState.CONFLICT ->
+                                    "The stated amount conflicts with the selected occurrence."
+                            },
+                        )
+                        if (candidate.dayOffset == 0) {
+                            add("The stored day is the anchored calendar day.")
+                        } else {
+                            add("The stored day is ${kotlin.math.abs(candidate.dayOffset)} calendar day(s) from the anchor.")
+                        }
+                        if (candidate.timeDistanceMinutes != null) {
+                            add("Transaction-time proximity orders candidates only; it does not establish identity.")
+                        }
+                        add("Notification receipt time is not used.")
+                        add("A ranking is deterministic ordering, never identity or authority to write.")
+                    },
+                ),
+            )
+        when (candidate.kind) {
+            SearchCandidateKind.DRAFT -> {
+                val draft = requireDraft(candidate.subjectId)
+                observation
+                    .put("kind", "draft")
+                    .put("ref", issueDraftReference(draft))
+                    .put("user_label", "draft #${draft.id}")
+            }
+            SearchCandidateKind.NOTE -> {
+                val event = requireEvent(candidate.subjectId)
+                val capture = requireCapture(event.captureId)
+                observation
+                    .put("kind", "note")
+                    .put("ref", issueEventReference(event, capture))
+                    .put("user_label", "event #${event.id}")
+            }
+        }
+        return observation
+    }
+
+    private fun issueDraftReference(draft: PendingBankDraftEntity): String = registry.issue(
+        AgentReference(
+            handle = registry.nextHandle(),
+            kind = AgentReferenceKind.DRAFT,
+            scopeId = scope.scopeId,
+            subjectId = draft.id,
+            draftId = draft.id,
+            draftReviewRevision = draft.reviewRevision,
+            display = mask(draft.workingDescription()),
+        ),
+    )
+
+    private fun issueEventReference(event: NoteEventEntity, capture: CaptureMessageEntity): String =
+        registry.issue(
+            AgentReference(
+                handle = registry.nextHandle(),
+                kind = AgentReferenceKind.EVENT,
+                scopeId = scope.scopeId,
+                subjectId = event.id,
+                captureId = capture.id,
+                captureRevision = capture.revision,
+                eventId = event.id,
+                eventRevision = event.revision,
+                spanStart = event.spanStart,
+                spanEnd = event.spanEnd,
+            ),
+        )
+
+    private fun candidateSignature(
+        window: SearchWindow,
+        kinds: CandidateKinds,
+        candidates: List<SearchCandidate>,
+    ): String = sha256Hex(
+        buildString {
+            append(scope.scopeId).append('|')
+            append(kinds.name).append('|')
+            append(window.days.joinToString(",")).append('|')
+            append(window.chronologies.joinToString(",")).append('|')
+            candidates.forEach {
+                append(it.kind.name).append(':').append(it.subjectId).append(':')
+                    .append(it.revision).append(';')
+            }
+        },
+    )
+
+    private fun issueCandidateCursor(signature: String, startOffset: Int = 0): String =
+        registry.issue(
+            AgentReference(
+                handle = registry.nextHandle(),
+                kind = AgentReferenceKind.CURSOR,
+                scopeId = scope.scopeId,
+                cursorSignature = signature,
+                cursorOffset = startOffset,
+            ),
+        )
 
     // ---- make_time_anchor ----------------------------------------------------------------
 
@@ -1403,6 +2111,13 @@ class AgentToolRuntime(
                 "Choose a subject that can carry this clarification, or ask about a different fact.",
             )
         }
+        // The chronology this question is answered under is fixed now, once, and retained for the
+        // answer and for every continuation or retry of this run. A year-only answer then keeps
+        // the year it was given in instead of being re-resolved against a later clock, and an old
+        // note's day is never reinterpreted as "now".
+        if (requested == "date") {
+            session.clarificationChronologies.putIfAbsent(subject.handle, chronologyFor(subject))
+        }
         return AgentToolExecution(
             envelope = AgentEnvelope.clarifying(
                 tool = "ask_user",
@@ -1463,7 +2178,28 @@ class AgentToolRuntime(
                         .put("note", "The answer did not state one unambiguous value. Ask again or use the observed source.")
                 }
             }
-            "date", "time" -> {
+            "date" -> {
+                val evidence = dateClarificationEvidence(subject, linked, maskedAnswer)
+                evidence.valueToken?.let { token -> display = token }
+                observation.put("value_ref", evidence.valueRef ?: JSONObject.NULL)
+                    .put("value_shape", evidence.valueToken?.let { boundary.vault.shapeOf(it)?.wire } ?: JSONObject.NULL)
+                    .put("time_ref", evidence.timeRef ?: JSONObject.NULL)
+                if (evidence.valueRef == null) {
+                    observation.put("note", evidence.note
+                        ?: "The answer did not state one unambiguous date. Ask for the day and month, or for a year such as 'năm nay'.")
+                } else {
+                    observation
+                        .put("date_parts", JSONObject().put("day", evidence.day).put("month", evidence.month))
+                        .put("chronology", evidence.chronology?.wire ?: JSONObject.NULL)
+                        .put("year_stated_by", evidence.yearSource)
+                        .put(
+                            "temporal_reference",
+                            "The date alias is resolved against the reported chronology and stays fixed for " +
+                                "this run's continuations and retries.",
+                        )
+                }
+            }
+            "time" -> {
                 val tokens = SensitiveVault.TOKEN_PATTERN.findAll(maskedAnswer)
                     .map { it.value }
                     .distinct()
@@ -1504,10 +2240,240 @@ class AgentToolRuntime(
         return observation
     }
 
+    /** One answer to a date question, as resolved evidence. */
+    private data class DateClarificationEvidence(
+        val valueRef: String?,
+        val valueToken: String?,
+        val day: Int,
+        val month: Int,
+        val chronology: TemporalChronology?,
+        val yearSource: String,
+        val timeRef: String?,
+        val note: String? = null,
+    )
+
+    /**
+     * Resolves a date answer into one masked date alias under a named chronology.
+     *
+     * The answer forms the app supports are the ones a person actually writes: a full numeric
+     * date (already masked), a spelled Vietnamese or English day/month such as `11 tháng 10`,
+     * an explicit year (`2024`), and a year stated relative to the exchange (`năm nay`). A
+     * year-only answer is combined only with a day/month that is already grounded on the same
+     * subject, and a year is never invented: when no trusted chronology supplies one the answer
+     * stays unresolved with a specific, answerable note.
+     *
+     * The year this method used is deliberately not part of the evidence. The alias carries it,
+     * the chronology label names where it came from, and only the day and month (which the user
+     * just wrote) are restated as numbers, so no private stored value is echoed.
+     */
+    private suspend fun dateClarificationEvidence(
+        subject: AgentReference,
+        linkedSubjectKey: String,
+        maskedAnswer: String,
+    ): DateClarificationEvidence {
+        val chronology = session.clarificationChronologies[subject.handle] ?: chronologyFor(subject)
+        val tokens = SensitiveVault.TOKEN_PATTERN.findAll(maskedAnswer)
+            .map { it.value }
+            .distinct()
+            .toList()
+        val dateToken = tokens.firstOrNull { boundary.vault.dateParts(it) != null }
+        val yearToken = tokens.firstOrNull {
+            it != dateToken && runCatching { boundary.vault.parseYear(it) }.isSuccess
+        }
+        val timeToken = tokens.firstOrNull {
+            it != dateToken && it != yearToken && runCatching { boundary.vault.parseTime(it) }.isSuccess
+        }
+        val timeRef = timeToken?.let { issueClarificationValue(subject, linkedSubjectKey, it) }
+        val spelledDates = SpelledTemporalExpressions.findDates(maskedAnswer)
+        val spelled = spelledDates.singleOrNull()
+        val naturalYear = SpelledTemporalExpressions.findNaturalYear(maskedAnswer)
+
+        fun resolvedYear(statedYear: Int?): Triple<Int, TemporalChronology, String> {
+            if (statedYear != null) {
+                return Triple(statedYear, TemporalChronology.STATED_YEAR, "stated by the answer")
+            }
+            if (naturalYear != null) {
+                return Triple(
+                    chronology.answerYear + naturalYear.yearOffset,
+                    TemporalChronology.CLARIFICATION_ANSWER_TIME,
+                    "the answer's exchange time (${naturalYear.surface})",
+                )
+            }
+            if (yearToken != null) {
+                val year = runCatching { boundary.vault.parseYear(yearToken) }.getOrNull()
+                if (year != null) {
+                    return Triple(year, TemporalChronology.STATED_YEAR, "stated by the answer")
+                }
+            }
+            chronology.captureYear?.let { year ->
+                return Triple(year, TemporalChronology.CAPTURE_CHRONOLOGY, "the note's own recorded year")
+            }
+            return Triple(
+                chronology.answerYear,
+                TemporalChronology.CLARIFICATION_ANSWER_TIME,
+                "the exchange time, because the note records no usable year",
+            )
+        }
+
+        // 1. A numeric date token the boundary minted from the answer.
+        if (dateToken != null) {
+            val parts = boundary.vault.dateParts(dateToken)
+                ?: return DateClarificationEvidence(
+                    null, null, 0, 0, null, "none", timeRef,
+                    "The answer's value is not a calendar date. State the day and month.",
+                )
+            val day = parts.day
+            val month = parts.month
+            val resolved = resolvedYear(parts.year ?: spelled?.statedYear)
+            val token = if (parts.year != null) {
+                dateToken
+            } else {
+                mintDateToken(resolved.first, month, day)
+                    ?: return DateClarificationEvidence(
+                        null, null, day, month, null, "none", timeRef,
+                        "The resolved date is not a valid calendar day. State the day and month again.",
+                    )
+            }
+            return DateClarificationEvidence(
+                valueRef = issueClarificationValue(
+                    subject,
+                    linkedSubjectKey,
+                    token,
+                    chronology = resolved.second,
+                ),
+                valueToken = token,
+                day = day,
+                month = month,
+                chronology = resolved.second,
+                yearSource = resolved.third,
+                timeRef = timeRef,
+            )
+        }
+
+        // 2. A spelled day/month in the answer itself.
+        if (spelledDates.size > 1) {
+            return DateClarificationEvidence(
+                null, null, 0, 0, null, "none", timeRef,
+                "The answer states several days. Answer with the one day of this occurrence.",
+            )
+        }
+        if (spelled != null) {
+            val resolved = resolvedYear(spelled.statedYear)
+            val token = mintDateToken(resolved.first, spelled.month, spelled.day)
+                ?: return DateClarificationEvidence(
+                    null, null, spelled.day, spelled.month, null, "none", timeRef,
+                    "The stated day and month are not a valid calendar day. State the day and month again.",
+                )
+            return DateClarificationEvidence(
+                valueRef = issueClarificationValue(
+                    subject,
+                    linkedSubjectKey,
+                    token,
+                    chronology = resolved.second,
+                ),
+                valueToken = token,
+                day = spelled.day,
+                month = spelled.month,
+                chronology = resolved.second,
+                yearSource = resolved.third,
+                timeRef = timeRef,
+            )
+        }
+
+        // 3. A year-only answer: combine it only with a day/month the subject already grounds.
+        val groundedDay = groundedMonthDay(subject)
+        val yearStatement = naturalYear != null || yearToken != null
+        if (yearStatement && groundedDay != null) {
+            val resolved = resolvedYear(null)
+            val token = mintDateToken(resolved.first, groundedDay.second, groundedDay.first)
+                ?: return DateClarificationEvidence(
+                    null, null, groundedDay.first, groundedDay.second, null, "none", timeRef,
+                    "The combined day and year are not a valid calendar day. State the full date.",
+                )
+            return DateClarificationEvidence(
+                valueRef = issueClarificationValue(
+                    subject,
+                    linkedSubjectKey,
+                    token,
+                    chronology = resolved.second,
+                ),
+                valueToken = token,
+                day = groundedDay.first,
+                month = groundedDay.second,
+                chronology = resolved.second,
+                yearSource = resolved.third,
+                timeRef = timeRef,
+            )
+        }
+        if (yearStatement) {
+            return DateClarificationEvidence(
+                null, null, 0, 0, null, "none", timeRef,
+                "The answer states only a year, and this occurrence grounds no day or month to apply it to. " +
+                    "State the day and month as well, for example '11 tháng 10'.",
+            )
+        }
+        return DateClarificationEvidence(
+            null, null, 0, 0, null, "none", timeRef,
+            "The answer did not state a readable day and month. State them as words, for example '11 tháng 10', " +
+                "or a year such as 'năm nay'.",
+        )
+    }
+
+    /**
+     * The day and month the clarified subject itself grounds, or null when it grounds none.
+     *
+     * A selected occurrence is read only inside its own stored span, so a year-only answer cannot
+     * borrow a day from elsewhere in the note. A stored reading supplies its own stored day.
+     */
+    private suspend fun groundedMonthDay(subject: AgentReference): Pair<Int, Int>? {
+        return when (subject.kind) {
+            AgentReferenceKind.SOURCE -> {
+                val capture = requireCapture(subject.captureId)
+                val text = capture.bodyText ?: return null
+                val start = subject.spanStart ?: return null
+                val end = subject.spanEnd ?: return null
+                if (start < 0 || end <= start || end > text.length) return null
+                val span = text.substring(start, end)
+                val spelled = SpelledTemporalExpressions.singleDateIn(span)
+                    ?: SpelledTemporalExpressions.singleDateIn(boundary.vault.maskedPreview(span))
+                spelled?.let { it.day to it.month }
+            }
+            AgentReferenceKind.EVENT -> {
+                val event = requireEvent(subject.eventId)
+                val date = event.anchorDate
+                if (date == null) {
+                    null
+                } else {
+                    SpelledTemporalExpressions.parts(date)?.let { it.second to it.third }
+                }
+            }
+            else -> null
+        }
+    }
+
+    /** The chronology a clarification on [subject] is resolved against, fixed at question time. */
+    private suspend fun chronologyFor(subject: AgentReference): ClarificationChronology {
+        val captureYear = subject.captureId
+            ?.takeIf { it in scope.captureIds }
+            ?.let { id -> runCatching { requireCapture(id) }.getOrNull() }
+            ?.let(::captureReferenceYear)
+        return ClarificationChronology(
+            captureYear = captureYear,
+            // The answer year is read when the question is asked (or when an answer is registered
+            // without a prior question), in the run's own trusted zone, and then retained.
+            answerYear = SpelledTemporalExpressions.localYear(
+                session.clock.nowMillis(),
+                session.runChronology.zoneId,
+            ) ?: session.runChronology.year,
+            zoneId = session.runChronology.zoneId,
+        )
+    }
+
     private fun issueClarificationValue(
         subject: AgentReference,
         linkedSubjectKey: String,
         token: String,
+        chronology: TemporalChronology? = null,
     ): String {
         val handle = registry.nextHandle()
         return registry.issue(
@@ -1523,6 +2489,7 @@ class AgentToolRuntime(
                 display = token,
                 origin = AgentReferenceOrigin.CLARIFICATION,
                 linkedSubjectKey = linkedSubjectKey,
+                temporalChronology = chronology?.wire,
             ),
         )
     }
@@ -2417,6 +3384,68 @@ class AgentToolRuntime(
             .put("day_offset", relative.dayOffset)
     }
 
+    /**
+     * Issues one value alias for every spelled day/month inside the selected occurrence.
+     *
+     * A spelled date is not a masked literal, so the boundary never mints a token for it and the
+     * model could not otherwise use it as a temporal argument. The host finds it locally and mints
+     * the date it stands for: the wording's own year when it states one, otherwise the capture's
+     * own recorded local year. When the capture records no usable year the alias stays yearless and
+     * the store refuses to resolve it rather than borrowing one. Only the opaque token and the
+     * note's own words are observed; a resolved year is never restated as a literal.
+     */
+    private fun spelledDateRefs(
+        capture: CaptureMessageEntity,
+        sourceKey: String,
+        quote: String,
+        eventId: Long?,
+    ): List<JSONObject> {
+        val referenceYear = captureReferenceYear(capture)
+        return SpelledTemporalExpressions.findDates(quote).mapNotNull { spelled ->
+            val year = spelled.statedYear ?: referenceYear
+            val token = if (year != null) {
+                mintDateToken(year, spelled.month, spelled.day)
+            } else {
+                mintYearlessDateToken(spelled.month, spelled.day)
+            } ?: return@mapNotNull null
+            val chronology = when {
+                spelled.statedYear != null -> TemporalChronology.STATED_YEAR
+                referenceYear != null -> TemporalChronology.CAPTURE_CHRONOLOGY
+                else -> null
+            }
+            val ref = registry.issue(
+                AgentReference(
+                    handle = registry.nextHandle(),
+                    kind = AgentReferenceKind.VALUE,
+                    scopeId = scope.scopeId,
+                    subjectId = eventId,
+                    captureId = capture.id,
+                    eventId = eventId,
+                    valueToken = token,
+                    display = token,
+                    linkedSubjectKey = sourceKey,
+                    temporalChronology = chronology?.wire,
+                ),
+            )
+            JSONObject()
+                .put("ref", ref)
+                .put("kind", AgentReferenceKind.VALUE.wire)
+                .put("shape", boundary.vault.shapeOf(token)?.wire ?: "numeric")
+                .put("text", spelled.surface)
+                .put("day", spelled.day)
+                .put("month", spelled.month)
+                .put("year_resolved", year != null)
+                .put("chronology", chronology?.wire ?: JSONObject.NULL)
+        }
+    }
+
+    /** The yearless date token a day/month states, or null when the boundary refused the form. */
+    private fun mintYearlessDateToken(month: Int, day: Int): String? {
+        if (SpelledTemporalExpressions.format(2000, month, day) == null) return null
+        val minted = mask("%02d/%02d".format(day, month))
+        return minted.takeIf { SensitiveVault.TOKEN_PATTERN.matches(it) }
+    }
+
     private fun occurrences(text: String, quote: String): List<IntRange> {
         val ranges = mutableListOf<IntRange>()
         var index = text.indexOf(quote)
@@ -2647,6 +3676,31 @@ class AgentToolRuntime(
     // ---- Masking -------------------------------------------------------------------------
 
     private fun mask(text: String): String = boundary.maskOutbound(text, MaskedPath.TOOL_RESULT)
+
+    /**
+     * The mask token one host-derived calendar day is issued under.
+     *
+     * The host mints a date it resolved itself (from a spelled day/month plus a trusted year, or
+     * from the current-time read) by masking the numeric form it stands for. Only the opaque
+     * token reaches the model, and the vault's own canonical resolves it again for a temporal
+     * argument, so the derived year is never restated as a raw literal.
+     */
+    private fun mintDateToken(year: Int, month: Int, day: Int): String? {
+        if (SpelledTemporalExpressions.format(year, month, day) == null) return null
+        val minted = mask("%02d/%02d/%04d".format(day, month, year))
+        return minted.takeIf { SensitiveVault.TOKEN_PATTERN.matches(it) }
+    }
+
+    /** The English weekday name of one `Calendar.DAY_OF_WEEK`; carries no date or year. */
+    private fun weekdayName(dayOfWeek: Int): String = when (dayOfWeek) {
+        Calendar.MONDAY -> "MONDAY"
+        Calendar.TUESDAY -> "TUESDAY"
+        Calendar.WEDNESDAY -> "WEDNESDAY"
+        Calendar.THURSDAY -> "THURSDAY"
+        Calendar.FRIDAY -> "FRIDAY"
+        Calendar.SATURDAY -> "SATURDAY"
+        else -> "SUNDAY"
+    }
 
     /**
      * The capture's own local calendar year: the trusted reference used only to resolve a
@@ -2913,6 +3967,19 @@ class AgentToolRuntime(
         return registry.resolve(handle, kind, path)
     }
 
+    private fun optionalReferenceAny(
+        arguments: JSONObject,
+        key: String,
+        path: String,
+    ): AgentReference? {
+        val handle = optionalString(arguments, key) ?: return null
+        return registry.resolveAny(
+            handle,
+            setOf(AgentReferenceKind.VALUE, AgentReferenceKind.RELATIVE_DATE),
+            path,
+        )
+    }
+
     private data class DraftScan(
         val rows: List<PendingBankDraftEntity>,
         val truncated: Boolean,
@@ -2931,6 +3998,13 @@ class AgentToolRuntime(
         const val MAX_OBSERVATION_ROWS = 200
         const val MAX_DRAFT_CONTEXT_LINKS = 20
         const val MAX_SCAN_PAGES = 50
+        const val CANDIDATE_PAGE_SIZE = 10
+
+        /** The most calendar days one candidate search may read, however the range is stated. */
+        const val MAX_SEARCH_DAYS = 31
+
+        /** The most trusted chronologies one yearless day/month may be searched in. */
+        const val MAX_SEARCH_YEARS = 2
     }
 }
 
@@ -2945,7 +4019,7 @@ private fun AgentErrorCode.asIssue(
 
 /** Reads the single canonical declaration file copied from tools/slm at build time. */
 object AgentToolDeclarations {
-    const val ASSET_NAME = "s8_agent_tools_v8.json"
+    const val ASSET_NAME = "s8_agent_tools_v9.json"
 
     fun load(open: (String) -> java.io.InputStream): List<HostedToolDeclaration> {
         val root = JSONObject(open(ASSET_NAME).bufferedReader().use { it.readText() })

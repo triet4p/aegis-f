@@ -99,7 +99,7 @@ class AgentToolRuntimeTest {
         )
         boundary = MaskedPromptBoundary(SensitiveVault(scope.scopeId))
         declarations = AgentToolDeclarations.load(context.assets::open)
-        assertEquals(11, declarations.size)
+        assertEquals(13, declarations.size)
     }
 
     @Test

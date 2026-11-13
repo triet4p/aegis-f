@@ -115,8 +115,8 @@ class WorkflowSkillCatalog private constructor(
     }
 
     companion object {
-        const val ASSET_NAME = "s8_agent_runtime_skills_v8.json"
-        const val SCHEMA = "aegis-f-s8-agent-runtime-skills/v8"
+        const val ASSET_NAME = "s8_agent_runtime_skills_v9.json"
+        const val SCHEMA = "aegis-f-s8-agent-runtime-skills/v9"
 
         private val EXPECTED_IDS = WorkflowSkillId.entries.associateBy(WorkflowSkillId::wireId)
         private val EXPECTED_VERSIONS = mapOf(
@@ -138,11 +138,17 @@ class WorkflowSkillCatalog private constructor(
             // selected occurrence ("yesterday", "the day before yesterday", the Vietnamese
             // spellings) is resolved by the host from the capture's own recorded local date and
             // zone, while a period word stays a date clarification.
-            WorkflowSkillId.EVENT_READING to 8,
+            // Version 9 makes the workflow data-first: a spelled day/month alias and the
+            // current-time tool anchor a bounded candidate search before any date/time question,
+            // and the three chronologies (device current time, the note's recorded instant, the
+            // exchange's answer time) are explicitly distinct.
+            WorkflowSkillId.EVENT_READING to 9,
             // Version 2 uses event-bound candidate retrieval, app-ranked evidence and explicit
             // incomplete-scope outcomes; receipt time, category choice and model certainty never
             // establish identity.
-            WorkflowSkillId.DRAFT_SEARCH to 2,
+            // Version 3 adds the unbound data-first candidate search for a vague or year-less
+            // date, with the searched window and chronology reported and no write authority.
+            WorkflowSkillId.DRAFT_SEARCH to 3,
             // Version 2 states that eligibility governs attachment only: an ambiguous pair may
             // still be recorded as one tentative proposal before the user is asked to choose.
             // Version 3 grounds user-visible narration: every observation carries the application's
@@ -150,7 +156,9 @@ class WorkflowSkillCatalog private constructor(
             // candidate question copies the proposed row's label instead of inferring it from order.
             // Version 4 binds retrieval to the selected event and preserves the distinction between
             // candidate outcomes and the later attachment decision.
-            WorkflowSkillId.LINK_EVENT_DRAFT to 4,
+            // Version 5 makes the unbound candidate search available before a date/time question;
+            // its rows are candidates for a question, never a proposed or attached pair.
+            WorkflowSkillId.LINK_EVENT_DRAFT to 5,
             // Version 1 of the hosted category workflow: the model chooses one existing
             // category from the draft's own current choices and submits it through the
             // ordinary draft-review update. There is no classifier, translation hop or

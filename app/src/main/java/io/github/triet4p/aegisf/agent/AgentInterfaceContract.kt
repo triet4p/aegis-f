@@ -31,17 +31,22 @@ object AgentInterface {
      * so the model never computes, states or asks for that calendar date.
      * v8 adds event-bound pending-draft retrieval with app-owned amount, transaction-time and
      * merchant evidence; incomplete session scopes stay explicit and cannot imply absence.
+     * v9 adds data-first retrieval and trusted temporal context: `get_current_time` reports the
+     * device-local current time and issues a masked current-day alias, and `find_candidates`
+     * reads bounded pending drafts and stored note readings inside an explicit calendar window
+     * without requiring a grounded exact date. Spelled day/month aliases and natural year
+     * answers carry the chronology that resolved them. Neither new tool writes anything.
      */
-    const val CONTRACT: String = "aegis-agent-interface/8"
+    const val CONTRACT: String = "aegis-agent-interface/9"
 
     /** Declaration schema identity; changing semantics changes the cache identity. */
-    const val TOOL_SCHEMA: String = "aegis-f-s8-agent-tools/v8"
+    const val TOOL_SCHEMA: String = "aegis-f-s8-agent-tools/v9"
 
     /** Bundled skill schema identity. */
-    const val SKILL_SCHEMA: String = "aegis-f-s8-agent-runtime-skills/v8"
+    const val SKILL_SCHEMA: String = "aegis-f-s8-agent-runtime-skills/v9"
 
     /** Version of the authored runtime examples bundled with the skills. */
-    const val EXAMPLES_VERSION: String = "s8-agent-examples/8"
+    const val EXAMPLES_VERSION: String = "s8-agent-examples/9"
 
     /** Extraction provenance label the host records for model-derived readings. */
     const val EXTRACTION_VERSION: String = "agent-interface/5"
@@ -51,6 +56,8 @@ object AgentInterface {
         "observe",
         "select_source",
         "list_drafts",
+        "get_current_time",
+        "find_candidates",
         "make_time_anchor",
         "record_event",
         "inspect_link",
@@ -148,6 +155,13 @@ data class AgentReference(
     val origin: AgentReferenceOrigin = AgentReferenceOrigin.OBSERVATION,
     /** The binding key of the subject a clarification answer is linked to. */
     val linkedSubjectKey: String? = null,
+    /**
+     * The trusted chronology that resolved this reference's date, when it holds one.
+     *
+     * It is a host fact, never model text: a continuation or retry reads it back instead of
+     * re-resolving an old note's day against a newer clock.
+     */
+    val temporalChronology: String? = null,
     val dateToken: String? = null,
     val timeToken: String? = null,
     val endDateToken: String? = null,

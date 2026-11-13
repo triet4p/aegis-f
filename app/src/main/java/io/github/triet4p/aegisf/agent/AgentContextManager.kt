@@ -66,7 +66,7 @@ object AgentContextManager {
      * authorize a field; the model chooses the meaning by passing the value alias to a
      * role-specific argument, and the host parses/validates it locally for that argument.
      */
-    const val CONTEXT_BLOCK_VERSION = "s8-agent-context/v12"
+    const val CONTEXT_BLOCK_VERSION = "s8-agent-context/v13"
 
     /**
      * v11 removes the on-device classifier and its translation hop. A draft observation carries
@@ -77,6 +77,11 @@ object AgentContextManager {
      * v12 adds the relative-day rule: a day word the selected occurrence states is host-resolved
      * from that capture's own recorded local date and zone, so the model neither computes the
      * date nor asks for it again, while a period word stays a clarification.
+     *
+     * v13 adds the data-first and chronology rules: a vague or year-less date is searched through
+     * the bounded candidate tool before any question, and the device's current time, the note's
+     * recorded instant and the exchange's answer time are three distinct references that are
+     * never interchanged.
      */
 
     /** Version of the host-authored issued-token inventory; wording/shape changes mint a new one. */
@@ -111,6 +116,21 @@ object AgentContextManager {
         appendLine("not a type; pass it to the argument whose meaning fits and the host parses it locally.")
 
         appendLine("reference_rule: references are opaque host-issued aliases bound to one observation's revisions; never parse, construct or reuse one across runs, and re-observe instead of refreshing a stale binding.")
+        appendLine("temporal_reference_rule: three chronologies are distinct and never interchanged — the")
+        appendLine("device's current time (get_current_time, which also issues a masked today_ref), a saved")
+        appendLine("note's own recorded instant (capture-chronology, used for its day words and a year-less")
+        appendLine("date read from it), and the exchange's answer time (used for an answer such as năm nay).")
+        appendLine("get_current_time is never a note's date and never a bank transaction time. A year the")
+        appendLine("source did not state is never invented: resolve a year-less day/month only against the")
+        appendLine("chronology the host reports, and keep that reported resolution for this run's")
+        appendLine("continuations and retries instead of reinterpreting an old note against today.")
+        appendLine("data_first_rule: before asking about a date or time, search the bounded stored data with")
+        appendLine("find_candidates. One candidate supports a grounded verification question naming its")
+        appendLine("application user_label and the day/time evidence; several require a question naming")
+        appendLine("their labels and the evidence that distinguishes them; an empty search must state the")
+        appendLine("window and chronology it read honestly and ask only what would adjust it. Never present")
+        appendLine("a candidate the search did not return, and never treat a candidate, a ranking or a")
+        appendLine("temporal inference as a link, confirmation, category choice or financial record.")
         appendLine("relative_date_rule: a relative_date alias names one day word inside the selected")
         appendLine("occurrence; the host resolves it from that capture's own recorded local date and zone.")
         appendLine("Never compute, state or ask for that calendar date. A period word is not one day:")

@@ -1,7 +1,8 @@
 # Sprint 8.7–8.13 — bounded workflow tools and skills
 
-S8.7 introduced the Android adapter seam for the closed S8 agent operations; S8.13-pre replaces that
-model-facing surface with the approved eleven-tool interface. The runtime still uses only the
+S8.7 introduced the Android adapter seam for the closed S8 agent operations; S8.13-pre replaced that
+model-facing surface with the closed versioned agent-tool interface, and S11.C3 added the two
+read-only retrieval/temporal tools described below. The runtime still uses only the
 existing `WorkflowQueryService` and `WorkflowCommandService`: it adds no persistence, no bypass of
 scope, revision, idempotency or link-evidence policy, and no ledger, confirmation or deletion
 tool. A host creates one `AgentToolRuntime` with a trusted `AgentToolSession` containing the
@@ -10,16 +11,19 @@ declarations. The executor loads only the declarations the selected skills requi
 
 ## Closed catalog and selective loading
 
-The one active runtime declaration file is `tools/slm/s8_agent_tools_v8.json`
-(`aegis-f-s8-agent-tools/v8`), contract `aegis-agent-interface/8`. It contains eleven closed
+The one active runtime declaration file is `tools/slm/s8_agent_tools_v9.json`
+(`aegis-f-s8-agent-tools/v9`), contract `aegis-agent-interface/9`. It contains thirteen closed
 tools with flat argument objects and `additionalProperties: false`. Every required field is
-declared in `required`; `list_drafts.event_ref` is its one optional event-bound query field.
+declared in `required`; `list_drafts.event_ref` is its one optional event-bound query field, and
+`find_candidates.amount_ref`/`time_ref` are its optional same-occurrence comparison aliases.
 
 | Tool | Arguments | Kind |
 | --- | ---: | --- |
 | `observe` | 1 | read |
 | `select_source` | 3 | pure preparation |
 | `list_drafts` | 3 required (+ optional `event_ref`) | read |
+| `get_current_time` | 0 | read |
+| `find_candidates` | 5 required (+ optional `amount_ref`, `time_ref`) | read |
 | `make_time_anchor` | 4 | pure preparation |
 | `record_event` | 6 | atomic business mutation |
 | `inspect_link` | 2 | read/evidence evaluation |
@@ -82,7 +86,8 @@ selected order and open draft are not changed.
 current masked source, preserves complete masked tokens, verifies the occurrence index and token
 boundaries, and translates the masked UTF-16 span through the session vault to original-source
 offsets. It returns `source_ref`, the copied quote, any existing `event_ref` at those coordinates,
-the occurrence's value handles, the day words inside that selection and safe pre-existing anchors.
+the occurrence's value handles, the day words inside that selection, the spelled day/month
+expressions inside it (`spelled_dates`) and safe pre-existing anchors.
 There is no fuzzy matching, ellipsis expansion or guessed offset. A span whose source changed is
 refused as stale. It is also how an
 explicitly named counterparty becomes evidence: a second selection on that exact seller-or-place
@@ -129,6 +134,59 @@ one compatible granted rows are visible. Those rows remain useful, but the outco
 `INCOMPLETE`; `UNIQUE` or `MISSING` cannot be claimed database-wide. `scope_exhausted` is false
 when candidate pages remain or the pending database recheck is incomplete. Cursors page candidate
 results within the grant and never widen it. A possible-duplicate flag is not proof of a duplicate.
+
+## Data-first retrieval and trusted temporal context
+
+`get_current_time()` takes no arguments and returns the device-local current time as calendar
+components (`local_date` year/month/day, `local_time` hour/minute), the weekday, the timezone id
+and its UTC offset, plus a masked `today_ref` alias for the current day. It is a read: no
+observation of the user's data, no write. It is the current-time reference only. A saved note is
+always read from its own recorded instant, and a bank draft's transaction time is never derived
+from this call.
+
+The chronology contract has three distinct references that are never interchanged:
+
+| Reference | Source | Used for |
+| --- | --- | --- |
+| current time | `get_current_time`, device at that call | "today"/"now" wording, a search anchored on the device day |
+| capture chronology | the capture's own `capturedAtEpochMillis` + `captureTimezone` | a day word inside the note, a year-less date read from it |
+| answer time | the device-local year fixed when a date question was raised | a natural answer such as `năm nay`, `năm ngoái`, `năm kia` |
+
+The answer chronology is snapshotted once, when `ask_user` asks a date question, and retained on
+the run for the answer and for every continuation or retry of that same suspended run. A retry
+therefore reuses the year the question was answered under; it never re-reads an old note against a
+newer clock, and a run whose year rolls over cannot silently change an earlier interpretation.
+
+`find_candidates(date_ref, end_date_ref, day_window, kinds, amount_ref, time_ref, cursor)` is the
+bounded, read-only retrieval that makes clarification data-first. It reads only the session's
+granted pending bank drafts (`DRAFTS`), granted stored note readings whose stated day is inside the
+window (`NOTES`), or both. The draft statement filters by the granted id list, the pending state
+and the effective stated day (a user correction wins) inside SQL, and the reading statement filters
+by the granted capture ids and the day list, so neither read pages over rows outside the session's
+grant or the bounded days:
+
+- `date_ref` accepts a value alias that parses as a calendar date, a `spelled_dates` alias, a
+  clarification date alias, a `relative_date` alias, `get_current_time`'s `today_ref`, or a
+  capture-page value alias such as a year-less `11/10`. A search writes nothing, so it does not
+  need occurrence grounding; that is what lets a vague date be searched before it is clarified.
+- A day/month that states no year is searched across at most two trusted chronologies: the note's
+  own recorded year when the alias binds a capture, and the run's current device year. Both are
+  reported in `search.chronology`; no year is ever chosen for the user.
+- `day_window` (0–3) reads that many days on each side of the anchor. An explicit `end_date_ref`
+  must state its year. Every window is capped at 31 calendar days; a wider request is refused.
+- Rows are value-free: the application's own `user_label`, the signed `day_offset`, the
+  `reference_year` chronology label, exact amount agreement (`match`/`conflict`/`missing`) and, on
+  the anchor day, a `time_distance_minutes` that orders only. Notification receipt time is never
+  read and no model text contributes a row.
+- `outcome` is `NONE`, `ONE` or `MANY`; `complete_within_scope` distinguishes a truly empty bounded
+  read from an incomplete grant or a page that still has more rows. `search.honest_range` describes
+  the days and chronologies read without restating any private value.
+
+The search is retrieval, never authority: no candidate, ranking or temporal inference proposes,
+attaches, confirms, categorizes or writes a ledger row. A run that reads one candidate asks a
+grounded verification question naming that row's `user_label`; several candidates are presented by
+label with the evidence that distinguishes them; an empty bounded read is reported with its actual
+window and only the question that would adjust it.
 
 ## Atomic event recording
 
@@ -252,11 +310,11 @@ candidate answer.
 
 ## Assets, identity and affected consumers
 
-`tools/slm/s8_agent_tools_v8.json` and `tools/slm/s8_agent_runtime_skills_v8.json` are the current
+`tools/slm/s8_agent_tools_v9.json` and `tools/slm/s8_agent_runtime_skills_v9.json` are the current
 runtime inputs copied into Android assets by `app/build.gradle.kts`; older versioned assets remain
 historical. `AgentToolDeclarations` and `WorkflowSkillCatalog` validate schema markers, closed
 tool/skill IDs, versions and required content at load time. The five current skills are
-`event-reading/8`, `draft-search/2`, `link-event-draft/4`, `draft-review/1` and
+`event-reading/9`, `draft-search/3`, `link-event-draft/5`, `draft-review/1` and
 `explicit-operation-replay/1`; each names its tools, prerequisites, ordered steps, branches,
 recovery guidance, synthetic examples and completion condition.
 

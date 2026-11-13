@@ -258,14 +258,15 @@ boundary behavior: masked outbound text carries no raw sensitive value; mapping-
 equality/ordering/relative-time relations survive; unknown tokens and mapping failures
 are refused; rehydrated commands carry exact integer VND, dates/times and spans.
 
-Allowed tools for the agent (closed set): the eleven task-relevant operations in the current
-production declaration `tools/slm/s8_agent_tools_v8.json` (`aegis-f-s8-agent-tools/v8`, contract
-`aegis-agent-interface/8`) — `observe`, `select_source`, `list_drafts`, `make_time_anchor`,
-`record_event`, `inspect_link`, `propose_link`, `attach_link`, `update_draft_review`,
-`replay_operation`, and `ask_user`. Only the subset the host-selected skills require is loaded
-for a run; an unloaded tool is neither offered nor executable. Model arguments are flat
-primitives and host-issued opaque references, never raw sensitive scalars, revisions, operation
-keys, scope or override flags. `list_drafts` optionally accepts the current event alias as
+Allowed tools for the agent (closed set): the thirteen task-relevant operations in the current
+production declaration `tools/slm/s8_agent_tools_v9.json` (`aegis-f-s8-agent-tools/v9`, contract
+`aegis-agent-interface/9`) — `observe`, `select_source`, `list_drafts`, `get_current_time`,
+`find_candidates`, `make_time_anchor`, `record_event`, `inspect_link`, `propose_link`,
+`attach_link`, `update_draft_review`, `replay_operation`, and `ask_user`. Only the subset the
+host-selected skills require is loaded for a run; an unloaded tool is neither offered nor
+executable. Model arguments are flat primitives and host-issued opaque references, never raw
+sensitive scalars, revisions, operation keys, scope or override flags. `list_drafts` optionally
+accepts the current event alias as
 `event_ref`; that path is pending-only and uses only the already-granted draft ids. It compares
 event-stated amount, day/interval and merchant evidence against parsed bank transaction date/time
 and explicit draft corrections, never notification receipt time, category choice or model
@@ -274,6 +275,16 @@ certainty. Match status and deterministic ranking remain evidence only. The resu
 `UNIQUE` or `MISSING`; event account and transaction type are `UNKNOWN` when the event stores
 neither. Bank name and draft direction are not substitutes; no account/type field is fabricated
 to improve matching.
+
+`get_current_time` is a read of the device-local clock only, and `find_candidates` is a bounded
+read of the granted pending drafts and granted stored note readings inside an explicit calendar
+window. Neither writes, and a vague or year-less date never blocks the search: an unstated year is
+searched across at most the note's own recorded year and the trusted current device year, both
+reported, instead of being guessed. The three chronologies (current time, a capture's recorded
+instant, the answer time fixed when a date question was asked) are never interchanged, so an old
+note's day is never reinterpreted against a newer clock. A candidate, a ranking or a temporal
+inference never proposes, attaches, confirms, categorizes or files anything; each remains a fact
+for the model to ask about.
 
 An `observe(draft)` observation carries the current active `category_choices`;
 `update_draft_review` submits exactly one of those category references through the ordinary

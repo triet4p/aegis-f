@@ -21,10 +21,10 @@ durable attempt and operation journal for retry, reconciliation and process-safe
 
 - `WorkflowRunHost` — trusted, host-built state: the `AgentSession` scope, the S8.6
   `MaskedPromptBoundary`, the `MaskedHostedGateway` (the only provider path accepted), the closed
-  v3 eleven-tool `HostedToolDeclaration` catalog, the versioned `WorkflowSkillCatalog`, the real
+  versioned `HostedToolDeclaration` catalog, the versioned `WorkflowSkillCatalog`, the real
   `WorkflowCommandService`/`WorkflowQueryService`, a trusted operation-key source and a clock.
   Construction refuses a boundary from a different session or a declaration catalog other than
-  the closed eleven tools. Each run loads only the subset its selected skills require, and the
+  the closed catalog. Each run loads only the subset its selected skills require, and the
   same subset is passed to the runtime, so an unrelated tool is neither offered nor executable.
 - `WorkflowRunRequest` — host-selected `WorkflowIntent`s (which load exactly those runtime
   skills), the trusted user request text and `WorkflowRunLimits`.
@@ -130,6 +130,46 @@ state **before** any transcript entry is appended:
 - The Chat surface appends only an assistant bubble for an admitted retry: the user's message is
   already in the transcript, so pressing Retry adds no duplicate user bubble. A blocked decision
   rewrites the existing failure line and shows no Retry action at all.
+
+## Data-first clarification and temporal tools (S11.C3)
+
+A clarification is the last resort, not the first question. Two read-only tools make that true
+without weakening any mutation boundary:
+
+- `get_current_time()` reports the device-local current time as calendar components plus a masked
+  `today_ref`, and nothing about the user's stored data. It is the only current-time reference.
+- `find_candidates(...)` reads the session's granted pending drafts and granted stored note
+  readings whose stated day is inside an explicitly bounded window (at most 31 days; at most two
+  trusted chronologies for an unstated year), and returns value-free evidence: the application's
+  `user_label`, the signed `day_offset`, the chronology label, exact amount agreement and an
+  ordering-only minute distance. It cannot write, link, confirm, file or widen scope.
+
+The chronology contract is fixed and reported:
+
+| Reference | Where it comes from | What it may resolve |
+| --- | --- | --- |
+| current time | `get_current_time` (device clock at that call) | "today"/"now" wording; a search anchored on the device day |
+| capture chronology | the capture's own recorded instant and zone | its day words; a year-less date read from it |
+| answer time | the device-local year snapshotted when a date question was asked | `năm nay`/`năm ngoái`/`năm kia` and other relative-year answers |
+
+That answer-time snapshot is stored on the run (`AgentToolSession.clarificationChronologies`) when
+`ask_user` raises a date question and is read again when the answer arrives and on every
+continuation or retry of that same suspended run. A retry reuses the year the question was answered
+under; it never re-resolves an old note against a newer clock. A *fresh replan* (`retryRequestTracked`)
+is a new run and fixes its own chronology, which is correct because it re-reads current state.
+
+The date-answer ingress resolves only forms a person writes — a numeric date, a spelled day/month
+(`11 tháng 10`), an explicit year (`2024`) or a relative year (`năm nay`) — and returns one masked
+date alias with the chronology label that resolved it. A year-only answer is combined only with a
+day/month the subject already grounds inside its own span or stored reading. When no trusted
+chronology supplies a year, the answer stays unresolved with a specific, answerable note instead of
+a guessed year. The resolved year itself is never restated; only the day and month the user just
+wrote, plus the symbolic chronology label, are observed.
+
+`select_source` extends the same idea to spelled dates inside the selection: its `spelled_dates`
+list carries one alias per spelled day/month, minted as the date it stands for (the wording's own
+year, else the capture's recorded year, else year-less), so a note that writes `11 tháng 10` never
+needs a date question at all and a note written in an ISO or slash form behaves exactly as before.
 
 ## Completion verification
 

@@ -7,6 +7,20 @@ and no release has been tagged or published. Format follows
 
 ## [Unreleased]
 
+### Sprint 11 — S11.C3 data-first clarification and trusted temporal tools
+
+- **AI Chat** now searches your saved data before it asks about a date or time. One match becomes a
+  question about that transaction by its own label; several matches are described with the label
+  and the evidence that tells them apart; and when nothing matches, the reply states the range it
+  actually searched and asks only what would widen it.
+- **AI Chat** can read the device's current date, time and timezone (read-only) so today's wording
+  no longer needs a question, and it keeps a saved note's own date separate from the current date.
+- **AI Chat** understands written Vietnamese dates and natural year answers such as `11 tháng 10`
+  and `năm nay`. A day and month without a year is resolved from the note's own recorded year, an
+  answer like `năm nay` from the year the question was asked in, and a year the app cannot trust is
+  asked for instead of guessed. That interpretation is kept when the same answer is continued or
+  retried, so an older note is never silently moved to the current year.
+
 ### Sprint 11 — S11.C2 truthful retry admission and applied-effect reconciliation
 
 - **AI Chat** now decides whether a failed turn may retry before it changes the transcript. A run
@@ -31,7 +45,6 @@ and no release has been tagged or published. Format follows
   previous turn's exhausted budget. The clarifying question and the user's answer are stored in
   order, so a restored conversation shows both and labels the continuation instead of calling it
   a retry.
-- Sprint 11 C3 repair (data-first date clarification) remains unimplemented; C2 is recorded above.
 
 ### Sprint 10 — S10.11 real Chat progress visibility
 

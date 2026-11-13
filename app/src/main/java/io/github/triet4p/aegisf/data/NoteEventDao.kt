@@ -77,6 +77,25 @@ abstract class NoteEventDao {
     @Query("SELECT * FROM note_events WHERE captureId = :captureId ORDER BY spanStart, id")
     abstract fun observeForCapture(captureId: Long): Flow<List<NoteEventEntity>>
 
+    /**
+     * A bounded read of the stored readings whose stated day is one of [anchorDates].
+     *
+     * It is the saved-note range read: the caller supplies a short, already-bounded list of
+     * calendar days and its granted capture ids, so this never becomes a scan over the table.
+     * A reading that states no day has no place in a date range and is absent here; the
+     * capture itself is still observable through its own capture observation.
+     */
+    @Query(
+        "SELECT * FROM note_events WHERE anchorDate IN (:anchorDates) " +
+            "AND captureId IN (:captureIds) " +
+            "ORDER BY anchorDate ASC, id ASC LIMIT :limit",
+    )
+    abstract suspend fun findByAnchorDates(
+        anchorDates: List<String>,
+        captureIds: List<Long>,
+        limit: Int,
+    ): List<NoteEventEntity>
+
     /** A bounded-by-capture summary of event states and source-backed resolutions. */
     @Query(
         "SELECT captureId, status, COUNT(*) AS eventCount, " +

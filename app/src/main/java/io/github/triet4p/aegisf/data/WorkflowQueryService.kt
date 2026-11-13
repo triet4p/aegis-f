@@ -606,6 +606,42 @@ class WorkflowQueryService(
     }
 
 
+    /**
+     * A bounded read of the granted pending drafts whose effective stated day is in [dates].
+     *
+     * [draftIds] is the session's granted set and [dates] is a short, already-bounded day list,
+     * so the statement can never return a row outside either. A user correction is the effective
+     * day. The caller still re-checks the effective day locally before using a row.
+     */
+    suspend fun pendingDraftsOnDates(
+        draftIds: Set<Long>,
+        dates: List<String>,
+        bounds: QueryPageRequest,
+    ): QueryPage<PendingBankDraftEntity> {
+        require(draftIds.size <= QueryPageRequest.MAX_PAGE_SIZE) {
+            "A date-scoped draft read is bounded to one maximum query page of granted ids."
+        }
+        require(dates.size <= QueryPageRequest.MAX_PAGE_SIZE) {
+            "A date-scoped draft read is bounded to one maximum query page of days."
+        }
+        if (draftIds.isEmpty() || dates.isEmpty()) {
+            return QueryPage(items = emptyList(), offset = bounds.offset, limit = bounds.limit, hasMore = false)
+        }
+        val rows = pendingBankDraftDao.findPendingOnDates(
+            draftIds = draftIds.toList(),
+            reviewStatus = IntakeReviewStatus.PENDING.name,
+            dates = dates.distinct(),
+            limit = bounds.limit + 1,
+        )
+        val hasMore = rows.size > bounds.limit
+        return QueryPage(
+            items = if (hasMore) rows.subList(0, bounds.limit) else rows,
+            offset = bounds.offset,
+            limit = bounds.limit,
+            hasMore = hasMore,
+        )
+    }
+
     /** One stored draft as a live stream, so a review screen sees its own decisions. */
     fun observeDraftCandidate(draftId: Long): Flow<PendingBankDraftEntity?> =
         pendingBankDraftDao.observeById(draftId)
@@ -914,6 +950,39 @@ class WorkflowQueryService(
         ),
         bounds = query.bounds,
     )
+
+    /**
+     * A bounded read of the stored note readings whose stated day is inside an explicit range.
+     *
+     * The saved-note range read of the agent's data-first search: [anchorDates] is a short,
+     * already-bounded list of calendar days and [captureIds] is the session's granted set, so a
+     * call can only ever read rows inside both. A reading that states no day is not in a date
+     * range; it stays visible through its capture's own observation instead.
+     */
+    suspend fun noteEventsByAnchorDates(
+        anchorDates: List<String>,
+        captureIds: Set<Long>,
+        bounds: QueryPageRequest,
+    ): QueryPage<NoteEventEntity> {
+        require(anchorDates.size <= QueryPageRequest.MAX_PAGE_SIZE) {
+            "A date-range reading read is bounded to one maximum query page of days."
+        }
+        if (anchorDates.isEmpty() || captureIds.isEmpty()) {
+            return QueryPage(items = emptyList(), offset = bounds.offset, limit = bounds.limit, hasMore = false)
+        }
+        val rows = noteEventDao.findByAnchorDates(
+            anchorDates = anchorDates.distinct(),
+            captureIds = captureIds.toList(),
+            limit = bounds.limit + 1,
+        )
+        val hasMore = rows.size > bounds.limit
+        return QueryPage(
+            items = if (hasMore) rows.subList(0, bounds.limit) else rows,
+            offset = bounds.offset,
+            limit = bounds.limit,
+            hasMore = hasMore,
+        )
+    }
 
     /** One stored reading by id; the caller authorizes its capture before reading it. */
     suspend fun noteEvent(eventId: Long): NoteEventEntity? = noteEventDao.findById(eventId)

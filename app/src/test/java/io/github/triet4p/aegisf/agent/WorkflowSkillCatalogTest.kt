@@ -38,7 +38,15 @@ class WorkflowSkillCatalogTest {
 
         assertEquals(WorkflowSkillId.EVENT_READING, extraction.id)
         assertEquals(
-            setOf("observe", "select_source", "make_time_anchor", "record_event", "ask_user"),
+            setOf(
+                "observe",
+                "select_source",
+                "get_current_time",
+                "find_candidates",
+                "make_time_anchor",
+                "record_event",
+                "ask_user",
+            ),
             catalog.toolsFor(setOf(WorkflowIntent.INTERPRET_EVENTS)),
         )
         assertEquals(
@@ -49,6 +57,8 @@ class WorkflowSkillCatalogTest {
             setOf(
                 "observe",
                 "select_source",
+                "get_current_time",
+                "find_candidates",
                 "make_time_anchor",
                 "record_event",
                 "ask_user",
