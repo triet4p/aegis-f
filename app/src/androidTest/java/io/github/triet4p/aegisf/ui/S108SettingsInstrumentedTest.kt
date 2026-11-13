@@ -42,6 +42,8 @@ import io.github.triet4p.aegisf.data.AegisLanguage
 import io.github.triet4p.aegisf.data.AegisThemeMode
 import io.github.triet4p.aegisf.data.CategoryQuery
 import io.github.triet4p.aegisf.data.CategoryState
+import io.github.triet4p.aegisf.data.CompleteStateExporter
+import io.github.triet4p.aegisf.data.CompleteStateRestorer
 import io.github.triet4p.aegisf.data.LedgerDatabase
 import io.github.triet4p.aegisf.data.LedgerDateRange
 import io.github.triet4p.aegisf.data.LedgerRecordQuery
@@ -64,6 +66,7 @@ import io.github.triet4p.aegisf.privacy.MaskedPromptBoundary
 import io.github.triet4p.aegisf.privacy.SensitiveVault
 import io.github.triet4p.aegisf.provider.HostedHttpRequest
 import io.github.triet4p.aegisf.provider.HostedHttpResponse
+import io.github.triet4p.aegisf.provider.HostedProviderExportSnapshot
 import io.github.triet4p.aegisf.provider.HostedProviderSettingsStore
 import io.github.triet4p.aegisf.provider.HttpTransport
 import io.github.triet4p.aegisf.ui.navigation.SettingsHubScreen
@@ -600,7 +603,7 @@ class S108SettingsInstrumentedTest {
         showPrivacy()
         awaitText("ON THIS DEVICE")
         awaitText("Android backup: disabled")
-        awaitText("No backup or restore control is provided in this release.")
+        awaitText("Manual export and validated restore are available from this screen; there is no cloud sync. Android automatic backup remains disabled.")
         assertTrue(
             compose.onAllNodesWithText("Back up now").fetchSemanticsNodes().isEmpty(),
         )
@@ -791,13 +794,26 @@ class S108SettingsInstrumentedTest {
     }
 
     private fun showPrivacy() {
+        val exporter = CompleteStateExporter(database) {
+            HostedProviderExportSnapshot(activeProfileId = null, profiles = emptyList())
+        }
+        val restorer = CompleteStateRestorer(
+            database = database,
+            exporter = exporter,
+            recoveryDirectory = File(context.cacheDir, "s108-privacy-restore"),
+            profileTransfer = providerStore,
+        )
         setContent(AegisLanguage.ENGLISH, fontScale = 1f) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .navigationBarsPadding(),
             ) {
-                SettingsPrivacyScreen(onNavigateUp = { navigatedUp = true })
+                SettingsPrivacyScreen(
+                    onNavigateUp = { navigatedUp = true },
+                    exporter = exporter,
+                    restorer = restorer,
+                )
             }
         }
         compose.waitForIdle()

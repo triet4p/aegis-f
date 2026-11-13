@@ -38,6 +38,15 @@ sealed interface WorkflowCallerScope {
         val draftIds: Set<Long>,
         /** Whether the bounded session's draft-ID page covered every pending draft. */
         val draftScopeComplete: Boolean = true,
+        /**
+         * The stored-state generation this session was admitted against.
+         *
+         * A complete-state restore replaces every business row and advances this generation.
+         * A command from a session admitted before that replacement is refused instead of
+         * applying a hosted result derived from data that no longer exists. New sessions
+         * capture the then-current generation.
+         */
+        val stateEpoch: Long = 0L,
     ) : WorkflowCallerScope
 }
 

@@ -16,6 +16,7 @@ import io.github.triet4p.aegisf.provider.HostedAdapters
 import io.github.triet4p.aegisf.provider.HostedProviderConfig
 import io.github.triet4p.aegisf.provider.HttpTransport
 import io.github.triet4p.aegisf.provider.UrlConnectionHttpTransport
+import java.io.File
 import java.util.UUID
 
 /**
@@ -56,7 +57,21 @@ class AppContainer(context: Context) {
      * boundary is their only public way in, so no caller can write around its rules.
      */
     val workflowCommandService: WorkflowCommandService by lazy {
-        WorkflowCommandService(database = database)
+        WorkflowCommandService(
+            database = database,
+            stateEpoch = restoreEpochStore::current,
+            stateRecoveryPending = completeStateRestorer::isRecoveryPending,
+        )
+    }
+
+    /**
+     * The durable generation of the stored business state, advanced by a complete-state restore.
+     *
+     * It is not business data: it exists so a hosted session admitted before a replacement is
+     * refused instead of applying an obsolete result to the restored rows.
+     */
+    val restoreEpochStore: RestoreEpochStore by lazy {
+        RestoreEpochStore(appContext)
     }
 
     /**
@@ -100,6 +115,22 @@ class AppContainer(context: Context) {
         CompleteStateExporter(database, hostedProviderSettingsStore::exportSnapshot)
     }
 
+    /**
+     * Validated atomic restore of one versioned complete-state file.
+     *
+     * The pre-restore copy lives in the app's no-backup directory: it is recovery state for this
+     * device and must not be carried off it by Android backup.
+     */
+    val completeStateRestorer: CompleteStateRestorer by lazy {
+        CompleteStateRestorer(
+            database = database,
+            exporter = completeStateExporter,
+            recoveryDirectory = File(appContext.noBackupFilesDir, "restore-recovery"),
+            profileTransfer = hostedProviderSettingsStore,
+            advanceStateEpoch = { restoreEpochStore.advance() },
+        )
+    }
+
     /** Production hosted transport; every run's traffic is traced by a decorator over it. */
     internal var hostedHttpTransport: HttpTransport = UrlConnectionHttpTransport()
 
@@ -129,6 +160,9 @@ class AppContainer(context: Context) {
         scope: WorkflowCallerScope.AgentSession,
         config: HostedProviderConfig,
     ): WorkflowRunHost {
+        check(!completeStateRestorer.isRecoveryPending()) {
+            "A complete-state restore is completing; start this request after it finishes."
+        }
         val boundary = MaskedPromptBoundary(SensitiveVault(scope.scopeId))
         val trace = AgentTraceRecorder.enabled(agentTraceStore)
         val adapter = HostedAdapters.create(

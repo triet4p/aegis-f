@@ -156,6 +156,16 @@ class BankNotificationListener : NotificationListenerService() {
     }
 
     /**
+     * Whether a complete-state cutover still owns the stores.
+     *
+     * Reads the application container's restorer; an unavailable container is treated as pending
+     * so intake never writes while the cutover state is unknown.
+     */
+    private fun completeStateRecoveryPending(): Boolean = runCatching {
+        (applicationContext as? AegisApplication)?.container?.completeStateRestorer?.isRecoveryPending()
+    }.getOrNull() ?: true
+
+    /**
      * Applies the privacy boundary to one posted notification and persists a permitted
      * candidate as a pending draft, off the main thread.
      *
@@ -185,6 +195,12 @@ class BankNotificationListener : NotificationListenerService() {
     private suspend fun persistOne(posted: StatusBarNotification, snapshot: Set<String>) {
         currentCoroutineContext().ensureActive()
         if (connectionState.value !is ListenerConnection.Connected) {
+            return
+        }
+        if (completeStateRecoveryPending()) {
+            // A complete-state cutover is still settling; the post stays on the system side and
+            // the post-recovery reconciliation reads the current active set again.
+            Log.i(TAG, "persistOne: complete-state restore is settling; intake deferred")
             return
         }
         val appContext = applicationContext

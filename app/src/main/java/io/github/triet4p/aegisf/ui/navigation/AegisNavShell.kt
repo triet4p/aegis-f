@@ -27,6 +27,7 @@ import io.github.triet4p.aegisf.data.WorkflowCallerScope
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.data.CompleteStateExporter
+import io.github.triet4p.aegisf.data.CompleteStateRestorer
 import io.github.triet4p.aegisf.provider.HostedProviderConfig
 import io.github.triet4p.aegisf.provider.HostedProviderSettingsStore
 import io.github.triet4p.aegisf.ui.BankNotificationSettingsScreen
@@ -151,6 +152,7 @@ internal fun AegisAppShell(
     notificationAccessStore: NotificationAccessStore,
     hostedProviderSettingsStore: HostedProviderSettingsStore,
     completeStateExporter: CompleteStateExporter,
+    completeStateRestorer: CompleteStateRestorer,
     createHostedWorkflowHost: (WorkflowCallerScope.AgentSession, HostedProviderConfig) -> WorkflowRunHost,
     agentRunHistory: AgentRunHistory,
     language: AegisLanguage,
@@ -313,6 +315,7 @@ internal fun AegisAppShell(
                             notificationAccessStore = notificationAccessStore,
                             hostedProviderSettingsStore = hostedProviderSettingsStore,
                             completeStateExporter = completeStateExporter,
+                            completeStateRestorer = completeStateRestorer,
                             agentRunHistory = agentRunHistory,
                             stack = homeStack,
                             scope = dashboardScope,
@@ -404,6 +407,7 @@ private fun HomeDestination(
     notificationAccessStore: NotificationAccessStore,
     hostedProviderSettingsStore: HostedProviderSettingsStore,
     completeStateExporter: CompleteStateExporter,
+    completeStateRestorer: CompleteStateRestorer,
     agentRunHistory: AgentRunHistory,
     stack: List<HomeRoute>,
     scope: DashboardScopeState,
@@ -493,6 +497,7 @@ private fun HomeDestination(
         HomeRoute.SettingsPrivacy -> SettingsPrivacyScreen(
             onNavigateUp = onPop,
             exporter = completeStateExporter,
+            restorer = completeStateRestorer,
         )
 
         is HomeRoute.ScopedList -> ScopedLedgerScreen(

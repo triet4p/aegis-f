@@ -40,6 +40,8 @@ import io.github.triet4p.aegisf.MainActivity
 import io.github.triet4p.aegisf.agent.AgentRunHistory
 import io.github.triet4p.aegisf.data.BankDraftReviewEdits
 import io.github.triet4p.aegisf.data.CategoryEntity
+import io.github.triet4p.aegisf.data.CompleteStateExporter
+import io.github.triet4p.aegisf.data.CompleteStateRestorer
 import io.github.triet4p.aegisf.data.ContextLinkState
 import io.github.triet4p.aegisf.data.IntakeDirection
 import io.github.triet4p.aegisf.data.IntakeFieldState
@@ -62,6 +64,7 @@ import io.github.triet4p.aegisf.data.WorkflowChange
 import io.github.triet4p.aegisf.data.WorkflowCommandOutcome
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
+import io.github.triet4p.aegisf.provider.HostedProviderExportSnapshot
 import io.github.triet4p.aegisf.provider.HostedProviderSettingsStore
 import io.github.triet4p.aegisf.ui.navigation.AegisAppShell
 import io.github.triet4p.aegisf.ui.navigation.HomeScreen
@@ -880,6 +883,15 @@ class S109CompleteExperienceInstrumentedTest {
     ) {
         val providerStore = HostedProviderSettingsStore(context)
         val accessStore = NotificationAccessStore(context)
+        val exporter = CompleteStateExporter(database) {
+            HostedProviderExportSnapshot(activeProfileId = null, profiles = emptyList())
+        }
+        val restorer = CompleteStateRestorer(
+            database = database,
+            exporter = exporter,
+            recoveryDirectory = File(context.cacheDir, "s109-privacy-restore"),
+            profileTransfer = providerStore,
+        )
         showScreen(language = language, themeMode = themeMode, fontScale = fontScale) {
             var currentLanguage by remember { mutableStateOf(language) }
             var currentTheme by remember { mutableStateOf(themeMode) }
@@ -889,6 +901,8 @@ class S109CompleteExperienceInstrumentedTest {
                     commandService = commands,
                     notificationAccessStore = accessStore,
                     hostedProviderSettingsStore = providerStore,
+                    completeStateExporter = exporter,
+                    completeStateRestorer = restorer,
                     createHostedWorkflowHost = { _, _ ->
                         error("no hosted run in the navigation suite")
                     },

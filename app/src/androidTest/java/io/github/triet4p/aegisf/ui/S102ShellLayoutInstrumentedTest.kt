@@ -67,6 +67,8 @@ class S102ShellLayoutInstrumentedTest {
                         commandService = app.container.workflowCommandService,
                         notificationAccessStore = app.container.notificationAccessStore,
                         hostedProviderSettingsStore = app.container.hostedProviderSettingsStore,
+                        completeStateExporter = app.container.completeStateExporter,
+                        completeStateRestorer = app.container.completeStateRestorer,
                         createHostedWorkflowHost = app.container::createHostedWorkflowHost,
                         agentRunHistory = app.container.agentRunHistory,
                         language = AegisLanguage.ENGLISH,

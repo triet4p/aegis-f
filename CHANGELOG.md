@@ -7,13 +7,48 @@ and no release has been tagged or published. Format follows
 
 ## [Unreleased]
 
+### Sprint 11 — S11.2 validated atomic restore
+
+- Added a validated restore of an exported complete-state file in **Settings → Privacy & retention**.
+  The picked file is checked for its format, version, stored schema, column types, enum values,
+  numeric ranges, cross-record references, review ownership and size before any stored row is
+  touched; a corrupt or unsupported file is refused with the reason and leaves every record
+  unchanged.
+- Restoring first shows exactly what the file contains and requires an explicit replacement
+  confirmation. The stored business tables and the device-local provider profile descriptors are
+  replaced together or not at all: a durable journal records the previous and incoming non-secret
+  descriptors, the provider descriptors are applied first, and the database replacement commits
+  second with its own marker. If the database does not commit, the provider descriptors are put
+  back exactly; if the process dies in either window, the next start finishes the rollback or the
+  completion. Until that finishes, ordinary commands, hosted runs and bank-notification intake
+  are refused, so nothing runs against a half-applied restore. A journal that cannot be read is
+  kept, not discarded, and the previous-state copy remains the recovery path. The eight stored
+  business/provenance tables are replaced, never merged; the old command and reconciliation
+  journals are cleared instead of replayed, a pending review keeps its stored corrections and
+  revision, and historical classification snapshots are restored as provenance only — they cannot
+  restart a classifier, change a review category, or reorder the review queue.
+- A restored pending bank draft whose category was archived in the backup is reopened for the
+  user's decision instead of keeping a hosted choice that can no longer be confirmed; the user's
+  own archived attribution is preserved, and the preview reports how many choices were reopened.
+- A replacement invalidates hosted work that was already in flight: the store advances a durable
+  state generation, and a chat run admitted against the replaced data is refused by the command
+  boundary instead of writing an obsolete category or other effect onto the restored rows.
+- A recoverable copy of the state being replaced is written to app-private, no-backup storage
+  before the change and can itself be restored from the same screen. The backup's non-secret
+  provider profile descriptors are imported: a profile already saved on the device keeps its own
+  credential and full endpoint, an id known only to the backup is added with only the endpoint
+  origin the backup preserves, and profiles the backup does not mention stay untouched.
+  Credentials and reversible mappings are never imported; each imported profile's key is entered
+  through the normal provider settings flow, and the restore result says how many still need one.
+
 ### Sprint 11 — S11.1 complete-state export
 
 - Added a versioned Android file-picker export for categories, category rules, exact-VND ledger
   records, bank drafts and corrections, saved captures and their events/links, source provenance,
   historical classification snapshots, and non-secret hosted-profile descriptors. The export
   warns that its sensitive JSON is unencrypted and excludes credentials, raw notification bodies,
-  conversations, diagnostic traces, and runtime buffers; no restore or cloud-sync control was added.
+  conversations, diagnostic traces, and runtime buffers; that change added no restore or
+  cloud-sync control.
 
 ### Sprint 11 — S11.C3 data-first clarification and trusted temporal tools
 

@@ -26,10 +26,18 @@ class AegisApplication : Application() {
         super.onCreate()
         container = AppContainer(this)
         backgroundScope.launch {
-            container.workflowCommandService.resumePendingArrivalReconciliation()
-        }
-        if (isNotificationAccessGranted(this)) {
-            BankNotificationListener.requestActiveReconciliation(this)
+            // A cutover interrupted by process death is settled before any reconciliation or
+            // intake work starts. The command boundary and hosted runs stay closed while its
+            // journal is pending, so nothing user-visible can run against a half-applied cutover.
+            // A start-up failure must not crash the process: the journal stays, the gate stays
+            // closed, and the next start (or the privacy screen) retries it.
+            runCatching { container.completeStateRestorer.completeInterruptedRestore() }
+            runCatching { container.workflowCommandService.resumePendingArrivalReconciliation() }
+            if (isNotificationAccessGranted(this@AegisApplication)) {
+                runCatching {
+                    BankNotificationListener.requestActiveReconciliation(this@AegisApplication)
+                }
+            }
         }
     }
 

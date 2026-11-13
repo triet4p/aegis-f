@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import io.github.triet4p.aegisf.data.HostedProfileTransfer
 import org.json.JSONArray
 import org.json.JSONObject
 import java.security.KeyStore
@@ -28,6 +29,10 @@ data class SavedHostedProvider(
     val protocol: HostedProtocol,
     val endpoint: String,
     val model: String,
+    /**
+     * The locally established credential, or empty when this profile is a descriptor restored
+     * from a backup. A credential is never imported; the user establishes one here.
+     */
     val credential: String,
     /** `null` sends no output-limit field and leaves the model's own limit in force. */
     val maxOutputTokens: Int?,
@@ -36,7 +41,16 @@ data class SavedHostedProvider(
     val parallelToolCalls: Boolean?,
     val capabilities: HostedProviderCapabilities,
 ) {
+    /** Whether a credential was established locally for this profile. */
+    val hasCredential: Boolean get() = credential.isNotBlank()
+
     fun validatedConfig(sessionId: String? = null): HostedProviderConfig {
+        if (!hasCredential) {
+            throw HostedConfigurationException(
+                "This provider profile has no saved credential yet. Open Provider & model and " +
+                    "enter its key before using it.",
+            )
+        }
         if (maxOutputTokens != null && maxOutputTokens < MIN_EXPLICIT_OUTPUT_TOKENS) {
             throw HostedConfigurationException(
                 "An explicit output limit must be at least $MIN_EXPLICIT_OUTPUT_TOKENS tokens. " +
@@ -68,6 +82,68 @@ data class SavedHostedProvider(
             capabilities = capabilities,
             clientHeaders = clientHeaders,
         )
+    }
+
+    /**
+     * Validates the non-secret descriptor a restored profile carries.
+     *
+     * A profile imported from a backup has no credential and only the endpoint origin the export
+     * preserves, so it is not yet a runnable configuration: the protocol's path rules need the
+     * full endpoint, which a backup deliberately does not carry. The descriptor must still be a
+     * sane, openable profile, and every rule that does not need authentication or a complete
+     * path is enforced. Once the user establishes a credential, [validatedConfig] applies the
+     * complete protocol validation again.
+     */
+    internal fun validateDescriptor() {
+        if (id.isBlank()) {
+            throw HostedConfigurationException("provider profile id must be nonblank")
+        }
+        if (name.isBlank()) {
+            throw HostedConfigurationException("provider profile name must be nonblank")
+        }
+        if (maxOutputTokens != null && maxOutputTokens < MIN_EXPLICIT_OUTPUT_TOKENS) {
+            throw HostedConfigurationException(
+                "An explicit output limit must be at least $MIN_EXPLICIT_OUTPUT_TOKENS tokens. " +
+                    "Clear the field to use the model's own default.",
+            )
+        }
+        if (model.isBlank() || model.length > 200) {
+            throw HostedConfigurationException("model id must be a nonblank bounded value")
+        }
+        if (model.any { it.isWhitespace() || it == '/' || it == '?' || it == '#' || it.code < 0x20 }) {
+            throw HostedConfigurationException("model id must travel in a request path unchanged")
+        }
+        if (!endpoint.startsWith("https://")) {
+            throw HostedConfigurationException("endpoint must use https")
+        }
+        val uri = runCatching { URI(endpoint.replace("{model}", "model")) }.getOrNull()
+            ?: throw HostedConfigurationException("endpoint is not a valid absolute URL")
+        if (uri.host.isNullOrBlank()) throw HostedConfigurationException("endpoint must name a host")
+        if (uri.userInfo != null) throw HostedConfigurationException("endpoint must not carry user info")
+        if (uri.fragment != null) throw HostedConfigurationException("endpoint must not carry a fragment")
+        if (protocol != HostedProtocol.GEMINI_GENERATE_CONTENT && endpoint.contains("{model}")) {
+            throw HostedConfigurationException("OpenAI-style endpoint must not carry {model}")
+        }
+        // Budget construction enforces the numeric ranges; the capability rules mirror
+        // HostedProviderConfig so a descriptor cannot declare a feature its model lacks.
+        val budget = HostedGenerationBudget(maxOutputTokens, reasoningEffort, temperature, parallelToolCalls)
+        val limit = capabilities.maxOutputTokensLimit
+        if (limit != null && budget.maxOutputTokens != null && budget.maxOutputTokens > limit) {
+            throw HostedConfigurationException(
+                "maxOutputTokens ${budget.maxOutputTokens} exceeds the declared model limit $limit",
+            )
+        }
+        if (budget.reasoningEffort != null && !capabilities.supportsReasoningBudget) {
+            throw HostedConfigurationException("reasoning budget was requested but the model declares no support")
+        }
+        if (budget.temperature != null && !capabilities.supportsTemperature) {
+            throw HostedConfigurationException("temperature was requested but the model declares no support")
+        }
+        if (budget.parallelToolCalls != null && !capabilities.supportsParallelToolCalls) {
+            throw HostedConfigurationException(
+                "parallel tool calls were configured but the model declares no support",
+            )
+        }
     }
 
     private companion object {
@@ -108,12 +184,132 @@ internal fun sanitizedProviderEndpointOrigin(endpoint: String): String {
     return URI(scheme, null, host, uri.port, null, null, null).toASCIIString()
 }
 
+/** What one complete-state restore did to the saved provider profile descriptors. */
+data class HostedProfileImportResult(
+    /** Descriptors imported from the backup (updated in place or added). */
+    val imported: Int,
+    /** Imported profiles that still have no credential and need their key entered. */
+    val withoutCredential: Int,
+    /** The selected profile after the import, or null when no usable profile is selected. */
+    val activeProfileId: String?,
+)
+
+/** The merged profile list and the outcome of merging a backup's descriptors. */
+internal data class HostedProfileImport(
+    val profiles: List<SavedHostedProvider>,
+    val activeProfileId: String?,
+    val result: HostedProfileImportResult,
+)
+
+/**
+ * Merges a backup's non-secret profile descriptors into the device's saved profiles.
+ *
+ * Descriptors are imported; credentials are not. For a profile id that already exists on this
+ * device the stored credential and full endpoint are kept — a backup carries neither a secret
+ * nor an endpoint path — while its descriptor fields follow the backup. An id that exists only
+ * in the backup is added with no credential and only the endpoint origin the export preserves,
+ * so the user completes it through the normal provider flow. Profiles the backup does not
+ * mention stay as they are: a restore never destroys a credential it cannot carry.
+ *
+ * The active selection follows only a profile that has a credential, so a restore never leaves
+ * the app pointed at a profile that cannot run yet.
+ */
+internal fun mergeImportedDescriptors(
+    local: List<SavedHostedProvider>,
+    activeProfileId: String?,
+    snapshot: HostedProviderExportSnapshot,
+): HostedProfileImport {
+    val merged = local.toMutableList()
+    var imported = 0
+    var withoutCredential = 0
+    for (descriptor in snapshot.profiles) {
+        val index = merged.indexOfFirst { it.id == descriptor.id }
+        val existing = if (index >= 0) merged[index] else null
+        val profile = if (existing != null) {
+            existing.copy(
+                name = descriptor.name,
+                protocol = descriptor.protocol,
+                model = descriptor.model,
+                maxOutputTokens = descriptor.maxOutputTokens,
+                reasoningEffort = descriptor.reasoningEffort,
+                temperature = descriptor.temperature,
+                parallelToolCalls = descriptor.parallelToolCalls,
+                capabilities = descriptor.capabilities,
+            )
+        } else {
+            SavedHostedProvider(
+                id = descriptor.id,
+                name = descriptor.name,
+                protocol = descriptor.protocol,
+                endpoint = descriptor.endpointOrigin,
+                model = descriptor.model,
+                credential = "",
+                maxOutputTokens = descriptor.maxOutputTokens,
+                reasoningEffort = descriptor.reasoningEffort,
+                temperature = descriptor.temperature,
+                parallelToolCalls = descriptor.parallelToolCalls,
+                capabilities = descriptor.capabilities,
+            )
+        }
+        if (index >= 0) merged[index] = profile else merged.add(profile)
+        imported++
+        if (!profile.hasCredential) withoutCredential++
+    }
+    val preferredActive = snapshot.activeProfileId
+        ?.takeIf { id -> merged.any { it.id == id && it.hasCredential } }
+        ?: activeProfileId?.takeIf { id -> merged.any { it.id == id && it.hasCredential } }
+    return HostedProfileImport(
+        profiles = merged,
+        activeProfileId = preferredActive,
+        result = HostedProfileImportResult(
+            imported = imported,
+            withoutCredential = withoutCredential,
+            activeProfileId = preferredActive,
+        ),
+    )
+}
+
+/**
+ * The profile list a rollback of [imported] restores from [local].
+ *
+ * Descriptor fields of profiles that existed in [previous] are put back; ids the import added
+ * (present in [imported], absent from [previous]) are dropped. Credentials and full endpoints
+ * are carried through untouched, which is what makes a cutover rollback safe to run without
+ * reading or writing a secret.
+ */
+internal fun revertedImportProfiles(
+    local: List<SavedHostedProvider>,
+    previous: HostedProviderExportSnapshot,
+    imported: HostedProviderExportSnapshot,
+): List<SavedHostedProvider> {
+    val previousById = previous.profiles.associateBy { it.id }
+    val importedIds = imported.profiles.mapTo(HashSet()) { it.id }
+    return local.mapNotNull { profile ->
+        if (profile.id in importedIds && profile.id !in previousById) {
+            null
+        } else {
+            previousById[profile.id]?.let { prior ->
+                profile.copy(
+                    name = prior.name,
+                    protocol = prior.protocol,
+                    model = prior.model,
+                    maxOutputTokens = prior.maxOutputTokens,
+                    reasoningEffort = prior.reasoningEffort,
+                    temperature = prior.temperature,
+                    parallelToolCalls = prior.parallelToolCalls,
+                    capabilities = prior.capabilities,
+                )
+            } ?: profile
+        }
+    }
+}
+
 /**
  * Encrypted-at-rest, device-local provider profiles. The preference contains only AES-GCM
  * ciphertext; the AES key is non-exportable in Android Keystore. Backup is disabled by the
  * app manifest so encrypted provider profiles cannot leave the device through auto-backup.
  */
-class HostedProviderSettingsStore(context: Context) {
+class HostedProviderSettingsStore(context: Context) : HostedProfileTransfer {
     private val preferences = context.applicationContext.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
 
     @Synchronized
@@ -124,7 +320,7 @@ class HostedProviderSettingsStore(context: Context) {
 
     /** Returns no credentials or endpoint path/query material to callers that build an export. */
     @Synchronized
-    fun exportSnapshot(): HostedProviderExportSnapshot {
+    override fun exportSnapshot(): HostedProviderExportSnapshot {
         val profiles = load()
         val activeId = preferences.getString(ACTIVE_PROFILE_KEY, null)
             ?.takeIf { id -> profiles.any { profile -> profile.id == id } }
@@ -149,10 +345,77 @@ class HostedProviderSettingsStore(context: Context) {
 
     @Synchronized
     fun activate(id: String) {
-        require(load().any { it.id == id }) { "The selected provider profile is unavailable." }
+        val profile = load().firstOrNull { it.id == id }
+        require(profile != null) { "The selected provider profile is unavailable." }
+        require(profile.hasCredential) {
+            "This provider profile has no saved credential yet; enter its key before selecting it."
+        }
         check(preferences.edit().putString(ACTIVE_PROFILE_KEY, id).commit()) {
             "The selected provider could not be saved."
         }
+    }
+
+    /**
+     * Imports a complete-state backup's non-secret profile descriptors.
+     *
+     * Credentials are never imported; a profile already saved on this device keeps its own
+     * credential and full endpoint (see [mergeImportedDescriptors]). Returns how many
+     * descriptors were imported and how many still need a locally established key.
+     */
+    @Synchronized
+    override fun importSnapshot(snapshot: HostedProviderExportSnapshot): HostedProfileImportResult {
+        if (snapshot.profiles.isEmpty()) {
+            return HostedProfileImportResult(
+                imported = 0,
+                withoutCredential = 0,
+                activeProfileId = active()?.takeIf { it.hasCredential }?.id,
+            )
+        }
+        val merged = mergeImportedDescriptors(
+            local = load(),
+            activeProfileId = preferences.getString(ACTIVE_PROFILE_KEY, null),
+            snapshot = snapshot,
+        )
+        merged.profiles.forEach { profile ->
+            if (profile.hasCredential) profile.validatedConfig() else profile.validateDescriptor()
+        }
+        save(merged.profiles)
+        val editor = preferences.edit()
+        if (merged.activeProfileId == null) {
+            editor.remove(ACTIVE_PROFILE_KEY)
+        } else {
+            editor.putString(ACTIVE_PROFILE_KEY, merged.activeProfileId)
+        }
+        check(editor.commit()) { "The selected provider could not be saved." }
+        return merged.result
+    }
+
+    /**
+     * Puts the provider store back to the state before an import that did not commit.
+     *
+     * Only descriptor fields move: a profile that existed before gets its previous descriptor
+     * back, an id the import added is removed, and the previous active id returns. The stored
+     * credential and the full endpoint are never read, changed or copied, so rolling back a
+     * cutover never touches a secret.
+     */
+    @Synchronized
+    override fun revertImport(
+        previous: HostedProviderExportSnapshot,
+        imported: HostedProviderExportSnapshot,
+    ) {
+        val reverted = revertedImportProfiles(load(), previous, imported)
+        save(reverted)
+        val previousActive = previous.activeProfileId
+            ?.takeIf { id -> reverted.any { it.id == id && it.hasCredential } }
+            ?: preferences.getString(ACTIVE_PROFILE_KEY, null)
+                ?.takeIf { id -> reverted.any { it.id == id && it.hasCredential } }
+        val editor = preferences.edit()
+        if (previousActive == null) {
+            editor.remove(ACTIVE_PROFILE_KEY)
+        } else {
+            editor.putString(ACTIVE_PROFILE_KEY, previousActive)
+        }
+        check(editor.commit()) { "The selected provider could not be saved." }
     }
 
     @Synchronized
@@ -184,7 +447,11 @@ class HostedProviderSettingsStore(context: Context) {
     @Synchronized
     fun save(profiles: List<SavedHostedProvider>) {
         require(profiles.map { it.id }.toSet().size == profiles.size) { "Provider profile ids must be unique." }
-        profiles.forEach { it.validatedConfig() }
+        profiles.forEach { profile ->
+            // A restored descriptor is stored without a credential; every profile that has one
+            // still goes through the full runnable-configuration validation.
+            if (profile.hasCredential) profile.validatedConfig() else profile.validateDescriptor()
+        }
         val array = JSONArray().apply { profiles.forEach { put(it.toJson()) } }
         val previousAlias = preferences.getString(KEY_ALIAS_KEY, null)
         val newAlias = "$KEY_ALIAS.${UUID.randomUUID()}"
@@ -280,7 +547,8 @@ class HostedProviderSettingsStore(context: Context) {
         return SavedHostedProvider(
             id = getString("id"), name = getString("name"),
             protocol = HostedProtocol.valueOf(getString("protocol")),
-            endpoint = getString("endpoint"), model = getString("model"), credential = getString("credential"),
+            endpoint = getString("endpoint"), model = getString("model"),
+            credential = if (isNull("credential")) "" else getString("credential"),
             maxOutputTokens = storedOutputTokens(),
             reasoningEffort = optString("reasoningEffort").takeIf { it.isNotEmpty() && it != "null" }
                 ?.let(HostedReasoningEffort::valueOf),

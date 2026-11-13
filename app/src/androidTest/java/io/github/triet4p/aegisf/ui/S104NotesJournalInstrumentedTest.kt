@@ -33,6 +33,8 @@ import io.github.triet4p.aegisf.data.AegisLanguage
 import io.github.triet4p.aegisf.data.AegisThemeMode
 import io.github.triet4p.aegisf.data.CaptureKind
 import io.github.triet4p.aegisf.data.CaptureSourceKind
+import io.github.triet4p.aegisf.data.CompleteStateExporter
+import io.github.triet4p.aegisf.data.CompleteStateRestorer
 import io.github.triet4p.aegisf.data.IntakeDirection
 import io.github.triet4p.aegisf.data.IntakeFieldState
 import io.github.triet4p.aegisf.data.IntakeParseStatus
@@ -48,6 +50,7 @@ import io.github.triet4p.aegisf.data.WorkflowChange
 import io.github.triet4p.aegisf.data.WorkflowCommandOutcome
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
+import io.github.triet4p.aegisf.provider.HostedProviderExportSnapshot
 import io.github.triet4p.aegisf.ui.navigation.AegisAppShell
 import io.github.triet4p.aegisf.ui.theme.AegisTheme
 import kotlinx.coroutines.runBlocking
@@ -640,6 +643,18 @@ class S104NotesJournalInstrumentedTest {
         themeMode: AegisThemeMode = AegisThemeMode.LIGHT,
     ) {
         val app = compose.activity.application as AegisApplication
+        val exporter = CompleteStateExporter(store) {
+            HostedProviderExportSnapshot(activeProfileId = null, profiles = emptyList())
+        }
+        val restorer = CompleteStateRestorer(
+            database = store,
+            exporter = exporter,
+            recoveryDirectory = File(
+                InstrumentationRegistry.getInstrumentation().targetContext.cacheDir,
+                "s104-privacy-restore",
+            ),
+            profileTransfer = app.container.hostedProviderSettingsStore,
+        )
         compose.activity.setContent {
             val base = LocalDensity.current
             CompositionLocalProvider(
@@ -654,6 +669,8 @@ class S104NotesJournalInstrumentedTest {
                         commandService = commands,
                         notificationAccessStore = app.container.notificationAccessStore,
                         hostedProviderSettingsStore = app.container.hostedProviderSettingsStore,
+                        completeStateExporter = exporter,
+                        completeStateRestorer = restorer,
                         createHostedWorkflowHost = { _, _ ->
                             error("Hosted processing is not part of the Notes evidence.")
                         },

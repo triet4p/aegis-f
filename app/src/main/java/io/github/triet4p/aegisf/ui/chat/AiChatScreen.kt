@@ -477,6 +477,9 @@ internal fun AiChatScreen(
                     captureIds = captureIds,
                     draftIds = pendingDraftPage.items.map { it.id }.toSet(),
                     draftScopeComplete = !pendingDraftPage.hasMore,
+                    // A complete-state restore advances this generation; this session's later
+                    // commands are then refused instead of writing an obsolete hosted result.
+                    stateEpoch = commandService.currentStateEpoch(),
                 )
                 val request = WorkflowRunRequest(
                     intents = CHAT_INTENTS,

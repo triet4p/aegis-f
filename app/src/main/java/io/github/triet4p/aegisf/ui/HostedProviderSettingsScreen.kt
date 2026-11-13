@@ -187,7 +187,13 @@ internal fun HostedProviderSettingsScreen(
         initialDraft = loaded
         editingProfileId = profile.id
         editingCredential = profile.credential
-        status = strings.providerReplaceNotice
+        status = if (profile.hasCredential) {
+            strings.providerReplaceNotice
+        } else {
+            // A descriptor restored from a backup has no credential yet; completing it is the
+            // local consent flow, not a key replacement.
+            strings.providerCredentialRequired
+        }
         statusIsError = false
     }
 

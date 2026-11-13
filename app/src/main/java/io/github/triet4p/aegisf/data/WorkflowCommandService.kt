@@ -51,7 +51,21 @@ class WorkflowCommandService(
     private val database: LedgerDatabase,
     private val clock: LedgerClock = SystemLedgerClock,
     private val timezoneId: () -> String = { TimeZone.getDefault().id },
+    /**
+     * The current stored-state generation. A complete-state restore advances it; a session
+     * admitted earlier is refused by [runCommand] so its hosted results cannot land on the
+     * replaced state.
+     */
+    private val stateEpoch: () -> Long = { 0L },
+    /**
+     * Whether a complete-state cutover journal is still being settled. Ordinary work is
+     * refused while it is, so nothing runs against a state whose two stores are mid-change.
+     */
+    private val stateRecoveryPending: () -> Boolean = { false },
 ) {
+
+    /** The generation a new agent session must capture before it prepares any work. */
+    fun currentStateEpoch(): Long = stateEpoch()
 
     private val captureDao = database.captureMessageDao()
     private val eventDao = database.noteEventDao()
@@ -852,6 +866,22 @@ class WorkflowCommandService(
     ): WorkflowCommandOutcome {
         if (idempotencyKey.isBlank()) {
             return WorkflowCommandOutcome.Failed("A command needs a non-blank idempotency key.")
+        }
+        // A cutover journal is still settling: refuse every caller before any authority, key or
+        // row is read, so nothing is observed or changed while the two stores are mid-change.
+        if (stateRecoveryPending()) {
+            return WorkflowCommandOutcome.Conflict(
+                "A complete-state restore is completing; stored data is not available for changes yet.",
+            )
+        }
+        // A restore replaced the rows this session was admitted against. Refuse before any
+        // authority, key or row is read: a hosted result prepared from the old state must not
+        // be applied to the new one, even when a restored revision would coincidentally match.
+        val session = scope as? WorkflowCallerScope.AgentSession
+        if (session != null && session.stateEpoch != stateEpoch()) {
+            return WorkflowCommandOutcome.Conflict(
+                "The saved data was replaced after this request was prepared; nothing was changed.",
+            )
         }
         authorize()?.let { refusal -> return refusal }
         val digest = canonicalDependencyDigest(payload)
