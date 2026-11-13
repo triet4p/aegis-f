@@ -3,6 +3,7 @@ package io.github.triet4p.aegisf.agent
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import io.github.triet4p.aegisf.data.AgentTraceStore
 import io.github.triet4p.aegisf.data.CanonicalAgentRetryPolicy
 import io.github.triet4p.aegisf.data.ContextLinkState
 import io.github.triet4p.aegisf.data.IntakeDirection
@@ -28,6 +29,7 @@ import io.github.triet4p.aegisf.provider.HostedConversation
 import io.github.triet4p.aegisf.provider.HostedGenerationAdapter
 import io.github.triet4p.aegisf.provider.HostedGenerationResult
 import io.github.triet4p.aegisf.provider.HostedProtocol
+import io.github.triet4p.aegisf.provider.HostedProviderFailure
 import io.github.triet4p.aegisf.provider.HostedToolCall
 import io.github.triet4p.aegisf.provider.HostedToolResult
 import io.github.triet4p.aegisf.provider.HostedTurn
@@ -558,6 +560,296 @@ class S810DurableRunHistoryTest {
         assertEquals(5, lines.count { it.role == "USER" && it.text.contains("The pending one") })
     }
 
+    // ---- S11.C2 retry admission and applied-effect reconciliation --------------------------
+
+    @Test
+    fun `a retryable transport failure admits one request retry without a second user line`() =
+        runBlocking {
+            val fixture = prepare()
+            val script = scripted()
+            script += {
+                ScriptedTurn(
+                    finish = HostedTurnFinish.Complete,
+                    failure = HostedProviderFailure.Transport("synthetic offline turn"),
+                )
+            }
+            script += { complete("Retried answer.") }
+            val adapter = ScriptedAdapter(script)
+            val executor = BoundedWorkflowExecutor(hostOf(fixture, adapter))
+            val request = WorkflowRunRequest(
+                intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+                userRequest = "Find the draft I meant.",
+            )
+            val admitted = history.admitRun(fixture.scope, request, fixture.boundary, 8192)
+            check(history.claimForExecution(admitted.runId, admitted.attempt))
+            val failed = executor.startWithAttemptKey(request, key("c2-transport"), 8192)
+            assertTrue("expected a transport stop, got $failed", failed is WorkflowRunOutcome.Incomplete)
+            history.recordAttemptOutcome(admitted.runId, admitted.attempt, failed, fixture.boundary)
+
+            val admission = history.retryAdmission(fixture.scope, admitted.runId)
+            assertTrue("a clean retryable failure must admit a retry, got $admission", admission is RetryAdmission.Ready)
+            admission as RetryAdmission.Ready
+            assertEquals(RetryTarget.REQUEST, admission.target)
+            assertEquals(2, admission.nextAttempt)
+
+            val retried = executor.retryRequestTracked(history, admitted.runId, request, 8192)
+            assertTrue("expected the retry to settle, got $retried", retried is WorkflowRunOutcome.Completed)
+            assertEquals("SUCCEEDED", database.agentRunDao().findByRunId(admitted.runId)?.state)
+            assertEquals(2, database.agentRunAttemptDao().findForRun(admitted.runId).size)
+            assertEquals(
+                "a retry must not append a second copy of the user's request",
+                1,
+                history.conversationForRun(admitted.runId).count { it.role == "USER" },
+            )
+        }
+
+    @Test
+    fun `an exhausted retryable run offers no retry`() = runBlocking {
+        val fixture = prepare()
+        val script = scripted()
+        repeat(CanonicalAgentRetryPolicy.MAX_ATTEMPTS) {
+            script += {
+                ScriptedTurn(
+                    finish = HostedTurnFinish.Complete,
+                    failure = HostedProviderFailure.Transport("synthetic offline turn"),
+                )
+            }
+        }
+        val adapter = ScriptedAdapter(script)
+        val executor = BoundedWorkflowExecutor(hostOf(fixture, adapter))
+        val request = WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+            userRequest = "Find the draft I meant.",
+        )
+        val admitted = history.admitRun(fixture.scope, request, fixture.boundary, 8192)
+        val outcome = executor.startTracked(
+            admitted = admitted,
+            request = request,
+            history = history,
+            maxOutputTokens = 8192,
+            retryDelay = { _ -> },
+        )
+        assertTrue("expected an exhausted stop, got $outcome", outcome is WorkflowRunOutcome.Incomplete)
+        assertEquals(
+            "the automatic retry must spend the whole allowance",
+            CanonicalAgentRetryPolicy.MAX_ATTEMPTS,
+            database.agentRunDao().findByRunId(admitted.runId)?.attempt,
+        )
+        assertEquals(
+            "an exhausted run must not offer a dead-end retry",
+            RetryAdmission.Blocked(RetryBlockReason.ATTEMPTS_EXHAUSTED),
+            history.retryAdmission(fixture.scope, admitted.runId),
+        )
+    }
+
+    @Test
+    fun `a terminal provider rejection offers no retry`() = runBlocking {
+        val fixture = prepare()
+        val script = scripted()
+        script += {
+            ScriptedTurn(
+                finish = HostedTurnFinish.Complete,
+                failure = HostedProviderFailure.Rejected(400, "synthetic rejected request"),
+            )
+        }
+        val adapter = ScriptedAdapter(script)
+        val executor = BoundedWorkflowExecutor(hostOf(fixture, adapter))
+        val request = WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+            userRequest = "Find the draft I meant.",
+        )
+        val admitted = history.admitRun(fixture.scope, request, fixture.boundary, 8192)
+        check(history.claimForExecution(admitted.runId, admitted.attempt))
+        val failed = executor.startWithAttemptKey(request, key("c2-terminal"), 8192)
+        assertTrue("expected a provider stop, got $failed", failed is WorkflowRunOutcome.Incomplete)
+        history.recordAttemptOutcome(admitted.runId, admitted.attempt, failed, fixture.boundary)
+        assertEquals(
+            "a terminal failure must not offer Retry",
+            RetryAdmission.Blocked(RetryBlockReason.TERMINAL),
+            history.retryAdmission(fixture.scope, admitted.runId),
+        )
+    }
+
+    @Test
+    fun `an in-progress run reports that it is still being processed`() = runBlocking {
+        val fixture = prepare()
+        val request = WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+            userRequest = "Find the draft I meant.",
+        )
+        val admitted = history.admitRun(fixture.scope, request, fixture.boundary, 8192)
+        check(history.claimForExecution(admitted.runId, admitted.attempt))
+        assertEquals(
+            "a running attempt must not race a retry",
+            RetryAdmission.Blocked(RetryBlockReason.STILL_PROCESSING),
+            history.retryAdmission(fixture.scope, admitted.runId),
+        )
+    }
+
+    @Test
+    fun `a possibly applied write is detected from its per-tool journal keys`() = runBlocking {
+        val fixture = prepare()
+        val tracedHistory = traceEnabledHistory()
+        lateinit var adapter: ScriptedAdapter
+        val script = scripted()
+        script += {
+            toolTurn(call("select_source", JSONObject()
+                .put("capture_ref", captureRef(adapter))
+                .put("quote", sourceText(adapter))
+                .put("occurrence", 1)))
+        }
+        script += {
+            val source = previousEnvelope(adapter, 1).getJSONObject("data")
+            toolTurn(call("record_event", JSONObject()
+                .put("source_ref", source.getString("source_ref"))
+                .put("summary", "Coffee")
+                .put("amount_ref", valueRef(source, "amount"))
+                .put("anchor_ref", JSONObject.NULL)
+                .put("merchant_ref", JSONObject.NULL)
+                .put("clarification", "none")))
+        }
+        script += {
+            ScriptedTurn(
+                finish = HostedTurnFinish.Complete,
+                failure = HostedProviderFailure.Transport("dropped after the write"),
+            )
+        }
+        adapter = ScriptedAdapter(script)
+        val executor = BoundedWorkflowExecutor(
+            hostOf(
+                fixture,
+                adapter,
+                AgentTraceRecorder.enabled(AgentTraceStore(database.agentTraceDao())),
+            ),
+        )
+        val request = WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
+            userRequest = "Interpret the synthetic note.",
+        )
+        val admitted = tracedHistory.admitRun(fixture.scope, request, fixture.boundary, 8192)
+        val outcome = executor.startTracked(
+            admitted = admitted,
+            request = request,
+            history = tracedHistory,
+            maxOutputTokens = 8192,
+            retryDelay = { _ -> },
+        )
+        assertTrue("expected a transport stop, got $outcome", outcome is WorkflowRunOutcome.Incomplete)
+        assertEquals("one event row", 1, database.noteEventDao().findForCapture(fixture.captureId).size)
+        val operations = queries.workflowOperationsForScope(fixture.scope.scopeId)
+        val recordKey = admitted.attemptKey + ":record"
+        assertTrue(
+            "the attempt's actual per-tool journal key must carry the applied write, got $operations",
+            operations.any { it.idempotencyKey == recordKey && it.outcome == "APPLIED" },
+        )
+        assertEquals(
+            "an applied write must block replay, not duplicate it",
+            RetryAdmission.Blocked(RetryBlockReason.POSSIBLY_APPLIED),
+            tracedHistory.retryAdmission(fixture.scope, admitted.runId),
+        )
+        assertEquals("nothing may be replayed", 1, database.noteEventDao().findForCapture(fixture.captureId).size)
+    }
+
+    @Test
+    fun `a failed clarification retries the same answer instead of the original request`() = runBlocking {
+        val fixture = prepare()
+        lateinit var adapter: ScriptedAdapter
+        val script = scripted()
+        script += {
+            toolTurn(call("list_drafts", JSONObject()
+                .put("review_status", "PENDING")
+                .put("duplicates_only", false)
+                .put("cursor", JSONObject.NULL)))
+        }
+        script += {
+            val draftRef = JSONObject(adapter.toolResultPayloads[0].single())
+                .getJSONObject("data")
+                .getJSONArray("items")
+                .getJSONObject(0)
+                .getString("ref")
+            toolTurn(call("ask_user", JSONObject()
+                .put("subject_ref", draftRef)
+                .put("field", "candidate")
+                .put("question", "Which saved draft did you mean?")))
+        }
+        script += {
+            ScriptedTurn(
+                finish = HostedTurnFinish.Complete,
+                failure = HostedProviderFailure.Transport("the answer turn was dropped"),
+            )
+        }
+        script += { complete("Continued after the answer.") }
+        adapter = ScriptedAdapter(script)
+        val executor = BoundedWorkflowExecutor(hostOf(fixture, adapter))
+        val request = WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+            userRequest = "Find the draft I meant.",
+        )
+        val admitted = history.admitRun(fixture.scope, request, fixture.boundary, 8192)
+        val first = executor.startTracked(
+            admitted = admitted,
+            request = request,
+            history = history,
+            maxOutputTokens = 8192,
+        )
+        assertTrue("expected a clarification, got $first", first is WorkflowRunOutcome.Clarifying)
+        first as WorkflowRunOutcome.Clarifying
+        val answer = "The pending one."
+        val failed = executor.resumeTracked(
+            history = history,
+            runId = admitted.runId,
+            continuation = first.continuation,
+            userAnswer = answer,
+        )
+        assertTrue("expected the answer turn to fail, got $failed", failed is WorkflowRunOutcome.Incomplete)
+
+        val admission = history.retryAdmission(fixture.scope, admitted.runId)
+        assertTrue("a clean failed answer must admit a retry, got $admission", admission is RetryAdmission.Ready)
+        admission as RetryAdmission.Ready
+        assertEquals(RetryTarget.CLARIFICATION, admission.target)
+        assertEquals(3, admission.nextAttempt)
+
+        val promptsBefore = adapter.prompts.size
+        val retried = executor.retryClarificationTracked(
+            history = history,
+            runId = admitted.runId,
+            continuation = first.continuation,
+            userAnswer = answer,
+        )
+        assertTrue("expected the retried answer to settle, got $retried", retried is WorkflowRunOutcome.Completed)
+        val lines = history.conversationForRun(admitted.runId)
+        assertEquals(
+            "the answer must not be recorded twice",
+            1,
+            lines.count { it.role == "USER" && it.text == answer },
+        )
+        assertEquals(
+            "only the original request and the answer are user lines",
+            2,
+            lines.count { it.role == "USER" },
+        )
+        val run = requireNotNull(database.agentRunDao().findByRunId(admitted.runId))
+        assertEquals("SUCCEEDED", run.state)
+        assertEquals(3, run.attempt)
+        assertTrue(
+            "a clarification retry must stay a continuation, not be labelled a request retry",
+            lines.any { it.role == "STATUS" && it.text.contains("continued after your answer (attempt 3)") } &&
+                lines.none { it.role == "STATUS" && it.text.contains("retried (attempt 3)") },
+        )
+        val retryPrompts = adapter.prompts.drop(promptsBefore)
+        assertTrue(
+            "the retry must re-issue the clarification answer, got $retryPrompts",
+            retryPrompts.any { prompt ->
+                prompt.contains("The user answered the application's clarification.") &&
+                    prompt.contains(answer)
+            },
+        )
+        assertTrue(
+            "the retry must not replay the original request",
+            retryPrompts.none { it.contains("Find the draft I meant.") },
+        )
+    }
+
     // ---- Harness -------------------------------------------------------------------------
 
     private suspend fun runTracked(
@@ -575,7 +867,11 @@ class S810DurableRunHistoryTest {
         return admitted.runId
     }
 
-    private fun hostOf(fixture: Fixture, adapter: ScriptedAdapter): WorkflowRunHost {
+    private fun hostOf(
+        fixture: Fixture,
+        adapter: ScriptedAdapter,
+        trace: AgentTraceRecorder = AgentTraceRecorder.disabled(),
+    ): WorkflowRunHost {
         val gateway = MaskedHostedGateway(adapter, fixture.boundary)
         return WorkflowRunHost(
             scope = fixture.scope,
@@ -586,8 +882,12 @@ class S810DurableRunHistoryTest {
             commands = commands,
             queries = queries,
             operationKeys = WorkflowOperationKeySource { "s810-key-${sequence.incrementAndGet()}" },
+            trace = trace,
         )
     }
+
+    private fun traceEnabledHistory(): AgentRunHistory =
+        AgentRunHistory(database, traces = AgentTraceStore(database.agentTraceDao()))
 
     private fun key(name: String): String = "s810-$name-tracked"
 
@@ -713,6 +1013,8 @@ class S810DurableRunHistoryTest {
         val text: String? = null,
         val calls: List<ScriptedCall> = emptyList(),
         val finish: HostedTurnFinish,
+        /** A provider failure instead of a model turn; used to drive retry admission. */
+        val failure: HostedProviderFailure? = null,
     )
 
     private class ScriptedConversation(
@@ -741,6 +1043,9 @@ class S810DurableRunHistoryTest {
             val producer = turns.getOrNull(next) ?: error("no scripted turn ${next + 1}")
             next += 1
             val turn = producer()
+            turn.failure?.let { failure ->
+                return HostedGenerationResult.ProviderFailure(failure)
+            }
             val calls = turn.calls.mapIndexed { index, call ->
                 HostedToolCall(
                     callId = "call-$next-$index",

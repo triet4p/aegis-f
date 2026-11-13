@@ -23,6 +23,14 @@ import java.util.TimeZone
 private const val AGGREGATE_CHUNK_SIZE: Int = LIST_PAGE_SIZE
 
 /**
+ * The largest number of recorded preparation commands one session's journal read returns.
+ *
+ * One agent session owns one bounded run, and every mutation tool records at most one row per
+ * exact call, so a bounded page covers a whole run without loading unrelated sessions.
+ */
+private const val MAX_SCOPE_OPERATIONS: Int = 500
+
+/**
  * The app's one read surface: the typed, bounded queries the screens and the later tools
  * read through.
  *
@@ -939,6 +947,31 @@ class WorkflowQueryService(
             )
         }
 
+
+    /**
+     * The prepared commands one trusted session recorded, in recording order, bounded.
+     *
+     * A reconciliation reads this to learn whether an interrupted attempt under the session's
+     * own keys already applied an effect. The rows carry keys, commands, digests and the stored
+     * change — never the request's text.
+     */
+    suspend fun workflowOperationsForScope(
+        scopeId: String,
+        limit: Int = MAX_SCOPE_OPERATIONS,
+    ): List<WorkflowOperation> {
+        require(limit in 1..MAX_SCOPE_OPERATIONS) { "A journal read is bounded." }
+        return workflowOperationDao.findForScope(scopeId, limit).map { operation ->
+            WorkflowOperation(
+                idempotencyKey = operation.idempotencyKey,
+                scopeId = operation.scopeId,
+                command = operation.command,
+                payloadDigest = operation.payloadDigest,
+                outcome = operation.outcome,
+                change = decodeWorkflowChange(operation.changeSummary),
+                createdAtEpochMillis = operation.createdAtEpochMillis,
+            )
+        }
+    }
 
     /**
      * A bounded page of the recorded preparation commands.

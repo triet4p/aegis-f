@@ -74,9 +74,9 @@ internal data class ChatIncompleteStrings(
         val reasonText = reason(reason)
         return when (language) {
             AegisLanguage.ENGLISH ->
-                "Run incomplete: $reasonText. You can retry or continue manually."
+                "Run incomplete: $reasonText. Nothing was replayed; send a new message to continue."
             AegisLanguage.VIETNAMESE ->
-                "Lượt chạy chưa hoàn tất: $reasonText. Bạn có thể thử lại hoặc tiếp tục thủ công."
+                "Lượt chạy chưa hoàn tất: $reasonText. Không thao tác nào bị lặp lại; hãy gửi tin nhắn mới để tiếp tục."
         }
     }
 

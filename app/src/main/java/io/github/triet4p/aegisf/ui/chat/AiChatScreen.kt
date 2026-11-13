@@ -64,7 +64,9 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.triet4p.aegisf.agent.AgentRunFailure
 import io.github.triet4p.aegisf.agent.AgentRunHistory
 import io.github.triet4p.aegisf.agent.BoundedWorkflowExecutor
-import io.github.triet4p.aegisf.agent.UncertainWriteVerdict
+import io.github.triet4p.aegisf.agent.RetryAdmission
+import io.github.triet4p.aegisf.agent.RetryBlockReason
+import io.github.triet4p.aegisf.agent.RetryTarget
 import io.github.triet4p.aegisf.agent.WorkflowIntent
 import io.github.triet4p.aegisf.agent.WorkflowRunHost
 import io.github.triet4p.aegisf.agent.WorkflowRunOutcome
@@ -88,14 +90,17 @@ import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.privacy.MaskingBlockedException
 import io.github.triet4p.aegisf.provider.HostedProviderConfig
 import io.github.triet4p.aegisf.provider.SavedHostedProvider
-import io.github.triet4p.aegisf.ui.ChatAnswerState
 import io.github.triet4p.aegisf.ui.ChatAgentRunState
-import io.github.triet4p.aegisf.ui.ChatNoteContext
+import io.github.triet4p.aegisf.ui.ChatAnswerState
+import io.github.triet4p.aegisf.ui.ChatDraftContext
 import io.github.triet4p.aegisf.ui.ChatHistoryStatus
+import io.github.triet4p.aegisf.ui.ChatNoteContext
 import io.github.triet4p.aegisf.ui.ChatOutcomeSection
+import io.github.triet4p.aegisf.ui.ChatRetryOffer
+import io.github.triet4p.aegisf.ui.ChatRetryTarget
 import io.github.triet4p.aegisf.ui.ChatStatusTone
 import io.github.triet4p.aegisf.ui.ChatTranscriptEntry
-import io.github.triet4p.aegisf.ui.ChatDraftContext
+import io.github.triet4p.aegisf.ui.ChatTurnKind
 import io.github.triet4p.aegisf.ui.chatRequestText
 import io.github.triet4p.aegisf.ui.draftContextEvidence
 import io.github.triet4p.aegisf.ui.historyStatusOf
@@ -301,7 +306,58 @@ internal fun AiChatScreen(
         }
     }
 
-    fun settle(token: Int, outcome: WorkflowRunOutcome, runId: String) {
+    /**
+     * Offers or refuses a retry for the run that just failed, before any new transcript entry.
+     *
+     * The durable admission asks the current attempt, its persisted classification and its own
+     * journal keys. A blocked decision rewrites the existing failure line; it never appends a
+     * second copy of the user's message.
+     */
+    suspend fun admitRetry(runId: String) {
+        val scope = agentRunState.lastScope ?: return
+        val admission = try {
+            agentRunHistory.retryAdmission(scope, runId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // A failed durable read must not replace the failure the user is reading; it only
+            // means no retry can be offered.
+            return
+        }
+        when (admission) {
+            is RetryAdmission.Ready -> agentRunState.retryOffer = ChatRetryOffer(
+                currentAttempt = admission.currentAttempt,
+                nextAttempt = admission.nextAttempt,
+                target = when (admission.target) {
+                    RetryTarget.REQUEST -> ChatRetryTarget.REQUEST
+                    RetryTarget.CLARIFICATION -> ChatRetryTarget.CLARIFICATION
+                },
+            )
+
+            is RetryAdmission.Blocked -> when (admission.reason) {
+                RetryBlockReason.ATTEMPTS_EXHAUSTED ->
+                    agentRunState.refuseRetry(strings.retryExhausted)
+
+                RetryBlockReason.POSSIBLY_APPLIED ->
+                    agentRunState.refuseRetry(strings.retryUncertain)
+
+                RetryBlockReason.STILL_PROCESSING ->
+                    agentRunState.refuseRetry(strings.retryStillProcessing)
+
+                RetryBlockReason.TERMINAL,
+                RetryBlockReason.NOT_FAILED,
+                RetryBlockReason.UNAVAILABLE,
+                -> Unit
+            }
+        }
+    }
+
+    suspend fun settle(
+        token: Int,
+        outcome: WorkflowRunOutcome,
+        runId: String,
+        kind: ChatTurnKind,
+    ) {
         when (outcome) {
             is WorkflowRunOutcome.Completed -> {
                 agentRunState.completeTurn(token, outcome.answer, runId)
@@ -333,6 +389,9 @@ internal fun AiChatScreen(
                 agentRunState.failTurn(token, liveMessage, runId)
                 agentRunState.followUp = outcome.followUp
                 agentRunState.toolLimitPause = outcome.reason == WorkflowRunStopReason.TOOL_CALL_BUDGET
+                // A follow-up message has no separate durable attempt: its replay would target a
+                // turn the run journal cannot name, so the composer — not Retry — is its path.
+                if (kind != ChatTurnKind.FOLLOW_UP) admitRetry(runId)
             }
         }
     }
@@ -351,7 +410,10 @@ internal fun AiChatScreen(
         val pausedExecutor = agentRunState.executor
         val pausedRunId = agentRunState.runId
         val pausedHandle = agentRunState.followUp
-        val token = agentRunState.beginTurn(promptText)
+        val token = agentRunState.beginTurn(
+            promptText,
+            kind = if (pausedAtToolLimit) ChatTurnKind.FOLLOW_UP else ChatTurnKind.NEW_RUN,
+        )
         prompt = ""
         if (pausedAtToolLimit && pausedExecutor != null && pausedRunId != null && pausedHandle != null) {
             agentRunState.runId = pausedRunId
@@ -364,7 +426,7 @@ internal fun AiChatScreen(
                         progress = runProgressSink(token, agentRunState, strings),
                     )
                     if (agentRunState.isActive(token)) {
-                        settle(token, outcome, pausedRunId)
+                        settle(token, outcome, pausedRunId, ChatTurnKind.FOLLOW_UP)
                     }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
@@ -442,9 +504,6 @@ internal fun AiChatScreen(
                 agentRunState.lastPrompt = promptText
                 agentRunState.lastIntents = request.intents
                 agentRunState.lastRequest = request
-                agentRunState.lastAttempt = admitted.attempt
-                agentRunState.lastBoundary = host.boundary
-                agentRunState.lastMaxOutputTokens = provider.maxOutputTokens
                 agentRunState.progress = strings.waiting
                 val outcome = activeExecutor.startTracked(
                     admitted = admitted,
@@ -454,7 +513,7 @@ internal fun AiChatScreen(
                     progress = runProgressSink(token, agentRunState, strings),
                 )
                 if (agentRunState.isActive(token)) {
-                    settle(token, outcome, admitted.runId)
+                    settle(token, outcome, admitted.runId, ChatTurnKind.NEW_RUN)
                 }
             } catch (cancelled: CancellationException) {
                 admittedRunId?.let { runId ->
@@ -536,57 +595,102 @@ internal fun AiChatScreen(
         }
     }
 
+    fun retryBlockedMessage(admission: RetryAdmission): String = when (admission) {
+        is RetryAdmission.Blocked -> when (admission.reason) {
+            RetryBlockReason.ATTEMPTS_EXHAUSTED -> strings.retryExhausted
+            RetryBlockReason.POSSIBLY_APPLIED -> strings.retryUncertain
+            RetryBlockReason.STILL_PROCESSING -> strings.retryStillProcessing
+            RetryBlockReason.TERMINAL,
+            RetryBlockReason.NOT_FAILED,
+            RetryBlockReason.UNAVAILABLE,
+            -> strings.retryUnavailable
+        }
+
+        is RetryAdmission.Ready -> strings.retryUnavailable
+    }
+
     fun retryLast() {
         if (agentRunState.busy) return
-        val promptText = agentRunState.lastUserText ?: return
-        val request = agentRunState.lastRequest ?: return
+        val offer = agentRunState.retryOffer ?: return
+        val runId = agentRunState.runId ?: return
         val scope = agentRunState.lastScope ?: return
         val executor = agentRunState.executor ?: return
-        val boundary = agentRunState.lastBoundary ?: return
-        val runId = agentRunState.runId ?: return
-        val attempt = agentRunState.lastAttempt ?: return
+        val request = agentRunState.lastRequest ?: return
         val provider = providerSnapshot.provider ?: return
+        val continuation = agentRunState.continuation
+        val answer = agentRunState.lastClarificationAnswer
+        if (offer.target == ChatRetryTarget.CLARIFICATION &&
+            (continuation == null || answer.isNullOrBlank())
+        ) {
+            agentRunState.refuseRetry(strings.retryClarificationUnavailable)
+            return
+        }
         autoFollow = true
-        val token = agentRunState.beginTurn(promptText)
-        agentRunState.runId = runId
+        // Admission is a durable read. Hold the screen busy while it runs so a second press
+        // cannot start a competing retry; nothing is appended until it decides Ready.
+        agentRunState.busy = true
         agentRunState.job = agentRunScope.launch {
+            var token: Int? = null
             try {
-                val verdict = agentRunHistory.reconcileUncertainWrite(runId, attempt)
-                if (verdict !is UncertainWriteVerdict.NotApplied) {
-                    agentRunState.failTurn(token, strings.retryUncertain, runId)
+                val admission = agentRunHistory.retryAdmission(scope, runId)
+                if (admission !is RetryAdmission.Ready) {
+                    agentRunState.refuseRetry(retryBlockedMessage(admission))
                     return@launch
                 }
-                val reopened = agentRunHistory.reopenForRetry(scope, runId)
-                if (reopened == null) {
-                    agentRunState.failTurn(token, strings.retryUnavailable, runId)
-                    return@launch
-                }
-                agentRunState.lastAttempt = reopened.attempt
+                val startedToken = agentRunState.beginRetryTurn()
+                token = startedToken
+                agentRunState.runId = runId
                 agentRunState.progress = strings.waiting
-                val outcome = executor.startWithAttemptKey(
-                    request = request,
-                    attemptKey = reopened.attemptKey,
-                    maxOutputTokens = provider.maxOutputTokens,
-                    progress = runProgressSink(token, agentRunState, strings),
-                )
-                agentRunHistory.recordAttemptOutcome(
-                    runId = runId,
-                    attempt = reopened.attempt,
-                    outcome = outcome,
-                    boundary = boundary,
-                )
-                if (agentRunState.isActive(token)) settle(token, outcome, runId)
+                val outcome = when (admission.target) {
+                    RetryTarget.CLARIFICATION -> executor.retryClarificationTracked(
+                        history = agentRunHistory,
+                        runId = runId,
+                        continuation = continuation!!,
+                        userAnswer = answer!!,
+                        progress = runProgressSink(startedToken, agentRunState, strings),
+                    )
+
+                    RetryTarget.REQUEST -> executor.retryRequestTracked(
+                        history = agentRunHistory,
+                        runId = runId,
+                        request = request,
+                        maxOutputTokens = provider.maxOutputTokens,
+                        progress = runProgressSink(startedToken, agentRunState, strings),
+                    )
+                }
+                if (outcome == null) {
+                    if (agentRunState.isActive(startedToken)) {
+                        agentRunState.failTurn(startedToken, strings.retryUnavailable, runId)
+                    }
+                } else if (agentRunState.isActive(startedToken)) {
+                    settle(startedToken, outcome, runId, ChatTurnKind.RETRY)
+                }
             } catch (cancelled: CancellationException) {
                 withContext(NonCancellable) {
                     runCatching { executor.cancelTracked(agentRunHistory, runId, "USER_CANCELLED") }
                 }
                 throw cancelled
+            } catch (_: IllegalStateException) {
+                token?.let { started ->
+                    if (agentRunState.isActive(started)) {
+                        agentRunState.failTurn(started, strings.retryUnavailable, runId)
+                    }
+                } ?: agentRunState.refuseRetry(strings.retryClarificationUnavailable)
+            } catch (_: IllegalArgumentException) {
+                token?.let { started ->
+                    if (agentRunState.isActive(started)) {
+                        agentRunState.failTurn(started, strings.retryUnavailable, runId)
+                    }
+                } ?: agentRunState.refuseRetry(strings.retryClarificationUnavailable)
             } catch (_: Exception) {
-                if (agentRunState.isActive(token)) {
-                    agentRunState.failTurn(token, strings.errorGeneric, runId)
-                }
+                token?.let { started ->
+                    if (agentRunState.isActive(started)) {
+                        agentRunState.failTurn(started, strings.errorGeneric, runId)
+                    }
+                } ?: agentRunState.refuseRetry(strings.retryUnavailable)
             } finally {
                 if (agentRunState.job == coroutineContext[Job]) agentRunState.job = null
+                if (token == null) agentRunState.busy = false
                 agentRunState.progress = null
                 agentRunState.projectionRevision += 1
             }
@@ -605,7 +709,7 @@ internal fun AiChatScreen(
             return
         }
         autoFollow = true
-        val token = agentRunState.beginTurn(answer)
+        val token = agentRunState.beginTurn(answer, kind = ChatTurnKind.CLARIFICATION)
         agentRunState.runId = runId
         agentRunState.clarificationAnswer = ""
         agentRunState.job = agentRunScope.launch {
@@ -623,7 +727,7 @@ internal fun AiChatScreen(
                         agentRunState.failTurn(token, strings.clarificationUnavailable, runId)
                     }
                 } else if (agentRunState.isActive(token)) {
-                    settle(token, outcome, runId)
+                    settle(token, outcome, runId, ChatTurnKind.CLARIFICATION)
                 }
             } catch (cancelled: CancellationException) {
                 withContext(NonCancellable) {
@@ -830,19 +934,18 @@ internal fun AiChatScreen(
                         )
                     }
                 }
-                agentRunState.messages.lastOrNull()?.let { last ->
-                    if (last is ChatTranscriptEntry.Assistant &&
-                        last.state == ChatAnswerState.ERROR &&
-                        agentRunState.executor != null &&
-                        agentRunState.lastRequest != null
-                    ) {
-                        item(key = "retry") {
-                            OutlinedButton(
-                                onClick = ::retryLast,
-                                enabled = !agentRunState.busy,
-                                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
-                            ) { Text(strings.retry) }
-                        }
+                val retryOffer = agentRunState.retryOffer
+                val retryActionable = retryOffer != null &&
+                    (retryOffer.target != ChatRetryTarget.CLARIFICATION ||
+                        (agentRunState.continuation != null &&
+                            !agentRunState.lastClarificationAnswer.isNullOrBlank()))
+                if (retryActionable) {
+                    item(key = "retry") {
+                        OutlinedButton(
+                            onClick = ::retryLast,
+                            enabled = !agentRunState.busy,
+                            modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                        ) { Text(strings.retry) }
                     }
                 }
                 item(key = "bottom-space") { Spacer(Modifier.height(8.dp)) }

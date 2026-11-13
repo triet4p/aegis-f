@@ -515,6 +515,16 @@ class WorkflowRunContinuation internal constructor(
         if (suspended.isEmpty()) return
         suspended.forEach { (name, seed) -> run.fixedOperationSeeds[name] = seed }
     }
+
+    /**
+     * A fresh, unconsumed authority over the same suspended run, question and answer slot.
+     *
+     * A failed clarification attempt consumes the handle it started with. A retry re-issues the
+     * same continuation under a new durable attempt instead of replaying the original request, and
+     * it does not re-record the user's answer in the durable conversation.
+     */
+    internal fun reissuedForRetry(): WorkflowRunContinuation =
+        WorkflowRunContinuation(run, owner, question, field, subjectRef)
 }
 
 /**
@@ -725,6 +735,59 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
         // application asked. It is masked for history exactly as the provider-facing turn is.
         history.recordClarificationAnswer(runId, userAnswer, host.boundary)
         val outcome = resume(continuation, userAnswer, progress)
+        history.recordAttemptOutcome(runId, admitted.attempt, outcome, host.boundary)
+        return outcome
+    }
+
+    /**
+     * Replays one failed run's original request as its next bounded attempt.
+     *
+     * The caller decides admissibility first ([AgentRunHistory.retryAdmission]); reopening is
+     * still conditional on the durable run state, so a raced or foreign retry cannot start. The
+     * local trace binds to the new attempt before any provider turn, so that attempt's per-tool
+     * journal keys are recorded for the next reconciliation.
+     */
+    suspend fun retryRequestTracked(
+        history: AgentRunHistory,
+        runId: String,
+        request: WorkflowRunRequest,
+        maxOutputTokens: Int? = null,
+        progress: WorkflowRunProgressSink? = null,
+    ): WorkflowRunOutcome? {
+        val admitted = history.reopenForRetry(host.scope, runId) ?: return null
+        host.trace.bind(runId, host.scope.scopeId, admitted.attempt)
+        val outcome = startWithAttemptKey(request, admitted.attemptKey, maxOutputTokens, progress)
+        history.recordAttemptOutcome(runId, admitted.attempt, outcome, host.boundary)
+        return outcome
+    }
+
+    /**
+     * Retries a failed clarification continuation as its next bounded attempt.
+     *
+     * The same suspended run, question and answer are re-issued: the original request is never
+     * replayed, and the durable conversation already holds the question and the answer in order,
+     * so neither is recorded a second time. A failure that applied nothing is the only one the
+     * caller may pass here; [AgentRunHistory.retryAdmission] proves that first.
+     */
+    suspend fun retryClarificationTracked(
+        history: AgentRunHistory,
+        runId: String,
+        continuation: WorkflowRunContinuation,
+        userAnswer: String,
+        progress: WorkflowRunProgressSink? = null,
+    ): WorkflowRunOutcome? {
+        if (!continuation.belongsTo(identity)) {
+            throw IllegalArgumentException("The continuation belongs to another executor.")
+        }
+        if (userAnswer.isBlank()) {
+            throw IllegalArgumentException("A resumed run needs a nonblank user answer.")
+        }
+        val suspendedSeeds = continuation.fixedOperationSeeds()
+        val admitted = history.reopenForRetry(host.scope, runId) ?: return null
+        host.trace.bind(runId, host.scope.scopeId, admitted.attempt)
+        val reissued = continuation.reissuedForRetry()
+        reissued.adoptFixedOperationSeeds(suspendedSeeds)
+        val outcome = resume(reissued, userAnswer, progress)
         history.recordAttemptOutcome(runId, admitted.attempt, outcome, host.boundary)
         return outcome
     }

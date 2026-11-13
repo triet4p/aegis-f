@@ -105,6 +105,32 @@ Each turn:
    model may correct them only from that state. A raw sensitive literal or foreign token in the
    model's arguments fails closed before dispatch.
 
+## Retry admission (S11.C2)
+
+A retry is a decision, not a replay. `AgentRunHistory.retryAdmission` decides it from durable
+state **before** any transcript entry is appended:
+
+- The retried attempt is the run's **current attempt** (`agent_runs.attempt`), never a remembered
+  UI number. Only a `FAILED` run is eligible; `RUNNING`/`PENDING` reports "still being processed"
+  and a pending attempt row is never raced.
+- `ATTEMPTS_EXHAUSTED` and `TERMINAL` are truthful dead ends. The attempt settle persists the
+  classified `retryable` flag and code plus the reopen `mode` (`retry` or `clarification`) in its
+  privacy-safe observation, so the decision survives a process recreation. Rows written before
+  that extension fall back to the stored stop reason's bounded vocabulary.
+- `reconcileUncertainWrite` reads the journal under the keys the attempt **actually used**: each
+  recorded tool result names its per-tool `operationKey` (`<attemptKey>:record` etc.), while the
+  attempt row's nominal key is never the mutation key. When the host ran without its trace
+  recorder, the run's own session scope is read instead. Any `APPLIED` row (or an unanswered
+  dispatched call that cannot be ruled out) blocks replay as `POSSIBLY_APPLIED`; only
+  `NO_CHANGE`/no row permits the next attempt.
+- `RetryTarget.CLARIFICATION` re-issues the same suspended run, question and answer
+  (`retryClarificationTracked` + a re-issued continuation). The original request is never
+  replayed, and the question/answer already stored in the durable conversation are not recorded
+  again. `RetryTarget.REQUEST` replays the original request under a fresh attempt.
+- The Chat surface appends only an assistant bubble for an admitted retry: the user's message is
+  already in the transcript, so pressing Retry adds no duplicate user bubble. A blocked decision
+  rewrites the existing failure line and shows no Retry action at all.
+
 ## Completion verification
 
 `Completed` is produced only when the model's final complete turn arrives **and** every recorded

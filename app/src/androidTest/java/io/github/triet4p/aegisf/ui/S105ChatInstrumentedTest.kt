@@ -328,24 +328,23 @@ class S105ChatInstrumentedTest {
 
         typePrompt("A question while the provider is unavailable")
         compose.onNodeWithTag("chat-send").performClick()
+        // The executor spends the whole bounded allowance before the screen settles, so the
+        // truthful outcome is "no attempts left" — not a Retry button that cannot run. The
+        // failure line is rewritten by the admission, so only the final line is asserted.
         compose.waitUntil(60_000) {
-            compose.onAllNodesWithText("The provider couldn't be reached", substring = true)
+            compose.onAllNodesWithText("used all of its attempts", substring = true)
                 .fetchSemanticsNodes().isNotEmpty()
         }
+        assertTrue(
+            "an exhausted run must not offer a dead-end Retry",
+            compose.onAllNodesWithText("Retry").fetchSemanticsNodes().isEmpty(),
+        )
+        assertEquals("one user bubble", 1, userBubbleCount("A question while the provider is unavailable"))
+        val run = runBlocking { database.agentRunDao().findRecent(1).single() }
+        assertEquals("FAILED", run.state)
+        assertEquals("the bounded allowance was spent", 3, run.attempt)
         screenshot("524-chat-provider-failure-en")
-        emit("524 failureShown=true")
-        compose.waitUntil(20_000) {
-            compose.onAllNodesWithText("Retry").fetchSemanticsNodes().isNotEmpty()
-        }
-        compose.onNodeWithText("Retry").performClick()
-        compose.waitUntil(60_000) {
-            compose.onAllNodesWithText("can't be retried automatically", substring = true)
-                .fetchSemanticsNodes().isNotEmpty() ||
-                compose.onAllNodesWithText("stored outcome is uncertain", substring = true)
-                    .fetchSemanticsNodes().isNotEmpty()
-        }
-        screenshot("525-chat-retry-limit-en")
-        emit("525 retryLimit=true")
+        emit("524 failureShown=true retryOffered=false attempts=${run.attempt}")
     }
 
     @Test
@@ -653,6 +652,60 @@ class S105ChatInstrumentedTest {
         assertEquals("SUCCEEDED", runs.single().state)
         screenshot("548-chat-clarification-answered-en")
         emit("548 clarificationContinued=true runs=${runs.size}")
+    }
+
+    @Test
+    fun retryAfterAFailedClarificationResumesTheSameAnswerWithoutADuplicateBubble() {
+        prepare()
+        seedDraft(45_000, "Corner cafe")
+        val adapter = ClarificationRetryScriptedAdapter()
+        val runState = ChatAgentRunState()
+        startScreen(runState, adapter)
+        val prompt = "Which saved draft should this note use?"
+
+        typePrompt(prompt)
+        compose.onNodeWithTag("chat-send").assertIsEnabled().performClick()
+        compose.waitUntil(30_000) {
+            runState.outcome is WorkflowRunOutcome.Clarifying
+        }
+        compose.onNodeWithTag("chat-transcript")
+            .performScrollToNode(hasTestTag("chat-clarification-answer"))
+        compose.waitUntil(20_000) {
+            compose.onAllNodesWithTag("chat-clarification-answer").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("chat-clarification-answer").performTextInput("The cafe draft")
+        compose.onNodeWithTag("chat-transcript").performScrollToNode(hasText("Continue"))
+        compose.onNodeWithText("Continue").performClick()
+        // The answer turn fails; the failed clarification attempt still has one attempt left, so
+        // the screen offers a retry that resumes the same answer.
+        compose.waitUntil(30_000) { runState.retryOffer != null }
+        assertEquals(ChatRetryTarget.CLARIFICATION, runState.retryOffer?.target)
+        compose.onNodeWithTag("chat-transcript").performScrollToNode(hasText("Retry"))
+        compose.waitUntil(20_000) {
+            compose.onAllNodesWithText("Retry").fetchSemanticsNodes().isNotEmpty()
+        }
+        val bubblesBefore = userBubbleCount(prompt)
+        val answersBefore = userBubbleCount("The cafe draft")
+        compose.onNodeWithText("Retry").performClick()
+        compose.waitUntil(30_000) {
+            runState.outcome is WorkflowRunOutcome.Completed
+        }
+        compose.waitUntil(20_000) {
+            assistantText().contains("Thanks, retried the same answer")
+        }
+        assertEquals("a retry must not duplicate the user's request bubble", bubblesBefore, userBubbleCount(prompt))
+        assertEquals("a retry must not duplicate the clarification answer", answersBefore, userBubbleCount("The cafe draft"))
+        val run = runBlocking { database.agentRunDao().findRecent(1).single() }
+        assertEquals("SUCCEEDED", run.state)
+        assertEquals("the retry added one durable attempt", 3, run.attempt)
+        val lines = runBlocking { history.conversationForRun(run.runId) }
+        assertEquals(
+            "the clarification answer must stay one durable user line",
+            1,
+            lines.count { it.role == "USER" && it.text == "The cafe draft" },
+        )
+        assertEquals("the answer turn was re-issued", 2, adapter.answerPrompts)
+        emit("549 clarificationRetry=true attempts=${run.attempt} bubbles=${userBubbleCount(prompt)}")
     }
 
     /**
@@ -1295,6 +1348,125 @@ class S105ChatInstrumentedTest {
     }
 
     /**
+     * A scripted clarification whose answer turn fails once and succeeds on the explicit retry.
+     *
+     * The provider is the only scripted seam: the screen, executor, durable history, masking
+     * gateway and in-memory database are the app's own. [answerPrompts] counts the resume
+     * requests actually issued, so the test proves the retry re-issued the answer turn instead of
+     * replaying the original request.
+     */
+    private class ClarificationRetryScriptedAdapter : HostedGenerationAdapter {
+        override val protocol: HostedProtocol = HostedProtocol.OPENAI_CHAT_COMPLETIONS
+        override val streamingEnabled: Boolean = true
+        private var next = 0
+        private var draftHandle: String? = null
+        var answerPrompts = 0
+            private set
+
+        override fun begin(systemInstruction: String, userInstruction: String): HostedConversation {
+            if (userInstruction.contains("The user answered the application's clarification.")) {
+                answerPrompts += 1
+            }
+            return ScriptedConversation(protocol)
+        }
+
+        override suspend fun generate(
+            conversation: HostedConversation,
+            tools: List<HostedToolDeclaration>,
+        ): HostedGenerationResult = nextTurn()
+
+        override suspend fun streamGuarded(
+            conversation: HostedConversation,
+            tools: List<HostedToolDeclaration>,
+            responseGuard: HostedResponsePrivacyGuard,
+            onProgress: (HostedTurnProgress) -> Unit,
+        ): HostedGenerationResult = nextTurn()
+
+        override fun continueWithToolResults(
+            conversation: HostedConversation,
+            results: List<HostedToolResult>,
+            hostNotice: String?,
+        ): HostedConversation {
+            if (draftHandle == null) {
+                draftHandle = results.firstOrNull()?.outputJson?.let { payload ->
+                    org.json.JSONObject(payload)
+                        .optJSONObject("data")
+                        ?.optJSONArray("items")
+                        ?.optJSONObject(0)
+                        ?.optString("ref")
+                        ?.takeIf { it.isNotBlank() }
+                }
+            }
+            return ScriptedConversation(protocol)
+        }
+
+        private fun nextTurn(): HostedGenerationResult {
+            val index = next++
+            return when (index) {
+                0 -> toolTurn(
+                    name = "list_drafts",
+                    argumentsJson = """{"review_status":"PENDING","duplicates_only":false,"cursor":null}""",
+                )
+
+                1 -> {
+                    val handle = draftHandle ?: error("no draft reference was observed")
+                    toolTurn(
+                        name = "ask_user",
+                        argumentsJson = org.json.JSONObject()
+                            .put("subject_ref", handle)
+                            .put("field", "candidate")
+                            .put("question", "Which saved draft did you mean?")
+                            .toString(),
+                    )
+                }
+
+                2 -> HostedGenerationResult.ProviderFailure(
+                    HostedProviderFailure.Transport("synthetic answer-turn failure"),
+                )
+
+                else -> completeTurn("Thanks, retried the same answer.")
+            }
+        }
+
+        private fun toolTurn(name: String, argumentsJson: String): HostedGenerationResult {
+            val callId = "c2-call-$next-$name"
+            val call = HostedToolCall(
+                callId = callId,
+                name = name,
+                argumentsJson = argumentsJson,
+                arguments = null,
+                disposition = ToolCallDisposition.READY,
+            )
+            return HostedGenerationResult.Turn(
+                HostedTurn(
+                    protocol = protocol,
+                    requestedModel = MODEL,
+                    reportedModel = MODEL,
+                    assistantText = null,
+                    toolCalls = listOf(call),
+                    finish = HostedTurnFinish.ToolCalls,
+                    usage = null,
+                    conversation = ScriptedConversation(protocol, listOf(callId)),
+                ),
+            )
+        }
+
+        private fun completeTurn(text: String): HostedGenerationResult =
+            HostedGenerationResult.Turn(
+                HostedTurn(
+                    protocol = protocol,
+                    requestedModel = MODEL,
+                    reportedModel = MODEL,
+                    assistantText = text,
+                    toolCalls = emptyList(),
+                    finish = HostedTurnFinish.Complete,
+                    usage = null,
+                    conversation = null,
+                ),
+            )
+    }
+
+    /**
      * Replaces the host activity's content with the chat under test.
      *
      * `createComposeRule` looks for a test-package ComponentActivity that this app does not
@@ -1507,6 +1679,10 @@ class S105ChatInstrumentedTest {
 
     /** The visible assistant answer without the live streaming caret. */
     private fun assistantVisibleText(): String = assistantText().replace("▍", "").trim()
+
+    /** How many visible user bubbles carry exactly this text. */
+    private fun userBubbleCount(text: String): Int =
+        compose.onAllNodesWithText(text, substring = false).fetchSemanticsNodes().size
 
     private fun shownText(): String = compose.onAllNodes(isRoot()).fetchSemanticsNodes()
         .joinToString(" ") { root -> collectText(root) }

@@ -130,4 +130,20 @@ abstract class WorkflowOperationDao {
     /** How many commands of one family were recorded. */
     @Query("SELECT COUNT(*) FROM workflow_operations WHERE (:command IS NULL OR command = :command)")
     abstract suspend fun countOf(command: String?): Long
+
+    /**
+     * A bounded page of the commands one trusted session recorded, in recording order.
+     *
+     * One agent session owns one durable run, so these rows are the mutation journal of that
+     * run's attempts. A reconciliation reads them to prove what an interrupted attempt applied;
+     * the payload text itself is never stored, only its digest and the change it made.
+     */
+    @Query(
+        "SELECT * FROM workflow_operations WHERE scopeId = :scopeId " +
+            "ORDER BY id ASC LIMIT :limit",
+    )
+    abstract suspend fun findForScope(
+        scopeId: String,
+        limit: Int,
+    ): List<WorkflowOperationEntity>
 }

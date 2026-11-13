@@ -238,6 +238,65 @@ class ChatTranscriptStateTest {
         assertEquals("Hôm qua, 23:59", chatRelativeMoment(epoch(9, 23, 59), AegisLanguage.VIETNAMESE, now, zone))
     }
 
+    @Test
+    fun `a retry turn appends no second user bubble and keeps the failed run identity`() {
+        val state = ChatAgentRunState()
+        val token = state.beginTurn("Which draft did I mean?")
+        state.runId = "run-1"
+        state.failTurn(token, "The provider couldn't be reached.", "run-1")
+        val before = state.messages.size
+        val usersBefore = state.messages.count { it is ChatTranscriptEntry.User }
+
+        val retryToken = state.beginRetryTurn()
+
+        assertEquals("a retry must not append a second user bubble", usersBefore, state.messages.count { it is ChatTranscriptEntry.User })
+        assertEquals(before + 1, state.messages.size)
+        assertEquals("run-1", state.runId)
+        assertEquals(ChatTurnKind.RETRY, state.turnKind)
+        assertTrue(state.busy)
+        val retry = state.messages.last() as ChatTranscriptEntry.Assistant
+        assertEquals(ChatAnswerState.WAITING, retry.state)
+        assertEquals("run-1", retry.runId)
+        assertTrue(state.isActive(retryToken))
+    }
+
+    @Test
+    fun `a refused retry rewrites the existing failure line and appends nothing`() {
+        val state = ChatAgentRunState()
+        val token = state.beginTurn("Which draft did I mean?")
+        state.failTurn(token, "The provider couldn't be reached.", "run-1")
+        state.retryOffer = ChatRetryOffer(
+            currentAttempt = 3,
+            nextAttempt = 4,
+            target = ChatRetryTarget.REQUEST,
+        )
+        val before = state.messages.size
+
+        state.refuseRetry("This run has used all of its attempts.")
+
+        assertEquals("a refused retry must not append a bubble", before, state.messages.size)
+        val failed = state.messages.last() as ChatTranscriptEntry.Assistant
+        assertEquals(ChatAnswerState.ERROR, failed.state)
+        assertEquals("This run has used all of its attempts.", failed.statusLine)
+        assertFalse(state.busy)
+        assertNull(state.retryOffer)
+    }
+
+    @Test
+    fun `a clarification turn keeps the answer used by a later retry`() {
+        val state = ChatAgentRunState()
+
+        state.beginTurn("The pending one.", kind = ChatTurnKind.CLARIFICATION)
+
+        assertEquals(ChatTurnKind.CLARIFICATION, state.turnKind)
+        assertEquals("The pending one.", state.lastClarificationAnswer)
+
+        state.beginTurn("A fresh question")
+
+        assertNull("a new request must not reuse an old answer", state.lastClarificationAnswer)
+        assertEquals(ChatTurnKind.NEW_RUN, state.turnKind)
+    }
+
     private fun run(
         state: String,
         request: String,

@@ -11,14 +11,21 @@ import io.github.triet4p.aegisf.data.AGENT_TRACE_COMPLETION_NOT_APPLICABLE
 import io.github.triet4p.aegisf.data.AGENT_TRACE_DIRECTION_INTERNAL
 import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_ATTEMPT_OUTCOME
 import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_ATTEMPT_STARTED
+import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_PROVIDER_FAILURE
+import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_PROVIDER_REQUEST
+import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_PROVIDER_RESPONSE
+import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_PROVIDER_STREAM_CHUNK
+import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_PROVIDER_STREAM_END
 import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_RUN_ADMITTED
 import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_RUN_CANCELLED
+import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_TOOL_CALL
+import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_TOOL_ERROR
+import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_TOOL_RESULT
 import io.github.triet4p.aegisf.data.AGENT_TRACE_RUN_SCOPE_ATTEMPT
 import io.github.triet4p.aegisf.data.CanonicalAgentRetryPolicy
-import io.github.triet4p.aegisf.data.IntakeReviewStatus
 import io.github.triet4p.aegisf.data.LedgerDatabase
-import io.github.triet4p.aegisf.data.QueryPageRequest
 import io.github.triet4p.aegisf.data.WorkflowCallerScope
+import io.github.triet4p.aegisf.data.WorkflowOperation
 import io.github.triet4p.aegisf.data.WorkflowQueryService
 import io.github.triet4p.aegisf.privacy.MaskedPath
 import io.github.triet4p.aegisf.privacy.MaskedPromptBoundary
@@ -214,7 +221,7 @@ class AgentRunHistory(
         val rows = attempts.findForRun(runId)
         val row = rows.firstOrNull { it.attempt == attempt } ?: return
         val token = row.ownerToken ?: return
-        val safeObservation = safeObservation(outcome, boundary)
+        val safeObservation = retryAwareObservation(row, outcome, boundary)
         val (attemptState, reason, effect) = attemptOutcomeOf(outcome)
         attempts.settle(
             id = row.id,
@@ -283,10 +290,13 @@ class AgentRunHistory(
     }
 
     /**
-     * Reconciles an uncertain write before any replay: re-reads the durable operation
-     * journal and the live rows behind the attempt's claimed effects. Returns the
-     * reconciliation verdict; a `false` verdict means the caller must not replay this
-     * attempt and must instead open a fresh corrected request.
+     * Reconciles an uncertain write before any replay: re-reads the durable operation journal
+     * under the keys the attempt actually used and reports whether it applied anything.
+     *
+     * The attempt's own per-tool keys come from its recorded tool results, with the run's session
+     * journal as the fallback when the attempt's calls were not recorded. `Applied` and `Unknown`
+     * both mean the caller must not replay this attempt; `NotApplied` is the only verdict that
+     * permits a fresh attempt.
      */
     suspend fun reconcileUncertainWrite(
         runId: String,
@@ -301,19 +311,114 @@ class AgentRunHistory(
         if (row.state == "CANCELLED") {
             return UncertainWriteVerdict.NotApplied("the attempt was cancelled")
         }
-        val recorded = queryService.workflowOperation(row.idempotencyKey)
-        if (recorded == null) {
-            return UncertainWriteVerdict.NotApplied("no journal row for the attempt key")
-        }
-        if (recorded.outcome == "PENDING") {
-            return UncertainWriteVerdict.Unknown("the journal claim is still pending")
-        }
-        val live = reconcileEffectReferences(row)
+        val evidence = attemptJournalEvidence(runId, attempt)
         return when {
-            live == null -> UncertainWriteVerdict.Unknown("the claimed effect cannot be re-read")
-            live -> UncertainWriteVerdict.Applied("the stored effect matches the attempt")
-            else -> UncertainWriteVerdict.NotApplied("the stored effect differs; open a corrected request")
+            evidence.possiblyApplied -> UncertainWriteVerdict.Applied(evidence.detail)
+            evidence.undecided -> UncertainWriteVerdict.Unknown(evidence.detail)
+            evidence.rows.any { it.outcome == "PENDING" } ->
+                UncertainWriteVerdict.Unknown("the journal claim is still pending")
+
+            else -> UncertainWriteVerdict.NotApplied(evidence.detail)
         }
+    }
+
+    /**
+     * The durable journal evidence of one attempt, keyed by the keys that attempt actually used.
+     *
+     * A mutation is journaled under a per-tool key (`attemptKey:record`, `attemptKey:propose`,
+     * `attemptKey:attach`, `attemptKey:draft-review`, or a host-minted key for a later distinct
+     * call), never under the attempt row's nominal key. The attempt's own tool results record
+     * that exact key, so a retry reconciles the real journal rows instead of looking up a key
+     * that was never written.
+     *
+     * When the host ran without its trace recorder (or the trace write failed), the attempt's
+     * per-call keys are unknown. The run's session scope is then read instead: one session owns
+     * one run, so an applied row there may be this request's already-applied effect, and a replay
+     * must not repeat it.
+     */
+    private suspend fun attemptJournalEvidence(
+        runId: String,
+        attempt: Int,
+    ): AttemptJournalEvidence {
+        val events = traces.findForAttempt(runId, attempt)
+        val results = events.filter { it.kind == AGENT_TRACE_KIND_TOOL_RESULT }
+        if (results.isNotEmpty()) {
+            val keys = results.mapNotNull { event ->
+                val payload = parsePayload(event.payloadJson) ?: return@mapNotNull null
+                if (payload.optString("dispatch") != "dispatched") return@mapNotNull null
+                payload.optString("operationKey").takeIf { it.isNotBlank() }
+            }.distinct()
+            val rows = keys.mapNotNull { key -> queryService.workflowOperation(key) }
+            val answered = results.mapNotNull { it.callId }.toSet()
+            val unanswered = events
+                .filter { it.kind == AGENT_TRACE_KIND_TOOL_CALL }
+                .mapNotNull { it.callId }
+                .filterNot { it in answered }
+            val raised = events.any { it.kind == AGENT_TRACE_KIND_TOOL_ERROR }
+            return AttemptJournalEvidence(
+                rows = rows,
+                possiblyApplied = rows.any { it.outcome == "APPLIED" },
+                undecided = (unanswered.isNotEmpty() || raised) &&
+                    rows.none { it.outcome == "APPLIED" || it.outcome == "PENDING" },
+                detail = when {
+                    rows.isNotEmpty() -> "the attempt's own journal keys were re-read"
+                    unanswered.isNotEmpty() || raised ->
+                        "a dispatched call has no recorded answer; its effect cannot be ruled out"
+
+                    else -> "the attempt's recorded tool calls wrote no journal row"
+                },
+            )
+        }
+        if (events.any { it.kind == AGENT_TRACE_KIND_TOOL_CALL || it.kind == AGENT_TRACE_KIND_TOOL_ERROR }) {
+            // A call began but produced no recorded answer (a crash or an interrupted write):
+            // whether it applied cannot be proved, so nothing may replay it.
+            return AttemptJournalEvidence(
+                rows = emptyList(),
+                possiblyApplied = false,
+                undecided = true,
+                detail = "a tool call began but its result was not recorded",
+            )
+        }
+        if (events.any { it.kind in RECORDER_OBSERVED_KINDS }) {
+            // The recorder was live and the attempt produced no tool call at all.
+            return AttemptJournalEvidence(
+                rows = emptyList(),
+                possiblyApplied = false,
+                undecided = false,
+                detail = "the recorded attempt dispatched no mutation",
+            )
+        }
+        val stored = runs.findByRunId(runId)
+            ?: return AttemptJournalEvidence(
+                rows = emptyList(),
+                possiblyApplied = false,
+                undecided = true,
+                detail = "the attempt has no journal evidence and no run scope",
+            )
+        val scoped = queryService.workflowOperationsForScope(stored.scopeId)
+        return AttemptJournalEvidence(
+            rows = scoped,
+            possiblyApplied = scoped.any { it.outcome == "APPLIED" },
+            undecided = false,
+            detail = if (scoped.isEmpty()) {
+                "the run's session recorded no journal row"
+            } else {
+                "the run's session journal was re-read because the attempt's calls were not recorded"
+            },
+        )
+    }
+
+    private data class AttemptJournalEvidence(
+        val rows: List<WorkflowOperation>,
+        val possiblyApplied: Boolean,
+        val undecided: Boolean,
+        val detail: String,
+    )
+
+    private fun parsePayload(json: String): JSONObject? = try {
+        JSONObject(json)
+    } catch (_: Exception) {
+        null
     }
 
     /**
@@ -413,13 +518,76 @@ class AgentRunHistory(
         traces.findForAttempt(runId, attempt)
 
     /**
-     * Reopens one failed/clarifying run for its next bounded attempt. The returned
-     * attempt key is fresh (attempt + 1) and the prior attempt row stays as history.
+     * Reopens one failed run for its next bounded attempt. The returned attempt key is fresh
+     * (attempt + 1) and the prior attempt row stays as history. A `CLARIFYING` run is not a
+     * failed request: it is reopened by [reopenClarifying], so a retry can never replay an
+     * original request over a question the user has not answered yet.
      */
     suspend fun reopenForRetry(
         scope: WorkflowCallerScope.AgentSession,
         runId: String,
-    ): AdmittedRun? = reopenFrom(hostScope = scope, runId = runId, fromStates = setOf("FAILED", "CLARIFYING"))
+    ): AdmittedRun? = reopenFrom(hostScope = scope, runId = runId, fromStates = setOf("FAILED"))
+
+    /**
+     * Decides whether a failed run may retry, before the caller appends any transcript entry.
+     *
+     * The retried attempt is the run's current durable attempt, never a remembered UI number.
+     * [RetryBlockReason.ATTEMPTS_EXHAUSTED] and [RetryBlockReason.TERMINAL] are truthful dead
+     * ends: no Retry action may be offered for them. [RetryBlockReason.POSSIBLY_APPLIED] means
+     * the attempt's own journal keys recorded an applied effect (or cannot prove that none was
+     * applied), so replaying its request could duplicate it.
+     *
+     * A failed clarification continuation is reported as [RetryTarget.CLARIFICATION]: the caller
+     * re-issues the same question and answer, never the original request.
+     */
+    suspend fun retryAdmission(
+        scope: WorkflowCallerScope.AgentSession,
+        runId: String,
+    ): RetryAdmission {
+        val stored = runs.findByRunId(runId)
+            ?: return RetryAdmission.Blocked(RetryBlockReason.UNAVAILABLE)
+        if (stored.scopeId != scope.scopeId) {
+            return RetryAdmission.Blocked(RetryBlockReason.UNAVAILABLE)
+        }
+        when (stored.state) {
+            "RUNNING", "PENDING" -> return RetryAdmission.Blocked(RetryBlockReason.STILL_PROCESSING)
+            "FAILED" -> Unit
+            else -> return RetryAdmission.Blocked(RetryBlockReason.NOT_FAILED)
+        }
+        val current = stored.attempt
+        if (current + 1 > CanonicalAgentRetryPolicy.MAX_ATTEMPTS) {
+            return RetryAdmission.Blocked(RetryBlockReason.ATTEMPTS_EXHAUSTED)
+        }
+        val last = attempts.findForRun(runId).firstOrNull { it.attempt == current }
+            ?: return RetryAdmission.Blocked(RetryBlockReason.UNAVAILABLE)
+        if (last.state == "PENDING") {
+            return RetryAdmission.Blocked(RetryBlockReason.STILL_PROCESSING)
+        }
+        val observation = parsePayload(last.observationJson)
+        val retryable = if (observation != null && observation.has("retryable")) {
+            observation.optBoolean("retryable")
+        } else {
+            // A row written before the retry classification was persisted: fall back to the
+            // stored stop reason's own bounded vocabulary.
+            CanonicalAgentRetryPolicy.isRetryableStop(last.stopReason ?: stored.stopReason.orEmpty())
+        }
+        if (!retryable) return RetryAdmission.Blocked(RetryBlockReason.TERMINAL)
+        return when (reconcileUncertainWrite(runId, current)) {
+            is UncertainWriteVerdict.Applied,
+            is UncertainWriteVerdict.Unknown,
+            -> RetryAdmission.Blocked(RetryBlockReason.POSSIBLY_APPLIED)
+
+            is UncertainWriteVerdict.NotApplied -> RetryAdmission.Ready(
+                currentAttempt = current,
+                nextAttempt = current + 1,
+                target = if (observation?.optString("mode") == "clarification") {
+                    RetryTarget.CLARIFICATION
+                } else {
+                    RetryTarget.REQUEST
+                },
+            )
+        }
+    }
 
     /**
      * Reopens a suspended clarification for its next resume turn. Only a run still in
@@ -454,6 +622,14 @@ class AgentRunHistory(
         if (moved != 1) return null
         val key = CanonicalAgentRetryPolicy.attemptKey(runId, next)
         val token = UUID.randomUUID().toString()
+        // A clarification lineage survives a failed answer turn: retrying that failure resumes
+        // the same question and answer. Without this, a second retry of the same conversation
+        // would be labelled as a request retry and would replay the original request instead.
+        val continuing = stored.state == "CLARIFYING" ||
+            attempts.findForRun(runId)
+                .firstOrNull { it.attempt == stored.attempt }
+                ?.let { prior -> parsePayload(prior.observationJson)?.optString("mode") }
+                .orEmpty() == "clarification"
         attempts.insert(
             AgentRunAttemptEntity(
                 runId = runId,
@@ -469,13 +645,17 @@ class AgentRunHistory(
                 linkRevision = null,
                 draftId = null,
                 decisionSource = null,
-                observationJson = JSONObject().put("retry", next).toString(),
+                // The mode survives the settle (see `retryAwareObservation`), so a later retry
+                // knows whether this attempt replayed a request or continued a clarification.
+                observationJson = JSONObject()
+                    .put("retry", next)
+                    .put("mode", if (continuing) "clarification" else "retry")
+                    .toString(),
                 ownerToken = token,
                 createdAtEpochMillis = now,
                 updatedAtEpochMillis = now,
             ),
         )
-        val continuing = stored.state == "CLARIFYING"
         appendLine(
             runId,
             "STATUS",
@@ -550,52 +730,6 @@ class AgentRunHistory(
         return out
     }
 
-    /**
-     * Re-reads the live rows behind one attempt's claimed effects and reports whether
-     * they still carry the attempted state. `null` means the effect cannot be re-read
-     * from durable state (no claimed effect, or an unreadable row); the caller must
-     * treat that as `Unknown`, not as success and not as proof of absence.
-     */
-    private suspend fun reconcileEffectReferences(row: AgentRunAttemptEntity): Boolean? {
-        return try {
-            when (row.effectKind) {
-                null, "query", "clarification", "refused", "unknown", "no_effect" -> null
-                "event" -> {
-                    val expected = row.eventRevision ?: return null
-                    val stored = queryService.eventOperations(
-                        io.github.triet4p.aegisf.data.EventOperationQuery(
-                            captureId = null,
-                            bounds = QueryPageRequest(500, 0),
-                        ),
-                    ).items.firstOrNull { it.eventId == row.eventId } ?: return null
-                    stored.revision == expected
-                }
-                "link" -> {
-                    val pair = queryService.linkOperations(
-                        io.github.triet4p.aegisf.data.LinkOperationQuery(
-                            eventId = row.eventId,
-                            draftId = row.draftId,
-                            bounds = QueryPageRequest(1, 0),
-                        ),
-                    ).items.firstOrNull { it.linkId == row.linkId } ?: return null
-                    pair.revision == (row.linkRevision ?: return null) &&
-                        pair.state.name == (row.linkState ?: return null)
-                }
-                "draft_category" -> {
-                    val draft = queryService.draftCandidate(row.draftId ?: return null) ?: return null
-                    draft.reviewStatus == IntakeReviewStatus.PENDING &&
-                        draft.reviewCategoryResolved &&
-                        draft.reviewCategoryId == (row.selectedCategoryId ?: return null)
-                }
-                else -> null
-            }
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            null
-        }
-    }
-
     private suspend fun appendLine(runId: String, role: String, text: String, now: Long) {
         return try {
             val existing = conversation.findForRun(runId)
@@ -613,6 +747,30 @@ class AgentRunHistory(
             throw cancelled
         } catch (_: Exception) {
         }
+    }
+
+    /**
+     * The privacy-safe attempt observation, extended with the durable retry facts a later
+     * decision needs: whether this attempt's failure was retryable at all, the classified code,
+     * and the mode the attempt was reopened in (a request retry or a clarification continuation).
+     *
+     * The facts are a boolean and fixed vocabulary codes, never content; a row written before
+     * this extension keeps its prior JSON and is classified from its stop reason instead.
+     */
+    private fun retryAwareObservation(
+        row: AgentRunAttemptEntity,
+        outcome: WorkflowRunOutcome,
+        boundary: MaskedPromptBoundary,
+    ): String {
+        val failure = AgentRunFailure.ofOutcome(outcome)
+        val priorMode = parsePayload(row.observationJson)
+            ?.optString("mode")
+            ?.takeIf { it.isNotBlank() }
+        return JSONObject(safeObservation(outcome, boundary))
+            .put("retryable", failure?.retryable == true)
+            .put("classification", failure?.code ?: CanonicalAgentRetryPolicy.RETRY_CODE_NONE)
+            .apply { priorMode?.let { put("mode", it) } }
+            .toString()
     }
 
     /**
@@ -903,6 +1061,21 @@ class AgentRunHistory(
         const val MAX_ANSWER_CHARS = 2_000
         const val MAX_LINE_CHARS = 2_000
         const val MAX_RECENT_RUNS = 100
+
+        /**
+         * The trace kinds only a bound host recorder writes. Their presence proves the recorder
+         * was live for the attempt, so the absence of a tool result means no tool call ran.
+         */
+        val RECORDER_OBSERVED_KINDS = setOf(
+            AGENT_TRACE_KIND_PROVIDER_REQUEST,
+            AGENT_TRACE_KIND_PROVIDER_RESPONSE,
+            AGENT_TRACE_KIND_PROVIDER_STREAM_CHUNK,
+            AGENT_TRACE_KIND_PROVIDER_STREAM_END,
+            AGENT_TRACE_KIND_PROVIDER_FAILURE,
+            AGENT_TRACE_KIND_TOOL_CALL,
+            AGENT_TRACE_KIND_TOOL_RESULT,
+            AGENT_TRACE_KIND_TOOL_ERROR,
+        )
     }
 }
 
@@ -926,4 +1099,49 @@ sealed interface UncertainWriteVerdict {
 
     /** Cannot be decided from durable state: do not replay; ask the user or retry bounded. */
     data class Unknown(val detail: String) : UncertainWriteVerdict
+}
+
+/**
+ * The decision a retry needs before anything is appended to the visible conversation.
+ *
+ * A caller must not start a user-visible retry turn — not even the user's own repeated bubble —
+ * until the durable decision says [Ready]; [Blocked] is reported in place instead.
+ */
+sealed interface RetryAdmission {
+    /** The current attempt failed retryably, has an attempt left and applied nothing. */
+    data class Ready(
+        val currentAttempt: Int,
+        val nextAttempt: Int,
+        val target: RetryTarget,
+    ) : RetryAdmission
+
+    /** The run cannot retry, for the named reason; no Retry action may be offered. */
+    data class Blocked(val reason: RetryBlockReason) : RetryAdmission
+}
+
+/** What a ready retry must replay: the original request or the clarification continuation. */
+enum class RetryTarget {
+    REQUEST,
+    CLARIFICATION,
+}
+
+/** Why a failed run offers no retry. */
+enum class RetryBlockReason {
+    /** The run is missing, foreign, or has no attempt row. */
+    UNAVAILABLE,
+
+    /** The run is not in its failed state, so retry is not the applicable action. */
+    NOT_FAILED,
+
+    /** The bounded attempt allowance is spent; a later attempt is not permitted. */
+    ATTEMPTS_EXHAUSTED,
+
+    /** The failure classification is terminal: retrying would repeat a decided outcome. */
+    TERMINAL,
+
+    /** An attempt still holds the run, so retrying now would race it. */
+    STILL_PROCESSING,
+
+    /** The attempt's journal recorded an applied effect or cannot prove that none was applied. */
+    POSSIBLY_APPLIED,
 }

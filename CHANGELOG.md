@@ -7,6 +7,18 @@ and no release has been tagged or published. Format follows
 
 ## [Unreleased]
 
+### Sprint 11 — S11.C2 truthful retry admission and applied-effect reconciliation
+
+- **AI Chat** now decides whether a failed turn may retry before it changes the transcript. A run
+  with no attempt left or a terminal failure shows no Retry action and says honestly that its
+  attempts are used; a retry that was actually admitted adds no second copy of the user's message,
+  and a refused retry explains itself on the existing failure line.
+- **AI Chat** detects a write that the failed attempt may already have applied, using the
+  operation journal rows under that attempt's own per-tool keys. A possibly applied write blocks
+  replay instead of duplicating the effect; a clean retryable failure remains recoverable.
+- **AI Chat** retries a failed clarification by re-sending the same question and answer rather
+  than the original request, so the retry continues the conversation the user was in.
+
 ### Sprint 11 — S11.C1 unlimited conversation turns with a per-turn tool-call limit
 
 - **AI Chat** now allows at most 12 tool calls in one conversation turn and refuses a 13th
@@ -19,8 +31,7 @@ and no release has been tagged or published. Format follows
   previous turn's exhausted budget. The clarifying question and the user's answer are stored in
   order, so a restored conversation shows both and labels the continuation instead of calling it
   a retry.
-- Sprint 11 C2/C3 repairs (failure-retry reconciliation and data-first date clarification) remain
-  unimplemented.
+- Sprint 11 C3 repair (data-first date clarification) remains unimplemented; C2 is recorded above.
 
 ### Sprint 10 — S10.11 real Chat progress visibility
 

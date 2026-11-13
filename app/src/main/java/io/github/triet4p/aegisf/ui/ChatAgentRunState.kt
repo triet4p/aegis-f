@@ -14,7 +14,6 @@ import io.github.triet4p.aegisf.agent.WorkflowRunRequest
 import io.github.triet4p.aegisf.data.AgentConversationEntity
 import io.github.triet4p.aegisf.data.AgentRunEntity
 import io.github.triet4p.aegisf.data.WorkflowCallerScope
-import io.github.triet4p.aegisf.privacy.MaskedPromptBoundary
 import kotlinx.coroutines.Job
 
 /** A saved note the user explicitly attached to the chat, before and after sending. */
@@ -169,6 +168,39 @@ internal enum class ChatHistoryStatus {
     INTERRUPTED,
 }
 
+/** Which kind of conversation turn the visible exchange is recording. */
+internal enum class ChatTurnKind {
+    /** A new user message that starts a new durable run. */
+    NEW_RUN,
+
+    /** A user message appended to a run that paused at its per-turn tool-call limit. */
+    FOLLOW_UP,
+
+    /** The answer to the application's clarification question. */
+    CLARIFICATION,
+
+    /** A replay of the failure that ended the previous turn. */
+    RETRY,
+}
+
+/** What a ready retry must replay; mirrored from the durable admission. */
+internal enum class ChatRetryTarget {
+    REQUEST,
+    CLARIFICATION,
+}
+
+/**
+ * The durable retry the failed turn may still offer.
+ *
+ * It exists only after the history admitted the retry, so the visible Retry action is never a
+ * dead end. [currentAttempt] is the failed durable attempt; [nextAttempt] is the one it may open.
+ */
+internal data class ChatRetryOffer(
+    val currentAttempt: Int,
+    val nextAttempt: Int,
+    val target: ChatRetryTarget,
+)
+
 /**
  * The Chat destination's conversation and in-progress exchange, owned by the shell rather than
  * by the destination subtree.
@@ -248,10 +280,27 @@ internal class ChatAgentRunState {
     var lastPrompt by mutableStateOf<String?>(null)
     var lastIntents by mutableStateOf<Set<WorkflowIntent>>(emptySet())
     var lastRequest by mutableStateOf<WorkflowRunRequest?>(null)
-    /** The attempt and privacy boundary of the last request, needed by an explicit retry. */
-    var lastAttempt by mutableStateOf<Int?>(null)
-    var lastBoundary by mutableStateOf<MaskedPromptBoundary?>(null)
-    var lastMaxOutputTokens by mutableStateOf<Int?>(null)
+
+    /**
+     * The durable retry the failed turn may still offer, or null.
+     *
+     * It is set only when the history admitted the retry before any transcript entry was added,
+     * so the visible Retry action can never be a dead end or duplicate a user bubble. Every new
+     * turn, settle and restore clears it.
+     */
+    var retryOffer by mutableStateOf<ChatRetryOffer?>(null)
+
+    /** Which kind of turn the live exchange records; null when nothing is live. */
+    var turnKind by mutableStateOf<ChatTurnKind?>(null)
+
+    /**
+     * The user's own answer to the last clarification, kept for an explicit retry.
+     *
+     * A clarification continuation is re-issued from this same answer; the original request is
+     * never replayed in its place.
+     */
+    var lastClarificationAnswer by mutableStateOf<String?>(null)
+
     var followUpInput by mutableStateOf("")
     /** Explicit visible reference chosen to disambiguate a follow-up; null while ambiguous. */
     var followUpSelection by mutableStateOf<String?>(null)
@@ -261,16 +310,19 @@ internal class ChatAgentRunState {
 
     private fun nextKey(): Long = ++nextEntryKey
 
-    /** The visible request preceding the current exchange, for the retry action. */
-    var lastUserText by mutableStateOf<String?>(null)
-
     /**
      * Starts one user turn and the assistant entry it will fill.
      *
      * The user's words and the waiting assistant turn appear immediately; nothing has reached
-     * the provider yet. The returned token is the only authority allowed to update this exchange.
+     * the provider yet. [kind] records which conversation turn this is, so a later failure knows
+     * whether a retry would replay a request or continue a clarification. The returned token is
+     * the only authority allowed to update this exchange.
      */
-    fun beginTurn(text: String, atMillis: Long = System.currentTimeMillis()): Int {
+    fun beginTurn(
+        text: String,
+        atMillis: Long = System.currentTimeMillis(),
+        kind: ChatTurnKind = ChatTurnKind.NEW_RUN,
+    ): Int {
         val token = ++nextToken
         activeToken = token
         busy = true
@@ -279,10 +331,12 @@ internal class ChatAgentRunState {
         clarificationAnswer = ""
         followUp = null
         toolLimitPause = false
+        retryOffer = null
         restoredRunState = null
+        turnKind = kind
+        lastClarificationAnswer = if (kind == ChatTurnKind.CLARIFICATION) text else null
         // A stop before the next admission must not cancel the previous run's identity.
         runId = null
-        lastUserText = text
         val userKey = nextKey()
         val assistantKey = nextKey()
         activeAssistantKey = assistantKey
@@ -299,6 +353,56 @@ internal class ChatAgentRunState {
             atMillis = atMillis,
         )
         return token
+    }
+
+    /**
+     * Starts an admitted retry: one assistant entry only.
+     *
+     * The user's request (or clarification answer) is already in the transcript and the durable
+     * conversation, so a retry must not append a second user bubble. The run identity, executor,
+     * scope and continuation stay those of the failed turn.
+     */
+    fun beginRetryTurn(atMillis: Long = System.currentTimeMillis()): Int {
+        val token = ++nextToken
+        activeToken = token
+        busy = true
+        outcome = null
+        progress = null
+        clarificationAnswer = ""
+        followUp = null
+        toolLimitPause = false
+        retryOffer = null
+        restoredRunState = null
+        turnKind = ChatTurnKind.RETRY
+        val assistantKey = nextKey()
+        activeAssistantKey = assistantKey
+        messages = messages + ChatTranscriptEntry.Assistant(
+            key = assistantKey,
+            text = "",
+            state = ChatAnswerState.WAITING,
+            statusLine = null,
+            runId = runId,
+            atMillis = atMillis,
+        )
+        return token
+    }
+
+    /**
+     * Reports a refused retry on the existing failure line and clears the offer.
+     *
+     * Nothing is appended: the admission was decided before the transcript was touched, so a
+     * blocked retry never adds a second copy of the user's message or an empty retry bubble.
+     */
+    fun refuseRetry(message: String) {
+        busy = false
+        retryOffer = null
+        val index = messages.indexOfLast { it is ChatTranscriptEntry.Assistant }
+        if (index < 0) return
+        val entry = messages[index] as ChatTranscriptEntry.Assistant
+        if (entry.state != ChatAnswerState.ERROR) return
+        messages = messages.toMutableList().also { list ->
+            list[index] = entry.copy(statusLine = message)
+        }
     }
 
     /** Whether [token] still owns the visible exchange. */
@@ -369,6 +473,8 @@ internal class ChatAgentRunState {
         activeToken = null
         activeAssistantKey = null
         busy = false
+        retryOffer = null
+        turnKind = null
     }
 
     /** Settles the exchange as a clarification, keeping its question in the transcript. */
@@ -386,6 +492,8 @@ internal class ChatAgentRunState {
         activeToken = null
         activeAssistantKey = null
         busy = false
+        retryOffer = null
+        turnKind = null
     }
 
     /**
@@ -407,6 +515,10 @@ internal class ChatAgentRunState {
         activeToken = null
         activeAssistantKey = null
         busy = false
+        // A new failure invalidates any offer made for the previous attempt; the caller sets a
+        // fresh offer only after the durable admission succeeds.
+        retryOffer = null
+        turnKind = null
     }
 
     /**
@@ -428,6 +540,8 @@ internal class ChatAgentRunState {
         activeToken = null
         activeAssistantKey = null
         busy = false
+        retryOffer = null
+        turnKind = null
         return true
     }
 
@@ -447,11 +561,13 @@ internal class ChatAgentRunState {
         continuation = null
         followUp = null
         toolLimitPause = false
+        retryOffer = null
+        turnKind = null
+        lastClarificationAnswer = null
         runId = run.runId
         lastScope = null
         lastRequest = null
         lastPrompt = null
-        lastUserText = null
         restoredRunState = run.state
         messages = transcriptOf(run, lines, interruptedLine, clarificationExpiredLine) { nextKey() }
     }
@@ -469,12 +585,14 @@ internal class ChatAgentRunState {
         continuation = null
         followUp = null
         toolLimitPause = false
+        retryOffer = null
+        turnKind = null
+        lastClarificationAnswer = null
         clarificationAnswer = ""
         restoredRunState = null
         lastScope = null
         lastRequest = null
         lastPrompt = null
-        lastUserText = null
         initialLoadAttempted = true
         messages = emptyList()
     }
