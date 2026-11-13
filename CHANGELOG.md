@@ -7,6 +7,14 @@ and no release has been tagged or published. Format follows
 
 ## [Unreleased]
 
+### Sprint 11 — S11.1 complete-state export
+
+- Added a versioned Android file-picker export for categories, category rules, exact-VND ledger
+  records, bank drafts and corrections, saved captures and their events/links, source provenance,
+  historical classification snapshots, and non-secret hosted-profile descriptors. The export
+  warns that its sensitive JSON is unencrypted and excludes credentials, raw notification bodies,
+  conversations, diagnostic traces, and runtime buffers; no restore or cloud-sync control was added.
+
 ### Sprint 11 — S11.C3 data-first clarification and trusted temporal tools
 
 - **AI Chat** now searches your saved data before it asks about a date or time. One match becomes a

@@ -94,6 +94,7 @@ class MainActivity : ComponentActivity() {
                         themeMode = selected
                         uiPreferencesStore.saveThemeMode(selected)
                     },
+                    completeStateExporter = (application as AegisApplication).container.completeStateExporter,
                 )
             }
         }

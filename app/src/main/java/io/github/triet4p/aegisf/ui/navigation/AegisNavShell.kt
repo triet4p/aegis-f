@@ -26,6 +26,7 @@ import io.github.triet4p.aegisf.data.NotificationAccessStore
 import io.github.triet4p.aegisf.data.WorkflowCallerScope
 import io.github.triet4p.aegisf.data.WorkflowCommandService
 import io.github.triet4p.aegisf.data.WorkflowQueryService
+import io.github.triet4p.aegisf.data.CompleteStateExporter
 import io.github.triet4p.aegisf.provider.HostedProviderConfig
 import io.github.triet4p.aegisf.provider.HostedProviderSettingsStore
 import io.github.triet4p.aegisf.ui.BankNotificationSettingsScreen
@@ -149,6 +150,7 @@ internal fun AegisAppShell(
     commandService: WorkflowCommandService,
     notificationAccessStore: NotificationAccessStore,
     hostedProviderSettingsStore: HostedProviderSettingsStore,
+    completeStateExporter: CompleteStateExporter,
     createHostedWorkflowHost: (WorkflowCallerScope.AgentSession, HostedProviderConfig) -> WorkflowRunHost,
     agentRunHistory: AgentRunHistory,
     language: AegisLanguage,
@@ -310,6 +312,7 @@ internal fun AegisAppShell(
                             commandService = commandService,
                             notificationAccessStore = notificationAccessStore,
                             hostedProviderSettingsStore = hostedProviderSettingsStore,
+                            completeStateExporter = completeStateExporter,
                             agentRunHistory = agentRunHistory,
                             stack = homeStack,
                             scope = dashboardScope,
@@ -400,6 +403,7 @@ private fun HomeDestination(
     commandService: WorkflowCommandService,
     notificationAccessStore: NotificationAccessStore,
     hostedProviderSettingsStore: HostedProviderSettingsStore,
+    completeStateExporter: CompleteStateExporter,
     agentRunHistory: AgentRunHistory,
     stack: List<HomeRoute>,
     scope: DashboardScopeState,
@@ -488,6 +492,7 @@ private fun HomeDestination(
 
         HomeRoute.SettingsPrivacy -> SettingsPrivacyScreen(
             onNavigateUp = onPop,
+            exporter = completeStateExporter,
         )
 
         is HomeRoute.ScopedList -> ScopedLedgerScreen(

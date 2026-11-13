@@ -80,6 +80,33 @@ data class SavedHostedProvider(
             "credential=[redacted], maxOutputTokens=$maxOutputTokens, reasoningEffort=$reasoningEffort, " +
             "temperature=$temperature, parallelToolCalls=$parallelToolCalls, capabilities=$capabilities)"
 }
+/** Portable, non-secret description of one saved hosted profile. */
+data class HostedProviderExportProfile(
+    val id: String,
+    val name: String,
+    val protocol: HostedProtocol,
+    val endpointOrigin: String,
+    val model: String,
+    val maxOutputTokens: Int?,
+    val reasoningEffort: HostedReasoningEffort?,
+    val temperature: Double?,
+    val parallelToolCalls: Boolean?,
+    val capabilities: HostedProviderCapabilities,
+)
+
+/** A synchronized snapshot of the selected hosted profile and its non-secret descriptors. */
+data class HostedProviderExportSnapshot(
+    val activeProfileId: String?,
+    val profiles: List<HostedProviderExportProfile>,
+)
+
+/** Keeps only the endpoint origin; paths and all URI decorations are not backup descriptors. */
+internal fun sanitizedProviderEndpointOrigin(endpoint: String): String {
+    val uri = URI(endpoint.replace("{model}", "model"))
+    val scheme = requireNotNull(uri.scheme)
+    val host = requireNotNull(uri.host?.takeIf { it.isNotBlank() })
+    return URI(scheme, null, host, uri.port, null, null, null).toASCIIString()
+}
 
 /**
  * Encrypted-at-rest, device-local provider profiles. The preference contains only AES-GCM
@@ -93,6 +120,31 @@ class HostedProviderSettingsStore(context: Context) {
     fun active(): SavedHostedProvider? {
         val id = preferences.getString(ACTIVE_PROFILE_KEY, null) ?: return null
         return load().firstOrNull { it.id == id }
+    }
+
+    /** Returns no credentials or endpoint path/query material to callers that build an export. */
+    @Synchronized
+    fun exportSnapshot(): HostedProviderExportSnapshot {
+        val profiles = load()
+        val activeId = preferences.getString(ACTIVE_PROFILE_KEY, null)
+            ?.takeIf { id -> profiles.any { profile -> profile.id == id } }
+        return HostedProviderExportSnapshot(
+            activeProfileId = activeId,
+            profiles = profiles.map { profile ->
+                HostedProviderExportProfile(
+                    id = profile.id,
+                    name = profile.name,
+                    protocol = profile.protocol,
+                    endpointOrigin = sanitizedProviderEndpointOrigin(profile.endpoint),
+                    model = profile.model,
+                    maxOutputTokens = profile.maxOutputTokens,
+                    reasoningEffort = profile.reasoningEffort,
+                    temperature = profile.temperature,
+                    parallelToolCalls = profile.parallelToolCalls,
+                    capabilities = profile.capabilities,
+                )
+            },
+        )
     }
 
     @Synchronized

@@ -95,6 +95,11 @@ class AppContainer(context: Context) {
         HostedProviderSettingsStore(appContext)
     }
 
+    /** Versioned SAF export of business state and non-secret provider descriptors. */
+    val completeStateExporter: CompleteStateExporter by lazy {
+        CompleteStateExporter(database, hostedProviderSettingsStore::exportSnapshot)
+    }
+
     /** Production hosted transport; every run's traffic is traced by a decorator over it. */
     internal var hostedHttpTransport: HttpTransport = UrlConnectionHttpTransport()
 
