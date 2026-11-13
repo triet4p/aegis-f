@@ -314,7 +314,6 @@ class S98CapabilityPhoneInstrumentedTest {
                 userRequest = language.userRequest,
                 limits = if (wideBudget) {
                     WorkflowRunLimits(
-                        maxTurns = 32,
                         maxToolCalls = 64,
                         maxWallClockMillis = 300_000,
                     )
@@ -459,7 +458,7 @@ class S98CapabilityPhoneInstrumentedTest {
                 .any { it.payloadJson.contains("unavailable") }
             val summary =
                 "S98LIVE profile=${provider.id} lang=${language.name} ambiguity=$ambiguity " +
-                    "budget=${if (InstrumentationRegistry.getArguments().getString("s98_limits") == "wide") "wide-32/64-harness" else "production-12/24"} " +
+                    "budget=${if (InstrumentationRegistry.getArguments().getString("s98_limits") == "wide") "wide-32/64-harness" else "production-24-exchanges/12-calls"} " +
                     "outcome=${outcome.javaClass.simpleName} finalOutcome=${finalOutcome.javaClass.simpleName} events=${events.size} " +
                     "fuelLink=${fuelLinks.map { it.state }} snackLink=${snackLinks.map { it.state }} " +
                     "fuelCategory=${fuelDraft.reviewCategoryId} snackCategory=${snackDraft.reviewCategoryId} " +
@@ -494,8 +493,7 @@ class S98CapabilityPhoneInstrumentedTest {
                 emit("S98ADMITTED lang=${language.name} payload=${it.payloadJson}")
             }
             emit(
-                "S98LIMITS lang=${language.name} effectiveMaxTurns=${request.limits.maxTurns} " +
-                    "effectiveMaxToolCalls=${request.limits.maxToolCalls} " +
+                "S98LIMITS lang=${language.name} effectiveMaxToolCalls=${request.limits.maxToolCalls} " +
                     "effectiveMaxRepeatedIdenticalCalls=${request.limits.maxRepeatedIdenticalCalls} " +
                     "providerMaxOutputTokens=${provider.maxOutputTokens} wideBudget=$wideBudget",
             )

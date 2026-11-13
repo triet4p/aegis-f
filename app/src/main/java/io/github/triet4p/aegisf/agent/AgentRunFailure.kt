@@ -120,7 +120,6 @@ sealed interface AgentRunFailure {
             WorkflowRunStopReason.CONTENT_FILTERED -> Terminal("content_filtered", detail)
             WorkflowRunStopReason.MASKING_BLOCKED -> Terminal("masking_blocked", detail)
             WorkflowRunStopReason.MALFORMED_TURN -> Terminal("malformed_turn", detail)
-            WorkflowRunStopReason.TURN_BUDGET -> Terminal("turn_budget", detail)
             WorkflowRunStopReason.TOOL_CALL_BUDGET -> Terminal("tool_budget", detail)
             WorkflowRunStopReason.CONTEXT_BUDGET -> Terminal("context_budget", detail)
             // The run's own wall-clock budget is spent: a retry replays the same exhausted

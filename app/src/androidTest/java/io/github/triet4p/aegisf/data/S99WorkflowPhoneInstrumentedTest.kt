@@ -1701,7 +1701,7 @@ class S99WorkflowPhoneInstrumentedTest {
             "S99RUNMETA run=$runId providerMaxOutputTokens=${provider.maxOutputTokens} " +
                 "canonical=${provider.validatedConfig(scope.scopeId).budget.canonicalBudgetString()} " +
                 "turns=${requestBodies.size} tools=${toolCalls.size} elapsedMillis=$elapsedMillis " +
-                "limitTurns=${request.limits.maxTurns} limitTools=${request.limits.maxToolCalls}",
+                "limitTools=${request.limits.maxToolCalls}",
         )
         traceEvents.forEach { event ->
             if (event.kind == AGENT_TRACE_KIND_TOOL_CALL) {

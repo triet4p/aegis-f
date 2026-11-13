@@ -28,13 +28,18 @@ durable attempt and operation journal for retry, reconciliation and process-safe
   same subset is passed to the runtime, so an unrelated tool is neither offered nor executable.
 - `WorkflowRunRequest` — host-selected `WorkflowIntent`s (which load exactly those runtime
   skills), the trusted user request text and `WorkflowRunLimits`.
-- `WorkflowRunLimits` — `maxTurns`, `maxToolCalls`, `maxContextCharacters`, `maxWallClockMillis`,
-  `maxRepeatedIdenticalCalls`, `maxCaptureObservations`. Current production defaults are 12 turns,
-  24 tool calls, 160,000 context characters, 300,000 ms, 3 repeated identical calls and 4 initial
-  capture observations. S8.14 raised only `maxToolCalls` from 16 to 24 after an actual phone trace
-  refused the valid 17th local-Laya call; every other run bound and the generation budget remain
-  unchanged. `HostedGenerationBudget` is the host's frozen per-model budget from S8.5 (the live
-  slice uses 8192 output tokens). There is no shared output cap or retry that hides truncation.
+- `WorkflowRunLimits` — `maxToolCalls`, `maxContextCharacters`, `maxWallClockMillis`,
+  `maxRepeatedIdenticalCalls`, `maxCaptureObservations`. `maxToolCalls` is the only count-based
+  boundary and it bounds one conversation turn (one user message or clarification answer plus the
+  work that follows it). The current production default is 12 dispatched tool calls per
+  conversation turn; provider exchanges are counted for observability but never cap a turn, so a
+  turn that spends its twelve calls can still answer. The context, wall-clock and
+  repeated-identical-call bounds remain non-count safety checks, and nothing caps the number of
+  conversation turns in a session. S8.14 raised the old per-run tool bound from 16 to 24 after an
+  actual phone trace refused the valid 17th local-Laya call; S11.C1 replaced that per-run budget
+  with the owner-revised per-turn allowance of 12. `HostedGenerationBudget` is the host's frozen
+  per-model budget from S8.5 (the live slice uses 8192 output tokens). There is no shared output
+  cap or retry that hides truncation.
 - Outcomes — `Completed` (answer plus only the effects re-read from application state),
   `Clarifying` (the application asked for a user decision, with a one-shot continuation),
   `Refused` (an application/masking boundary the agent cannot cross) and `Incomplete` (a declared
@@ -69,8 +74,11 @@ Each turn:
    - The actual runtime envelope is fed back with its fresh masked observations: the re-read
      event, draft, pair or operation state; the settled effect; and the authorized operation
      reference when one exists. Errors carry the stable code, field paths and constraints only.
-   - If the turn's calls would exceed `maxToolCalls`, the run stops before dispatching any of
-     them; a turn is never partially applied.
+   - The per-turn allowance is a hard per-call bound. Calls that fit `maxToolCalls` execute; every
+     later call in that conversation turn is answered with a `not_dispatched` `TOOL_CALL_BUDGET`
+     envelope and never reaches the application. The run then stops with `TOOL_CALL_BUDGET` after
+     all calls are answered, so the conversation is idle: the user's next message continues the
+     same session with a fresh allowance and no replayed effect.
    - The same call repeated beyond `maxRepeatedIdenticalCalls` stops the run as `LOOP_DETECTED`.
 4. `ask_user` suspends the run with `outcome: clarifying` and `control: await_user`; calls later
    in the same turn are not dispatched, so nothing commits before the user answers. `resume`
@@ -78,14 +86,17 @@ Each turn:
    re-reads fresh observations and starts the resumed turn from a bounded masked summary of prior
    outcomes plus the answer. Because provider conversations are not persisted (S8.10), the
    resumed turn does not replay protocol-private continuation items; the summary is the seam. The
-   wall-clock budget restarts at resume because waiting for a person is not agent work. A
+   answer starts a new conversation turn: the wall-clock, provider-exchange and tool-call
+   allowances restart, as does the repeated-call ledger, while the finished turn's spend stays in
+   the cumulative totals every outcome reports. Waiting for a person is not agent work. A
    continuation can be resumed once, by its own executor.
 5. `resumeTracked` (S8.12) is the durable variant of `resume`: the continuation is validated
    first (ownership, single use, nonblank answer), then the run reopens from `CLARIFYING` only
    (`reopenClarifying`; a `FAILED`/terminal run returns null). It inherits its per-tool attempt
    seeds and exact signature-to-key map, so an exact pre-clarification call replays with the same
-   identity while a corrected request receives a distinct one. A late or repeated resume returns
-   null.
+   identity while a corrected request receives a distinct one. It stores the question and the
+   masked answer as ordered conversation lines and labels the continuation as a continuation, not
+   a retry. A late or repeated resume returns null.
 6. Terminal outcomes — `REFERENCE_SCOPE_REFUSED`, `USER_DECISION_REQUIRED`, `MASKING_REFUSED`,
    pending/unknown operation, unverified effect and provider truncation — stop hosted work. A
    masking refusal after an earlier call in the same run already applied a write is reconciled

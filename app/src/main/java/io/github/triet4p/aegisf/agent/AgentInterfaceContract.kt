@@ -229,6 +229,7 @@ enum class AgentErrorCode(
     MASKING_REFUSED("privacy", false, "stop", terminal = true),
     PROVIDER_TRANSIENT("provider", true, "host_retry", terminal = true),
     PROVIDER_TRUNCATED("provider", false, "stop", terminal = true),
+    TOOL_CALL_BUDGET("budget", true, "continue_after_user_turn"),
 }
 
 /** One actionable field issue inside an error envelope; never carries a submitted value. */

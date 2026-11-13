@@ -80,7 +80,7 @@ class AgentRunHistory(
         require(scope.scopeId.isNotBlank()) { "A run needs a trusted session identity." }
         val maskedRequest = boundary.maskOutbound(request.userRequest, MaskedPath.HISTORY)
         val limits = request.limits
-        val limitsFingerprint = "${limits.maxTurns}/${limits.maxToolCalls}/" +
+        val limitsFingerprint = "${limits.maxToolCalls}/" +
             "${limits.maxContextCharacters}/${limits.maxWallClockMillis}/" +
             "${limits.maxRepeatedIdenticalCalls}/${limits.maxCaptureObservations}"
         val fingerprint = CanonicalAgentRetryPolicy.requestFingerprint(
@@ -144,7 +144,6 @@ class AgentRunHistory(
                     .put("intents", JSONArray(request.intents.map { it.name }.sorted()))
                     .put("maskedRequest", maskedRequest)
                     .put("limits", JSONObject()
-                        .put("maxTurns", limits.maxTurns)
                         .put("maxToolCalls", limits.maxToolCalls)
                         .put("maxContextCharacters", limits.maxContextCharacters)
                         .put("maxWallClockMillis", limits.maxWallClockMillis)
@@ -248,8 +247,14 @@ class AgentRunHistory(
                     now,
                 )
             }
-            is WorkflowRunOutcome.Clarifying ->
+            is WorkflowRunOutcome.Clarifying -> {
+                // The question the user actually read belongs to the durable conversation, in
+                // order before the answer they give next. The trace keeps the structured event;
+                // this line is the transcript a restored screen shows.
+                val maskedQuestion = boundary.maskOutbound(outcome.question, MaskedPath.HISTORY)
+                appendLine(runId, "AGENT", maskedQuestion, now)
                 runs.markClarifying(runId, CanonicalAgentRetryPolicy.RETRY_CODE_CLARIFY, now)
+            }
             is WorkflowRunOutcome.Refused -> {
                 appendLine(runId, "STATUS", "The request was refused: ${outcome.reason}.", now)
                 runs.finish(runId, "FAILED", outcome.reason, null, null, now)
@@ -356,6 +361,29 @@ class AgentRunHistory(
         conversation.findForRun(runId)
 
     /**
+     * Appends the user's own answer to a clarification, masked for history.
+     *
+     * The call happens between reopening the clarifying run and resuming it, so a restored
+     * transcript reads the question, the truthful continuation line and the answer in order. An
+     * answer the masking boundary refuses is not persisted: the resume itself then settles as a
+     * masking stop, and no raw or partially mapped text reaches the conversation.
+     */
+    suspend fun recordClarificationAnswer(
+        runId: String,
+        userAnswer: String,
+        boundary: MaskedPromptBoundary,
+    ) {
+        val masked = try {
+            boundary.maskOutbound(userAnswer, MaskedPath.HISTORY)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            return
+        }
+        appendLine(runId, "USER", masked, clock())
+    }
+
+    /**
      * The newest durable runs across the app's conversations, newest first.
      *
      * The Chat destination reads this bounded list for its history sheet and for the one
@@ -394,9 +422,11 @@ class AgentRunHistory(
     ): AdmittedRun? = reopenFrom(hostScope = scope, runId = runId, fromStates = setOf("FAILED", "CLARIFYING"))
 
     /**
-     * Reopens a suspended clarification for its next bounded resume attempt. Only a run still in
+     * Reopens a suspended clarification for its next resume turn. Only a run still in
      * `CLARIFYING` moves; a FAILED, RUNNING, or terminal run returns null so a stale, foreign,
-     * or blank continuation can never strand or rerun a failed workflow.
+     * or blank continuation can never strand or rerun a failed workflow. A clarification answer
+     * is a conversation turn, not a failure retry, so its attempt number is not capped by the
+     * failure-retry policy.
      */
     suspend fun reopenClarifying(
         scope: WorkflowCallerScope.AgentSession,
@@ -411,7 +441,10 @@ class AgentRunHistory(
         val stored = runs.findByRunId(runId) ?: return null
         if (stored.scopeId != hostScope.scopeId) return null
         val next = stored.attempt + 1
-        if (next > CanonicalAgentRetryPolicy.MAX_ATTEMPTS) return null
+        // Failure retries keep the bounded attempt policy. A clarification answer is a new
+        // conversation turn, not a retried failure, so a session may continue clarifying without
+        // a conversation-turn cap.
+        if (stored.state != "CLARIFYING" && next > CanonicalAgentRetryPolicy.MAX_ATTEMPTS) return null
         val now = clock()
         val moved = when {
             stored.state !in fromStates -> 0
@@ -442,7 +475,17 @@ class AgentRunHistory(
                 updatedAtEpochMillis = now,
             ),
         )
-        appendLine(runId, "STATUS", "The run was retried (attempt $next).", now)
+        val continuing = stored.state == "CLARIFYING"
+        appendLine(
+            runId,
+            "STATUS",
+            if (continuing) {
+                "The conversation continued after your answer (attempt $next)."
+            } else {
+                "The run was retried (attempt $next)."
+            },
+            now,
+        )
         traces.append(
             runId = runId,
             scopeId = hostScope.scopeId,

@@ -109,7 +109,6 @@ enum class WorkflowRunState {
 
 /** Why a run stopped without a verified completion. Names a check, never content. */
 enum class WorkflowRunStopReason {
-    TURN_BUDGET,
     TOOL_CALL_BUDGET,
     CONTEXT_BUDGET,
     TIME_BUDGET,
@@ -125,17 +124,24 @@ enum class WorkflowRunStopReason {
     EMPTY_ANSWER,
 }
 
-/** Hard bounds of one run. */
+/**
+ * Hard bounds of one conversation turn.
+ *
+ * A conversation turn is one user message or clarification answer plus the work its agent does
+ * until it replies, asks for clarification or stops. [maxToolCalls] is the turn's only
+ * count-based boundary and it restarts on every conversation turn (see `ActiveRun.beginPhase`);
+ * provider exchanges are counted for observability but never cap a turn. The context, wall-clock
+ * and repeated-identical-call bounds remain non-count safety checks. Nothing here caps the number
+ * of conversation turns in a session.
+ */
 data class WorkflowRunLimits(
-    val maxTurns: Int = 12,
-    val maxToolCalls: Int = 24,
+    val maxToolCalls: Int = 12,
     val maxContextCharacters: Int = 160_000,
     val maxWallClockMillis: Long = 300_000,
     val maxRepeatedIdenticalCalls: Int = 3,
     val maxCaptureObservations: Int = 4,
 ) {
     init {
-        require(maxTurns in 1..64) { "maxTurns must be within 1..64" }
         require(maxToolCalls in 1..128) { "maxToolCalls must be within 1..128" }
         require(maxContextCharacters >= 4_096) { "maxContextCharacters must leave room for a prompt" }
         require(maxWallClockMillis in 1..3_600_000) { "maxWallClockMillis must be within 1..3600000" }
@@ -515,8 +521,9 @@ class WorkflowRunContinuation internal constructor(
  * The single-use, in-process authority to append one user follow-up message to a finished run.
  *
  * It is minted only for a run that stopped with an idle provider conversation (no unanswered
- * tool calls) and never for a run that has already been followed up, so one slot can receive
- * exactly one assisted message. The handle keeps the same host, scope, vault, reference
+ * tool calls), and every settled phase mints exactly one handle: the message continues the
+ * existing conversation and a later outcome mints the next handle, so a session has no
+ * conversation-turn cap. The handle keeps the same host, scope, vault, reference
  * registry, journal and current state: a follow-up continues the existing conversation instead
  * of starting a new run, re-reading nothing and replaying nothing.
  */
@@ -714,6 +721,9 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             userAnswer = userAnswer,
         )
         continuation.adoptFixedOperationSeeds(suspendedSeeds)
+        // The user's answer is part of the durable transcript, in order after the question the
+        // application asked. It is masked for history exactly as the provider-facing turn is.
+        history.recordClarificationAnswer(runId, userAnswer, host.boundary)
         val outcome = resume(continuation, userAnswer, progress)
         history.recordAttemptOutcome(runId, admitted.attempt, outcome, host.boundary)
         return outcome
@@ -905,7 +915,10 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             return maskedIncomplete(run, trace)
         }
         continuation.consumed = true
-        run.startedAtMillis = host.clock.nowMillis()
+        // The answer starts a new conversation turn: its provider-exchange and tool-call
+        // allowances restart, the repeated-call ledger restarts, and the wall clock restarts.
+        // The finished turn's spend stays in the cumulative totals reported by every outcome.
+        run.beginPhase(host.clock.nowMillis())
         transition(trace, WorkflowRunState.READY, "resumed_after_clarification")
         run.conversation = conversation
         run.contextCharacters += added
@@ -913,7 +926,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
     }
 
     /**
-     * Continues a finished run with exactly one additional user message.
+     * Continues a finished run with one additional user message.
      *
      * This is the assisted-follow-up seam, distinct from a clarification answer: the message is
      * masked as an ordinary user instruction and is NOT registered as clarification evidence, so
@@ -922,10 +935,10 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
      * scope, vault, references and journal stay in force; the complete issued-token inventory is
      * appended to this turn and the outbound/inbound privacy guard is unchanged.
      *
-     * The follow-up runs under the same frozen per-request limits as a first attempt, accounted
-     * separately: the phase counters restart, while [WorkflowRunFollowUp.initialTurns] and
-     * [WorkflowRunFollowUp.initialToolCalls] preserve the first phase's spend and every outcome
-     * reports the cumulative total. No further follow-up is minted from this phase.
+     * Every settled phase mints one handle for the next user message, so a session has no
+     * conversation-turn cap. The phase counters restart for this turn's allowance, while
+     * [WorkflowRunFollowUp.initialTurns] and [WorkflowRunFollowUp.initialToolCalls] preserve the
+     * finished phase's spend and every outcome reports the cumulative total.
      */
     suspend fun followUp(
         followUp: WorkflowRunFollowUp,
@@ -995,9 +1008,6 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
     private suspend fun drive(run: ActiveRun): WorkflowRunOutcome {
         val limits = run.request.limits
         while (true) {
-            if (run.turns >= limits.maxTurns) {
-                return incomplete(run, WorkflowRunStopReason.TURN_BUDGET, "turn bound reached")
-            }
             if (host.clock.nowMillis() - run.startedAtMillis >= limits.maxWallClockMillis) {
                 return incomplete(run, WorkflowRunStopReason.TIME_BUDGET, "time bound reached")
             }
@@ -1229,14 +1239,24 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             )
         }
         transition(run.trace, WorkflowRunState.DISPATCHING, "${calls.size} call(s)")
-        if (run.toolCalls + calls.size > run.request.limits.maxToolCalls) {
-            return TurnStep.Stop(
-                incomplete(run, WorkflowRunStopReason.TOOL_CALL_BUDGET, "tool-call bound reached"),
-            )
-        }
+        // This conversation turn's allowance is a hard per-call bound, not a per-request veto:
+        // the calls that fit are dispatched, and every later call of the turn is answered with
+        // a not-dispatched budget error instead of being executed. The turn then stops with all
+        // calls answered, so the same session can continue from the user's next message.
+        val allowance = (run.request.limits.maxToolCalls - run.toolCalls).coerceAtLeast(0)
         val results = ArrayList<HostedToolResult>(calls.size)
         var clarification: CallClarification? = null
+        var dispatchedInTurn = 0
+        var refusedByBudget = 0
         for (call in calls) {
+            if (dispatchedInTurn >= allowance) {
+                val refusal = budgetRefusal(run, call)
+                host.trace.toolCall(run.turns, call)
+                host.trace.toolResult(run.turns, call.callId, call.name, refusal, null)
+                results += HostedToolResult(call.callId, refusal)
+                refusedByBudget += 1
+                continue
+            }
             val signature = callSignature(call)
             if (run.callCounts[signature]?.let { it >= run.request.limits.maxRepeatedIdenticalCalls } == true) {
                 return TurnStep.Stop(
@@ -1266,6 +1286,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             run.callCounts[signature] = (run.callCounts[signature] ?: 0) + 1
             results += HostedToolResult(call.callId, answer.resultJson)
             answer.record?.let { run.dispatches += it }
+            dispatchedInTurn += 1
             if (answer.clarification != null) {
                 clarification = answer.clarification
                 host.trace.clarificationRequested(
@@ -1281,7 +1302,7 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
             }
             answer.stop?.let { return TurnStep.Stop(it) }
         }
-        run.toolCalls += calls.size
+        run.toolCalls += dispatchedInTurn
         // The results of every call in this turn are applied. Only now is the named tool step
         // finished; clearing it when the arguments completed would leave a stale label while the
         // next model turn runs, and never clearing it would keep naming finished work.
@@ -1326,8 +1347,41 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
                 incomplete(run, WorkflowRunStopReason.MALFORMED_TURN, "protocol continuation was refused"),
             )
         }
+        if (refusedByBudget > 0) {
+            // Every call of the turn is answered, including the refused ones, so the provider
+            // conversation is idle and the user's next message can continue this session with a
+            // fresh allowance instead of replaying applied effects.
+            run.conversation = next
+            return TurnStep.Stop(
+                incomplete(
+                    run,
+                    WorkflowRunStopReason.TOOL_CALL_BUDGET,
+                    "the conversation turn dispatched its ${run.request.limits.maxToolCalls} tool calls",
+                ),
+            )
+        }
         return TurnStep.Continue(next)
     }
+
+    /**
+     * Answers one call that this conversation turn's allowance cannot admit. It is never
+     * dispatched; the envelope states the limit so the next turn, after the user's own message
+     * starts a fresh allowance, can plan without inventing a result.
+     */
+    private fun budgetRefusal(run: ActiveRun, call: HostedToolCall): String = AgentEnvelope.error(
+        tool = call.name,
+        code = AgentErrorCode.TOOL_CALL_BUDGET,
+        issues = listOf(
+            AgentIssue(
+                "$",
+                "per_turn_tool_call_limit",
+                JSONObject().put("max_tool_calls", run.request.limits.maxToolCalls),
+                "This conversation turn already used its tool calls. Nothing was executed; continue after the next user message.",
+            ),
+        ),
+        dispatch = "not_dispatched",
+        detail = "the per-turn tool-call limit was reached",
+    ).toString()
 
     /**
      * One call, one result. Non-dispatchable calls are described but never executed; a dispatched
@@ -2030,14 +2084,16 @@ class BoundedWorkflowExecutor(private val host: WorkflowRunHost) {
     }
 
     /**
-     * Mints the run's single assisted follow-up opportunity when its conversation is idle.
+     * Mints the assisted follow-up opportunity for the next user message in this session.
      *
-     * A run that ended with unanswered tool calls (nothing can be appended without inventing
-     * results), one already in a follow-up phase, or one that already minted its handle returns
-     * null: the assisted path can never add a second message or a further phase.
+     * It is minted for an idle settled phase whatever its phase index: a session has no
+     * conversation-turn cap, and a run that ended with unanswered tool calls (nothing can be
+     * appended without inventing results) or one that already minted its handle returns null.
+     * Answering a clarification or spending the previous handle starts a new phase, which
+     * clears [ActiveRun.followUpMinted] so exactly one handle exists per settled turn.
      */
     private fun mintFollowUp(run: ActiveRun): WorkflowRunFollowUp? {
-        if (run.phase > 0 || run.followUpMinted) return null
+        if (run.followUpMinted) return null
         if (!run.conversationReady() || run.conversation.pendingCallIds.isNotEmpty()) return null
         run.followUpMinted = true
         return WorkflowRunFollowUp(
@@ -2241,10 +2297,10 @@ internal class ActiveRun(
     fun totalToolCalls(): Int = cumulativeToolCalls + toolCalls
 
     /**
-     * Starts one assisted follow-up phase under the same frozen per-request limits: the phase
-     * counters and the repeated-call ledger restart, while the finished phase's spend is carried
-     * into the cumulative totals so every report shows both. The conversation, context size,
-     * references, journal and issued-token inventory remain untouched.
+     * Starts one conversation turn under the same frozen per-request limits: the phase counters,
+     * the repeated-call ledger and the follow-up slot restart, while the finished phase's spend is
+     * carried into the cumulative totals so every report shows both. The conversation, context
+     * size, references, journal and issued-token inventory remain untouched.
      */
     fun beginPhase(startedAtMillis: Long) {
         cumulativeTurns += turns
@@ -2252,6 +2308,7 @@ internal class ActiveRun(
         turns = 0
         toolCalls = 0
         callCounts.clear()
+        followUpMinted = false
         phase += 1
         this.startedAtMillis = startedAtMillis
     }

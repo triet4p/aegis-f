@@ -19,7 +19,6 @@ class AgentRunFailureTest {
     @Test
     fun otherBudgetsStayTerminal() {
         listOf(
-            WorkflowRunStopReason.TURN_BUDGET,
             WorkflowRunStopReason.TOOL_CALL_BUDGET,
             WorkflowRunStopReason.CONTEXT_BUDGET,
         ).forEach { reason ->

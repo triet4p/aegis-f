@@ -7,6 +7,21 @@ and no release has been tagged or published. Format follows
 
 ## [Unreleased]
 
+### Sprint 11 — S11.C1 unlimited conversation turns with a per-turn tool-call limit
+
+- **AI Chat** now allows at most 12 tool calls in one conversation turn and refuses a 13th
+  without executing it. A conversation turn is one user message or clarification answer; the
+  allowance restarts after each one and a session no longer has a conversation-turn cap.
+- **AI Chat** pauses truthfully when the allowance is spent: the turn says it used its tool-call
+  limit, and the next message continues the same conversation with applied effects preserved and
+  nothing replayed.
+- **AI Chat** clarification answers now start their own conversation turn instead of spending the
+  previous turn's exhausted budget. The clarifying question and the user's answer are stored in
+  order, so a restored conversation shows both and labels the continuation instead of calling it
+  a retry.
+- Sprint 11 C2/C3 repairs (failure-retry reconciliation and data-first date clarification) remain
+  unimplemented.
+
 ### Sprint 10 — S10.11 real Chat progress visibility
 
 - **AI Chat** now says *Thinking through your request…* while the model is working, instead of

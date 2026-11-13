@@ -235,6 +235,14 @@ internal class ChatAgentRunState {
     /** Single-use assisted follow-up authority minted by the settled outcome, if any. */
     var followUp by mutableStateOf<WorkflowRunFollowUp?>(null)
 
+    /**
+     * True when the last settled turn paused at its per-turn tool-call limit.
+     *
+     * The next message then continues the same durable run with a fresh allowance instead of
+     * starting a new one. Every new turn and every restored or fresh conversation clears it.
+     */
+    var toolLimitPause by mutableStateOf(false)
+
     /** Trusted session scope of the last sent run; bounds retry and visible references. */
     var lastScope by mutableStateOf<WorkflowCallerScope.AgentSession?>(null)
     var lastPrompt by mutableStateOf<String?>(null)
@@ -270,6 +278,7 @@ internal class ChatAgentRunState {
         progress = null
         clarificationAnswer = ""
         followUp = null
+        toolLimitPause = false
         restoredRunState = null
         // A stop before the next admission must not cancel the previous run's identity.
         runId = null
@@ -437,6 +446,7 @@ internal class ChatAgentRunState {
         progress = null
         continuation = null
         followUp = null
+        toolLimitPause = false
         runId = run.runId
         lastScope = null
         lastRequest = null
@@ -458,6 +468,7 @@ internal class ChatAgentRunState {
         executor = null
         continuation = null
         followUp = null
+        toolLimitPause = false
         clarificationAnswer = ""
         restoredRunState = null
         lastScope = null

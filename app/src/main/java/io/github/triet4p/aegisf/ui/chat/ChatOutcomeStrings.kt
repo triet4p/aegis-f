@@ -60,6 +60,17 @@ internal data class ChatIncompleteStrings(
     val explanation: String,
 ) {
     fun message(reason: WorkflowRunStopReason): String {
+        if (reason == WorkflowRunStopReason.TOOL_CALL_BUDGET) {
+            return when (language) {
+                AegisLanguage.ENGLISH ->
+                    "This turn used its tool-call limit, so it paused safely. Nothing was " +
+                        "replayed; send your next message to continue this conversation."
+                AegisLanguage.VIETNAMESE ->
+                    "Lượt này đã dùng hết giới hạn gọi công cụ nên tạm dừng an toàn. " +
+                        "Không thao tác nào bị lặp lại; hãy gửi tin nhắn tiếp theo để tiếp tục " +
+                        "cuộc trò chuyện này."
+            }
+        }
         val reasonText = reason(reason)
         return when (language) {
             AegisLanguage.ENGLISH ->
@@ -70,11 +81,6 @@ internal data class ChatIncompleteStrings(
     }
 
     private fun reason(reason: WorkflowRunStopReason): String = when (reason) {
-        WorkflowRunStopReason.TURN_BUDGET -> when (language) {
-            AegisLanguage.ENGLISH -> "the turn limit was reached"
-            AegisLanguage.VIETNAMESE -> "đã chạm giới hạn số lượt"
-        }
-
         WorkflowRunStopReason.TOOL_CALL_BUDGET -> when (language) {
             AegisLanguage.ENGLISH -> "the tool-call limit was reached"
             AegisLanguage.VIETNAMESE -> "đã chạm giới hạn số lần gọi công cụ"

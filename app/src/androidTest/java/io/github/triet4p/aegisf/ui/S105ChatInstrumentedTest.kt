@@ -99,6 +99,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -180,6 +181,57 @@ class S105ChatInstrumentedTest {
             runs.sumOf { history.conversationForRun(it.runId).count { line -> line.role == "USER" } }
         }
         assertEquals("a repeated user line was stored", 2, userLines)
+    }
+
+    @Test
+    fun perTurnToolLimitPausesAndTheNextMessageContinuesTheSameRun() {
+        prepare()
+        val adapter = ToolBudgetScriptedAdapter()
+        val runState = ChatAgentRunState()
+        startScreen(runState, adapter)
+
+        typePrompt("Look through my drafts in several pages")
+        compose.onNodeWithTag("chat-send").assertIsEnabled().performClick()
+        compose.waitUntil(30_000) {
+            shownText().contains("used its tool-call limit", ignoreCase = true)
+        }
+        screenshot("c1-chat-tool-limit-paused-en")
+        assertEquals("the turn must execute exactly twelve calls", 12, adapter.dispatchedCalls)
+        assertEquals("the thirteenth call must be refused", 1, adapter.refusedCalls)
+        assertEquals(1, adapter.generateCount)
+        val pausedRunId = requireNotNull(runState.runId) { "the paused run lost its identity" }
+        assertTrue("the pause must be recorded as continuable", runState.toolLimitPause)
+        assertTrue(
+            "a resumable pause must not offer the failure-retry card",
+            runState.outcome == null,
+        )
+        assertNotNull("the pause must offer the same-session continuation", runState.followUp)
+        val pausedRuns = runBlocking { database.agentRunDao().findRecent(10) }
+        assertEquals("the pause must stay in one durable run", 1, pausedRuns.size)
+        assertEquals("FAILED", pausedRuns.single().state)
+        assertTrue(
+            "live and durable failure must name the same stop reason",
+            runBlocking { history.conversationForRun(pausedRunId) }.any {
+                it.role == "STATUS" && it.text.contains("tool_call_budget")
+            },
+        )
+        emit("C1UI paused=true dispatched=${adapter.dispatchedCalls} refused=${adapter.refusedCalls} run=$pausedRunId")
+
+        typePrompt("Continue with one more page")
+        compose.onNodeWithTag("chat-send").assertIsEnabled().performClick()
+        waitForAssistantText("Continued in the same conversation", timeoutMillis = 30_000)
+        compose.waitUntil(20_000) { !runState.busy }
+        screenshot("c1-chat-continued-same-run-en")
+
+        assertEquals("the next message must not start a new run", 1, runBlocking {
+            database.agentRunDao().findRecent(10).size
+        })
+        assertEquals("the continuation must keep the run identity", pausedRunId, runState.runId)
+        assertEquals("the new turn must receive its own tool allowance", 13, adapter.dispatchedCalls)
+        assertEquals("the answer must arrive in the same conversation", 3, adapter.generateCount)
+        assertEquals("exactly one user turn was appended to the conversation", 1, adapter.appendedUserNotices)
+        assertTrue("no refusal may reach the application as an executed call", adapter.refusedCalls == 1)
+        emit("C1UI continued=true dispatched=${adapter.dispatchedCalls} runs=1 turns=${adapter.generateCount}")
     }
 
     @Test
@@ -1569,6 +1621,119 @@ class S105ChatInstrumentedTest {
         override val protocol: HostedProtocol,
         override val pendingCallIds: List<String> = emptyList(),
     ) : HostedConversation
+
+    /**
+     * A scripted provider for the per-turn tool-call allowance.
+     *
+     * The first turn carries thirteen tool calls: twelve reach the application and the
+     * thirteenth is refused without execution. A user follow-up is appended to the same
+     * conversation, where one further call proves the next turn's fresh allowance before a
+     * normal answer settles. Only the provider is scripted; the screen, executor, masking
+     * gateway, history and in-memory database are the app's own.
+     */
+    private class ToolBudgetScriptedAdapter : HostedGenerationAdapter {
+        override val protocol: HostedProtocol = HostedProtocol.OPENAI_CHAT_COMPLETIONS
+        override val streamingEnabled: Boolean = true
+        private var next = 0
+        var generateCount = 0
+            private set
+        var dispatchedCalls = 0
+            private set
+        var refusedCalls = 0
+            private set
+        var appendedUserNotices = 0
+            private set
+
+        override fun begin(systemInstruction: String, userInstruction: String): HostedConversation =
+            ScriptedConversation(protocol)
+
+        override suspend fun generate(
+            conversation: HostedConversation,
+            tools: List<HostedToolDeclaration>,
+        ): HostedGenerationResult = completeTurn("")
+
+        override suspend fun streamGuarded(
+            conversation: HostedConversation,
+            tools: List<HostedToolDeclaration>,
+            responseGuard: HostedResponsePrivacyGuard,
+            onProgress: (HostedTurnProgress) -> Unit,
+        ): HostedGenerationResult {
+            val index = next++
+            generateCount = next
+            return when (index) {
+                0 -> toolTurn((1..13).map { pageCall("limit-page-$it") })
+                1 -> toolTurn(listOf(pageCall(null)))
+                else -> completeTurn("Continued in the same conversation.")
+            }
+        }
+
+        override fun continueWithToolResults(
+            conversation: HostedConversation,
+            results: List<HostedToolResult>,
+            hostNotice: String?,
+        ): HostedConversation {
+            results.forEach { result ->
+                val envelope = org.json.JSONObject(result.outputJson)
+                when {
+                    envelope.optString("dispatch") == "dispatched" -> dispatchedCalls += 1
+                    envelope.optJSONObject("error")?.optString("code") == "TOOL_CALL_BUDGET" ->
+                        refusedCalls += 1
+                }
+            }
+            return ScriptedConversation(protocol)
+        }
+
+        override fun appendUserNotice(
+            conversation: HostedConversation,
+            notice: String,
+        ): HostedConversation {
+            appendedUserNotices += 1
+            return ScriptedConversation(protocol)
+        }
+
+        private fun toolTurn(calls: List<HostedToolCall>): HostedGenerationResult =
+            HostedGenerationResult.Turn(
+                HostedTurn(
+                    protocol = protocol,
+                    requestedModel = MODEL,
+                    reportedModel = MODEL,
+                    assistantText = null,
+                    toolCalls = calls,
+                    finish = HostedTurnFinish.ToolCalls,
+                    usage = null,
+                    conversation = ScriptedConversation(protocol, calls.map(HostedToolCall::callId)),
+                ),
+            )
+
+        private fun pageCall(cursor: String?): HostedToolCall {
+            val callId = "c1-call-${next}-${cursor ?: "next"}"
+            return HostedToolCall(
+                callId = callId,
+                name = "list_drafts",
+                argumentsJson = org.json.JSONObject()
+                    .put("review_status", "PENDING")
+                    .put("duplicates_only", false)
+                    .put("cursor", cursor ?: org.json.JSONObject.NULL)
+                    .toString(),
+                arguments = null,
+                disposition = ToolCallDisposition.READY,
+            )
+        }
+
+        private fun completeTurn(text: String): HostedGenerationResult =
+            HostedGenerationResult.Turn(
+                HostedTurn(
+                    protocol = protocol,
+                    requestedModel = MODEL,
+                    reportedModel = MODEL,
+                    assistantText = text,
+                    toolCalls = emptyList(),
+                    finish = HostedTurnFinish.Complete,
+                    usage = null,
+                    conversation = null,
+                ),
+            )
+    }
 
     private class ScriptedStreamingAdapter(
         private val scripts: List<StreamScript>,

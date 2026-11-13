@@ -40,6 +40,7 @@ import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -380,6 +381,183 @@ class S810DurableRunHistoryTest {
         )
     }
 
+    @Test
+    fun `clarification question and answer are stored in order and the continuation is not a retry`() =
+        runBlocking {
+            val fixture = prepare()
+            lateinit var adapter: ScriptedAdapter
+            val script = scripted()
+            script += {
+                toolTurn(call("list_drafts", JSONObject()
+                    .put("review_status", "PENDING")
+                    .put("duplicates_only", false)
+                    .put("cursor", JSONObject.NULL)))
+            }
+            script += {
+                val draftRef = JSONObject(adapter.toolResultPayloads[0].single())
+                    .getJSONObject("data")
+                    .getJSONArray("items")
+                    .getJSONObject(0)
+                    .getString("ref")
+                toolTurn(call("ask_user", JSONObject()
+                    .put("subject_ref", draftRef)
+                    .put("field", "candidate")
+                    .put("question", "Which saved draft did you mean?")))
+            }
+            script += { complete("Continued after the answer.") }
+            adapter = ScriptedAdapter(script)
+            val executor = BoundedWorkflowExecutor(hostOf(fixture, adapter))
+            val request = WorkflowRunRequest(
+                intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+                userRequest = "Find the draft I meant.",
+            )
+            val admitted = history.admitRun(fixture.scope, request, fixture.boundary, 8192)
+            val first = executor.startTracked(
+                admitted = admitted,
+                request = request,
+                history = history,
+                maxOutputTokens = 8192,
+            )
+            assertTrue("expected a clarification, got $first", first is WorkflowRunOutcome.Clarifying)
+            first as WorkflowRunOutcome.Clarifying
+
+            val resumed = executor.resumeTracked(
+                history = history,
+                runId = admitted.runId,
+                continuation = first.continuation,
+                userAnswer = "The pending one.",
+            )
+            assertTrue("expected the resumed turn to settle, got $resumed", resumed is WorkflowRunOutcome.Completed)
+
+            val lines = history.conversationForRun(admitted.runId)
+            val questionIndex = lines.indexOfFirst {
+                it.role == "AGENT" && it.text == "Which saved draft did you mean?"
+            }
+            val answerIndex = lines.indexOfFirst { it.role == "USER" && it.text == "The pending one." }
+            val answerLineIndex = lines.indexOfFirst {
+                it.role == "AGENT" && it.text == "Continued after the answer."
+            }
+            assertTrue("the clarification question was not stored", questionIndex >= 0)
+            assertTrue("the clarification answer was not stored after its question", answerIndex > questionIndex)
+            assertTrue("the resumed answer was not stored after the user's answer", answerLineIndex > answerIndex)
+            assertTrue(
+                "a continuation must not be labelled as a retry",
+                lines.any { it.role == "STATUS" && it.text.contains("continued after your answer") } &&
+                    lines.none { it.text.contains("retried") },
+            )
+
+            val run = requireNotNull(database.agentRunDao().findByRunId(admitted.runId))
+            val restored = io.github.triet4p.aegisf.ui.transcriptOf(
+                run = run,
+                lines = lines,
+                interruptedLine = "interrupted",
+                clarificationExpiredLine = "expired",
+            ) { sequence.incrementAndGet().toLong() }
+            val restoredQuestion = restored.indexOfFirst {
+                it is io.github.triet4p.aegisf.ui.ChatTranscriptEntry.Assistant &&
+                    it.text == "Which saved draft did you mean?"
+            }
+            val restoredAnswer = restored.indexOfFirst {
+                it is io.github.triet4p.aegisf.ui.ChatTranscriptEntry.User && it.text == "The pending one."
+            }
+            assertTrue("a restored transcript must show the question", restoredQuestion >= 0)
+            assertTrue("a restored transcript must show the answer after it", restoredAnswer > restoredQuestion)
+        }
+
+    @Test
+    fun `a per-turn tool pause is stored as a failed attempt that offers the next turn`() = runBlocking {
+        val fixture = prepare()
+        val calls = (1..13).map { index ->
+            call("list_drafts", JSONObject()
+                .put("review_status", "PENDING")
+                .put("duplicates_only", false)
+                .put("cursor", "stored-page-$index"))
+        }
+        val adapter = ScriptedAdapter(scripted() + { toolTurn(*calls.toTypedArray()) })
+        val executor = BoundedWorkflowExecutor(hostOf(fixture, adapter))
+        val request = WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+            userRequest = "Look through my drafts in several pages.",
+        )
+        val admitted = history.admitRun(fixture.scope, request, fixture.boundary, 8192)
+        val outcome = executor.startTracked(
+            admitted = admitted,
+            request = request,
+            history = history,
+            maxOutputTokens = 8192,
+        )
+
+        assertTrue("expected a per-turn pause, got $outcome", outcome is WorkflowRunOutcome.Incomplete)
+        outcome as WorkflowRunOutcome.Incomplete
+        assertEquals(WorkflowRunStopReason.TOOL_CALL_BUDGET, outcome.reason)
+        assertEquals(12, outcome.toolCalls)
+        assertNotNull("the durable pause offers the next user turn", outcome.followUp)
+        assertEquals("FAILED", database.agentRunDao().findByRunId(admitted.runId)?.state)
+        assertTrue(
+            "the durable transcript states the same stop reason the live outcome reported",
+            history.conversationForRun(admitted.runId).any {
+                it.role == "STATUS" && it.text.contains("tool_call_budget")
+            },
+        )
+    }
+
+    @Test
+    fun `clarification continuations are not capped at the failure-retry attempts`() = runBlocking {
+        val fixture = prepare()
+        lateinit var adapter: ScriptedAdapter
+        val script = scripted()
+        repeat(5) { index ->
+            script += {
+                toolTurn(call("ask_user", JSONObject()
+                    .put("subject_ref", draftRef(adapter))
+                    .put("field", "candidate")
+                    .put("question", "Which saved draft did you mean ($index)?")))
+            }
+        }
+        script += { complete("All five answers were used.") }
+        adapter = ScriptedAdapter(script)
+        val executor = BoundedWorkflowExecutor(hostOf(fixture, adapter))
+        val request = WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+            userRequest = "Find the draft I meant.",
+        )
+        val admitted = history.admitRun(fixture.scope, request, fixture.boundary, 8192)
+        var outcome = executor.startTracked(
+            admitted = admitted,
+            request = request,
+            history = history,
+            maxOutputTokens = 8192,
+        )
+        var clarifications = 0
+        while (outcome is WorkflowRunOutcome.Clarifying) {
+            clarifications += 1
+            check(clarifications <= 6) { "the clarification loop did not settle" }
+            outcome = requireNotNull(
+                executor.resumeTracked(
+                    history = history,
+                    runId = admitted.runId,
+                    continuation = outcome.continuation,
+                    userAnswer = "The pending one ($clarifications).",
+                ),
+            ) { "the clarification continuation was capped at attempt $clarifications" }
+        }
+
+        assertTrue("expected a settled run, got $outcome", outcome is WorkflowRunOutcome.Completed)
+        assertEquals("five clarification answers must continue the same run", 5, clarifications)
+        assertTrue(
+            "the failure-retry cap must be smaller than the proven clarification count",
+            CanonicalAgentRetryPolicy.MAX_ATTEMPTS < 6,
+        )
+        assertEquals("SUCCEEDED", database.agentRunDao().findByRunId(admitted.runId)?.state)
+        assertEquals(6, database.agentRunAttemptDao().findForRun(admitted.runId).size)
+        val lines = history.conversationForRun(admitted.runId)
+        assertEquals(
+            5,
+            lines.count { it.role == "AGENT" && it.text.contains("Which saved draft did you mean") },
+        )
+        assertEquals(5, lines.count { it.role == "USER" && it.text.contains("The pending one") })
+    }
+
     // ---- Harness -------------------------------------------------------------------------
 
     private suspend fun runTracked(
@@ -479,6 +657,17 @@ class S810DurableRunHistoryTest {
             if (item.optString("kind") == "capture") return item.getString("source_text")
         }
         error("no capture source text in the initial observation")
+    }
+
+    private fun draftRef(adapter: ScriptedAdapter): String {
+        val observations = initialObservations(adapter)
+        for (index in 0 until observations.length()) {
+            val item = observations.getJSONObject(index)
+            if (item.optString("kind") == "draft_page") {
+                return item.getJSONArray("items").getJSONObject(0).getString("ref")
+            }
+        }
+        error("no draft alias in the initial observation")
     }
 
     private fun lastEnvelope(adapter: ScriptedAdapter): JSONObject =

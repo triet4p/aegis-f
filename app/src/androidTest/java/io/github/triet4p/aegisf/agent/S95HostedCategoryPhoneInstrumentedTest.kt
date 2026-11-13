@@ -106,7 +106,7 @@ class S95HostedCategoryPhoneInstrumentedTest {
                 } else {
                     "Review both pending drafts using each linked note. Save the appropriate existing category for each draft, without confirming either."
                 },
-                limits = WorkflowRunLimits(maxTurns = 32, maxToolCalls = 64, maxWallClockMillis = 600_000),
+                limits = WorkflowRunLimits(maxToolCalls = 64, maxWallClockMillis = 600_000),
                 requiredIntents = emptySet(),
             )
             val history = AgentRunHistory(database, traces = traceStore)

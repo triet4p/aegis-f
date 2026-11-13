@@ -320,8 +320,20 @@ internal fun AiChatScreen(
             is WorkflowRunOutcome.Refused ->
                 agentRunState.failTurn(token, strings.errorRefused, runId)
 
-            is WorkflowRunOutcome.Incomplete ->
-                agentRunState.failTurn(token, incompleteMessage(outcome, strings), runId)
+            is WorkflowRunOutcome.Incomplete -> {
+                val liveMessage = when (outcome.reason) {
+                    // The per-turn tool-call pause is a resumable boundary, not a generic
+                    // failure: the transcript says what happened and that the next message
+                    // continues this conversation.
+                    WorkflowRunStopReason.TOOL_CALL_BUDGET ->
+                        outcomeStrings.incomplete.message(outcome.reason)
+
+                    else -> incompleteMessage(outcome, strings)
+                }
+                agentRunState.failTurn(token, liveMessage, runId)
+                agentRunState.followUp = outcome.followUp
+                agentRunState.toolLimitPause = outcome.reason == WorkflowRunStopReason.TOOL_CALL_BUDGET
+            }
         }
     }
 
@@ -332,8 +344,50 @@ internal fun AiChatScreen(
         draftEvidence: String? = null,
     ) {
         autoFollow = true
+        // A turn that paused at its per-turn tool-call limit continues the same durable
+        // session: the next user message is a new conversation turn with a fresh allowance, and
+        // the conversation, references, journal and applied effects are kept, not replayed.
+        val pausedAtToolLimit = agentRunState.toolLimitPause
+        val pausedExecutor = agentRunState.executor
+        val pausedRunId = agentRunState.runId
+        val pausedHandle = agentRunState.followUp
         val token = agentRunState.beginTurn(promptText)
         prompt = ""
+        if (pausedAtToolLimit && pausedExecutor != null && pausedRunId != null && pausedHandle != null) {
+            agentRunState.runId = pausedRunId
+            agentRunState.job = agentRunScope.launch {
+                try {
+                    agentRunState.progress = strings.waiting
+                    val outcome = pausedExecutor.followUp(
+                        pausedHandle,
+                        chatRequestText(promptText, attached, draftEvidence),
+                        progress = runProgressSink(token, agentRunState, strings),
+                    )
+                    if (agentRunState.isActive(token)) {
+                        settle(token, outcome, pausedRunId)
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: IllegalStateException) {
+                    if (agentRunState.isActive(token)) {
+                        agentRunState.failTurn(token, strings.continuationUnavailable, pausedRunId)
+                    }
+                } catch (_: IllegalArgumentException) {
+                    if (agentRunState.isActive(token)) {
+                        agentRunState.failTurn(token, strings.continuationUnavailable, pausedRunId)
+                    }
+                } catch (_: Exception) {
+                    if (agentRunState.isActive(token)) {
+                        agentRunState.failTurn(token, strings.errorGeneric, pausedRunId)
+                    }
+                } finally {
+                    if (agentRunState.job == coroutineContext[Job]) agentRunState.job = null
+                    agentRunState.progress = null
+                    agentRunState.projectionRevision += 1
+                }
+            }
+            return
+        }
         agentRunState.job = agentRunScope.launch {
             var admittedRunId: String? = null
             var executor: BoundedWorkflowExecutor? = null

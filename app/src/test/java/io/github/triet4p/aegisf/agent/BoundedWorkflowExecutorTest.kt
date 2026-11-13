@@ -553,7 +553,7 @@ class BoundedWorkflowExecutorTest {
     }
 
     @Test
-    fun `a turn that would exceed the tool budget is not partially dispatched`() = runBlocking {
+    fun `a turn dispatches up to the per-turn tool budget and refuses the rest`() = runBlocking {
         val fixture = prepare()
         val adapter = ScriptedAdapter(scripted() + {
             toolTurn(
@@ -567,11 +567,22 @@ class BoundedWorkflowExecutorTest {
             limits = WorkflowRunLimits(maxToolCalls = 1),
         ))
         assertTrue(outcome is WorkflowRunOutcome.Incomplete)
-        assertEquals(WorkflowRunStopReason.TOOL_CALL_BUDGET, (outcome as WorkflowRunOutcome.Incomplete).reason)
-        assertTrue(adapter.toolResultPayloads.isEmpty())
+        val incomplete = outcome as WorkflowRunOutcome.Incomplete
+        assertEquals(WorkflowRunStopReason.TOOL_CALL_BUDGET, incomplete.reason)
+        assertEquals(1, incomplete.toolCalls)
+        val results = adapter.toolResultPayloads.single().map(::JSONObject)
+        assertEquals(2, results.size)
+        assertEquals("ok", results[0].getString("outcome"))
+        assertEquals("error", results[1].getString("outcome"))
+        assertEquals("not_dispatched", results[1].getString("dispatch"))
+        assertEquals(
+            "TOOL_CALL_BUDGET",
+            results[1].getJSONObject("error").getString("code"),
+        )
+        assertNotNull("the paused turn offers the next conversation turn", incomplete.followUp)
     }
     @Test
-    fun `default tool-call budget dispatches twenty-four and refuses the next event write`() = runBlocking {
+    fun `default per-turn tool-call budget dispatches twelve and refuses the remaining calls`() = runBlocking {
         val fixture = prepare()
         lateinit var adapter: ScriptedAdapter
         val script = scripted()
@@ -625,15 +636,25 @@ class BoundedWorkflowExecutorTest {
         assertTrue(outcome is WorkflowRunOutcome.Incomplete)
         val incomplete = outcome as WorkflowRunOutcome.Incomplete
         assertEquals(WorkflowRunStopReason.TOOL_CALL_BUDGET, incomplete.reason)
-        assertEquals(24, incomplete.toolCalls)
-        assertEquals(3, incomplete.turns)
-        assertEquals(3, adapter.generatedCount)
+        assertEquals(12, incomplete.toolCalls)
+        assertEquals(2, incomplete.turns)
+        assertEquals(2, adapter.generatedCount)
         assertEquals(2, adapter.toolResultPayloads.size)
         assertEquals(1, adapter.toolResultPayloads[0].size)
         assertEquals(23, adapter.toolResultPayloads[1].size)
-        assertTrue(adapter.toolResultPayloads.flatten().all {
-            JSONObject(it).getString("outcome") == "ok"
+        val secondBatch = adapter.toolResultPayloads[1].map(::JSONObject)
+        assertEquals(
+            "the remaining allowance after the anchor call is eleven",
+            11,
+            secondBatch.count { it.getString("dispatch") == "dispatched" },
+        )
+        val refused = secondBatch.filter { it.getString("dispatch") == "not_dispatched" }
+        assertEquals(12, refused.size)
+        assertTrue(refused.all {
+            it.getString("outcome") == "error" &&
+                it.getJSONObject("error").getString("code") == "TOOL_CALL_BUDGET"
         })
+        assertNotNull("the paused turn offers the next conversation turn", incomplete.followUp)
         assertTrue(database.noteEventDao().findForCapture(fixture.captureId).isEmpty())
         assertEquals(0L, database.workflowOperationDao().countOf("UPDATE_EVENT"))
         assertTrue(database.transactionDao().findAll().isEmpty())
@@ -894,7 +915,7 @@ class BoundedWorkflowExecutorTest {
         assertEquals("the follow-up must not start a new provider conversation", promptsBeforeFollowUp, adapter.prompts.size)
         assertEquals(first.turns + 2, assisted.turns)
         assertEquals(first.toolCalls + 1, assisted.toolCalls)
-        assertNull("a follow-up phase never mints another follow-up", assisted.followUp)
+        assertNotNull("each settled turn mints the next user turn", assisted.followUp)
         assertEquals(1, database.noteEventDao().findForCapture(fixture.captureId).size)
         assertTrue("the event alias is not empty", eventRef.isNotEmpty())
         assertTrue("one transcript stays intact", adapter.toolResultPayloads.size == 4)
@@ -985,6 +1006,189 @@ class BoundedWorkflowExecutorTest {
             ).isEmpty(),
         )
         assertTrue("a follow-up must not write the ledger", database.transactionDao().findAll().isEmpty())
+    }
+
+    @Test
+    fun `one turn permits exactly twelve tool calls and refuses the thirteenth`() = runBlocking {
+        val fixture = prepare()
+        val calls = (1..13).map { index ->
+            call("list_drafts", JSONObject()
+                .put("review_status", "PENDING")
+                .put("duplicates_only", false)
+                .put("cursor", "page-$index"))
+        }
+        val adapter = ScriptedAdapter(scripted() + { toolTurn(*calls.toTypedArray()) })
+        val outcome = run(fixture, adapter, WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+            userRequest = "Look through my pending drafts in several pages.",
+        ))
+
+        assertTrue("expected a per-turn budget pause, got $outcome", outcome is WorkflowRunOutcome.Incomplete)
+        val incomplete = outcome as WorkflowRunOutcome.Incomplete
+        assertEquals(WorkflowRunStopReason.TOOL_CALL_BUDGET, incomplete.reason)
+        assertEquals(12, incomplete.toolCalls)
+        assertEquals(1, incomplete.turns)
+        val results = adapter.toolResultPayloads.single().map(::JSONObject)
+        assertEquals(13, results.size)
+        val refused = results.filter {
+            it.optJSONObject("error")?.optString("code") == "TOOL_CALL_BUDGET"
+        }
+        assertEquals("only the thirteenth call is refused", 1, refused.size)
+        assertEquals("not_dispatched", refused.single().getString("dispatch"))
+        assertEquals("error", refused.single().getString("outcome"))
+        assertEquals(
+            "twelve calls reached the application",
+            12,
+            results.count { it.optJSONObject("error")?.optString("code") != "TOOL_CALL_BUDGET" },
+        )
+        assertNotNull("the paused turn offers the next conversation turn", incomplete.followUp)
+    }
+
+    @Test
+    fun `a paused turn continues the same session with a fresh allowance`() = runBlocking {
+        val fixture = prepare()
+        lateinit var adapter: ScriptedAdapter
+        val script = scripted()
+        script += {
+            toolTurn(*(1..13).map { index ->
+                call("list_drafts", JSONObject()
+                    .put("review_status", "ALL")
+                    .put("duplicates_only", false)
+                    .put("cursor", "continue-$index"))
+            }.toTypedArray())
+        }
+        script += {
+            toolTurn(call("list_drafts", JSONObject()
+                .put("review_status", "PENDING")
+                .put("duplicates_only", false)
+                .put("cursor", JSONObject.NULL)))
+        }
+        script += { complete("The same conversation continued.") }
+        adapter = ScriptedAdapter(script)
+        val executor = executor(fixture, adapter)
+        val first = executor.start(WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+            userRequest = "Look through my drafts in several pages.",
+        ))
+        first as WorkflowRunOutcome.Incomplete
+        val handle = requireNotNull(first.followUp) { "a paused turn must offer the next turn" }
+        val promptsBefore = adapter.prompts.size
+
+        val continued = executor.followUp(handle, "One more page, please.")
+
+        assertTrue("the next turn must not replay the pause, got $continued", continued is WorkflowRunOutcome.Completed)
+        continued as WorkflowRunOutcome.Completed
+        assertEquals("the paused turn's calls stay cumulative", 13, continued.toolCalls)
+        assertEquals(3, continued.turns)
+        assertEquals("the continuation kept the existing conversation", promptsBefore, adapter.prompts.size)
+        assertNotNull("the continued turn mints the next user turn", continued.followUp)
+        assertEquals(3, adapter.generatedCount)
+    }
+
+    @Test
+    fun `repeated user turns keep receiving a fresh allowance in one session`() = runBlocking {
+        val fixture = prepare()
+        lateinit var adapter: ScriptedAdapter
+        val script = scripted()
+        script += {
+            toolTurn(*(1..13).map { index ->
+                call("list_drafts", JSONObject()
+                    .put("review_status", "ALL")
+                    .put("duplicates_only", false)
+                    .put("cursor", "session-page-$index"))
+            }.toTypedArray())
+        }
+        repeat(4) { index ->
+            script += {
+                toolTurn(call("list_drafts", JSONObject()
+                    .put("review_status", "PENDING")
+                    .put("duplicates_only", false)
+                    .put("cursor", "session-follow-$index")))
+            }
+            script += { complete("Follow-up ${index + 1} settled.") }
+        }
+        adapter = ScriptedAdapter(script)
+        val executor = executor(fixture, adapter)
+        var outcome: WorkflowRunOutcome = executor.start(WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+            userRequest = "Look through my drafts in several pages.",
+        ))
+        assertTrue("the first turn must pause on the tool bound, got $outcome", outcome is WorkflowRunOutcome.Incomplete)
+        assertEquals(WorkflowRunStopReason.TOOL_CALL_BUDGET, (outcome as WorkflowRunOutcome.Incomplete).reason)
+        val promptsBefore = adapter.prompts.size
+        var handle = requireNotNull(outcome.followUp) { "the paused turn must offer the next user turn" }
+        repeat(4) { index ->
+            outcome = executor.followUp(handle, "Continue with page ${index + 1}.")
+            assertTrue("user turn ${index + 2} must complete, got $outcome", outcome is WorkflowRunOutcome.Completed)
+            if (index < 3) {
+                handle = requireNotNull((outcome as WorkflowRunOutcome.Completed).followUp) {
+                    "settled turn ${index + 2} must offer the next user turn"
+                }
+            }
+        }
+
+        assertTrue("the last user turn must complete, got $outcome", outcome is WorkflowRunOutcome.Completed)
+        val settled = outcome as WorkflowRunOutcome.Completed
+        assertEquals("each user turn dispatched its own call", 16, settled.toolCalls)
+        assertEquals(9, settled.turns)
+        assertEquals("the session never started a second provider conversation", promptsBefore, adapter.prompts.size)
+        assertNotNull("the settled session still offers the next turn", settled.followUp)
+    }
+
+    @Test
+    fun `a clarification raised at the tool limit resumes with a fresh allowance`() = runBlocking {
+        val fixture = prepare()
+        lateinit var adapter: ScriptedAdapter
+        val script = scripted()
+        script += {
+            toolTurn(call("list_drafts", JSONObject()
+                .put("review_status", "PENDING")
+                .put("duplicates_only", false)
+                .put("cursor", JSONObject.NULL)))
+        }
+        repeat(10) { index ->
+            script += {
+                toolTurn(call("list_drafts", JSONObject()
+                    .put("review_status", "PENDING")
+                    .put("duplicates_only", false)
+                    .put("cursor", "resume-page-$index")))
+            }
+        }
+        script += {
+            val draftRef = JSONObject(adapter.toolResultPayloads[0].single())
+                .getJSONObject("data")
+                .getJSONArray("items")
+                .getJSONObject(0)
+                .getString("ref")
+            toolTurn(call("ask_user", JSONObject()
+                .put("subject_ref", draftRef)
+                .put("field", "candidate")
+                .put("question", "Which saved draft did you mean?")))
+        }
+        script += {
+            toolTurn(call("list_drafts", JSONObject()
+                .put("review_status", "CONFIRMED")
+                .put("duplicates_only", false)
+                .put("cursor", JSONObject.NULL)))
+        }
+        script += { complete("Continued after the answer.") }
+        adapter = ScriptedAdapter(script)
+        val executor = executor(fixture, adapter)
+        val first = executor.start(WorkflowRunRequest(
+            intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+            userRequest = "Find the draft I meant.",
+        ))
+
+        assertTrue("expected a clarification at the limit, got $first", first is WorkflowRunOutcome.Clarifying)
+        first as WorkflowRunOutcome.Clarifying
+        assertEquals(12, first.toolCalls)
+        val resumed = executor.resume(first.continuation, "The pending one.")
+
+        assertTrue("the answer must get its own turn allowance, got $resumed", resumed is WorkflowRunOutcome.Completed)
+        resumed as WorkflowRunOutcome.Completed
+        assertEquals("the resumed turn dispatched one more call", 13, resumed.toolCalls)
+        assertEquals(14, resumed.turns)
+        assertNotNull("the resumed turn mints the next user turn", resumed.followUp)
     }
 
     @Test
@@ -1185,16 +1389,17 @@ class BoundedWorkflowExecutorTest {
     }
 
     @Test
-    fun `the refused attempt is charged to the turn budget`() = runBlocking {
+    fun `the refused attempt is counted in the turn total`() = runBlocking {
         val fixture = prepare()
-        val adapter = ScriptedAdapter(scripted().apply {
-            add {
-                ScriptedTurn(
-                    finish = HostedTurnFinish.Complete,
-                    rawResponseForPrivacyScan = responseBodyWithAnswer("⟦AMT⟧"),
-                )
-            }
-        })
+        val script = scripted()
+        script += {
+            ScriptedTurn(
+                finish = HostedTurnFinish.Complete,
+                rawResponseForPrivacyScan = responseBodyWithAnswer("⟦AMT⟧"),
+            )
+        }
+        script += { complete("No drafts needed.") }
+        val adapter = ScriptedAdapter(script)
 
         val outcome = run(
             fixture,
@@ -1202,15 +1407,13 @@ class BoundedWorkflowExecutorTest {
             WorkflowRunRequest(
                 intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
                 userRequest = "Find my pending drafts.",
-                limits = WorkflowRunLimits(maxTurns = 1),
             ),
         )
 
-        outcome as WorkflowRunOutcome.Incomplete
-        assertEquals(WorkflowRunStopReason.TURN_BUDGET, outcome.reason)
-        assertEquals(1, outcome.turns)
-        assertEquals(1, adapter.generatedCount)
-        assertTrue("the repair notice consumed the exhausted budget, not a new turn", adapter.notices.size == 1)
+        assertTrue("expected the repaired turn to complete, got $outcome", outcome is WorkflowRunOutcome.Completed)
+        outcome as WorkflowRunOutcome.Completed
+        assertEquals("the refused attempt and the repair are both counted", 2, outcome.turns)
+        assertEquals(1, adapter.notices.size)
     }
 
     @Test
