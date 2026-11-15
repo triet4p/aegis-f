@@ -107,6 +107,7 @@ tasks.withType<Test> {
 
 android.sourceSets.getByName("main").assets.srcDir(s8AgentRuntimeAssetDir.get().asFile)
 android.sourceSets.getByName("androidTest").assets.srcDir(s813QualificationAssetDir.get().asFile)
+android.sourceSets.getByName("androidTest").assets.srcDir(layout.projectDirectory.dir("schemas").asFile)
 tasks.named("preBuild").configure {
     dependsOn(copyS8AgentRuntimeAssets)
     dependsOn(copyS813QualificationAssets)
