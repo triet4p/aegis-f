@@ -5,9 +5,8 @@ import java.security.MessageDigest
 /**
  * The canonical S8.10 bounded retry contract.
  *
- * One policy object names every bound the executor and the history enforce together:
- * which stop reasons may be retried, how many attempts a run gets, how long a retry
- * waits, how many runs a session keeps, and how a repeated request is recognized.
+ * This policy names retry bounds: attempt count, delay, retryable outcomes and repeated-request
+ * identity. Saved history persists until explicit user deletion; this policy defines no retention.
  * Nothing here carries conversation text, raw values, mappings, or credentials — the
  * fingerprint is a one-way digest of already-masked material, and the attempt key
  * derives from the run identity and the attempt number alone.
@@ -17,8 +16,6 @@ object CanonicalAgentRetryPolicy {
     /** How many attempts one run gets, first try included. */
     const val MAX_ATTEMPTS = 3
 
-    /** How many durable runs one session keeps; older runs prune by age. */
-    const val MAX_RUNS_PER_SCOPE = 50
 
     /** Base delay before a retry may run; multiplied by the attempt number. */
     const val RETRY_BASE_DELAY_MILLIS = 1_000L

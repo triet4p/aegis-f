@@ -5,6 +5,7 @@ import io.github.triet4p.aegisf.data.AgentRunAttemptEntity
 import io.github.triet4p.aegisf.data.AgentRunEntity
 import io.github.triet4p.aegisf.data.AgentTraceEventEntity
 import io.github.triet4p.aegisf.data.AgentTraceStore
+import io.github.triet4p.aegisf.data.CanonicalAgentRetryPolicy
 import io.github.triet4p.aegisf.data.AGENT_TRACE_COMPLETION_COMPLETE
 import io.github.triet4p.aegisf.data.AGENT_TRACE_COMPLETION_INTERRUPTED
 import io.github.triet4p.aegisf.data.AGENT_TRACE_COMPLETION_NOT_APPLICABLE
@@ -22,7 +23,6 @@ import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_TOOL_CALL
 import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_TOOL_ERROR
 import io.github.triet4p.aegisf.data.AGENT_TRACE_KIND_TOOL_RESULT
 import io.github.triet4p.aegisf.data.AGENT_TRACE_RUN_SCOPE_ATTEMPT
-import io.github.triet4p.aegisf.data.CanonicalAgentRetryPolicy
 import io.github.triet4p.aegisf.data.LedgerDatabase
 import io.github.triet4p.aegisf.data.WorkflowCallerScope
 import io.github.triet4p.aegisf.data.WorkflowOperation
@@ -284,7 +284,9 @@ class AgentRunHistory(
                 attempt = attempt,
                 kind = AGENT_TRACE_KIND_ATTEMPT_OUTCOME,
                 completion = AGENT_TRACE_COMPLETION_COMPLETE,
-                payloadJson = traceOutcomePayload(outcome, attemptState, reason, stored.state),
+                payloadJson = boundary.redactTracePayload(
+                    traceOutcomePayload(outcome, attemptState, reason, stored.state),
+                ),
             )
         }
     }
@@ -681,27 +683,14 @@ class AgentRunHistory(
         return AdmittedRun(runId, hostScope.scopeId, next, key, token, replayed = false)
     }
 
-    /**
-     * Bounded retention: keeps at most [CanonicalAgentRetryPolicy.MAX_RUNS_PER_SCOPE]
-     * newest runs of the session and prunes their attempts by cascade. Returns the
-     * number of pruned runs.
-     */
-    suspend fun enforceRetention(scopeId: String): Int {
-        val count = runs.countOf(scopeId)
-        val excess = (count - CanonicalAgentRetryPolicy.MAX_RUNS_PER_SCOPE).toInt()
-        if (excess <= 0) return 0
-        val victims = runs.oldestIds(scopeId, excess)
-        if (victims.isEmpty()) return 0
-        return runs.deleteByIds(victims)
-    }
 
     /** Appends the bounded retry summary line of one run (status only, no content). */
     suspend fun appendRetrySummary(runId: String) {
         appendLine(runId, "STATUS", "The run used a bounded retry.", clock())
     }
 
-    /** Deletes the whole user-visible history of one session; business stores stay. */
-    suspend fun deleteScopeHistory(scopeId: String): Int = runs.deleteScope(scopeId)
+    /** Deletes every saved conversation, run and local trace; business stores stay untouched. */
+    suspend fun deleteAllHistory(): Int = runs.deleteAll()
 
     /**
      * The privacy-safe export of one session: conversation lines plus run states only.

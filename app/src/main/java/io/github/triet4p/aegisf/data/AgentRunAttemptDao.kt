@@ -86,10 +86,4 @@ abstract class AgentRunAttemptDao {
         now: Long,
     ): Int
 
-    /** How many attempts one session's history holds; the retention bound prunes it. */
-    @Query(
-        "SELECT COUNT(*) FROM `agent_run_attempts` WHERE `runId` IN " +
-            "(SELECT `runId` FROM `agent_runs` WHERE `scopeId` = :scopeId)",
-    )
-    abstract suspend fun countOfScope(scopeId: String): Long
 }

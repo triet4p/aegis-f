@@ -61,11 +61,34 @@ enum class InboundRefusal {
  * account digit runs, mixed letter-digit bank codes); equality is stable within scope, and
  * ordering/relative-time stay decidable through the vault comparators.
  */
-class MaskedPromptBoundary(val vault: SensitiveVault) {
+class MaskedPromptBoundary(
+    val vault: SensitiveVault,
+    private val credentialRedactor: (String) -> String = { it },
+) {
 
     /** Masks free text for one outbound path. */
-    fun maskOutbound(text: String, path: MaskedPath): String = vault.maskText(text)
+    fun maskOutbound(text: String, path: MaskedPath): String =
+        vault.maskText(credentialRedactor(text))
 
+    /** Removes only the configured credential from a trace payload; other local trace text is kept. */
+    internal fun redactTracePayload(payloadJson: String): String =
+        redactTraceJson(JSONObject(payloadJson)).toString()
+
+    private fun redactTraceJson(value: Any?): Any? = when (value) {
+        null, JSONObject.NULL -> JSONObject.NULL
+        is JSONObject -> JSONObject().also { redacted ->
+            val keys = value.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                redacted.put(key, redactTraceJson(value.opt(key)))
+            }
+        }
+        is JSONArray -> JSONArray().also { redacted ->
+            for (index in 0 until value.length()) redacted.put(redactTraceJson(value.opt(index)))
+        }
+        is String -> credentialRedactor(value)
+        else -> value
+    }
     /**
      * Masks the structured observation an application tool returned for the next provider turn.
      * Every string inside the JSON is masked; a non-finite number an encoder would render as
@@ -82,6 +105,9 @@ class MaskedPromptBoundary(val vault: SensitiveVault) {
 
     fun scanInbound(text: String): InboundScan {
         if (text.isEmpty()) return InboundScan.Accepted
+        if (credentialRedactor(text) != text) {
+            return InboundScan.Refused(InboundRefusal.RAW_LITERAL_EGRESS)
+        }
         val scopeStripped = SensitiveVault.TOKEN_PATTERN.replace(text) { match ->
             if ("-${vault.scopeTag}-" in match.value) " " else match.value
         }
@@ -610,13 +636,16 @@ class MaskedPromptBoundary(val vault: SensitiveVault) {
             val keys = value.keys()
             while (keys.hasNext()) {
                 val key = keys.next()
+                if (credentialRedactor(key) != key) {
+                    throw MaskingBlockedException("tool-result keys must not contain provider credentials")
+                }
                 masked.put(key, maskJsonValue(value.opt(key)))
             }
         }
         is JSONArray -> JSONArray().also { masked ->
             for (index in 0 until value.length()) masked.put(maskJsonValue(value.opt(index)))
         }
-        is String -> vault.maskText(value)
+        is String -> maskOutbound(value, MaskedPath.CONTEXT)
         is Number -> {
             if (value is Double && !value.isFinite() || value is Float && !value.isFinite()) {
                 throw MaskingBlockedException("tool results carry a non-finite number")

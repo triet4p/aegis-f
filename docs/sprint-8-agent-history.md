@@ -122,17 +122,21 @@ tool boundaries.
   `CLARIFICATION_REQUEST`, `CLARIFICATION_REPLY` (the user's own answer), `FOLLOW_UP_MESSAGE`,
   `ATTEMPT_OUTCOME` (state, stop reason, answer, counts, usage, verified effects, repairs,
   compaction, refusal), and `RUN_CANCELLED`.
-- **No truncation, no summaries.** Provider bodies, tool arguments/results and clarification
-  text are stored verbatim. The journal's aggregates remain in the journal; the trace never
-  substitutes a summary for observed content.
+- **No truncation, no summaries.** Provider bodies, tool arguments/results and clarification text
+  remain complete as observed in local traces, including sensitive financial literals and reasoning.
+  The journal's aggregates remain in the journal; the trace never substitutes a summary for
+  observed content. The only content redaction is for transport credentials.
 - **No credentials.** The transport decorator drops credential/session headers by name
   (`Authorization`, `x-goog-api-key`, cookies, …) and records their names only in
-  `redactedHeaders`; credential-looking URL query values are replaced with `[redacted]`.
-  No auth header, token, cookie or other transport secret is stored.
+  `redactedHeaders`; credential-looking URL query values are replaced. The configured credential
+  is also scrubbed from every trace string value and call id, including echoed request/response,
+  SSE, tool, clarification and outcome content. No auth header, token, cookie or other transport
+  secret is stored. Existing rows are never rewritten and may contain a credential echoed before
+  this boundary was installed; only explicit history deletion removes those rows.
 - **Guard refusal is not a gap.** A provider response the inbound privacy guard refused is
-  still recorded exactly as returned. The guard governs publication, rehydration and
-  continuation of that body, not local evidence; the row is never displayed as an answer,
-  never rehydrated, never continued, never exported — and it is the evidence needed to
+  retained as returned except for the configured-credential scrub. The guard governs publication,
+  rehydration and continuation of that body, not local evidence; the row is never displayed as an
+  answer, never rehydrated, never continued, never exported — and it is the evidence needed to
   diagnose the refusal.
 - **Explicit gaps.** Missing evidence is never invented. Schema v14 writes one
   `EVIDENCE_GAP` (`PRE_TRACE_HISTORY`) per pre-existing run and one (`PRE_TRACE_ATTEMPT`)
@@ -151,21 +155,20 @@ tool boundaries.
   set by `startTracked` / `resumeTracked` after the durable run/attempt exists. Tracing
   failures are swallowed (with a gap marker when possible) and can never fail, duplicate or
   authorize a tool call or business effect.
-- **Interrupted/partial exchanges.** Evidence is complete for what the app observed: a
-  request row exists before the call, and a cancelled or failed call is explicit. Streamed
-  provider output is not implemented in this app; the trace schema already supports it
-  (chunk rows closed `COMPLETE`/`INTERRUPTED`) so a later streaming transport cannot silently
-  drop a partial answer.
+- **Interrupted/partial exchanges.** A request row exists before the call, and failed or
+  cancelled exchanges are explicit. Streamed provider output is stored as ordered SSE chunks
+  and the canonical assembled response; interrupted streams are marked without inventing a
+  body. Tracing cannot fail, duplicate or authorize a tool call or business effect.
 
 ### Policy decision (owner-approved, appended for PT1)
 
-Retain the complete provider request/response bodies, including provider-returned reasoning
-and protocol continuation items, **locally only** in the production database so a run can be
-reconstructed; never export or upload them, never store authentication headers/credentials,
-keep local-RAW and hosted-masking/guard policies unchanged, and mark every unavailable piece
-of evidence explicitly instead of reconstructing it. This supersedes the earlier blanket
-"never retain transient reasoning or wire detail" statement for the local diagnostic store
-only; the conversation, the hosted prompt and the export keep their previous policy.
+Retain complete provider requests, responses, reasoning, tool activity, clarification and outcome
+content **locally only** so a run can be reconstructed. Preserve sensitive financial text in local
+PT1 traces; redact only credentials and transport secrets. Never export or upload traces, never
+store authentication headers, and never rewrite existing rows automatically. Mark unavailable
+evidence explicitly. This supersedes the earlier blanket "never retain transient reasoning or wire
+detail" statement for the local diagnostic store only; the conversation, hosted prompt and export
+keep their previous policies.
 
 ### Verification
 

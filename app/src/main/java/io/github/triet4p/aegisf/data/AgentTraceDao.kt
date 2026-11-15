@@ -10,7 +10,7 @@ import androidx.room.Query
  * The table is append-only: a trace row describes evidence and is never updated or used as
  * authority. Reads are ordered by the event identity, which is the append order, so a run's
  * provider exchanges, tool calls and outcomes reconstruct in the order they actually happened.
- * Deleting a run (retention or an explicit history delete) cascades its trace rows.
+ * Deleting a run during explicit user-directed history deletion cascades its trace rows.
  */
 @Dao
 abstract class AgentTraceDao {

@@ -11,7 +11,7 @@ opt-in notification review inbox — every bank-derived record still requires th
   delete — with no product-imposed count limit.
 - **Entries:** expenses, income, and internal transfers, recorded manually with amount, type, date,
   time, optional description, and a category where applicable.
-- **Storage and privacy:** Ledger records, notes, drafts, and run history are kept in the on-device Room/SQLite database. Hosted requests are opt-in: when you explicitly start a run, selected context may be sent to the configured HTTPS endpoint after on-device masking. Masking reduces direct values, but is not anonymity; remaining context may still identify you.
+- **Storage and privacy:** Ledger records, notes, drafts, and run history are kept in the on-device Room/SQLite database. Hosted requests are opt-in: when you explicitly start a run, selected context may be sent to the configured HTTPS endpoint after on-device masking. Masking reduces direct values, but is not anonymity; remaining context may still identify you. Complete local AI traces can include sensitive financial text, provider reasoning, tool results and clarification content and have no automatic expiry. New traces redact the configured provider credential if echoed, but prior rows are never rewritten and may retain an echoed credential until you clear AI history. Traces are excluded from Android backup/transfer and complete-state export; deletion is not guaranteed secure erasure.
 
 ## What the app does today
 
@@ -100,11 +100,11 @@ opt-in notification review inbox — every bank-derived record still requires th
   optional output limit, reasoning budget and parallel tool calls. A connection is tested before a
   profile is saved; an offline or failed test keeps every typed value and changes no profile.
   Editing can keep the stored credential by leaving the field blank, and the credential is never
-  rendered. **Skills & history** reports the bundled assistant workflows and the durable
-  conversations stored on the device and links back to AI Chat. **Privacy & retention** states what
-  stays on the device, the Keystore-encrypted credential storage, the hosted-request and masking
-  boundary, and what is retained. This release deliberately has no backup, restore or cache-clear
-  control; those remain Sprint 11 obligations.
+  rendered. **Skills & history** reports the bundled assistant workflows and durable conversations,
+  and lets you clear AI history after confirmation without deleting business data. **Privacy &
+  retention** explains full local trace retention, credential handling, manual complete-state
+  export/restore and Android backup/transfer exclusion. AI traces are not included in complete-state
+  exports; Android backup and cloud sync are disabled, while manual export files are unencrypted.
 - **Ledger** — every stored record, newest first, with amount, type, description, category,
   moment, and provenance, including records saved in earlier sessions. A search field matches the
   record's description — the merchant, note, or label the user wrote — as literal text, so `%` and

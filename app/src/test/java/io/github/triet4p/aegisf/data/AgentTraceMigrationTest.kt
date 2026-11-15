@@ -109,8 +109,8 @@ class AgentTraceMigrationTest {
                     ordered[0].id < ordered[1].id && ordered[1].id < ordered[2].id,
                 )
 
-                // Deleting the run (retention or an explicit history delete) cascades its trace.
-                assertEquals(1, database.agentRunDao().deleteScope(SCOPE_ID))
+                // Explicit history deletion cascades from the run to its trace rows.
+                assertEquals(1, database.agentRunDao().deleteAll())
                 assertEquals(0L, scalar(room, "SELECT COUNT(*) FROM agent_trace_events"))
                 room.query(SimpleSQLiteQuery("PRAGMA foreign_key_check")).use { cursor ->
                     assertFalse("the migration left a foreign-key violation", cursor.moveToFirst())

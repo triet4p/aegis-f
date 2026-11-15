@@ -317,10 +317,11 @@ class S810DurableRunHistoryTest {
     }
 
     @Test
-    fun `retention prunes history and export excludes keys and mappings`() = runBlocking {
+    fun `explicit deletion clears history while export excludes keys and mappings`() = runBlocking {
         val fixture = prepare()
+        val runIds = mutableListOf<String>()
         repeat(3) { index ->
-            history.admitRun(
+            val admitted = history.admitRun(
                 fixture.scope,
                 WorkflowRunRequest(
                     intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
@@ -329,6 +330,7 @@ class S810DurableRunHistoryTest {
                 fixture.boundary,
                 8192,
             )
+            runIds += admitted.runId
         }
         assertEquals(3L, database.agentRunDao().countOf(fixture.scope.scopeId))
         val exported = history.safeExport(fixture.scope.scopeId, 50, 0)
@@ -337,8 +339,12 @@ class S810DurableRunHistoryTest {
         assertFalse("digests must not export", body.contains("digest"))
         assertFalse("operation journal must not export", body.contains("UPDATE_EVENT"))
         assertFalse("raw amounts must not export", body.contains("25,000"))
-        assertTrue(history.deleteScopeHistory(fixture.scope.scopeId) >= 3)
+        assertTrue(runIds.all { database.agentTraceDao().countForRun(it) > 0L })
+        assertEquals(3, history.deleteAllHistory())
         assertEquals(0L, database.agentRunDao().countOf(fixture.scope.scopeId))
+        assertTrue(runIds.all { database.agentTraceDao().countForRun(it) == 0L })
+        assertTrue(runIds.all { history.conversationForRun(it).isEmpty() })
+        assertTrue(runIds.all { database.agentRunAttemptDao().findForRun(it).isEmpty() })
         // Business stores are separate from the conversation: the draft survives deletion.
         assertTrue(queries.draftCandidate(fixture.draftId) != null)
     }

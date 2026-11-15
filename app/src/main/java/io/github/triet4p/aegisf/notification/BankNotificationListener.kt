@@ -122,7 +122,6 @@ class BankNotificationListener : NotificationListenerService() {
 
     override fun onNotificationPosted(notification: StatusBarNotification?) {
         val posted = notification ?: return
-        Log.d(TAG, "onNotificationPosted: package=${posted.packageName}")
         if (connectionState.value !is ListenerConnection.Connected) {
             queuedIntake.add(posted)
             return
@@ -210,7 +209,7 @@ class BankNotificationListener : NotificationListenerService() {
         val decision = decideNotificationIntake(posted, snapshot)
         when (decision) {
             is NotificationIntakeDecision.Permitted -> {
-                Log.i(TAG, "persistOne: permitted notification from $packageName (postTime=$postTime); storing draft")
+                Log.i(TAG, "persistOne: permitted bank notification; storing parsed draft")
                 intakeRepositoryFor(appContext).storePermitted(
                     sourcePackage = packageName,
                     notificationKey = key,
@@ -219,10 +218,10 @@ class BankNotificationListener : NotificationListenerService() {
                 )
             }
             is NotificationIntakeDecision.NotPermitted -> {
-                Log.d(TAG, "persistOne: dropped notification from $packageName (not in allowlist)")
+                Log.d(TAG, "persistOne: dropped notification outside the allowlist")
             }
             is NotificationIntakeDecision.Rejected -> {
-                Log.d(TAG, "persistOne: rejected notification from $packageName (reason=${decision.reason})")
+                Log.d(TAG, "persistOne: rejected bank notification")
             }
         }
     }

@@ -317,6 +317,7 @@ internal fun AegisAppShell(
                             completeStateExporter = completeStateExporter,
                             completeStateRestorer = completeStateRestorer,
                             agentRunHistory = agentRunHistory,
+                            chatRunState = chatRunState,
                             stack = homeStack,
                             scope = dashboardScope,
                             onScopeChange = { dashboardScope = it },
@@ -409,6 +410,7 @@ private fun HomeDestination(
     completeStateExporter: CompleteStateExporter,
     completeStateRestorer: CompleteStateRestorer,
     agentRunHistory: AgentRunHistory,
+    chatRunState: ChatAgentRunState,
     stack: List<HomeRoute>,
     scope: DashboardScopeState,
     onScopeChange: (DashboardScopeState) -> Unit,
@@ -492,6 +494,8 @@ private fun HomeDestination(
             agentRunHistory = agentRunHistory,
             onOpenChat = onOpenChatFromSettings,
             onNavigateUp = onPop,
+            canClearHistory = !chatRunState.busy && chatRunState.job?.isActive != true,
+            onHistoryCleared = chatRunState::startNewConversation,
         )
 
         HomeRoute.SettingsPrivacy -> SettingsPrivacyScreen(

@@ -119,7 +119,7 @@ fun requestListenerRebind(
             try {
                 NotificationListenerService.requestRebind(component)
             } catch (e: Exception) {
-                android.util.Log.w("NotificationAccess", "requestRebind error: ${e.message}")
+                android.util.Log.w("NotificationAccess", "requestRebind failed (${e.javaClass.simpleName})")
             }
             try {
                 val pm = context.packageManager
@@ -134,7 +134,7 @@ fun requestListenerRebind(
                     PackageManager.DONT_KILL_APP,
                 )
             } catch (e: Exception) {
-                android.util.Log.w("NotificationAccess", "setComponentEnabledSetting error: ${e.message}")
+                android.util.Log.w("NotificationAccess", "setComponentEnabledSetting failed (${e.javaClass.simpleName})")
             }
         }
     },

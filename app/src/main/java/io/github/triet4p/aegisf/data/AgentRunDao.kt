@@ -113,22 +113,11 @@ abstract class AgentRunDao {
     )
     abstract suspend fun findRecent(limit: Int): List<AgentRunEntity>
 
-    /** How many runs one session holds; the retention bound prunes above this count. */
+    /** How many runs one session currently has. */
     @Query("SELECT COUNT(*) FROM `agent_runs` WHERE `scopeId` = :scopeId")
     abstract suspend fun countOf(scopeId: String): Long
 
-    /** The oldest run ids of one session, for bounded retention pruning. */
-    @Query(
-        "SELECT `id` FROM `agent_runs` WHERE `scopeId` = :scopeId " +
-            "ORDER BY `createdAtEpochMillis` ASC, `id` ASC LIMIT :limit",
-    )
-    abstract suspend fun oldestIds(scopeId: String, limit: Int): List<Long>
-
-    /** Deletes the runs (and, by cascade, their attempts) named by stored id. */
-    @Query("DELETE FROM `agent_runs` WHERE `id` IN (:ids)")
-    abstract suspend fun deleteByIds(ids: List<Long>): Int
-
-    /** Deletes every run of one session; business stores stay untouched. */
-    @Query("DELETE FROM `agent_runs` WHERE `scopeId` = :scopeId")
-    abstract suspend fun deleteScope(scopeId: String): Int
+    /** Deletes every run; conversation, attempt and trace rows cascade with it. */
+    @Query("DELETE FROM `agent_runs`")
+    abstract suspend fun deleteAll(): Int
 }

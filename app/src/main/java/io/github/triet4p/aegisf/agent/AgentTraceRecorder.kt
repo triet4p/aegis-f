@@ -23,6 +23,8 @@ import io.github.triet4p.aegisf.provider.HostedHttpRequest
 import io.github.triet4p.aegisf.provider.HostedHttpResponse
 import io.github.triet4p.aegisf.provider.HostedSseEvent
 import io.github.triet4p.aegisf.provider.HostedToolCall
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicInteger
 import org.json.JSONArray
 import org.json.JSONObject
@@ -37,17 +39,19 @@ import org.json.JSONObject
  *
  * Two rules are enforced here rather than trusted from call sites:
  *
- * - **No transport secret is ever written.** Request headers are filtered by the documented
- *   credential header names, and credential-looking URL query parameters are replaced before the
- *   request row is built. Bodies, tool arguments/results and clarification text are stored
- *   complete.
+ * - **No transport secret is ever written.** Credential-bearing headers are omitted, credential-
+ *   looking URL values are redacted, and known credential values are scrubbed from every recorded
+ *   JSON value. Other body, tool and clarification content is retained complete.
  * - **Nothing is invented.** An exchange that produced no response is recorded as
  *   [AGENT_TRACE_COMPLETION_UNAVAILABLE], one that was cancelled mid-flight as
  *   [AGENT_TRACE_COMPLETION_INTERRUPTED]; neither is filled with a fabricated body.
  *
  * Records are local-only evidence: they never leave the app and are never read as authority.
  */
-class AgentTraceRecorder internal constructor(private val store: AgentTraceStore?) {
+class AgentTraceRecorder internal constructor(
+    private val store: AgentTraceStore?,
+    private val credentialRedactor: (String) -> String = { it },
+) {
 
     private data class Binding(val runId: String, val scopeId: String, val attempt: Int)
 
@@ -55,6 +59,9 @@ class AgentTraceRecorder internal constructor(private val store: AgentTraceStore
     private var binding: Binding? = null
 
     private val exchange = AtomicInteger(0)
+
+    private val secretLock = Any()
+    private val sensitiveValues = LinkedHashSet<String>()
 
     /** True when this recorder writes to a durable store; false for a disabled host. */
     val enabled: Boolean get() = store != null
@@ -71,15 +78,15 @@ class AgentTraceRecorder internal constructor(private val store: AgentTraceStore
     }
 
     /**
-     * Records the exact provider request and returns its exchange identity, or null when the
-     * recorder is unbound/disabled. The exchange identity correlates the request with its
-     * response inside the same attempt.
+     * Records the provider request, with known transport credentials removed, and returns its
+     * exchange identity or null when the recorder is unbound/disabled.
      */
     suspend fun providerRequest(request: HostedHttpRequest): Int? {
         val bound = binding ?: return null
         val turn = exchange.incrementAndGet()
+        if (store != null) rememberRequestSecrets(request)
         val headers = safeHeaders(request.headers)
-        store?.append(
+        appendTrace(
             runId = bound.runId,
             scopeId = bound.scopeId,
             attempt = bound.attempt,
@@ -102,7 +109,7 @@ class AgentTraceRecorder internal constructor(private val store: AgentTraceStore
         val bound = binding ?: return
         if (turn == null) return
         val headers = safeHeaders(response.headers)
-        store?.append(
+        appendTrace(
             runId = bound.runId,
             scopeId = bound.scopeId,
             attempt = bound.attempt,
@@ -120,16 +127,13 @@ class AgentTraceRecorder internal constructor(private val store: AgentTraceStore
     }
 
     /**
-     * Records one decoded server-sent event of a streamed exchange.
-     *
-     * The payload is exactly what the endpoint delivered for that event (field name and data
-     * text), in wire order. Chunks are never merged, summarized or truncated; an over-large
-     * stream fails the exchange instead of dropping evidence.
+     * Records one decoded server-sent event of a streamed exchange. Known credential values are
+     * redacted; the rest of the event remains complete and in wire order.
      */
     suspend fun providerStreamChunk(turn: Int?, index: Int, event: HostedSseEvent) {
         val bound = binding ?: return
         if (turn == null) return
-        store?.append(
+        appendTrace(
             runId = bound.runId,
             scopeId = bound.scopeId,
             attempt = bound.attempt,
@@ -161,7 +165,7 @@ class AgentTraceRecorder internal constructor(private val store: AgentTraceStore
     ) {
         val bound = binding ?: return
         if (turn == null) return
-        store?.append(
+        appendTrace(
             runId = bound.runId,
             scopeId = bound.scopeId,
             attempt = bound.attempt,
@@ -191,7 +195,7 @@ class AgentTraceRecorder internal constructor(private val store: AgentTraceStore
         val bound = binding ?: return
         if (body.isNullOrEmpty()) return
         val turn = exchange.get().takeIf { it > 0 } ?: return
-        store?.append(
+        appendTrace(
             runId = bound.runId,
             scopeId = bound.scopeId,
             attempt = bound.attempt,
@@ -219,7 +223,7 @@ class AgentTraceRecorder internal constructor(private val store: AgentTraceStore
     ) {
         val bound = binding ?: return
         if (turn == null) return
-        store?.append(
+        appendTrace(
             runId = bound.runId,
             scopeId = bound.scopeId,
             attempt = bound.attempt,
@@ -242,7 +246,7 @@ class AgentTraceRecorder internal constructor(private val store: AgentTraceStore
     /** Records the classified provider failure the executor acted on. */
     suspend fun providerFailure(code: String, detail: String?) {
         val bound = binding ?: return
-        store?.append(
+        appendTrace(
             runId = bound.runId,
             scopeId = bound.scopeId,
             attempt = bound.attempt,
@@ -260,7 +264,7 @@ class AgentTraceRecorder internal constructor(private val store: AgentTraceStore
     /** Records one model-authored call with its exact arguments before anything executes. */
     suspend fun toolCall(turn: Int?, call: HostedToolCall) {
         val bound = binding ?: return
-        store?.append(
+        appendTrace(
             runId = bound.runId,
             scopeId = bound.scopeId,
             attempt = bound.attempt,
@@ -300,7 +304,7 @@ class AgentTraceRecorder internal constructor(private val store: AgentTraceStore
                 .put("operationKey", record.operationKey ?: JSONObject.NULL)
                 .put("targetKey", record.targetKey ?: JSONObject.NULL)
         }
-        store?.append(
+        appendTrace(
             runId = bound.runId,
             scopeId = bound.scopeId,
             attempt = bound.attempt,
@@ -316,7 +320,7 @@ class AgentTraceRecorder internal constructor(private val store: AgentTraceStore
     /** Records a tool call that raised before it could produce an envelope. */
     suspend fun toolError(turn: Int?, call: HostedToolCall, failure: Throwable) {
         val bound = binding ?: return
-        store?.append(
+        appendTrace(
             runId = bound.runId,
             scopeId = bound.scopeId,
             attempt = bound.attempt,
@@ -343,7 +347,7 @@ class AgentTraceRecorder internal constructor(private val store: AgentTraceStore
         subjectRef: String?,
     ) {
         val bound = binding ?: return
-        store?.append(
+        appendTrace(
             runId = bound.runId,
             scopeId = bound.scopeId,
             attempt = bound.attempt,
@@ -363,7 +367,7 @@ class AgentTraceRecorder internal constructor(private val store: AgentTraceStore
     /** Records the user's own answer to a clarification, with the question it answered. */
     suspend fun clarificationReply(field: String?, question: String, userAnswer: String) {
         val bound = binding ?: return
-        store?.append(
+        appendTrace(
             runId = bound.runId,
             scopeId = bound.scopeId,
             attempt = bound.attempt,
@@ -381,7 +385,7 @@ class AgentTraceRecorder internal constructor(private val store: AgentTraceStore
     /** Records the one assisted follow-up message a finished run accepted. */
     suspend fun followUpMessage(message: String) {
         val bound = binding ?: return
-        store?.append(
+        appendTrace(
             runId = bound.runId,
             scopeId = bound.scopeId,
             attempt = bound.attempt,
@@ -392,12 +396,98 @@ class AgentTraceRecorder internal constructor(private val store: AgentTraceStore
         )
     }
 
+    private suspend fun appendTrace(
+        runId: String,
+        scopeId: String,
+        attempt: Int,
+        kind: String,
+        payloadJson: String,
+        direction: String = AGENT_TRACE_DIRECTION_INTERNAL,
+        completion: String = AGENT_TRACE_COMPLETION_NOT_APPLICABLE,
+        turn: Int? = null,
+        callId: String? = null,
+    ) {
+        store?.append(
+            runId = runId,
+            scopeId = scopeId,
+            attempt = attempt,
+            kind = kind,
+            payloadJson = safePayloadJson(payloadJson),
+            direction = direction,
+            completion = completion,
+            turn = turn,
+            callId = callId?.let(::redactSecrets),
+        )
+    }
+
+    private fun rememberRequestSecrets(request: HostedHttpRequest) {
+        request.headers.forEach { (name, value) ->
+            if (name.lowercase() in SECRET_HEADERS) {
+                rememberSecret(value)
+                if (name.equals("authorization", ignoreCase = true)) {
+                    rememberSecret(value.trim().substringAfter(' ', "").trim())
+                } else if (
+                    name.equals("cookie", ignoreCase = true) ||
+                    name.equals("set-cookie", ignoreCase = true)
+                ) {
+                    value.split(';').forEach { cookie ->
+                        val equals = cookie.indexOf('=')
+                        if (equals >= 0) rememberSecret(cookie.substring(equals + 1).trim())
+                    }
+                }
+            }
+        }
+        val queryStart = request.url.indexOf('?')
+        if (queryStart >= 0) {
+            request.url.substring(queryStart + 1).substringBefore('#')
+                .split('&')
+                .forEach { part ->
+                    val equals = part.indexOf('=')
+                    if (equals >= 0 && isSensitiveQueryName(part.substring(0, equals))) {
+                        val value = part.substring(equals + 1)
+                        rememberSecret(value)
+                        rememberSecret(decodeQueryComponent(value))
+                    }
+                }
+        }
+    }
+
+    private fun rememberSecret(value: String) {
+        if (value.isNotEmpty()) synchronized(secretLock) { sensitiveValues.add(value) }
+    }
+
+    private fun safePayloadJson(payloadJson: String): String =
+        scrubJsonValue(JSONObject(payloadJson)).toString()
+
+    private fun scrubJsonValue(value: Any): Any = when (value) {
+        is JSONObject -> JSONObject().apply {
+            val keys = value.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                put(key, scrubJsonValue(value.get(key)))
+            }
+        }
+        is JSONArray -> JSONArray().apply {
+            for (index in 0 until value.length()) put(scrubJsonValue(value.get(index)))
+        }
+        is String -> redactSecrets(value)
+        else -> value
+    }
+
+    private fun redactSecrets(text: String): String = synchronized(secretLock) {
+        sensitiveValues.fold(credentialRedactor(text)) { safe, secret -> safe.replace(secret, REDACTED_CREDENTIAL) }
+    }
+
     companion object {
+        private const val REDACTED_CREDENTIAL = "[redacted-credential]"
         /** A recorder for a host that is deliberately constructed without durable tracing. */
         fun disabled(): AgentTraceRecorder = AgentTraceRecorder(null)
 
         /** The production recorder over the app's durable trace store. */
-        fun enabled(store: AgentTraceStore): AgentTraceRecorder = AgentTraceRecorder(store)
+        fun enabled(
+            store: AgentTraceStore,
+            credentialRedactor: (String) -> String = { it },
+        ): AgentTraceRecorder = AgentTraceRecorder(store, credentialRedactor)
 
         /**
          * Header names that carry a credential, a session or another transport secret. They are
@@ -418,14 +508,27 @@ class AgentTraceRecorder internal constructor(private val store: AgentTraceStore
         val SECRET_QUERY_NAMES = setOf(
             "key",
             "api_key",
+            "api-key",
+            "x-api-key",
+            "x-goog-api-key",
             "apikey",
             "token",
             "access_token",
+            "access-token",
             "id_token",
             "auth",
             "authorization",
+            "auth_token",
+            "auth-token",
+            "client_secret",
+            "client-secret",
             "secret",
+            "secret_key",
+            "secret-key",
             "password",
+            "credential",
+            "credentials",
+            "jwt",
             "sig",
             "signature",
         )
@@ -443,22 +546,45 @@ class AgentTraceRecorder internal constructor(private val store: AgentTraceStore
             return safe to redacted
         }
 
-        /** The request URL with credential-looking query values replaced. */
+        /** The request URL without user info or credential-looking query values. */
         fun safeUrl(url: String): String {
-            val separator = url.indexOf('?')
-            if (separator < 0) return url
-            val base = url.substring(0, separator)
-            val query = url.substring(separator + 1)
+            var safeUrl = url
+            val schemeEnd = safeUrl.indexOf("://")
+            val authorityStart = if (schemeEnd >= 0) schemeEnd + 3 else -1
+            if (authorityStart >= 0) {
+                val authorityEnd = listOf(
+                    safeUrl.indexOf('/', authorityStart),
+                    safeUrl.indexOf('?', authorityStart),
+                    safeUrl.indexOf('#', authorityStart),
+                ).filter { it >= 0 }.minOrNull() ?: safeUrl.length
+                val userInfo = safeUrl.lastIndexOf('@', authorityEnd - 1)
+                if (userInfo >= authorityStart) {
+                    safeUrl = safeUrl.replaceRange(authorityStart, userInfo, "[redacted]")
+                }
+            }
+            val queryStart = safeUrl.indexOf('?')
+            if (queryStart < 0) return safeUrl
+            val fragmentStart = safeUrl.indexOf('#', queryStart).takeIf { it >= 0 } ?: safeUrl.length
+            val query = safeUrl.substring(queryStart + 1, fragmentStart)
             val rebuilt = query.split('&').joinToString("&") { part ->
                 val equals = part.indexOf('=')
                 if (equals < 0) {
                     part
                 } else {
                     val name = part.substring(0, equals)
-                    if (name.lowercase() in SECRET_QUERY_NAMES) "$name=[redacted]" else part
+                    if (isSensitiveQueryName(name)) "$name=[redacted]" else part
                 }
             }
-            return "$base?$rebuilt"
+            return safeUrl.substring(0, queryStart + 1) + rebuilt + safeUrl.substring(fragmentStart)
+        }
+
+        private fun isSensitiveQueryName(name: String): Boolean =
+            decodeQueryComponent(name).lowercase() in SECRET_QUERY_NAMES
+
+        private fun decodeQueryComponent(value: String): String = try {
+            URLDecoder.decode(value, StandardCharsets.UTF_8.name())
+        } catch (_: IllegalArgumentException) {
+            value
         }
     }
 }

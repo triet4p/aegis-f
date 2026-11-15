@@ -402,6 +402,114 @@ class ProductionTraceTest {
     }
 
     @Test
+    fun `production recorder removes echoed credential but preserves complete local trace text`() = runBlocking {
+        val credential = "pt1-transport-credential-must-stay-local"
+        val localTraceText = "VND 8,765,400 on 2026-08-14 at 13:45"
+        val responseBody = JSONObject()
+            .put("id", "chatcmpl-credential-echo")
+            .put("model", MODEL)
+            .put(
+                "choices",
+                JSONArray().put(
+                    JSONObject()
+                        .put(
+                            "message",
+                            JSONObject()
+                                .put("role", "assistant")
+                                .put("content", "No pending drafts are in this scope.")
+                                .put("reasoning_content", "Provider echo $credential; $localTraceText"),
+                        )
+                        .put("finish_reason", "stop"),
+                ),
+            )
+            .put("usage", JSONObject().put("prompt_tokens", 1).put("completion_tokens", 1))
+            .toString()
+        val transport = ScriptedTransport(
+            mutableListOf({ _: HostedHttpRequest, _: Int -> jsonResponse(responseBody) }),
+        )
+        val container = AppContainer(context)
+        container.hostedHttpTransport = transport
+        val scope = WorkflowCallerScope.AgentSession("pt1-transport-credential", emptySet(), emptySet())
+        try {
+            val host = container.createHostedWorkflowHost(scope, providerConfig(credential))
+            val request = WorkflowRunRequest(
+                intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+                userRequest = "Synthetic request repeats $credential.",
+            )
+            val runHistory = container.agentRunHistory
+            val admitted = runHistory.admitRun(scope, request, host.boundary, 1024)
+            val outcome = BoundedWorkflowExecutor(host).startTracked(
+                request = request,
+                history = runHistory,
+                attemptKey = admitted.attemptKey,
+                maxOutputTokens = 1024,
+            )
+            assertTrue("the scripted non-secret answer should complete", outcome is WorkflowRunOutcome.Completed)
+            assertEquals(1, transport.requests.size)
+            assertFalse(credential in transport.requests.single())
+            assertTrue(transport.requests.single().contains("[redacted-credential]"))
+
+            val events = runHistory.traceForRun(admitted.runId)
+            assertTrue(events.none { credential in it.payloadJson })
+            val response = JSONObject(events.single { it.kind == AGENT_TRACE_KIND_PROVIDER_RESPONSE }.payloadJson)
+            val savedBody = response.getString("body")
+            assertFalse(credential in savedBody)
+            assertTrue(savedBody.contains("[redacted-credential]"))
+            assertTrue("financial and reasoning content stay full in the local trace", savedBody.contains(localTraceText))
+        } finally {
+            container.close()
+        }
+    }
+
+    @Test
+    fun `configured credential is scrubbed from attempt outcomes without masking local trace text`() = runBlocking {
+        val credential = "pt1-outcome-credential-must-stay-local"
+        val scope = WorkflowCallerScope.AgentSession("pt1-outcome-credential", emptySet(), emptySet())
+        val container = AppContainer(context)
+        try {
+            val host = container.createHostedWorkflowHost(scope, providerConfig(credential))
+            val runHistory = container.agentRunHistory
+            val admitted = runHistory.admitRun(
+                scope = scope,
+                request = WorkflowRunRequest(
+                    intents = setOf(WorkflowIntent.SEARCH_DRAFTS),
+                    userRequest = "Synthetic request repeats $credential.",
+                ),
+                boundary = host.boundary,
+                maxOutputTokens = 1024,
+            )
+            assertTrue(runHistory.claimForExecution(admitted.runId, admitted.attempt))
+
+            val localTraceText = "VND 9,876,500 on 2026-08-14 at 13:45"
+            runHistory.recordAttemptOutcome(
+                runId = admitted.runId,
+                attempt = admitted.attempt,
+                outcome = WorkflowRunOutcome.Completed(
+                    answer = "Provider echoed $credential with $localTraceText.",
+                    verifiedEffects = emptyList(),
+                    turns = 1,
+                    toolCalls = 0,
+                    trace = emptyList(),
+                ),
+                boundary = host.boundary,
+            )
+
+            val events = runHistory.traceForRun(admitted.runId)
+            assertTrue("no trace writer may retain the configured credential", events.none { credential in it.payloadJson })
+            val admission = events.single { it.kind == AGENT_TRACE_KIND_RUN_ADMITTED }
+            assertTrue(admission.payloadJson.contains("[redacted-credential]"))
+            val outcome = JSONObject(events.single { it.kind == AGENT_TRACE_KIND_ATTEMPT_OUTCOME }.payloadJson)
+            assertTrue(outcome.getString("answer").contains("[redacted-credential]"))
+            assertTrue(
+                "credential-only scrubbing must preserve the complete nonsecret PT1 text",
+                outcome.getString("answer").contains(localTraceText),
+            )
+        } finally {
+            container.close()
+        }
+    }
+
+    @Test
     fun `cancellation is recorded once with the attempts it stopped`() = runBlocking {
         val scope = WorkflowCallerScope.AgentSession("pt1-cancel", emptySet(), emptySet())
         val boundary = MaskedPromptBoundary(SensitiveVault(scope.scopeId))
@@ -434,11 +542,11 @@ class ProductionTraceTest {
 
     // ---- Harness -------------------------------------------------------------------------
 
-    private fun providerConfig(): HostedProviderConfig = HostedProviderConfig(
+    private fun providerConfig(credential: String = TOKEN): HostedProviderConfig = HostedProviderConfig(
         protocol = HostedProtocol.OPENAI_CHAT_COMPLETIONS,
         endpoint = "https://provider.example/v1/chat/completions",
         model = MODEL,
-        authentication = HostedAuthentication.Bearer(TOKEN),
+        authentication = HostedAuthentication.Bearer(credential),
         budget = HostedGenerationBudget(maxOutputTokens = 1024),
         capabilities = HostedProviderCapabilities(
             supportsToolCalls = true,

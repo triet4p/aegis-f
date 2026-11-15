@@ -163,8 +163,9 @@ class AppContainer(context: Context) {
         check(!completeStateRestorer.isRecoveryPending()) {
             "A complete-state restore is completing; start this request after it finishes."
         }
-        val boundary = MaskedPromptBoundary(SensitiveVault(scope.scopeId))
-        val trace = AgentTraceRecorder.enabled(agentTraceStore)
+        val credentialRedactor = config.authentication::redact
+        val boundary = MaskedPromptBoundary(SensitiveVault(scope.scopeId), credentialRedactor)
+        val trace = AgentTraceRecorder.enabled(agentTraceStore, credentialRedactor)
         val adapter = HostedAdapters.create(
             config,
             TracingHttpTransport(hostedHttpTransport, trace),

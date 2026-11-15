@@ -5,6 +5,8 @@
     <application
         android:name=".AegisApplication"
         android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:label="Aegis F"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">

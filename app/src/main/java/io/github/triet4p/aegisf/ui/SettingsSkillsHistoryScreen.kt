@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,6 +51,7 @@ import io.github.triet4p.aegisf.ui.components.AegisIcon
 import io.github.triet4p.aegisf.ui.text.LocalAegisStrings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -65,6 +68,8 @@ internal fun SettingsSkillsHistoryScreen(
     agentRunHistory: AgentRunHistory,
     onOpenChat: () -> Unit,
     onNavigateUp: () -> Unit,
+    canClearHistory: Boolean,
+    onHistoryCleared: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val baseStrings = LocalAegisStrings.current
@@ -77,6 +82,11 @@ internal fun SettingsSkillsHistoryScreen(
     var historyRows by remember { mutableStateOf<List<ChatHistoryRow>?>(null) }
     var historyFailed by remember { mutableStateOf(false) }
     var historyRetry by remember { mutableIntStateOf(0) }
+    var confirmHistoryClear by remember { mutableStateOf(false) }
+    var clearingHistory by remember { mutableStateOf(false) }
+    var historyClearFailed by remember { mutableStateOf(false) }
+    var historyClearSucceeded by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(skillsRetry) {
         skillsFailed = false
@@ -221,6 +231,55 @@ internal fun SettingsSkillsHistoryScreen(
                     }
                 }
             }
+            if (!historyFailed && historyRows.orEmpty().isNotEmpty()) {
+                Button(
+                    onClick = {
+                        confirmHistoryClear = true
+                        historyClearFailed = false
+                        historyClearSucceeded = false
+                    },
+                    enabled = canClearHistory && !clearingHistory,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 52.dp)
+                        .testTag("skills-clear-history"),
+                ) {
+                    Text(strings.historyClearAction)
+                }
+                if (!canClearHistory) {
+                    Text(
+                        text = strings.historyClearBusy,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            if (clearingHistory) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                    )
+                    Text(strings.historyClearing)
+                }
+            }
+            if (historyClearFailed) {
+                Text(
+                    text = strings.historyClearFailed,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            if (historyClearSucceeded) {
+                Text(
+                    text = strings.historyClearSucceeded,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
                 text = strings.historyOpenHint,
                 style = MaterialTheme.typography.bodySmall,
@@ -237,6 +296,60 @@ internal fun SettingsSkillsHistoryScreen(
                 Text(strings.historyOpenChat)
             }
         }
+    }
+    if (confirmHistoryClear) {
+        AlertDialog(
+            onDismissRequest = { if (!clearingHistory) confirmHistoryClear = false },
+            title = { Text(strings.historyClearTitle) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(strings.historyClearBody)
+                    if (!canClearHistory) {
+                        Text(
+                            text = strings.historyClearBusy,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmHistoryClear = false
+                        clearingHistory = true
+                        historyClearFailed = false
+                        historyClearSucceeded = false
+                        scope.launch {
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    agentRunHistory.deleteAllHistory()
+                                }
+                                historyRows = emptyList()
+                                onHistoryCleared()
+                                historyClearSucceeded = true
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (_: Exception) {
+                                historyClearFailed = true
+                            } finally {
+                                clearingHistory = false
+                            }
+                        }
+                    },
+                    enabled = canClearHistory && !clearingHistory,
+                ) {
+                    Text(strings.historyClearConfirm)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { confirmHistoryClear = false },
+                    enabled = !clearingHistory,
+                ) {
+                    Text(strings.cancel)
+                }
+            },
+        )
     }
 }
 

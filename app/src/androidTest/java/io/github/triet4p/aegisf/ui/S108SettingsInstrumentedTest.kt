@@ -1,6 +1,7 @@
 package io.github.triet4p.aegisf.ui
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.graphics.Bitmap
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.compose.setContent
@@ -24,6 +25,7 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -35,6 +37,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.triet4p.aegisf.MainActivity
+import io.github.triet4p.aegisf.R
 import io.github.triet4p.aegisf.agent.AgentRunHistory
 import io.github.triet4p.aegisf.agent.WorkflowIntent
 import io.github.triet4p.aegisf.agent.WorkflowRunRequest
@@ -86,6 +89,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.xmlpull.v1.XmlPullParser
 
 /**
  * S10.8 actual Compose category/rule/settings evidence on isolated fixtures.
@@ -598,12 +602,141 @@ class S108SettingsInstrumentedTest {
     }
 
     @Test
+    fun s114ClearingStoredHistoryPreservesBusinessRowsAndChatState() {
+        prepare()
+        assertEquals("io.github.triet4p.aegisf.s108evidence", context.packageName)
+        val categoryId = insertCategory("Retained category")
+        val history = AgentRunHistory(database)
+        val scopeId = "s108-history-clear"
+        val admitted = runBlocking {
+            history.admitRun(
+                scope = WorkflowCallerScope.AgentSession(
+                    scopeId = scopeId,
+                    captureIds = emptySet(),
+                    draftIds = emptySet(),
+                ),
+                request = WorkflowRunRequest(
+                    intents = setOf(WorkflowIntent.INTERPRET_EVENTS),
+                    userRequest = "Synthetic clear-history probe",
+                ),
+                boundary = MaskedPromptBoundary(SensitiveVault(scopeId)),
+                maxOutputTokens = null,
+            )
+        }
+        assertTrue(runBlocking { database.agentTraceDao().countForRun(admitted.runId) > 0L })
+
+        val activeChat = ChatAgentRunState()
+        activeChat.beginTurn("Synthetic active transcript")
+        showSkillsHistory(
+            history,
+            onOpenChat = {},
+            canClearHistory = !activeChat.busy && activeChat.job?.isActive != true,
+        )
+        compose.onNodeWithTag("skills-clear-history").performScrollTo().assertIsNotEnabled()
+        assertEquals(1L, runBlocking { database.agentRunDao().countOf(scopeId) })
+
+        val idleChat = ChatAgentRunState()
+        val token = idleChat.beginTurn("Synthetic in-memory transcript")
+        idleChat.completeTurn(token, "Synthetic in-memory reply", admitted.runId)
+        showSkillsHistory(
+            history,
+            onOpenChat = {},
+            canClearHistory = !idleChat.busy && idleChat.job?.isActive != true,
+            onHistoryCleared = idleChat::startNewConversation,
+        )
+        awaitText("Synthetic clear-history probe")
+        awaitText("New trace entries redact the configured provider credential if it is echoed", substring = true)
+        awaitText("older rows are not rewritten and may still contain an echoed credential", substring = true)
+        compose.onNodeWithTag("skills-clear-history").performScrollTo().performClick()
+        awaitText("Clear saved AI history?")
+        awaitText("raw requests, replies, reasoning and clarification text", substring = true)
+        compose.onNodeWithText("Delete AI history").performClick()
+        awaitText("No conversations stored")
+        awaitText("Saved AI conversations and local traces were deleted.", substring = true)
+
+        assertEquals(0L, runBlocking { database.agentRunDao().countOf(scopeId) })
+        assertEquals(0L, runBlocking { database.agentTraceDao().countForRun(admitted.runId) })
+        assertEquals(
+            categoryId,
+            runBlocking { database.categoryDao().findActiveIdByName("Retained category") },
+        )
+        assertTrue(idleChat.messages.isEmpty())
+        assertNull(idleChat.runId)
+        assertFalse(idleChat.busy)
+    }
+
+
+    @Test
     fun privacyDisclosureNamesLimitsWithoutFakeBackupControls() {
         prepare()
+        assertEquals("io.github.triet4p.aegisf.s108evidence", context.packageName)
         showPrivacy()
         awaitText("ON THIS DEVICE")
-        awaitText("Android backup: disabled")
-        awaitText("Manual export and validated restore are available from this screen; there is no cloud sync. Android automatic backup remains disabled.")
+        awaitText("Android backup & transfer: excluded")
+        awaitText(
+            "Manual export and validated restore are available here; there is no cloud sync. " +
+                "Android backup and supported transfer paths are excluded by manifest rules.",
+        )
+        awaitText("full local diagnostic traces", substring = true)
+        awaitText("sensitive financial text", substring = true)
+        awaitText("raw SSE/reasoning", substring = true)
+        awaitText("New trace entries redact the configured credential if echoed", substring = true)
+
+        val expectedExclusions = setOf(
+            "root",
+            "file",
+            "database",
+            "sharedpref",
+            "external",
+            "device_root",
+            "device_file",
+            "device_database",
+            "device_sharedpref",
+        ).map { it to "." }.toSet()
+        fun exclusionGroups(resourceId: Int): Map<String, Set<Pair<String, String>>> {
+            val parser = context.resources.getXml(resourceId)
+            val stack = mutableListOf<String>()
+            val groups = mutableMapOf<String, MutableSet<Pair<String, String>>>()
+            try {
+                while (true) {
+                    val event = parser.next()
+                    if (event == XmlPullParser.END_DOCUMENT) break
+                    when (event) {
+                        XmlPullParser.START_TAG -> {
+                            if (parser.name == "exclude") {
+                                val parent = stack.lastOrNull() ?: error("exclude has no rule group")
+                                val domain = parser.getAttributeValue(null, "domain")
+                                    ?: error("backup exclusion has no domain")
+                                val path = parser.getAttributeValue(null, "path")
+                                    ?: error("backup exclusion has no path")
+                                groups.getOrPut(parent) { mutableSetOf() }.add(domain to path)
+                            } else {
+                                stack += parser.name
+                            }
+                        }
+                        XmlPullParser.END_TAG -> {
+                            if (stack.lastOrNull() == parser.name) stack.removeAt(stack.lastIndex)
+                        }
+                    }
+                }
+            } finally {
+                parser.close()
+            }
+            return groups.mapValues { (_, values) -> values.toSet() }
+        }
+
+        val appInfo = context.packageManager.getApplicationInfo(context.packageName, 0)
+        assertFalse(appInfo.flags and ApplicationInfo.FLAG_ALLOW_BACKUP != 0)
+        assertEquals(
+            expectedExclusions,
+            exclusionGroups(R.xml.backup_rules).getValue("full-backup-content"),
+        )
+        val extraction = exclusionGroups(R.xml.data_extraction_rules)
+        assertEquals(
+            setOf("cloud-backup", "device-transfer", "cross-platform-transfer"),
+            extraction.keys,
+        )
+        assertTrue(extraction.values.all { it == expectedExclusions })
         assertTrue(
             compose.onAllNodesWithText("Back up now").fetchSemanticsNodes().isEmpty(),
         )
@@ -776,6 +909,8 @@ class S108SettingsInstrumentedTest {
     private fun showSkillsHistory(
         history: AgentRunHistory,
         onOpenChat: () -> Unit,
+        canClearHistory: Boolean = true,
+        onHistoryCleared: () -> Unit = {},
     ) {
         setContent(AegisLanguage.ENGLISH, fontScale = 1f) {
             Box(
@@ -787,6 +922,8 @@ class S108SettingsInstrumentedTest {
                     agentRunHistory = history,
                     onOpenChat = onOpenChat,
                     onNavigateUp = { navigatedUp = true },
+                    canClearHistory = canClearHistory,
+                    onHistoryCleared = onHistoryCleared,
                 )
             }
         }

@@ -7,6 +7,18 @@ and no release has been tagged or published. Format follows
 
 ## [Unreleased]
 
+### Sprint 11 — S11.4 privacy, retention and permissions
+
+- **AI Chat** keeps complete local provider traces, including sensitive financial text, raw
+  reasoning, tool results and clarification content, without automatic expiry. Configured
+  credentials are redacted from new trace entries and outbound prompt/context/tool-result bodies;
+  existing traces are not rewritten and may retain a credential echoed by a provider until AI
+  history is explicitly cleared.
+- **Settings → Skills & history** now offers confirmed history deletion, disabled during an active
+  Chat job, which clears conversation/run/trace rows and the in-memory transcript while preserving
+  business data and the effect journal. Android backup/transfer and complete-state export exclude
+  AI traces.
+
 ### Sprint 11 — S11.2 validated atomic restore
 
 - Added a validated restore of an exported complete-state file in **Settings → Privacy & retention**.

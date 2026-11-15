@@ -15,9 +15,12 @@ Owner subsequently reconnected the phone. Actual-main UI/DB verification is now 
 ## PT1 — Complete local production traces [x]
 
 - Persist session/scope, run, attempt, ordered event identities and timestamps in the production Room database, not only test artifacts or debug builds.
-- Persist complete provider request and response bodies, declarations/instructions/context as actually sent, provider errors/failures and returned continuation/reasoning when present, tool call identities/names/arguments/results/errors, clarification questions and user replies, cancellation and final outcomes. No silent content truncation or summary-only replacement. Mark unavailable/interrupted evidence explicitly; never fabricate older trace contents.
-- Never store authentication headers, API credentials or transport secrets. Private diagnostics stay local and separate from normal conversation export/hosted context; no automatic upload. Existing local-RAW and hosted-masking/guard policies remain intact.
-- Preserve existing rows and identities via tested migration; no destructive fallback. Trace capture must not duplicate or authorize business effects.
+- Never store authentication headers, API credentials or transport secrets, including when a
+  provider echoes a configured credential into a response, stream, tool, clarification or outcome.
+  Scrub credentials only: do not financial-mask full local PT1 trace content. Private diagnostics
+  stay local and separate from normal conversation export/hosted context; no automatic upload.
+  Existing local-RAW and hosted-masking/guard policies remain intact. Existing rows are not
+  rewritten; only explicit history deletion removes any earlier echoed credential.
 - Demonstrate actual execution with full trace reconstruction, including a tool effect and clarification/failure paths; test production-path inclusion and reopen persistence. Use synthetic data, never export personal provider credentials or copy personal DB into repository artifacts.
 - Update affected contracts/docs and append the owner-approved policy decision. Worker artifact: `artifacts/production-trace-mask/workers/PT1-a1.md`.
 - Independent review PASS: `artifacts/production-trace-mask/reviews/PT1-review-01.md`, cycle PT1-cycle-1 round 1. Exact 19-path checkpoint `6589c880537ee61a92fb99b91b70df5bc501930c`; record `artifacts/production-trace-mask/checkpoints/PT1-checkpoint-01.md`. Production traces subsequently exercised on the upgraded main app during PT2; PT2 full-flow acceptance remains separately gated.

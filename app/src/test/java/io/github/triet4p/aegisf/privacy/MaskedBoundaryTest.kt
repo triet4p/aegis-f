@@ -1,6 +1,7 @@
 package io.github.triet4p.aegisf.privacy
 
 import io.github.triet4p.aegisf.agent.AgentContextManager
+import io.github.triet4p.aegisf.provider.HostedAuthentication
 import io.github.triet4p.aegisf.provider.HostedAdapters
 import io.github.triet4p.aegisf.provider.HostedProviderFailure
 import io.github.triet4p.aegisf.provider.HostedGenerationResult
@@ -207,6 +208,55 @@ class MaskedBoundaryTest {
             """{"echoed":"Salary 15,000,000 VND on 2026-10-25 to 4821"}""",
         )
         assertNoRawLiteral(listOf(toolJson), "tool-result")
+    }
+
+    @Test
+    fun `configured provider credential never enters prompt or tool-result bodies`() = runBlocking {
+        val credential = "s8-provider-credential-must-stay-local"
+        val config = ProviderFixtures.chatConfig().copy(
+            authentication = HostedAuthentication.Bearer(credential),
+        )
+        val (toolReply, _) = repliesFor(HostedProtocol.OPENAI_CHAT_COMPLETIONS)
+        val echoedReply = ProviderFixtures.reply(
+            """{"model":"deepseek-v4.1-flash","choices":[{"message":{"role":"assistant","content":"$credential"},"finish_reason":"stop"}]}""",
+        )
+        val transport = RecordingTransport(toolReply, echoedReply)
+        val boundary = MaskedPromptBoundary(
+            SensitiveVault("s8-credential-egress"),
+            config.authentication::redact,
+        )
+        val gateway = MaskedHostedGateway(HostedAdapters.create(config, transport), boundary)
+        val initial = gateway.begin("Follow the tool schema.", "The request includes $credential.")
+        val first = gateway.generate(initial, listOf(ProviderFixtures.echoTool))
+        assertTrue(first is HostedGenerationResult.Turn)
+        val pending = (first as HostedGenerationResult.Turn).turn.conversation
+            ?: error("the scripted tool call should leave a pending continuation")
+
+        val result = JSONObject()
+            .put("provider_echo", "The provider key is $credential")
+            .put("private_amount", "VND 6,700,000")
+            .toString()
+        val continuation = gateway.continueWithToolResults(
+            MaskedConversation(pending, boundary),
+            listOf(HostedToolResult(pending.pendingCallIds.single(), result)),
+        )
+        val second = gateway.generate(continuation, listOf(ProviderFixtures.echoTool))
+
+        assertTrue(
+            "a provider echo of the configured credential must be blocked",
+            second is HostedGenerationResult.ProviderFailure,
+        )
+        assertEquals(2, transport.requests.size)
+        assertTrue(transport.bodies.all { credential !in it })
+        assertTrue(transport.bodies.all { "[redacted-credential]" in it })
+        assertFalse(transport.bodies[1].contains("6,700,000"))
+        try {
+            boundary.maskToolResultJson(JSONObject().put(credential, "field-name").toString())
+            fail("a credential in a tool-result key must not be sent")
+        } catch (_: MaskingBlockedException) {
+            assertEquals("refusing a credential-bearing key adds no request", 2, transport.requests.size)
+        }
+        assertTrue(boundary.scanInbound(credential) is InboundScan.Refused)
     }
 
     @Test
