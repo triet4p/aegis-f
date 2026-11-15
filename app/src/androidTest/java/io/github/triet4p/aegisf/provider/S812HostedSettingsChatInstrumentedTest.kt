@@ -33,12 +33,12 @@ class S812HostedSettingsChatInstrumentedTest {
         waitForText("Manual record")
 
         selectPrimaryDestination("Review")
-        waitForText("REVIEW NOTIFICATIONS")
+        waitForText("Review inbox")
         selectPrimaryDestination("Home")
         compose.onNodeWithText("Settings").performClick()
-        compose.onNodeWithText("Bank notification settings").performScrollTo().performClick()
+        compose.onNodeWithText("Bank notifications").performScrollTo().performClick()
         waitForText("Bank notifications")
-        compose.onNodeWithText("Back").performClick()
+        compose.onNodeWithContentDescription("Back").performClick()
 
     }
 

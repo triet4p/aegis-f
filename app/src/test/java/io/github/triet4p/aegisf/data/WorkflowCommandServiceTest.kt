@@ -1547,6 +1547,67 @@ class WorkflowCommandServiceTest {
     }
 
     @Test
+    fun `category edits during inference refuse a deleted stale model choice`() = runTest {
+        val database = open()
+        try {
+            val commands = commands(database)
+            val draftId = storeDraft(database, "s115-category-edit", 50_000L)
+            val foodId = database.categoryDao().insert(
+                CategoryEntity(name = "Food", createdAtEpochMillis = CAPTURE_TIME, updatedAtEpochMillis = CAPTURE_TIME),
+            )
+            val fuelId = database.categoryDao().insert(
+                CategoryEntity(name = "Fuel", createdAtEpochMillis = CAPTURE_TIME, updatedAtEpochMillis = CAPTURE_TIME),
+            )
+            val draft = database.pendingBankDraftDao().findById(draftId)!!
+            val query = WorkflowQueryService(database)
+            val contextRevision = query.draftContextSnapshot(draftId).second
+            val catalogRevision = categoryCatalogRevision(query.categoryCatalog())
+
+            assertTrue(
+                commands.renameCategory(
+                    WorkflowCallerScope.User,
+                    RenameCategoryRequest("s115-category-rename", foodId, "Meals"),
+                ) is WorkflowCommandOutcome.Applied,
+            )
+            assertTrue(
+                commands.archiveCategory(
+                    WorkflowCallerScope.User,
+                    ArchiveCategoryRequest("s115-category-archive", fuelId),
+                ) is WorkflowCommandOutcome.Applied,
+            )
+            assertTrue(
+                commands.deleteCategory(
+                    WorkflowCallerScope.User,
+                    DeleteCategoryRequest("s115-category-delete", fuelId),
+                ) is WorkflowCommandOutcome.Applied,
+            )
+
+            val staleChoice = commands.selectDraftCategory(
+                WorkflowCallerScope.AgentSession("s115-category-session", emptySet(), setOf(draftId)),
+                SelectDraftCategoryRequest(
+                    "s115-category-choice",
+                    draftId,
+                    draft.reviewRevision,
+                    fuelId,
+                    contextRevision,
+                    catalogRevision,
+                ),
+            )
+            assertEquals(
+                WorkflowCommandOutcome.Conflict("The draft context or category catalog changed."),
+                staleChoice,
+            )
+            assertNull(database.pendingBankDraftDao().findById(draftId)!!.reviewCategoryId)
+            assertEquals("Meals", database.categoryDao().findById(foodId)!!.name)
+            assertNull(database.categoryDao().findById(fuelId))
+            assertEquals(IntakeReviewStatus.PENDING, database.pendingBankDraftDao().findById(draftId)!!.reviewStatus)
+            assertTrue(database.transactionDao().findAll().isEmpty())
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
     fun `the hosted workflow saves an existing category without confirming the draft`() = runTest {
         val database = open()
         try {

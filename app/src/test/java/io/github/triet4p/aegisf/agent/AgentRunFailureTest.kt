@@ -34,4 +34,21 @@ class AgentRunFailureTest {
         assertTrue(failure is AgentRunFailure.Timeout)
         assertTrue(failure.retryable)
     }
+
+    @Test
+    fun authenticationFailureIsTerminalWhileRateLimitRemainsRetryable() {
+        listOf(401, 403).forEach { status ->
+            val authentication = AgentRunFailure.ofProvider(
+                HostedProviderFailure.Authentication(status, "synthetic key rejected"),
+            )
+            assertEquals("authentication:$status", authentication.code)
+            assertFalse("a rejected provider key is not retryable", authentication.retryable)
+        }
+
+        val rateLimited = AgentRunFailure.ofProvider(
+            HostedProviderFailure.RateLimited(429, retryAfterSeconds = 17, detail = "synthetic limit"),
+        )
+        assertTrue(rateLimited is AgentRunFailure.RateLimited)
+        assertTrue(rateLimited.retryable)
+    }
 }

@@ -449,3 +449,11 @@ and allow only the exact validated external report rather than opening a blanket
 
 **Watch out for:** Never "fix" slow live behavior by pumping the test clock faster — the harness stays in the path. Measure with a deterministic local producer before attributing cadence to the provider.
 
+
+## [2026-11-15] A stale Compose label can masquerade as lost route restoration
+
+**Symptom:** The activity-recreation instrumentation failed after returning to the Notes tab because it could not find `NEW QUICK CAPTURE`.
+**Root cause:** That literal was not part of the current Notes surface; the root app bar now exposes the screen as `Notes`, so the assertion misdiagnosed an obsolete label as a lost route.
+**Fix / workaround:** Assert the current user-visible `Notes` title after `ActivityScenario.recreate()` and keep the independent unsaved-Manual-field assertion.
+**Watch out for:** When a recreation assertion fails, compare its semantic target with the current screen strings before changing navigation or saveable-state code.
+

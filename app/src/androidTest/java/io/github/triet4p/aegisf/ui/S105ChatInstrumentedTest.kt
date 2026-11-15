@@ -1,12 +1,26 @@
 package io.github.triet4p.aegisf.ui
 
 import android.content.Context
+import android.app.KeyguardManager
+import android.os.PowerManager
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsEnabled
@@ -94,6 +108,7 @@ import io.github.triet4p.aegisf.ui.theme.AegisTheme
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -181,6 +196,110 @@ class S105ChatInstrumentedTest {
             runs.sumOf { history.conversationForRun(it.runId).count { line -> line.role == "USER" } }
         }
         assertEquals("a repeated user line was stored", 2, userLines)
+    }
+
+    @Test
+    fun screenLockKeepsOneInferenceActiveUntilTheOwnerUnlocks() {
+        prepare()
+        val packageName = context.packageName
+        assertEquals("io.github.triet4p.aegisf.s111evidence", packageName)
+        val keyguard = requireNotNull(context.getSystemService(KeyguardManager::class.java))
+        val power = requireNotNull(context.getSystemService(PowerManager::class.java))
+        assertFalse("the owner must start from an unlocked device", keyguard.isKeyguardLocked)
+        assertTrue("the owner must start with the display awake", power.isInteractive)
+        val lockedCheckpoint = File(context.cacheDir, "s115-device-locked")
+        val temporaryCheckpoint = File(context.cacheDir, "s115-device-locked.tmp")
+        val unlockSignal = CompletableDeferred<Unit>()
+        lockedCheckpoint.delete()
+        temporaryCheckpoint.delete()
+
+        try {
+            val runState = ChatAgentRunState()
+            val adapter = LockHeldStreamingAdapter(unlockSignal)
+            startScreen(runState, adapter, showLockInstructions = true)
+            assertTrue(
+                "the lock test directions must be visible on the phone",
+                compose.onAllNodesWithText(LOCK_INSTRUCTIONS_TITLE)
+                    .fetchSemanticsNodes().isNotEmpty(),
+            )
+            assertTrue(
+                "the owner must be told to wait for Main's checkpoint before unlocking",
+                compose.onAllNodesWithText(LOCK_INSTRUCTIONS_MAIN_CONFIRMATION)
+                    .fetchSemanticsNodes().isNotEmpty(),
+            )
+            typePrompt("Explain why a bicycle needs a bell.")
+            compose.onNodeWithTag("chat-send").assertIsEnabled().performClick()
+            compose.waitUntil(timeoutMillis = 30_000) {
+                assistantText().contains("Synthetic inference is waiting.") && runState.busy
+            }
+            val runId = requireNotNull(runState.runId)
+            assertEquals(1, runBlocking { history.recentRuns(10).size })
+
+            compose.waitUntil(timeoutMillis = OWNER_ACTION_TIMEOUT_MILLIS) {
+                keyguard.isKeyguardLocked
+            }
+            assertTrue("the phone must be physically locked before checkpointing", keyguard.isKeyguardLocked)
+            assertTrue("the inference stopped while the screen was locked", runState.busy)
+            assertEquals(runId, runState.runId)
+            assertEquals(1, adapter.requestCount)
+            val lockedRuns = runBlocking { history.recentRuns(10) }
+            assertEquals(1, lockedRuns.size)
+            val lockedUserLineCount = runBlocking {
+                history.conversationForRun(runId).count { it.role == "USER" }
+            }
+            assertEquals(1, lockedUserLineCount)
+            val lockedTransactions = runBlocking { database.transactionDao().findAll() }
+            assertTrue(lockedTransactions.isEmpty())
+
+            temporaryCheckpoint.writeText(
+                "package=$packageName\n" +
+                    "runId=$runId\n" +
+                    "keyguardIsLocked=${keyguard.isKeyguardLocked}\n" +
+                    "runBusy=${runState.busy}\n" +
+                    "requestCount=${adapter.requestCount}\n" +
+                    "runCount=${lockedRuns.size}\n" +
+                    "userLineCount=$lockedUserLineCount\n" +
+                    "ledgerTransactionCount=${lockedTransactions.size}\n",
+            )
+            check(temporaryCheckpoint.renameTo(lockedCheckpoint)) {
+                "could not publish the verified lock checkpoint"
+            }
+
+            compose.waitUntil(timeoutMillis = OWNER_ACTION_TIMEOUT_MILLIS) {
+                !keyguard.isKeyguardLocked && power.isInteractive
+            }
+            assertFalse("the owner must unlock the device normally", keyguard.isKeyguardLocked)
+            assertTrue("the display must be awake after unlocking", power.isInteractive)
+            assertTrue("the inference must remain held until unlock is verified", runState.busy)
+            assertEquals(runId, runState.runId)
+            assertEquals(1, adapter.requestCount)
+            assertEquals(1, runBlocking { history.recentRuns(10).size })
+            assertEquals(
+                1,
+                runBlocking {
+                    history.conversationForRun(runId).count { it.role == "USER" }
+                },
+            )
+            assertTrue(runBlocking { database.transactionDao().findAll().isEmpty() })
+            unlockSignal.complete(Unit)
+            compose.waitUntil(timeoutMillis = 30_000) { !runState.busy }
+
+            assertEquals(1, adapter.requestCount)
+            assertEquals(1, runBlocking { database.agentRunDao().findRecent(10).size })
+            assertEquals(
+                1,
+                runBlocking {
+                    history.conversationForRun(runId).count { it.role == "USER" }
+                },
+            )
+            assertEquals("SUCCEEDED", runBlocking { history.runForId(runId) }?.state)
+            assertTrue(runBlocking { database.transactionDao().findAll().isEmpty() })
+            waitForAssistantText("Synthetic inference completed after unlocking.", 30_000)
+        } finally {
+            unlockSignal.complete(Unit)
+            lockedCheckpoint.delete()
+            temporaryCheckpoint.delete()
+        }
     }
 
     @Test
@@ -1494,22 +1613,49 @@ class S105ChatInstrumentedTest {
         runState: ChatAgentRunState,
         adapter: HostedGenerationAdapter,
         language: AegisLanguage = AegisLanguage.ENGLISH,
+        showLockInstructions: Boolean = false,
     ) {
         setChatContent {
             AegisTheme(language = language) {
                 val scope = rememberCoroutineScope()
-                AiChatScreen(
-                    queryService = queries,
-                    commandService = commands,
-                    activeProvider = { fakeProvider() },
-                    networkAvailable = true,
-                    createHostedWorkflowHost = { session, config -> host(session, config, adapter) },
-                    agentRunHistory = history,
-                    agentRunState = remember { runState },
-                    agentRunScope = scope,
-                    onOpenProviderSettings = {},
-                    onRecordEvent = {},
-                )
+                val chatContent: @Composable () -> Unit = {
+                    AiChatScreen(
+                        queryService = queries,
+                        commandService = commands,
+                        activeProvider = { fakeProvider() },
+                        networkAvailable = true,
+                        createHostedWorkflowHost = { session, config ->
+                            host(session, config, adapter)
+                        },
+                        agentRunHistory = history,
+                        agentRunState = remember { runState },
+                        agentRunScope = scope,
+                        onOpenProviderSettings = {},
+                        onRecordEvent = {},
+                    )
+                }
+                if (showLockInstructions) {
+                    Box(Modifier.fillMaxSize()) {
+                        chatContent()
+                        Surface(
+                            modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            tonalElevation = 4.dp,
+                        ) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text(LOCK_INSTRUCTIONS_TITLE, fontWeight = FontWeight.Bold)
+                                Text(LOCK_INSTRUCTIONS_WAIT)
+                                Text(LOCK_INSTRUCTIONS_LOCK)
+                                Text(LOCK_INSTRUCTIONS_MAIN_CONFIRMATION)
+                                Text(LOCK_INSTRUCTIONS_UNLOCK)
+                                Text(LOCK_INSTRUCTIONS_SAFETY)
+                            }
+                        }
+                    }
+                } else {
+                    chatContent()
+                }
             }
         }
         compose.waitUntil(20_000) {
@@ -1965,8 +2111,72 @@ class S105ChatInstrumentedTest {
             )
     }
 
+    /** A deterministic provider seam held at the physical lock/unlock checkpoint. */
+    private class LockHeldStreamingAdapter(
+        private val unlockSignal: CompletableDeferred<Unit>,
+    ) : HostedGenerationAdapter {
+        override val protocol: HostedProtocol = HostedProtocol.OPENAI_CHAT_COMPLETIONS
+        override val streamingEnabled: Boolean = true
+        var requestCount = 0
+            private set
+
+        override fun begin(systemInstruction: String, userInstruction: String): HostedConversation =
+            ScriptedConversation(protocol)
+
+        override suspend fun generate(
+            conversation: HostedConversation,
+            tools: List<HostedToolDeclaration>,
+        ): HostedGenerationResult = completeTurn("")
+
+        override suspend fun streamGuarded(
+            conversation: HostedConversation,
+            tools: List<HostedToolDeclaration>,
+            responseGuard: HostedResponsePrivacyGuard,
+            onProgress: (HostedTurnProgress) -> Unit,
+        ): HostedGenerationResult {
+            requestCount += 1
+            onProgress(HostedTurnProgress.PublicText("Synthetic inference is waiting."))
+            unlockSignal.await()
+            val answer = "Synthetic inference completed after unlocking."
+            onProgress(HostedTurnProgress.PublicText(answer))
+            return completeTurn(answer)
+        }
+
+        override fun continueWithToolResults(
+            conversation: HostedConversation,
+            results: List<HostedToolResult>,
+            hostNotice: String?,
+        ): HostedConversation = ScriptedConversation(protocol)
+
+        private fun completeTurn(text: String): HostedGenerationResult =
+            HostedGenerationResult.Turn(
+                HostedTurn(
+                    protocol = protocol,
+                    requestedModel = MODEL,
+                    reportedModel = MODEL,
+                    assistantText = text,
+                    toolCalls = emptyList(),
+                    finish = HostedTurnFinish.Complete,
+                    usage = null,
+                    conversation = null,
+                ),
+            )
+    }
+
     private companion object {
         const val MODEL = "s105-scripted-model"
+        const val OWNER_ACTION_TIMEOUT_MILLIS = 15 * 60 * 1_000L
+        const val LOCK_INSTRUCTIONS_TITLE = "S11.5 — HƯỚNG DẪN KIỂM TRA KHÓA MÀN HÌNH"
+        const val LOCK_INSTRUCTIONS_WAIT =
+            "1. Chờ câu trả lời “Synthetic inference is waiting.” xuất hiện trong cuộc trò chuyện."
+        const val LOCK_INSTRUCTIONS_LOCK =
+            "2. Khi thấy câu đó, hãy khóa điện thoại bằng nút nguồn như bình thường và giữ nguyên trạng thái khóa."
+        const val LOCK_INSTRUCTIONS_MAIN_CONFIRMATION =
+            "3. Nhắn Main: “Điện thoại đã khóa; vui lòng xác nhận mốc kiểm tra.” Đừng mở khóa cho đến khi Main xác nhận."
+        const val LOCK_INSTRUCTIONS_UNLOCK =
+            "4. Sau khi Main xác nhận mốc khóa, hãy mở khóa điện thoại theo cách bình thường để bài kiểm tra tiếp tục."
+        const val LOCK_INSTRUCTIONS_SAFETY =
+            "Không đổi mã PIN/cài đặt bảo mật và không dùng thao tác khóa/mở khóa tự động."
 
 
         /** The temporary profile the owner-authorized live stage injects and later removes. */

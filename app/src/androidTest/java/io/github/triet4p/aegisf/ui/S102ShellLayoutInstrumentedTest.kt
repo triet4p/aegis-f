@@ -159,7 +159,7 @@ class S102ShellLayoutInstrumentedTest {
         compose.waitForIdle()
         assertTrue(
             "the Notes destination did not survive recreation",
-            compose.onAllNodesWithText("NEW QUICK CAPTURE", substring = true)
+            compose.onAllNodesWithText("Notes", substring = true)
                 .fetchSemanticsNodes().isNotEmpty(),
         )
         writeScreenshot("notes-after-recreation", compose.onRoot().captureToImage().asAndroidBitmap())
