@@ -7,6 +7,10 @@ and no release has been tagged or published. Format follows
 
 ## [Unreleased]
 
+### Sprint 11 — S11.6 measured masking responsiveness
+
+- **AI Chat** now masks notes and tool results into one output buffer and reuses the token-stripped inbound text during sensitive-value validation. Long messages with many detected values require fewer copies and repeated scans while preserving masking and refusal behavior.
+
 ### Sprint 11 — S11.4 privacy, retention and permissions
 
 - **AI Chat** keeps complete local provider traces, including sensitive financial text, raw

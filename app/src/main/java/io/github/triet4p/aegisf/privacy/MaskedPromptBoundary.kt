@@ -108,23 +108,22 @@ class MaskedPromptBoundary(
         if (credentialRedactor(text) != text) {
             return InboundScan.Refused(InboundRefusal.RAW_LITERAL_EGRESS)
         }
-        val scopeStripped = SensitiveVault.TOKEN_PATTERN.replace(text) { match ->
-            if ("-${vault.scopeTag}-" in match.value) " " else match.value
-        }
-        FOREIGN_TOKEN_PATTERN.find(scopeStripped)?.let {
-            return InboundScan.Refused(InboundRefusal.FOREIGN_TOKEN)
-        }
-        val knownStripped = SensitiveVault.TOKEN_PATTERN.replace(text) { match ->
-            if ("-${vault.scopeTag}-" in match.value && vault.isKnownToken(match.value)) {
-                " "
+        var foreignToken = false
+        var unknownToken = false
+        val tokenStripped = SensitiveVault.TOKEN_PATTERN.replace(text) { match ->
+            if ("-${vault.scopeTag}-" in match.value) {
+                if (!vault.isKnownToken(match.value)) unknownToken = true
             } else {
-                match.value
+                foreignToken = true
             }
+            " "
         }
-        TOKEN_LIKE_PATTERN.find(knownStripped)?.let {
+        if (foreignToken) return InboundScan.Refused(InboundRefusal.FOREIGN_TOKEN)
+        if (unknownToken) return InboundScan.Refused(InboundRefusal.UNKNOWN_TOKEN)
+        TOKEN_LIKE_PATTERN.find(tokenStripped)?.let {
             return InboundScan.Refused(InboundRefusal.UNKNOWN_TOKEN)
         }
-        val leaked = vault.scanLeak(text)
+        val leaked = vault.scanLeakTokenStripped(tokenStripped)
         if (leaked) return InboundScan.Refused(InboundRefusal.RAW_LITERAL_EGRESS)
         return InboundScan.Accepted
     }
@@ -926,7 +925,6 @@ private fun collectReasoningContainers(
 }
 
 private val TOKEN_LIKE_PATTERN = Regex("⟦[^\\s⟦⟧]{1,64}⟧")
-private val FOREIGN_TOKEN_PATTERN = Regex("⟦V-[A-Za-z0-9]{4,12}-\\d{4}⟧")
 private const val MAX_RESPONSE_JSON_DEPTH = 64
 private val SAFE_RESPONSE_JSON_PATH_SEGMENTS = setOf(
     "choices", "message", "content", "reasoning_content", "reasoning",

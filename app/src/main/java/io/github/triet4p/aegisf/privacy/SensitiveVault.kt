@@ -257,11 +257,16 @@ class SensitiveVault(
      */
     fun scanLeak(text: String): Boolean {
         if (text.isEmpty()) return false
-        val stripped = TOKEN_PATTERN.replace(text, " ")
+        return scanLeakTokenStripped(TOKEN_PATTERN.replace(text, " "))
+    }
+
+    /** Scans text after all well-formed token spans have already been replaced with spaces. */
+    internal fun scanLeakTokenStripped(tokenStrippedText: String): Boolean {
+        if (tokenStrippedText.isEmpty()) return false
         synchronized(lock) {
             if (byToken.isEmpty()) return false
             return byToken.values.any { entry ->
-                entry.firstSurface in stripped || entry.canonical in stripped
+                entry.firstSurface in tokenStrippedText || entry.canonical in tokenStrippedText
             }
         }
     }
@@ -397,19 +402,26 @@ class SensitiveVault(
                 chosen.add(hit)
             }
         }
-        // Mint in ascending order so each token is created once, then apply left to right
-        // while tracking the shift masked offsets accumulate.
         val ascending = chosen.sortedBy { it.start }
+        if (ascending.isEmpty()) return text
+        // Mint in source order so each token is created once, then copy unchanged spans and
+        // replacements into one exact-size output buffer.
         val tokens = ascending.map { hit -> tokenFor(hit, commit) }
-        var masked = text
-        var delta = 0
-        for ((index, hit) in ascending.withIndex()) {
-            val token = tokens[index]
-            val applyAt = hit.start + delta
-            masked = masked.replaceRange(applyAt, applyAt + (hit.end - hit.start), token)
-            delta += token.length - (hit.end - hit.start)
+        var maskedLength = text.length
+        for (index in ascending.indices) {
+            val hit = ascending[index]
+            maskedLength += tokens[index].length - (hit.end - hit.start)
         }
-        return masked
+        val masked = StringBuilder(maskedLength)
+        var sourceStart = 0
+        for (index in ascending.indices) {
+            val hit = ascending[index]
+            masked.append(text, sourceStart, hit.start)
+            masked.append(tokens[index])
+            sourceStart = hit.end
+        }
+        masked.append(text, sourceStart, text.length)
+        return masked.toString()
     }
 
     private fun canonicalDate(surface: String): String {
