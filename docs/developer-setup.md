@@ -119,7 +119,7 @@ Set-Location F:\ai-ml\aegis-f
 Output:
 
 - APK: `F:\ai-ml\aegis-f\app\build\outputs\apk\debug\app-debug.apk`
-- Expected identity: package `io.github.triet4p.aegisf`, `versionCode = 4`, `versionName = "1.0"`, compile SDK 37 / target SDK 37 / min SDK 24, exported launcher `io.github.triet4p.aegisf.MainActivity` labelled **Aegis F**. The APK SHA-256 changes on every rebuild; compare package/version/launcher/signer, not the hash, unless you are checking one specific build.
+- Expected identity: package `io.github.triet4p.aegisf`, `versionCode = 5`, `versionName = "1.0"`, compile SDK 37 / target SDK 37 / min SDK 24, exported launcher `io.github.triet4p.aegisf.MainActivity` labelled **Aegis F**. The APK SHA-256 changes on every rebuild; compare package/version/launcher/signer, not the hash, unless you are checking one specific build.
 
 Known non-blocking build warnings; neither fails the build:
 
@@ -132,7 +132,116 @@ No tests, lint, or formatter run is part of this build. No Android Studio, emula
 
 `assembleDebug` uses AGP's normal debug signing with the standard per-user key at `%USERPROFILE%\.android\debug.keystore` (outside the repository). Certificate: `C=US, O=Android, CN=Android Debug`, SHA-256 `891542fd7a27bdaff367af863d28ac0babeb4dfd2c394e340348534a797ff41b` — the same certificate used by every package the user has installed so far.
 
-**Preserve that key file.** An in-place update (`adb install -r`) is accepted only when the new APK is signed by the same certificate as the installed one. Deleting, regenerating, or replacing `debug.keystore` produces a different certificate and the phone will reject the update. No release signing configuration or private key exists in the project, and no signing material belongs in the repository. `local.properties`, SDK paths, build output, caches, IDE state, signing credentials, and APK/AAB files are Git-ignored; the Wrapper files (including `gradle-wrapper.jar`) stay trackable.
+**Preserve that key file.** An in-place update (`adb install -r`) is accepted only when the new APK is signed by the same certificate as the installed one. Deleting, regenerating, or replacing `debug.keystore` produces a different certificate and the phone will reject the update. The private release key below is deliberately different: never try to replace a debug-signed main installation with this release APK in place.
+
+### Private release signing key and APK
+
+The release build uses a dedicated PKCS#12 signing key at
+`%LOCALAPPDATA%\AegisF\release-signing\aegisf-release.p12`, alias
+`aegisf-release`. Its self-signed certificate uses RSA-3072 with SHA256withRSA,
+valid 2026-11-16 through 2054-04-03; SHA-256 fingerprint:
+`28D351E604073E159D47DE02FB04766FF0A60AFDFDEC5709B6B0A9ABF1FDAB2C`.
+
+Gradle reads its store path, alias and passwords only from the
+`AEGISF_RELEASE_STORE_FILE`, `AEGISF_RELEASE_KEY_ALIAS`,
+`AEGISF_RELEASE_STORE_PASSWORD`, and `AEGISF_RELEASE_KEY_PASSWORD` process
+environment variables. It does not read signing secrets from project files,
+Gradle properties, source, or command-line arguments. Use `--no-daemon` so the
+credential-bearing environment is not retained by a reusable Gradle daemon.
+
+The local store password is generated once and held in
+`%LOCALAPPDATA%\AegisF\release-signing\store-password.dpapi`, encrypted by
+Windows DPAPI for the current Windows account. The key directory and secret
+file are ACL-restricted to that account. The encrypted password file is not a
+portable credential backup: it depends on this Windows profile. This task made
+the local key and DPAPI file only; it did **not** make an independent owner
+backup.
+
+To reproduce the signed release APK from a fresh PowerShell process on this
+same Windows profile, load the DPAPI value into process environment variables
+without printing it, then invoke the existing Wrapper:
+
+```powershell
+$signingDirectory = Join-Path $env:LOCALAPPDATA 'AegisF\release-signing'
+Add-Type -AssemblyName System.Security
+$protectedPasswordBytes = [Convert]::FromBase64String(
+    (Get-Content -LiteralPath (Join-Path $signingDirectory 'store-password.dpapi') -Raw).Trim()
+)
+$passwordBytes = [Security.Cryptography.ProtectedData]::Unprotect(
+    $protectedPasswordBytes,
+    $null,
+    [Security.Cryptography.DataProtectionScope]::CurrentUser
+)
+$password = [Convert]::ToBase64String($passwordBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+try {
+    $env:AEGISF_RELEASE_STORE_FILE = Join-Path $signingDirectory 'aegisf-release.p12'
+    $env:AEGISF_RELEASE_STORE_PASSWORD = $password
+    $env:AEGISF_RELEASE_KEY_ALIAS = 'aegisf-release'
+    $env:AEGISF_RELEASE_KEY_PASSWORD = $password
+    .\gradlew.bat --no-daemon :app:assembleRelease --console=plain
+} finally {
+    $env:AEGISF_RELEASE_STORE_FILE = $null
+    $env:AEGISF_RELEASE_STORE_PASSWORD = $null
+    $env:AEGISF_RELEASE_KEY_ALIAS = $null
+    $env:AEGISF_RELEASE_KEY_PASSWORD = $null
+    $password = $null
+    [Array]::Clear($passwordBytes, 0, $passwordBytes.Length)
+    [Array]::Clear($protectedPasswordBytes, 0, $protectedPasswordBytes.Length)
+}
+
+The signed APK is `app\build\outputs\apk\release\app-release.apk`. The
+production package is `io.github.triet4p.aegisf`; the clean production
+`versionCode` starts at `5`, so the next production release uses `6` or higher.
+Every later release must keep increasing it. Android accepts an in-place update
+only when both package and signing certificate match and the incoming version
+code is higher.
+
+`-PS117_RELEASE_FIXTURE=1` is reserved for an isolated update proof: it adds the
+`.s117release` package suffix and enables `run-as` inspection for that fixture
+only. The production release remains non-debuggable and keeps the original
+package. `-PS117_VERSION_CODE=<code>` is a proof override; the default is `5`,
+the next production release is `6` or higher, and every later production
+release must keep increasing. The ordered fixture uses codes `5` then `6`; a
+separate non-debuggable production code-`6` APK was built only for static
+verification and was not installed. Do not distribute the fixture package.
+
+**Signing-key backup and recovery:** keep the original `.p12` unchanged; every
+later in-place release must use this exact key. Before a profile reset or
+machine change, run the DPAPI loader above in the current Windows account,
+record the decrypted password directly in the owner's password manager without
+echoing it, and copy the `.p12` into owner-controlled encrypted offline
+storage. Do not treat `store-password.dpapi` as a portable backup: Windows
+DPAPI binds it to this profile.
+
+For recovery, restore the `.p12`, retrieve the password from the password
+manager into process environment variables (never command arguments), then
+verify the certificate before building:
+
+```powershell
+& "$env:JAVA_HOME\bin\keytool.exe" -list -v `
+    -keystore $env:AEGISF_RELEASE_STORE_FILE -storetype PKCS12 `
+    -alias $env:AEGISF_RELEASE_KEY_ALIAS `
+    -storepass:env AEGISF_RELEASE_STORE_PASSWORD
+```
+
+This task made the local key and DPAPI file only; it did **not** make an
+independent owner backup. Until one is made and verified, do not remove the
+local key or reset this profile; the signing key currently has no independent
+backup.
+
+**Existing debug installation:** the standard debug key and this private
+release key have different certificates, so `adb install -r` cannot migrate
+an existing debug-signed `io.github.triet4p.aegisf` install. Do not uninstall
+or clear it to work around the mismatch. First export complete state from
+**Settings → Privacy & retention**, keep the plaintext export in an
+owner-controlled encrypted offline copy, and verify that exact export can be
+restored in the isolated `.s117release` fixture. Only after the owner has
+verified that independent copy and explicitly chooses the cutover may the
+debug-signed package be uninstalled, the same-package release APK installed,
+and the export restored. Keep the backup until the restored categories,
+ledger totals, drafts and provenance are checked. If export or restore cannot
+be verified, retain the existing debug installation and do not switch it.
+This task does not install any APK over the main package.
 
 ### Optional offline APK inspection (PC-side)
 

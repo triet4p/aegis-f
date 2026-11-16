@@ -6,6 +6,11 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+val releaseSigningStoreFile = providers.environmentVariable("AEGISF_RELEASE_STORE_FILE")
+val releaseSigningStorePassword = providers.environmentVariable("AEGISF_RELEASE_STORE_PASSWORD")
+val releaseSigningKeyAlias = providers.environmentVariable("AEGISF_RELEASE_KEY_ALIAS")
+val releaseSigningKeyPassword = providers.environmentVariable("AEGISF_RELEASE_KEY_PASSWORD")
+
 val s8AgentRuntimeAssetDir = layout.buildDirectory.dir("generated/s8-agent-runtime/assets")
 val copyS8AgentRuntimeAssets by tasks.registering(Copy::class) {
     from(
@@ -39,11 +44,20 @@ android {
     namespace = "io.github.triet4p.aegisf"
     compileSdk = 37
 
+    signingConfigs {
+        create("privateRelease") {
+            storeFile = releaseSigningStoreFile.orNull?.let { rootProject.file(it) }
+            storePassword = releaseSigningStorePassword.orNull
+            keyAlias = releaseSigningKeyAlias.orNull
+            keyPassword = releaseSigningKeyPassword.orNull
+        }
+    }
+
     defaultConfig {
         applicationId = "io.github.triet4p.aegisf"
         minSdk = 24
         targetSdk = 37
-        versionCode = 4
+        versionCode = project.findProperty("S117_VERSION_CODE")?.toString()?.toInt() ?: 5
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -67,6 +81,13 @@ android {
                     targetPackage.endsWith(".s812evidence") -> ".s812evidence"
                     else -> ".s813evidence"
                 }
+            }
+        }
+        release {
+            signingConfig = signingConfigs.getByName("privateRelease")
+            if (project.findProperty("S117_RELEASE_FIXTURE") == "1") {
+                applicationIdSuffix = ".s117release"
+                isDebuggable = true
             }
         }
     }

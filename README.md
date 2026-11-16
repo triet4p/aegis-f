@@ -310,7 +310,8 @@ The following capabilities are not available yet:
   does not log in to a bank or request SMS, accessibility, or notification-posting permissions.
 - **No app-operated cloud service, sync, or account.** There is no login and no Aegis server; the
   only network use is the optional hosted request to the provider the owner configures.
-- **No backup, restore, or export.** See the data note below.
+- **No automatic cloud backup or sync.** Android backup is disabled; user-directed
+  complete-state export and restore are available (see the data note below).
 - **No multi-currency, receipt OCR, voice input, or shared accounts**, and no published release: the
   APK is built and installed privately by its owner.
 
@@ -320,8 +321,9 @@ evidence/checkpoint and affected differential passed at `1e0c679`. The owner dir
 after main-app hands-on feedback and the S10.11 correction. This does not claim that every step
 of the full owner walkthrough was performed; the package retains it as a procedure.
 Chat retry/clarification/history/date repairs remain Sprint 11 S11.C1–C3; the raw provider-trace
-retention/export/backup privacy audit remains S11.4. Recovery and private-release work remain
-planned. See [the project plan](docs/PLAN.md) and [the S10.10 evidence package](artifacts/sprint-10/evidence/S10.10-a1/index.md).
+retention/export/backup privacy audit remains S11.4. The S11.7 private release-signing path is
+documented in the developer setup guide; no release has been published. See
+[the project plan](docs/PLAN.md) and [the S10.10 evidence package](artifacts/sprint-10/evidence/S10.10-a1/index.md).
 
 The legacy Sprint 5 SLM benchmark remains partial, paused, and unapproved; no model was adopted.
 Its generated run reports and raw device outputs are preserved locally but are not versioned.
@@ -335,15 +337,21 @@ The evaluation tooling, frozen inputs, and documented limitations are in
   grant, not a manifest permission. The only permission entries in the built APK are the
   system-bound listener declaration and the dependency-generated, signature-protected internal
   broadcast permission.
-- Android's own backup is switched off for this app (`allowBackup="false"`), and there is no in-app
-  export, import, backup, or restore yet. **Uninstalling the app, clearing its storage, or losing or
-  resetting the phone loses the ledger permanently.**
-- Updating in place keeps the data, as long as the new APK is signed with the same key: build,
-  install with `adb -d install -r`, and the existing ledger is preserved. Do not uninstall or clear
-  app data to work around an install problem — that destroys the state you are trying to keep, and
-  the correct action is to read the `adb` error text instead.
-- The app's private storage relies on Android's normal app sandboxing. No additional encryption or
-  security guarantee is claimed, and no release signing key exists yet.
+- Android's own backup is switched off for this app (`allowBackup="false"`). The app now offers an
+  explicit complete-state export and restore; the exported financial state is plaintext and must
+  be protected as sensitive data. Uninstalling or clearing storage loses the app's only copy unless
+  a separate export has been made and verified.
+- Updating in place keeps data only when the package and signing certificate match and the incoming
+  `versionCode` is higher. The existing debug-signed main installation cannot be updated in place
+  with the private release key. Do not uninstall or clear it to work around a signature error.
+- Safe debug-to-release cutover requires a verified, independently retained complete-state export,
+  a successful restore rehearsal in the isolated release fixture, and the owner's explicit choice.
+  Only then may the old package be uninstalled, the same-package release installed, and the export
+  restored; keep the separate copy until the restored state is checked. If export/restore is not
+  verified, keep the existing installation.
+- The app's private storage relies on Android's normal app sandboxing; no additional encryption
+  guarantee is claimed. The private release signing key is kept outside the repository; see the
+  [developer setup guide](docs/developer-setup.md) for build and recovery instructions.
 
 ## Getting started (Windows, command line)
 

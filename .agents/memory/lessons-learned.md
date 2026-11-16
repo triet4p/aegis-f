@@ -457,3 +457,12 @@ and allow only the exact validated external report rather than opening a blanket
 **Fix / workaround:** Assert the current user-visible `Notes` title after `ActivityScenario.recreate()` and keep the independent unsaved-Manual-field assertion.
 **Watch out for:** When a recreation assertion fails, compare its semantic target with the current screen strings before changing navigation or saveable-state code.
 
+## [2026-11-16] PowerShell security cmdlets failed on duplicate type data
+
+**Symptom:** `Set-Acl` and `ConvertTo-SecureString` could not auto-load; importing `Microsoft.PowerShell.Security` failed because its extended type data already contained duplicate members.
+
+**Root cause:** This Windows PowerShell process could not load the security module's type data cleanly. The reported failure was a duplicate-member conflict, not an ACL or DPAPI failure.
+
+**Fix / workaround:** Use `icacls.exe /inheritance:r /grant:r` to restrict the local signing directory to the current account, and call `.NET` `System.Security.Cryptography.ProtectedData` after `Add-Type -AssemblyName System.Security` for CurrentUser DPAPI. A non-secret random-byte round trip succeeded.
+
+**Watch out for:** In this shell, avoid relying on `Microsoft.PowerShell.Security` cmdlets until the module loads cleanly; keep the credential in the protected local file and process environment without echoing it.

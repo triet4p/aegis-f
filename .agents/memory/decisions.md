@@ -393,3 +393,13 @@ financial confirmation.
 **Reason:** The owner-reported failure was exactly this: a note that stated a day and month without a year produced a date question instead of any search, and the natural year answer that followed could not be used. The privacy boundary masks every string in a tool result and the answer guard refuses any mapped raw surface, so a plaintext date string would be tokenized before the model could state it, while numbers survive; a current-year guess would silently reinterpret an old note. Answer-time chronology is fixed at the question because a retry or a year boundary must not move the answer.
 
 **Consequences:** New tools must stay read-only and be listed in the skills that need them; the tool schema, skill schema and context-block versions move together (v9/v13) and invalidate cache identities. A date alias keeps the chronology that resolved it, and `find_candidates` must keep its day bound (31 days, two chronologies) and report the window it read. Any future tool that needs a temporal anchor should reuse `SpelledTemporalExpressions` and the existing masked-token path instead of emitting raw dates.
+
+## [2026-11-16] Keep release signing secrets outside the Gradle project
+
+**Decision:** Sign release APKs with a dedicated PKCS#12 store outside the repository, pass its path/alias/password through process environment variables, and encrypt the local password bytes with current-user Windows DPAPI.
+
+**Alternatives considered:** Store signing values in project properties or source; put passwords in command-line `-P` arguments; reuse the standard Android debug key.
+
+**Reason:** Package updates require one stable signer, while the task forbids secrets in Git, command arguments, build output and evidence. Current-user DPAPI supports repeatable local CLI builds without putting plaintext credentials in project files, and the debug certificate is not the release identity.
+
+**Consequences:** Every release update must keep the same key and certificate. The DPAPI credential is bound to this Windows profile; the owner must create and verify an independent encrypted key/password backup before a profile reset or machine change. Production `versionCode` remains monotonic.
