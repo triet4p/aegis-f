@@ -7,6 +7,12 @@ and no release has been tagged or published. Format follows
 
 ## [Unreleased]
 
+### Sprint 11 — offline AI Chat gate
+
+- **AI Chat** now shows the offline banner and disables Send promptly when the device loses its
+  default network while the screen is already open, instead of keeping the stale online state
+  until the destination is reopened.
+
 ### Sprint 11 — private release signing
 
 - Added a CLI release build signed from a dedicated local key outside the repository, with

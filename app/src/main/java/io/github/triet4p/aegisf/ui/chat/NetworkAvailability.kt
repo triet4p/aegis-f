@@ -37,7 +37,11 @@ internal fun rememberNetworkAvailable(): Boolean {
             }
 
             override fun onLost(network: Network) {
-                available = hasValidatedInternet(context)
+                // The default-network callback can report the loss before the system clears the
+                // active network, so a plain re-read may still see the dying path as validated.
+                // Treat the lost default path as gone unless a different default already exists.
+                val active = manager.activeNetwork
+                available = active != null && active != network && hasValidatedInternet(context)
             }
 
             override fun onCapabilitiesChanged(
