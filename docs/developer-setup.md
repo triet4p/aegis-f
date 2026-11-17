@@ -117,7 +117,7 @@ Set-Location F:\ai-ml\aegis-f
 Output:
 
 - APK: `F:\ai-ml\aegis-f\app\build\outputs\apk\debug\app-debug.apk`
-- Expected identity: package `io.github.triet4p.aegisf`, `versionCode = 5`, `versionName = "1.0"`, compile SDK 37 / target SDK 37 / min SDK 24, exported launcher `io.github.triet4p.aegisf.MainActivity` labelled **Aegis F**. The APK SHA-256 changes on every rebuild; compare package/version/launcher/signer, not the hash, unless you are checking one specific build.
+- Expected identity: package `io.github.triet4p.aegisf`, `versionCode = 8`, `versionName = "1.0.0"`, compile SDK 37 / target SDK 37 / min SDK 24, exported launcher `io.github.triet4p.aegisf.MainActivity` labelled **Aegis F**. The APK SHA-256 changes on every rebuild; compare package/version/launcher/signer, not the hash, unless you are checking one specific build.
 
 Known non-blocking build warnings; neither fails the build:
 
@@ -189,20 +189,18 @@ try {
 ```
 
 The signed APK is `app\build\outputs\apk\release\app-release.apk`. The
-production package is `io.github.triet4p.aegisf`; the clean production
-`versionCode` starts at `5`, so the next production release uses `6` or higher.
-Every later release must keep increasing it. Android accepts an in-place update
-only when both package and signing certificate match and the incoming version
-code is higher.
+production package is `io.github.triet4p.aegisf`; the first production release
+uses `versionName=1.0.0` and `versionCode=8`. The next production release must
+use code `9` or higher; every later release must increase it. Android accepts an
+in-place update only when both package and signing certificate match and the
+incoming version code is higher.
 
 `-PS117_RELEASE_FIXTURE=1` is reserved for an isolated update proof: it adds the
 `.s117release` package suffix and enables `run-as` inspection for that fixture
 only. The production release remains non-debuggable and keeps the original
-package. `-PS117_VERSION_CODE=<code>` is a proof override; the default is `5`,
-the next production release is `6` or higher, and every later production
-release must keep increasing. The ordered fixture uses codes `5` then `6`; a
-separate non-debuggable production code-`6` APK was built only for static
-verification and was not installed. Do not distribute the fixture package.
+package. `-PS117_VERSION_CODE=<code>` is a proof override; the default is `8`.
+Use lower values only for isolated fixtures. The historical code-5→6 update
+fixture is not a production build and must never be distributed.
 
 **Signing-key backup and recovery:** keep the original `.p12` unchanged; every
 later in-place release must use this exact key. Before a profile reset or
@@ -258,15 +256,17 @@ Get-FileHash -LiteralPath $apk -Algorithm SHA256
 
 The only declared permission is the dependency-generated, signature-protected `io.github.triet4p.aegisf.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`; the app declares no runtime permission and keeps `allowBackup="false"`. Offline inspection proves packaging, not on-device behavior.
 
-### S11.10 private release acceptance artifact (not published)
+### Release 1.0.0 production APK
 
-The current private production APK is copied outside the repository to `%LOCALAPPDATA%\AegisF\release-signing\fixtures\aegisf-production-release-v7-s1110.apk`. It is package `io.github.triet4p.aegisf`, `versionCode=7`, `versionName=1.0`, non-debuggable, and signed by the existing private release identity (certificate SHA-256 `28D351E604073E159D47DE02FB04766FF0A60AFDFDEC5709B6B0A9ABF1FDAB2C`). APK SHA-256: `D7F20EF1A25A20D681B9D6E0B567A2B2550250BC6D7B2C6239E3443FA2B22F02`.
+The production APK is package `io.github.triet4p.aegisf`, `versionName=1.0.0`, `versionCode=8`, and non-debuggable. It is signed by the existing private release identity (certificate SHA-256 `28D351E604073E159D47DE02FB04766FF0A60AFDFDEC5709B6B0A9ABF1FDAB2C`). APK SHA-256: `1DC31D8652699F2A4761E3488F9CDB4139BC232E9F849B57E1ED46FE17BF6845`.
 
-**Source mapping:** Main supplied `6deb71fe4d07503bee42264029ed89de2951cf98` as the expected base for `refs/heads/main`; the S11.10 release build ran from that worktree before any S11.10 documentation edits. This records the assigned source mapping, not a separate Git-ref check by this worker. Build command: `.\gradlew.bat --no-daemon -PS117_VERSION_CODE=7 :app:assembleRelease --console=plain`; the copied APK hash matched the assembled output. Build signing secrets were loaded from the current Windows profile's DPAPI-protected value into process environment variables and were not placed in arguments, logs, source, or evidence. `aapt dump badging` and `apksigner verify --verbose --print-certs` confirmed package/version identity and the expected single signer. This is static package/signature evidence only: the APK was not installed, exercised on a device, or distributed.
+The local copy is `%LOCALAPPDATA%\AegisF\release-signing\fixtures\aegisf-production-release-v1.0.0.apk`. The GitHub release page is [v1.0.0](https://github.com/triet4p/aegis-f/releases/tag/v1.0.0); its production asset is `aegis-f-1.0.0.apk`, accompanied by `aegis-f-1.0.0.apk.sha256`. The checksum matches the assembled APK and local distribution copy.
 
-The S11.7 production code-5 and code-6 APKs, and the two `.s117release` fixture APKs, belong to the S11.7 candidate source snapshot later checkpointed at `57b750e9b11f4e2094d5ddbbdbd50162d5efb728`. They predate the S11.8 default-network-loss fix (`5da7e4196abe1719a8617fcb711ea3ceaa09348`) and are historical, not current. The fixture's same-key code-5→6 proof covered one synthetic transaction in the same schema; it did not test a CAT1 migration. S11.3 migration evidence is separate. No current code-7 populated update or combined same-key CAT1 migration was exercised. Their identities and hashes remain in the [S11.7 artifact record](../artifacts/sprint-11/workers/S11.7-a1.md). The current code-7 candidate includes the fixed source at `6deb71f`.
+**Build and source:** Built from the `081ff2f0f43a295cbf273026a84f4aad265a688f` source base with the release-specific version and launcher-resource changes in this candidate, using `.\gradlew.bat --no-daemon -PS117_VERSION_CODE=8 :app:assembleRelease --console=plain`. Signing credentials were loaded from the existing DPAPI-protected value into process environment variables; no password was placed in arguments, logs, source or evidence. `aapt dump badging` reported package/version/label and no `application-debuggable` flag; `apksigner verify --verbose --print-certs` succeeded with the expected single RSA-3072 signer. The prior private code-7 APK is static-only and is not the distributed build.
 
-Keep this APK private. Its release signer differs from the standard debug signer; the artifact does not authorize an in-place update or a debug-to-release cutover. The independent owner signing-key backup, isolated exact-export restoration rehearsal, and owner cutover remain unperformed; keep the existing main installation and data unless every documented prerequisite is verified and the owner explicitly chooses otherwise. See the [S11.10 evidence record](../artifacts/sprint-11/workers/S11.10-a1.md) for the complete artifact/gate index.
+The phone had no installed main package before this release, so version 1.0.0 was installed fresh, launched successfully, and showed the new shield/A-F launcher mark in the app drawer. Home showed no saved spending. No owner data was restored to production; the isolated `.s111evidence` and `.s117release` packages remain untouched. This is not a populated production update or a debug-to-release cutover, and it does not establish a CAT1 migration.
+
+The local signing key still has no independently verified owner backup. Its DPAPI-protected password is bound to the current Windows profile and is not a portable backup. Keep the original key and follow the owner-only cutover prerequisites below before a profile reset, machine change, or update from a debug-signed installation.
 
 ### Host-side unit tests — real Room persistence (PC-side)
 
@@ -432,7 +432,7 @@ adb logcat -d -s BankNotificationListener:V NotificationAccess:V
 ```
 This logs only privacy-safe state transitions, rebind requests, allowlist checks, candidate counts, and intake rejection reasons; no financial payload, amount, account identifier, OTP, or memo text is ever logged.
 
-**Evidence distinction to keep clear:** S1.5/S1.6 used earlier package versions (1–3). The Gradle default `versionCode` remains `5`; S11.7 proved a same-key `versionCode` 5→6 update only in the isolated `.s117release` fixture with one synthetic row. Its production code-5 and code-6 APKs were static-only, used the S11.7 source snapshot later checkpointed at `57b750e9b11f4e2094d5ddbbdbd50162d5efb728`, and predate the actual S11.8 default-network-loss fix (`5da7e4196abe1719a8617fcb711ea3ceaa09348e`). The private S11.10 code-7 production candidate is mapped to app source `6deb71fe4d07503bee42264029ed89de2951cf98` and is also static-only; it was not installed. No debug-to-release cutover, exact-export restoration rehearsal, or owner signing-key backup is claimed. This technical evidence is not the final owner-consolidated acceptance; that remains pending.
+**Evidence distinction to keep clear:** S1.5/S1.6 used earlier package versions (1–3). The S11.7 default was `versionCode=5`; its code-5→6 same-key update was limited to one synthetic row in the isolated `.s117release` fixture. The production code-5/code-6 APKs were static-only, came from the S11.7 source snapshot later checkpointed at `57b750e9b11f4e2094d5ddbbdbd50162d5efb728`, and predate the S11.8 default-network-loss fix (`5da7e4196abe1719a8617fcb711ea3ceaa09348`). The private S11.10 code-7 APK was also static-only. The current production release is code 8 / `versionName=1.0.0`; it was installed fresh because the main package was absent, not used to migrate populated production data. An exact export was rehearsed only in the isolated fixture. The signing key still has no independently verified owner backup. These bounded observations do not establish natural bank delivery or compatibility with other banks/devices.
 
 ## 6. Historical on-device model evaluation and provisioning (removed by CAT1)
 
@@ -947,10 +947,10 @@ For a normal debug update, from the repository root:
 adb -d install -r .\app\build\outputs\apk\debug\app-debug.apk
 ```
 
-For an existing private-release installation, first load the release-key credentials using the section 3 PowerShell loader. The current default `versionCode` is `5`; when updating an installed code-5 release, build code 6 (or a higher monotonically increasing code):
+For an existing private-release installation, first load the release-key credentials using the section 3 PowerShell loader. The current production default is `versionCode=8` (`versionName=1.0.0`); when updating that release, build code 9 or higher:
 
 ```powershell
-.\gradlew.bat --no-daemon -PS117_VERSION_CODE=6 :app:assembleRelease --console=plain
+.\gradlew.bat --no-daemon -PS117_VERSION_CODE=9 :app:assembleRelease --console=plain
 $releaseApk = 'app\build\outputs\apk\release\app-release.apk'
 $aapt = "$env:LOCALAPPDATA\Android\Sdk\build-tools\36.0.0\aapt.exe"
 $apksigner = "$env:LOCALAPPDATA\Android\Sdk\build-tools\36.0.0\apksigner.bat"
@@ -983,7 +983,7 @@ Before any cutover, all of these prerequisites must be satisfied by the owner:
 
     In the fixture, open **Settings → Privacy & retention → Restore from backup**, acknowledge its warning, select the exact export, inspect the preview, then choose the separate **Replace all data** action on that fixture only. Verify the restored categories, exact totals, drafts and provenance against the export. Do not clear or uninstall the existing main package for this rehearsal.
 
-Only after the independent key backup and export are verified, the exact export has passed the fixture rehearsal, and the owner explicitly chooses to replace the main installation may the owner uninstall the old debug package. Then install the production release APK (same application id, private signer, higher version code) with `adb -d install <release-apk>`, open it, and go to **Settings → Privacy & retention → Restore from backup**. A warning appears before file selection; the file is validated and previewed under **Confirm replacement** before the separate destructive **Replace all data** action. This replaces rather than merges data. Keep the encrypted export until the restored categories, totals, drafts and provenance are checked. If any prerequisite or check fails, retain the existing debug install and its data. No owner cutover or restore rehearsal has yet occurred.
+Only after the independent key backup and export are verified, the exact export has passed the fixture rehearsal, and the owner explicitly chooses to replace the main installation may the owner uninstall the old debug package. Then install the production release APK (same application id, private signer, higher version code) with `adb -d install <release-apk>`, open it, and go to **Settings → Privacy & retention → Restore from backup**. A warning appears before file selection; the file is validated and previewed under **Confirm replacement** before the separate destructive **Replace all data** action. This replaces rather than merges data. Keep the encrypted export until the restored categories, totals, drafts and provenance are checked. If any prerequisite or check fails, retain the existing debug install and its data. This first production release was installed fresh because no main package was present. The exact owner export was rehearsed only in the isolated fixture; no production restore or debug-to-release cutover has occurred.
 
 Restore never imports credentials or reversible mappings. A matching local profile keeps its local credential and full endpoint; a profile found only in the export has only its endpoint origin and needs its endpoint path and key entered again. Local-only profiles remain. The phone's notification-access grant and app's exact-package allowlist are not part of the export; check notification access and re-enter the exact package id if needed.
 

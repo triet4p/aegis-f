@@ -191,3 +191,32 @@ __pycache__/
 
 # Root-local empty-stdin checksum artifact; owner requested local-only retention.
 /MANIFEST.sha256
+# Public logo source for the first release; other artifact PNGs remain local evidence.
+!/artifacts/release-1.0.0/logo/aegis-f-app-logo-1024.png
+
+# Sprint 11 session records and handoffs include device identifiers, owner data, or local paths.
+/artifacts/sprint-11/state/
+/artifacts/sprint-11/handoffs/
+/artifacts/release-1.0.0/state/R100-main.md
+/artifacts/sprint-11/checkpoints/S11.7-checkpoint-01.md
+/artifacts/sprint-11/reviews/S11.1-review-01.md
+/artifacts/sprint-11/reviews/S11.2-review-01.md
+/artifacts/sprint-11/reviews/S11.2-review-03.md
+/artifacts/sprint-11/reviews/S11.5-review-01.md
+/artifacts/sprint-11/reviews/S11.6-review-01.md
+/artifacts/sprint-11/reviews/S11.7-review-01.md
+/artifacts/sprint-11/reviews/S11.8-review-01.md
+/artifacts/sprint-11/workers/S11-owner-hosted-a2.md
+/artifacts/sprint-11/workers/S11.1-a1.md
+/artifacts/sprint-11/workers/S11.2-a1.md
+/artifacts/sprint-11/workers/S11.3-a1.md
+/artifacts/sprint-11/workers/S11.4-a2.md
+/artifacts/sprint-11/workers/S11.5-a1.md
+/artifacts/sprint-11/workers/S11.5-a2.md
+/artifacts/sprint-11/workers/S11.5-a3.md
+/artifacts/sprint-11/workers/S11.6-a1.md
+/artifacts/sprint-11/workers/S11.7-a1.md
+/artifacts/sprint-11/workers/S11.C2-a1.md
+/artifacts/sprint-11/workers/S11.8-a1-daily-use-test-source.kt
+/artifacts/sprint-11/workers/S11.8-a1-live-probe-test-source.kt
+/artifacts/sprint-11/workers/S11.8-a2-offline-gate-test-source.kt

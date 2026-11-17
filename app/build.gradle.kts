@@ -57,8 +57,8 @@ android {
         applicationId = "io.github.triet4p.aegisf"
         minSdk = 24
         targetSdk = 37
-        versionCode = project.findProperty("S117_VERSION_CODE")?.toString()?.toInt() ?: 5
-        versionName = "1.0"
+        versionCode = project.findProperty("S117_VERSION_CODE")?.toString()?.toInt() ?: 8
+        versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

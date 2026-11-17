@@ -1,20 +1,26 @@
 # Changelog
 
-All notable changes to Aegis F are recorded here. Entries are grouped by milestone (completed
-sprint) rather than by a published version — the app is built and installed privately by its owner,
-and no release has been tagged or published. Format follows
+All notable changes to Aegis F are recorded here. Version 1.0.0 is the first production
+Android release; sprint headings below preserve the cumulative milestone history. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Sprint 11 — S11.10 daily-use acceptance package
+## [1.0.0] - 2026-11-17
 
-- Added an owner-run daily-use and recovery walkthrough with visible expected outcomes, stop points, prior technical evidence references, and private APK provenance. Owner acceptance and publication remain pending.
+### Added
 
+- Prepared the first signed production APK as version `1.0.0` (`versionCode=8`), with adaptive and legacy launcher icons.
 
-### Sprint 11 — S11.9 user and developer release instructions
+### Changed
 
-- Added current provider, Chat, privacy, recovery and owner-gated signing/update guidance, with observed latency and error limits.
+- Sprint 11 was closed by owner direction after local use, a synthetic hosted matching/category workflow, owner-reported offline use, and an exact-export restore rehearsal in the isolated release fixture.
+- Installed production fresh because the main package was absent; no isolated fixture data was restored or migrated into production.
+- No bank-account connection is available. Only one supplied notification format is parsed, and natural bank-app delivery remains unverified.
+
+### Security
+
+- The private release-signing key has no independently verified owner backup. Its DPAPI-protected password depends on the current Windows profile; a debug-signed app cannot be updated in place with the private release signer.
 
 ### Sprint 11 — offline AI Chat gate
 
