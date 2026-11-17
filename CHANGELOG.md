@@ -7,6 +7,10 @@ and no release has been tagged or published. Format follows
 
 ## [Unreleased]
 
+### Sprint 11 — S11.9 user and developer release instructions
+
+- Added current provider, Chat, privacy, recovery and owner-gated signing/update guidance, with observed latency and error limits.
+
 ### Sprint 11 — offline AI Chat gate
 
 - **AI Chat** now shows the offline banner and disables Send promptly when the device loses its

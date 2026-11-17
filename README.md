@@ -49,13 +49,15 @@ opt-in notification review inbox — every bank-derived record still requires th
   A changed or deleted attached note blocks sending until it is removed or explicitly refreshed.
   A settled run shows its verified effects as conversation cards: note readings, bank-draft links,
   saved categories and replay receipts. Attach, Reject and Unlink on a link card are explicit,
-  revision-checked decisions that never confirm a draft or change the ledger. When the assistant
-  needs one fact it asks a single clarification question with one answer field and **Continue**.
+  revision-checked decisions that never confirm a draft or change the ledger.
+  Before asking a date/time question, the agent searches the authorized, bounded saved notes and pending drafts and can read the device's current local date/time. If one candidate fits, it asks you to verify that one; if several fit, it asks which; if none fit, it reports the range it searched instead of guessing. A clarification asks one fact at a time.
   Chat copy, including these cards and states, is English/Vietnamese.
   With no provider or no network, Chat explains the state and cannot send; provider settings open
   as a focused child screen. Saving a note does not create a ledger record, and linking a detail
   never confirms a bank notification or changes the ledger. When an event interpretation or bank notification arrives, the app reconciles it against bounded pending evidence; only a complete unique match may be linked automatically, while incomplete or ambiguous evidence stays for review. Only drafts still awaiting review compete as candidates: a draft you already dismissed or confirmed does not make a later identical draft ambiguous. Bounded pending-draft browsing lets you explicitly attach, permanently reject, or unlink context; missing or multiple candidates are never selected automatically, stale source conflicts stay visible, and link decisions never change a bank-stated amount. An unmatched event can open a prefilled Manual form with its saved-note/event provenance; it becomes a ledger record only after you explicitly save it.
   When you explicitly start a hosted run, selected notes, drafts, and tool results are masked on-device before being sent to the endpoint shown in Settings. The assistant can interpret notes, search drafts, attach only eligible links, save one existing category on a draft as review state, or ask one visible clarification. Automatic attachment requires unique local evidence and a complete current search that confirms the full pending scope; ambiguous proposals wait for your explicit choice, and you can reject one and choose another. Undo checks the link revision. The assistant cannot confirm or dismiss a bank draft, delete a ledger record, or create a financial record; review and confirmation remain separate user actions. A failed run stays visibly incomplete with retry/manual options, and cancellation does not roll back an effect already recorded. Local notes, intake, Manual entry, and review remain available without hosted inference.
+  A session has no conversation-turn cap. Each new user message or clarification answer starts a fresh allowance of at most 12 tool calls; a 13th call is refused without running. A paused session continues with prior effects intact, not replayed. Failure retries are offered only when the stored attempt is retryable, has an attempt remaining, and its effect journal does not show an applied or uncertain write; a failed clarification continues the same question and answer, not the original request. If a write outcome is uncertain, check Review before resending.
+  User-selected and hosted-suggested categories are both review state on a pending draft; neither confirms it. The assistant cannot confirm or dismiss a draft. Only the user's separate Confirm action, after checking the exact current preview, creates the ledger record; Dismiss creates none. Link Attach, Reject, Unlink, or Undo only changes a note/draft link, never a confirmed transaction.
 - **Hosted provider privacy disclosure** — before sending, AI Chat and provider settings warn that the selected HTTPS endpoint receives locally masked context and that masking is not anonymity. Review the endpoint and its terms before starting a request.
 - **Hosted output budget** — a provider profile sends no output-token limit by default, so the
   selected model's own limit applies; that is what lets a reasoning model finish its thinking and
@@ -105,6 +107,7 @@ opt-in notification review inbox — every bank-derived record still requires th
   retention** explains full local trace retention, credential handling, manual complete-state
   export/restore and Android backup/transfer exclusion. AI traces are not included in complete-state
   exports; Android backup and cloud sync are disabled, while manual export files are unencrypted.
+  AI conversations and their complete provider traces have no automatic expiry. **Skills & history** requires explicit confirmation to clear them and is disabled while Chat is active; clearing history preserves business records and their effect journal, but deletion is not guaranteed secure erasure. Existing traces are not rewritten, and an older trace may still contain a provider-echoed credential. See the [privacy and recovery guide](#ai-chat-provider-and-recovery).
 - **Ledger** — every stored record, newest first, with amount, type, description, category,
   moment, and provenance, including records saved in earlier sessions. A search field matches the
   record's description — the merchant, note, or label the user wrote — as literal text, so `%` and
@@ -140,17 +143,7 @@ opt-in notification review inbox — every bank-derived record still requires th
 - **Local persistence** — the ledger survives closing the app, swiping it away from the recent-apps
   view, and force-stopping it. The manual ledger does not require a model file, login, network, or
   bank integration. Bank-notification access is optional and off by default.
-- **Historical model evaluation (removed by CAT1)** — active Laya runtime, provisioning,
-  translation, and any on-device classifier were removed by the hosted-category cutover
-  (checkpoint `165376fe`); no model file, import, or provisioning step is required to build,
-  install, or use the app. Manual recording, intake, review, dashboard, and hosted category
-  selection through `update_draft_review` work without a local model. The S4.9 on-device
-  evaluation (7/8 labeled top choices, both no-fit cases returned unknown; name-only
-  shortlist 1/6 with 206 active categories) and the historical tooling remain evidence only:
-  see [sanitized evaluation](artifacts/sprint-4/workers/S4.9-A1.md), [tools/laya/README.md](tools/slm/README.md),
-  and [hosted category cutover](docs/hosted-category-cutover.md). Historical local-model setup
-  commands are no longer current; use [developer setup](docs/developer-setup.md) for the
-  supported build path.
+- **Historical model evaluation and classification snapshots (not current confidence)** — active Laya runtime, provisioning, translation, and the on-device classifier were removed by the hosted-category cutover (checkpoint `165376fe`). No local-model setup, weights, import, or translation path is offered or required to build or use the current app. Historical classification snapshots are retained only as provenance; they are not current confidence, category choices, or review-queue rank. Manual recording, intake, review, dashboard, and hosted category selection through `update_draft_review` work without a local model. The S4.9 evaluation and tooling remain historical evidence only: see [sanitized evaluation](artifacts/sprint-4/workers/S4.9-A1.md), [historical tools](tools/slm/README.md), and [hosted category cutover](docs/hosted-category-cutover.md). Historical local-model setup instructions are not current; use [developer setup](docs/developer-setup.md) for the supported build path.
 - **Bank notification setup, filtering, parsing, and pending drafts (opt-in, no
   auto-confirmation)** — open **Bank notifications** from the Home screen's **Settings** launcher
   (Home → Settings → Bank notifications) shows access, listener status, allowlist size, and intake
@@ -287,20 +280,10 @@ identically still keep both and flag the later one for review.
 That format comes from the redacted sample its owner supplied and has **not** been observed
 arriving through the listener on a phone. What is actually verified today:
 
-- **Host-verified, no device:** the whole chain runs on the real Kotlin/Room code paths on the PC
-  — a real listener callback through the package/security filter and the parser into the real
-  pending-draft table, then explicit review and atomic confirmation producing exactly one ledger
-  record and one month total, including replay, possible-duplicate, rejection, and reopen cases.
-  Two equal-value statements with different `ND:` descriptions are kept apart, unflagged, and each
-  confirmed to its own ledger record; and an active-notification answer the system cannot give
-  reconciles nothing, leaves the drafts already stored untouched, and writes no draft of its own.
-- **User-verified on the phone (S3.1):** notification access was granted, the listener reported
-  connected, and one bank package was listed, with the screenshot the owner kept.
-- **Not yet verified on the phone:** a notification the bank app delivers naturally to the
-  listener; the real Android package name, notification key, and title/text/big-text mapping;
-  screen-lock, restart, and OEM behavior; revoking access on the device; and updating in place to
-  the current build. Until those are run, intake with the real bank is unproven and no automatic
-  capture and no bank compatibility is claimed.
+- **Host-verified (synthetic):** the real Kotlin/Room listener, package/security filter, parser, pending-draft table, explicit review and atomic confirmation were exercised with synthetic records. Replay, possible-duplicate, rejection, reopen and distinct-description cases were covered.
+- **Historical owner phone observation (S3.1):** notification access was granted, the listener reported connected, and one bank package was listed.
+- **Isolated technical phone proof (S11.8):** a synthetic notification was delivered through the Android system listener in an isolated evidence package and remained pending for review. This was not a notification delivered naturally by a bank app.
+- **Not yet verified:** natural delivery from a bank app; its real Android package id, notification key and title/text/big-text mapping; compatibility with other banks or formats; and behavior across screen lock, restart, OEM handling and revoked access. No bank-account integration or real-bank compatibility is claimed.
 
 ## Not implemented yet
 
@@ -315,43 +298,48 @@ The following capabilities are not available yet:
 - **No multi-currency, receipt OCR, voice input, or shared accounts**, and no published release: the
   APK is built and installed privately by its owner.
 
-Sprint 10's current native redesign is the five-tab/eight-launcher experience described above.
-S10.1–S10.10 technical gates/checkpoints and the final cross-feature review passed; S10.11 product
-evidence/checkpoint and affected differential passed at `1e0c679`. The owner directed closure
-after main-app hands-on feedback and the S10.11 correction. This does not claim that every step
-of the full owner walkthrough was performed; the package retains it as a procedure.
-Chat retry/clarification/history/date repairs remain Sprint 11 S11.C1–C3; the raw provider-trace
-retention/export/backup privacy audit remains S11.4. The S11.7 private release-signing path is
-documented in the developer setup guide; no release has been published. See
-[the project plan](docs/PLAN.md) and [the S10.10 evidence package](artifacts/sprint-10/evidence/S10.10-a1/index.md).
+Sprint 10 closed by owner direction after main-app feedback; the full S10.10 owner walkthrough remains an unperformed procedure.
+
+Sprint 11 C1–C3 and S11.1–S11.8 passed their technical reviews/checkpoints. S11.8's device evidence used isolated packages and synthetic records (including a synthetic system-delivered notification), so it is technical proof rather than final owner-consolidated acceptance. No owner debug-to-release cutover or independent signing-key backup has been completed. S11.9's independent evidence review is pending; an exact-snapshot checkpoint can occur only after PASS and separate Main authorization for this task. S11.10's final acceptance package and final owner-consolidated acceptance remain pending; no release has been published. See [the project plan](docs/PLAN.md) and [the S10.10 evidence package](artifacts/sprint-10/evidence/S10.10-a1/index.md).
 
 The legacy Sprint 5 SLM benchmark remains partial, paused, and unapproved; no model was adopted.
 Its generated run reports and raw device outputs are preserved locally but are not versioned.
 The evaluation tooling, frozen inputs, and documented limitations are in
 [tools/slm/README.md](tools/slm/README.md).
 
+## AI Chat, provider and recovery
+
+### Configure optional hosted Chat
+
+Open **Home → Settings → Provider & model**. The app supports the Gemini GenerateContent, OpenAI Chat Completions, and OpenAI Responses protocols. These are distinct request formats, not a promise that every vendor or model supports every route or tool. Choose a supplied preset or enter the provider's exact HTTPS endpoint, model identifier, and credential; use only the tool/reasoning/parallel-call capabilities that the selected model and protocol actually support. Saving runs a synthetic READY connection check to the displayed endpoint; it contains no saved financial data, but still sends a request. A connection test must succeed before a profile is saved. An offline or failed test keeps the typed values and does not change the saved profile. The credential is stored with the encrypted local profile and is never displayed; when editing, leave the credential field blank to keep the saved one. A failed profile does not silently fall back to another provider.
+
+The output-token limit is omitted by default so the selected model's own limit applies. An explicit limit is optional, must be at least 32,768 tokens, and is sent in the selected protocol's field. Reasoning budgets and parallel tool calls are model/protocol-specific; an available control does not imply universal support.
+
+### Limits, review and retries
+
+- There is no session turn-count limit. Each user message or clarification answer starts a new turn with up to 12 tool calls; the 13th is refused without execution. Other safety bounds, including context, elapsed time, and repeated-call protections, still apply.
+- Chat searches only the data granted to the current run before asking you to clarify a date or time. It can read the device's local current time, but does not treat a saved note's date as today's date. An empty search states its bounded range; a missing or ambiguous fact is asked rather than guessed.
+- A hosted category choice is a suggestion on an existing pending draft, saved through ordinary review state. A category you select yourself is recorded separately. Either can be revisited; an unavailable hosted category can be reopened. Neither choice confirms the draft or changes totals. Only your explicit confirmation of the exact current preview creates a ledger entry; dismissal creates none.
+- Matching and note/draft Attach, Reject, Unlink and Undo operate only on uniquely supported link evidence and its current revision. An ambiguous or incomplete match stays in Review for you. These link actions never confirm a draft or undo a confirmed ledger record.
+- Failure retries from a failed run are bounded to three total attempts; retry is offered only when the stored state admits it and the effect journal rules out an applied or uncertain write. Clarification continuation turns are not capped by that failure-retry limit. A failed clarification resumes the same question and answer, not the original request. Stop, retry, history deletion, and link Undo never roll back effects already recorded. If the outcome is uncertain, inspect Review before sending again.
+
+### Privacy and retained history
+
+Only an explicitly started hosted run sends selected context to the configured HTTPS endpoint. The app masks selected values on-device before sending, but masking is not anonymity: surrounding context and combinations of details may still identify you. Review the endpoint and provider terms before use. Provider credentials and reversible mappings are not exported or intended as trace content.
+
+Full local PT1 traces can retain financial text, provider request/response content, reasoning/SSE chunks, tool results, and clarification text. They have no automatic expiry. New trace writes scrub the configured credential, but existing rows are not rewritten and may retain a credential echoed by a provider until you explicitly clear AI history. **Settings → Skills & history → Clear AI history** requires confirmation and is unavailable while Chat is active; it clears conversations/runs/traces, not business records or the effect journal. Clearing history is not guaranteed secure erasure. Traces are excluded from Android backup/transfer and complete-state export.
+
+See [the developer guide's observed performance and provider limits](docs/developer-setup.md#observed-performance-and-provider-error-boundaries) for the narrowly measured local timings, one specific hosted configuration, and the recorded network/quota outcomes. They are observations, not latency, quota, accuracy, battery, or universal agent-qualification promises.
+
 ## Your data
 
-- The ledger and the bank-package allowlist live only in the app's private storage on the phone.
-  The app declares no runtime permission and requests none; notification access is a system settings
-  grant, not a manifest permission. The only permission entries in the built APK are the
-  system-bound listener declaration and the dependency-generated, signature-protected internal
-  broadcast permission.
-- Android's own backup is switched off for this app (`allowBackup="false"`). The app now offers an
-  explicit complete-state export and restore; the exported financial state is plaintext and must
-  be protected as sensitive data. Uninstalling or clearing storage loses the app's only copy unless
-  a separate export has been made and verified.
-- Updating in place keeps data only when the package and signing certificate match and the incoming
-  `versionCode` is higher. The existing debug-signed main installation cannot be updated in place
-  with the private release key. Do not uninstall or clear it to work around a signature error.
-- Safe debug-to-release cutover requires a verified, independently retained complete-state export,
-  a successful restore rehearsal in the isolated release fixture, and the owner's explicit choice.
-  Only then may the old package be uninstalled, the same-package release installed, and the export
-  restored; keep the separate copy until the restored state is checked. If export/restore is not
-  verified, keep the existing installation.
-- The app's private storage relies on Android's normal app sandboxing; no additional encryption
-  guarantee is claimed. The private release signing key is kept outside the repository; see the
-  [developer setup guide](docs/developer-setup.md) for build and recovery instructions.
+- The ledger and bank-package allowlist live in the app's private storage on the phone. The app declares no runtime permission; notification access is a system-settings grant. The exact package id must be entered by you in **Home → Settings → Bank notifications**. No notification text is shown in the settings screen.
+- Android backup/transfer is disabled. A manual **Settings → Privacy & retention → Export complete state** creates sensitive plaintext JSON; keep it only in a location you trust and make a separate encrypted offline copy. The export contains the eight business/provenance tables and non-secret hosted-profile descriptors. It excludes credentials, reversible mappings, endpoint paths/query strings, chat conversations/traces, operation journals, notification preferences/allowlist, raw notification bodies, and Android system access grants.
+- **Settings → Privacy & retention → Restore from backup** validates a supported file before showing a preview. After you inspect the contents, an explicit confirmation replaces the exported tables and does not merge them with current records. The app keeps a recoverable previous-state copy and settles interrupted restore journals before ordinary work; if recovery is pending, do not uninstall or clear storage. Use **Restore this copy** for previous-copy recovery or seek help while preserving the app data.
+- A restored provider profile never imports a key or reversible mapping. A matching local profile retains its local credential and full endpoint; a profile that exists only in the export is restored with only its endpoint origin and needs its endpoint path and key entered before use. Review provider settings, notification access, and the package allowlist after restore.
+- Updating in place preserves app data only when the application id and signing certificate match and the incoming `versionCode` is higher. Debug and private-release keys differ, so an existing debug-signed main install cannot be upgraded in place with the private-release APK. Never uninstall or clear it to work around a signature error.
+- A debug-to-release cutover is destructive to the old installation and is not a normal update. Do not proceed unless the signing key/password have an independently verified owner-controlled encrypted offline backup, an export has been independently retained, that exact export has been rehearsed in the isolated release fixture, and the owner explicitly chooses the cutover. Keep the old installation unless all prerequisites pass; only then may the owner uninstall it, install the same-package release, and restore the export. Keep the separate copy until categories, ledger totals, drafts and provenance are checked. This cutover and independent key backup have not been performed.
+- The release-signing DPAPI password file is bound to the current Windows account/profile and installation; it is not portable to another account or machine. The local signing key currently has no independent owner backup. Follow the [developer guide](docs/developer-setup.md#private-release-signing-key-and-apk) before a profile reset or machine change. The app's private storage relies on Android's normal sandbox; no additional at-rest encryption guarantee is claimed.
 
 ## Getting started (Windows, command line)
 
@@ -387,8 +375,7 @@ developer setup guide rather than uninstalling the app.
 
 ## Documentation
 
-- [docs/developer-setup.md](docs/developer-setup.md) — pinned toolchain, SDK and environment setup,
-  build and install commands, manual checks, update path, troubleshooting.
+- [docs/developer-setup.md](docs/developer-setup.md) — pinned toolchain, provider configuration, private release signing, key recovery, backup/restore and safe update instructions, observed limits and troubleshooting.
 - [S10.10 native UI evidence and owner walkthrough](artifacts/sprint-10/evidence/S10.10-a1/index.md) — consolidated native capability/state map, baseline observations, limitations, and the original walkthrough procedure (not a report of completed owner steps).
 - [Sprint 10 administrative closure](artifacts/sprint-10/closure/index.md) — owner-directed closure status, candidate inventory, safety review, and remaining administrative gates.
 - [docs/PLAN.md](docs/PLAN.md) — product scope, milestones, and the sprint roadmap.
@@ -397,6 +384,6 @@ developer setup guide rather than uninstalling the app.
 
 ## Status
 
-- **Current:** Sprint 9 remains owner-accepted after hands-on use at `1b585b8`. Sprint 10's S10.1–S10.10 technical gates/checkpoints and final cross-feature review passed; S10.11 product evidence/checkpoint and affected differential passed at `1e0c679`. The owner directed closure after main-app hands-on feedback and the S10.11 correction. This records that closure decision, not a claim that every step of the full owner walkthrough was performed. The app has five root tabs (Home, Ledger, Notes, AI Chat, Review) and eight Home launchers (Ledger, Analytics, Notes, AI Chat, Review, Manual record, Categories & rules, Settings). Final documentation/evidence archival review and clean-worktree verification remain administrative closure steps. Retry/clarification/history/date repairs remain S11.C1–C3; raw provider-trace retention/export/backup privacy review remains S11.4. See the [S10.10 evidence package](artifacts/sprint-10/evidence/S10.10-a1/index.md).
-- **Historical (not current build state):** Sprint 1 published to `origin/main`; Sprint 2 delivery commit local-only; Sprint 4 host suite 185 tests/0 failures/0 skips, `ManualCategorySuggestionMachineTest`, `RememberedCategoryRulePersistenceTest`, and the S4.7-A2 phone check; S4.9 evaluation/tooling. Active Laya runtime/provisioning/translation and any on-device classifier were removed by CAT1 (checkpoint `165376fe`); current review ordering is unresolved data/link conflicts, then drafts missing a category, then ready drafts (no confidence-ranked active queue). See linked artifacts under `artifacts/`.
+- **Current:** Sprint 9 remains owner-accepted after hands-on use at `1b585b8`. Sprint 10 was closed by owner direction after main-app hands-on feedback and S10.11; its full walkthrough was not claimed complete. Sprint 11 C1–C3 and S11.1–S11.8 passed their technical reviews/checkpoints. S11.8 is isolated technical evidence, not final owner-consolidated acceptance. S11.9's independent review is pending; any exact-snapshot checkpoint is contingent on PASS and Main's separate current-task authorization. S11.10's final acceptance package and final owner-consolidated acceptance remain pending; no owner key backup or debug-to-release cutover is claimed, and no release has been published.
+- **Historical (not current build state):** Sprint 1 published to `origin/main`; Sprint 2 delivery commit local-only; Sprint 4 host suite and S4.9 classifier evaluation/tooling. Active Laya runtime, provisioning, translation and the on-device classifier were removed by CAT1 (checkpoint `165376fe`). Current queue order is based on unresolved data/link conflicts, missing categories, then ready-to-confirm drafts; stored classification snapshots are provenance only, never current confidence or queue rank.
 - Host checks do not render Compose or exercise Android-native inference. Hosted category selection and review remain opt-in; offline manual/intake/review/dashboard remain usable without a hosted provider.

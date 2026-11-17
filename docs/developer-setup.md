@@ -1,8 +1,6 @@
 # Command-line developer setup
 
-**CAT1 update (2026-11-02):** the app no longer ships or builds the Laya ONNX runtime,
-tokenizer asset, provisioning UI or classification queue. Sections below that describe Laya
-model setup and parity are historical and are not required to build or use the app.
+**CAT1 update (2026-11-02):** the current app no longer ships or builds the Laya ONNX runtime, tokenizer asset, provisioning/classification UI, active classifier, or translation feature. No Laya setup, model-download, translation, or local-classifier procedure is supported. Section 6 below is historical reference only; do not run its procedures.
 
 This is the supported development path for Aegis F: the official Android SDK command-line tools, the project's Gradle Wrapper, and `adb` to a physical phone. Android Studio and an emulator are **not** required; no project step uses them. Device access is user-operated by default. A worker may operate only Aegis F and only when the active task explicitly authorizes a narrow, app-scoped check; that permission does not extend to other apps, bank activity, notification content, ledger/model mutation, or system/security settings. Other device procedures remain user-run.
 
@@ -188,6 +186,7 @@ try {
     [Array]::Clear($passwordBytes, 0, $passwordBytes.Length)
     [Array]::Clear($protectedPasswordBytes, 0, $protectedPasswordBytes.Length)
 }
+```
 
 The signed APK is `app\build\outputs\apk\release\app-release.apk`. The
 production package is `io.github.triet4p.aegisf`; the clean production
@@ -319,13 +318,38 @@ Manual checks after installing and opening:
 - Current navigation has five root tabs: **Home, Ledger, Notes, AI Chat, Review**. Home has eight
   labelled launchers: **Ledger, Analytics, Notes, AI Chat, Review, Manual record, Categories &
   rules, Settings**. Focused child routes hide the bottom bar; Back returns to the parent context.
-  Use the [S10.10 package](../artifacts/sprint-10/evidence/S10.10-a1/index.md) for its native
-  screenshots, capability/state evidence, and known limitations. Its full owner walkthrough is
-  a procedure, not an executed result: Sprint 10 was closed by owner direction after main-app
-  feedback and S10.11, without claiming every walkthrough step was performed. Chat
-  retry/clarification/history/date repairs remain S11.C1–C3; raw provider-trace retention/export/
-  backup privacy review remains S11.4. Administrative closure evidence and remaining gates are in
-  the [Sprint 10 closure package](../artifacts/sprint-10/closure/index.md).
+  Use the [S10.10 package](../artifacts/sprint-10/evidence/S10.10-a1/index.md) for screenshots and capability/evidence context. Its full owner walkthrough was a procedure; Sprint 10 closed by owner direction after main-app feedback and S10.11, without claiming every step was performed. Sprint 11 C1–C3 and S11.4 are complete; current behavior, limits and evidence boundaries are summarized below. Administrative closure evidence and remaining gates are in the [Sprint 10 closure package](../artifacts/sprint-10/closure/index.md).
+
+### Current Chat, provider and privacy guidance
+
+For the user-facing workflow, see [AI Chat, provider and recovery](../README.md#ai-chat-provider-and-recovery).
+
+**Provider setup.** In **Home → Settings → Provider & model**, choose a preset or enter the provider's exact HTTPS endpoint, model identifier and credential. The current wire protocols are Gemini GenerateContent, OpenAI Chat Completions and OpenAI Responses. They are separate request formats; an OpenAI-compatible endpoint or a matching model name is not proof that the provider supports the selected tool schema or capabilities. Saving sends a synthetic READY connection check to the displayed endpoint; it contains no saved financial data, but still sends a request. The connection test runs before a profile is saved; an offline or failed test keeps the form and leaves saved profiles unchanged. The credential is stored with the encrypted local profile and never displayed; leave the field blank while editing to retain the stored credential. Do not put credentials in command arguments, source, artifacts, or shared logs. There is no silent provider fallback.
+
+The output limit is omitted by default. The optional explicit limit must be at least 32,768 tokens and fit the selected model's declared capability; reasoning budget and parallel tool calls are protocol/model-specific. Pick the endpoint path and model id exactly as supplied by the chosen service, rather than deriving them from a provider label.
+
+**Chat, matching and errors.** Each user message or clarification answer begins a new turn with up to 12 tool calls; a 13th is refused without execution. A session has no turn-count cap, but context, elapsed-time and repeated-call safeguards still apply. Failure retries from a failed run are bounded to three total attempts; clarification continuation turns are not capped by that failure-retry limit. The executor searches the run's granted notes/drafts before asking about dates or times and can read device-local current time. Matching remains bounded: incomplete or ambiguous evidence stays in Review. Hosted category choices and the user's own category choice are pending-draft review state; only the user confirms the exact current preview to create a ledger entry. Link attach/reject/unlink/undo does not confirm, delete or roll back ledger records. Retry requires durable admission that rules out an applied or uncertain write; a failed clarification retries the same question and answer, not the original request. Check Review before resending after an uncertain outcome.
+
+The optional provider is required for hosted interpretation/category suggestions; manual recording, saved notes, the dashboard and draft review use local data and remain available offline. An offline/no-profile Chat run is not admitted. Network, endpoint, authentication, malformed-response, server and quota failures are surfaced; the app does not promise provider availability or account quota. See the [README](../README.md#supported-bank-notification-formats-and-what-is-verified) for the single supported notification format and the distinction between host checks, synthetic system delivery on an isolated phone package, and still-unverified natural bank delivery.
+
+**Retention.** PT1 local traces retain complete non-secret requests/responses, provider reasoning/SSE, tool results and clarification text, which may include sensitive financial text. They have no automatic expiry. New trace writes scrub the configured credential; an older trace is not rewritten and may retain a credential echoed by a provider. **Settings → Skills & history → Clear AI history** requires confirmation and is disabled while Chat is active; it clears conversation/run/trace rows and the in-memory transcript, preserves business data and the effect journal, and does not guarantee secure erasure. Credentials and reversible mappings are not trace/export contents. Traces are excluded from Android backup/transfer and complete-state export; Android backup is disabled and manual export JSON is plaintext.
+
+#### Observed performance and provider error boundaries
+
+The following are narrow observations, not performance targets or universal qualifications:
+
+| Workload | Observed result | Conditions and limits |
+| --- | --- | --- |
+| Local masking | Warm p50 `118.854 ms`, p90 `127.481 ms`; ART allocated delta `19,902,464 B` over the 20-sample workload. Baseline warm p50 was `552.069 ms`, with `1,776,746,496 B` allocated over the comparable workload. | Synthetic 13,202-character input, 132 unique vault entries, 22,162-character output; allocation is ART delta, not RSS. |
+| Inbound sensitive-value scan | Warm p50 `81.199 ms`, p90 `83.194 ms`. | Same bounded synthetic workload/configuration; no user financial text. |
+| Hosted complete workflow | Three completed samples took `4.069 s`, `6.792 s`, and `3.407 s`; first-result measurements were `3.947 s`, `6.692 s`, and `3.325 s`. | OpenCode Go preset, OpenAI Chat Completions, model `deepseek-v4.1-flash`; one request per workflow, zero tool calls, n=3 on one ALT-LX2 / Android 14 handset. The adapter emitted no public-text event: first-result numbers are complete HTTP-response-arrival fallbacks, **not streaming TTFT**. JSON byte totals are application-level serialization, not wire bytes. |
+| Phone battery/temperature/storage snapshots | Battery: 8% baseline → 11% after baseline local work → 14% after final local work → 26% after first provider probe → 30% after Google → 36% after OpenCode. Temperature: 32.5→32.0→32.0→32.5→unsupported after Google→31.5°C. | One ALT-LX2 / Android 14 handset, USB charging throughout; thermal status was 0 when reported. `/data` use 35%→34%; isolated app-private data 332→336 KiB around provider runs/cleanup. These short, charging-confounded observations support no battery or heat conclusion. |
+
+The adapter does not expose provider-reported cost in the usage contract, and the raw provider body was not retained for cost inspection: cost is **unknown, not zero**. Wire bytes are **unknown, not zero**; only application-level JSON serialization lengths were available. These measurements do not establish general latency, model accuracy, battery life, resource use on other devices, or that any provider/model is universally qualified.
+
+One earlier Google AI Studio direct request failed with `UnknownHostException` while the device lacked a validated network. After connectivity was available, a separate tracked request ended in HTTP 429 after three HTTP attempts (whole workflow `9.241 s`, first error response `2.145 s`, zero completed turns/tools); no further request was made. This documents a bounded transport/quota failure, not a stable quota or retry guarantee. Provider-side rate limits and billing depend on the service/account.
+
+Evidence and conditions: [S11.6 measured results](../artifacts/sprint-11/workers/S11.6-a1.md), [independent review](../artifacts/sprint-11/reviews/S11.6-review-01.md), [S11.7 signing/update evidence](../artifacts/sprint-11/workers/S11.7-a1.md), and [S11.8 isolated device evidence](../artifacts/sprint-11/workers/S11.8-a1.md) / [offline proof](../artifacts/sprint-11/workers/S11.8-a2.md). S11.8 is an isolated technical proof, not the final owner-consolidated acceptance; the owner main installation and data were not used. The owner has not made an independent signing-key backup or performed the debug-to-release cutover.
 
 The S2.x/S3.x task procedures below are retained as historical verification records, not current
 navigation instructions. The S10.10 package above documents current routes and the unperformed
@@ -398,7 +422,7 @@ adb logcat -d -s BankNotificationListener:V NotificationAccess:V
 ```
 This logs only privacy-safe state transitions, rebind requests, allowlist checks, candidate counts, and intake rejection reasons; no financial payload, amount, account identifier, OTP, or memo text is ever logged.
 
-**Evidence distinction to keep clear:** the S1.5 and S1.6 device checks used the S1.5 package and S1.6 A/B packages (`versionCode` 1–3). The current debug package's `versionCode` is defined in `app/build.gradle.kts` (currently 4) and was installed in place and exercised for S4.6-A2; see the [sanitized phone evidence](../artifacts/sprint-4/workers/S4.6-A2.md). That limited Aegis UI observation does not replace unrelated task-specific device checks or the final user real-experience gate.
+**Evidence distinction to keep clear:** S1.5/S1.6 used earlier package versions (1–3). The current build's default `versionCode` is `5`, set in `app/build.gradle.kts`; a production release uses the separate private signer described above. S11.7 proved a same-key `versionCode` 5→6 update only in the isolated `.s117release` fixture with one synthetic row. Production APKs were static-only: no owner main package was installed over, and no debug-to-release cutover or export/restore rehearsal was performed. This isolated technical evidence is not final owner-consolidated acceptance; that remains pending.
 
 ## 6. Historical on-device model evaluation and provisioning (removed by CAT1)
 
@@ -900,31 +924,77 @@ Verification:
   argument to verify only the ids it seeded. The fixture creates unique run-scoped rows and never
   clears a database.
 
-## 8. Update path and troubleshooting
+## 8. Update path, signing and recovery
 
-**Updating in place.** Install an updated APK over the existing one with `adb -d install -r <apk>`. For the update to be accepted and to keep existing app data:
+### Same-key in-place updates
 
-- Use the **same application ID** (`io.github.triet4p.aegisf`) and the **same signing certificate** (the preserved `debug.keystore`).
-- Increase `versionCode` for each new build; the authoritative value is `versionCode` in `app/build.gradle.kts` (currently 4).
-- Do not uninstall or clear app data as a workaround. `install -r` is the update path; wiping data hides the real cause and destroys the state you are trying to preserve. If an update fails, capture the exact `adb` error text and report it instead.
+An in-place update preserves the app's private data only if the application id and signing certificate match and the incoming `versionCode` is higher. Debug APKs use `%USERPROFILE%\.android\debug.keystore`; private release APKs use the dedicated key described in section 3. Those certificates differ. Never use a debug APK to replace a release install or a release APK to replace a debug install with `install -r`.
 
-**Common failure signals and their real causes:**
+For a normal debug update, from the repository root:
+
+```powershell
+.\gradlew.bat :app:assembleDebug
+adb -d install -r .\app\build\outputs\apk\debug\app-debug.apk
+```
+
+For an existing private-release installation, first load the release-key credentials using the section 3 PowerShell loader. The current default `versionCode` is `5`; when updating an installed code-5 release, build code 6 (or a higher monotonically increasing code):
+
+```powershell
+.\gradlew.bat --no-daemon -PS117_VERSION_CODE=6 :app:assembleRelease --console=plain
+$releaseApk = 'app\build\outputs\apk\release\app-release.apk'
+$aapt = "$env:LOCALAPPDATA\Android\Sdk\build-tools\36.0.0\aapt.exe"
+$apksigner = "$env:LOCALAPPDATA\Android\Sdk\build-tools\36.0.0\apksigner.bat"
+& $aapt dump badging $releaseApk
+& $apksigner verify --verbose --print-certs $releaseApk
+adb -d install -r $releaseApk
+```
+
+Check the package, version and signer output before the device install. The `install -r` line is only for an already installed package signed by this same release key and a higher incoming version. For another starting version, select a code higher than the installed app; do not downgrade.
+
+### Debug-to-release cutover: destructive, owner-only
+
+An existing debug-signed main app cannot be updated in place with the private-release signer. A signature error is not a reason to uninstall or clear app data. The current local signing key has **no independently verified owner backup**, and no owner debug-to-release cutover has been performed.
+
+Before any cutover, all of these prerequisites must be satisfied by the owner:
+
+1. Under the current Windows account/profile, use the section 3 DPAPI loader without printing the decrypted password. Put the password directly into the owner's password manager without echoing it, copy the unchanged `.p12` to owner-controlled encrypted offline storage, and verify that the copy can be read with the stored password and alias. Keep the original local key. The DPAPI `CurrentUser` file is bound to this account/profile on this Windows installation; it is not a portable backup and cannot be assumed to work after a profile reset, account change or machine change.
+2. In the existing app, open **Settings → Privacy & retention**, choose **Export complete state**, accept its warning, and save the JSON to a trusted location. The export is plaintext and may contain sensitive financial records and note text. Make a separately retained encrypted offline copy; never place either copy in Git, logs or shared documentation.
+3. Rehearse restoration of the exact export intended for cutover in the isolated release fixture. With the release-key environment loaded, the existing fixture switches are `-PS117_RELEASE_FIXTURE=1` and `-PS117_VERSION_CODE=5`; for example:
+
+    ```powershell
+    .\gradlew.bat --no-daemon -PS117_RELEASE_FIXTURE=1 -PS117_VERSION_CODE=5 :app:assembleRelease --console=plain
+    ```
+
+    This produces the distinct `io.github.triet4p.aegisf.s117release` fixture package, which is debuggable for isolated verification only. Keep it separate from `io.github.triet4p.aegisf`; never distribute the fixture or use it as the production APK. Install/update only the fixture package on an isolated test target:
+
+    ```powershell
+    adb -d install -r .\app\build\outputs\apk\release\app-release.apk
+    ```
+
+    In the fixture, open **Settings → Privacy & retention → Restore from backup**, acknowledge its warning, select the exact export, inspect the preview, then choose the separate **Replace all data** action on that fixture only. Verify the restored categories, exact totals, drafts and provenance against the export. Do not clear or uninstall the existing main package for this rehearsal.
+
+Only after the independent key backup and export are verified, the exact export has passed the fixture rehearsal, and the owner explicitly chooses to replace the main installation may the owner uninstall the old debug package. Then install the production release APK (same application id, private signer, higher version code) with `adb -d install <release-apk>`, open it, and go to **Settings → Privacy & retention → Restore from backup**. A warning appears before file selection; the file is validated and previewed under **Confirm replacement** before the separate destructive **Replace all data** action. This replaces rather than merges data. Keep the encrypted export until the restored categories, totals, drafts and provenance are checked. If any prerequisite or check fails, retain the existing debug install and its data. No owner cutover or restore rehearsal has yet occurred.
+
+Restore never imports credentials or reversible mappings. A matching local profile keeps its local credential and full endpoint; a profile found only in the export has only its endpoint origin and needs its endpoint path and key entered again. Local-only profiles remain. The phone's notification-access grant and app's exact-package allowlist are not part of the export; check notification access and re-enter the exact package id if needed.
+
+If the app reports restore recovery pending, do not uninstall, clear storage or delete recovery files. The app settles interrupted journal states before normal commands, hosted runs and notification intake. If the normal recovery cannot settle, preserve the app and use the screen's **Restore this copy** previous-state recovery path or get owner support.
+
+### Common update failure signals
 
 | Symptom | Likely cause | Correct action |
 | --- | --- | --- |
-| `INSTALL_FAILED_UPDATE_INCOMPATIBLE` / signature mismatch | New APK signed with a different key than the installed one | Restore the preserved `debug.keystore` and rebuild; do not uninstall the app to force it |
-| `INSTALL_FAILED_VERSION_DOWNGRADE` | `versionCode` not increased | Raise `versionCode` and rebuild |
-| `adb devices` shows `unauthorized` | USB debugging prompt not accepted on the phone | Accept the prompt on the phone (a user decision), then recheck |
-| `adb devices` shows `offline` / no device | Cable, USB mode, or stale adb server | Reconnect the cable, set the USB mode to file transfer, run `adb kill-server` then `adb devices` |
-| `adb` reports "no devices" but the phone is connected | Missing or wrong Windows USB driver | Install the official Google USB driver or the OEM's driver for the phone model (see references) |
-| Phone blocks or warns about installing the app | Android/OEM install protection for sideloaded apps | Follow the phone's own on-screen prompts and settings as the user; never attempt to bypass restricted-settings protections or disable security to force an install |
+| `INSTALL_FAILED_UPDATE_INCOMPATIBLE` / signature mismatch | APK signer differs from the installed package | Rebuild with the install's original signer or stop. Debug/release signer mismatch requires the owner-only cutover prerequisites above; do not uninstall to force an update. |
+| `INSTALL_FAILED_VERSION_DOWNGRADE` | Incoming `versionCode` is not higher | Set a higher monotonically increasing code and rebuild with the same signer. |
+| `adb devices` shows `unauthorized` | USB debugging prompt not accepted on the phone | Accept the prompt on the phone as the user, then recheck. |
+| `adb devices` shows `offline` / no device | Cable, USB mode, or stale adb server | Reconnect the cable, set USB mode to file transfer, run `adb kill-server` then `adb devices`. |
+| `adb` reports "no devices" but the phone is connected | Missing or wrong Windows USB driver | Use the official Google USB driver or the phone manufacturer's driver. |
+| Phone blocks or warns about installing the app | Android/OEM install protection for sideloaded apps | Follow the phone's own prompts as the user; never bypass restricted-settings protection or disable security. |
 
 **Privacy and safety when diagnosing:**
 
-- Do **not** capture or share raw notification content, SMS, or log buffers that may contain bank transaction text, account numbers, card digits, OTPs, or other identifiers. Bank-notification intake **is** part of this build, so this rule is load-bearing for every check below: no notification body, account identifier, balance, or OTP may be recorded, exported, or pasted anywhere, and a redacted draft screenshot with amounts and states is the most that should be kept.
-- Do not paste device serial numbers, account names, or other identifiers into shared documents or artifacts. Model, Android version, API level, ABI, page size, and memory are sufficient.
-- No administrator elevation and no system-wide configuration change is part of this setup or of troubleshooting.
-- Worker `adb` use requires explicit task-scoped authorization for the assigned Aegis-app operation; otherwise device steps remain user-run.
+- Do **not** capture or share raw notification content, SMS, or log buffers that may contain bank transaction text, account numbers, card digits, OTPs, or other identifiers. Do not record or paste notification bodies, account identifiers, balances or OTPs in logs, exports or artifacts.
+- Do not paste device serial numbers, account names, provider credentials, raw provider payloads or personal financial text into shared documents or artifacts. Use synthetic examples only.
+- No administrator elevation or system-wide configuration change is part of this setup or troubleshooting. Worker `adb` use requires explicit task-scoped authorization for the assigned Aegis-app operation; otherwise device steps remain user-run.
 
 ## 8. Why no Android Studio or emulator
 
