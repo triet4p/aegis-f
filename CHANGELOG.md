@@ -7,6 +7,11 @@ and no release has been tagged or published. Format follows
 
 ## [Unreleased]
 
+### Sprint 11 — S11.10 daily-use acceptance package
+
+- Added an owner-run daily-use and recovery walkthrough with visible expected outcomes, stop points, prior technical evidence references, and private APK provenance. Owner acceptance and publication remain pending.
+
+
 ### Sprint 11 — S11.9 user and developer release instructions
 
 - Added current provider, Chat, privacy, recovery and owner-gated signing/update guidance, with observed latency and error limits.
