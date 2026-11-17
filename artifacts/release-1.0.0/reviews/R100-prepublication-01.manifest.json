@@ -1,0 +1,444 @@
+{
+  "agent_id": "ReviewRelease100",
+  "attempt_id": "R100-release-review-a1",
+  "manifest_path": "artifacts/release-1.0.0/reviews/R100-prepublication-01.manifest.json",
+  "report_path": "artifacts/release-1.0.0/reviews/R100-prepublication-01.md",
+  "schema": "omp-reviewed-snapshot/v1",
+  "snapshot": {
+    "base_commit_sha": "081ff2f0f43a295cbf273026a84f4aad265a688f",
+    "git_c_root": "F:/ai-ml/aegis-f",
+    "repository": "F:/ai-ml/aegis-f/.git",
+    "scope": [
+      {
+        "base_blob_oid": "70e517edd351baf89e73003b8e6c56828c716e26",
+        "base_mode": "100644",
+        "path": ".gitignore",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "0896fd30f130723927ca9b71e2008728da76913c10467ce8009d57d9721610fe"
+      },
+      {
+        "base_blob_oid": "fb8f3c6677eb5b581a2acd412e9d9b0e84206d8b",
+        "base_mode": "100644",
+        "path": "CHANGELOG.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "78829bcebe0057d3beb2c33edbfbfacb060d0c87cdeefbfb9da49eb3dc1a7d0c"
+      },
+      {
+        "base_blob_oid": "91feb55bd933ec2ef97698c8929bd29a173021fa",
+        "base_mode": "100644",
+        "path": "README.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "3fc16d3905bfcd46c05f069326c0e5a3ab10bb6fe307645f291d83945fad028d"
+      },
+      {
+        "base_blob_oid": "3fbcd805268206a110d7016a58f6b3c5604b225a",
+        "base_mode": "100644",
+        "path": "app/build.gradle.kts",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "68293a6a59b55c433c3dbfccdec3d0e6c12402ff21af5e42a43d96df81ecfeca"
+      },
+      {
+        "base_blob_oid": "cac18012e5c7faf0e2537b2ca58b974efa775991",
+        "base_mode": "100644",
+        "path": "app/src/main/AndroidManifest.xml",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "180d7a07d9ba6c663a5c128b7ba5de745ccf7a9caae5b39e3d7895562bcb0289"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/main/res/drawable-nodpi/ic_launcher_foreground.png",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "3f360e15d7bf6226caaa35f800b6c9ee27bf65e05f19b2845af4d7b0d067eb90"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "32715ff646f6b9fef7c321138e4a14556c4a1f98a87b06070b56f41643dad718"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/main/res/mipmap-hdpi/ic_launcher.png",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "812f48f4532e6dca23bdfae6e5454b7d28caf120bb0c252a72c606123ac8d852"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/main/res/mipmap-ldpi/ic_launcher.png",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "d1988bfda699d269fb26993abe49e17f5f3dc425e03255460f9eb1e1f5da6eee"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/main/res/mipmap-mdpi/ic_launcher.png",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "ca16f67782d6e4cc6a68cbeae1c85e1ebe7828f43dab6ff48aef334aecdef7ba"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/main/res/mipmap-xhdpi/ic_launcher.png",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "012a509740eec6185dfa681b698d9ff90ffcebf9bdc9e69010ab163a377b4b75"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/main/res/mipmap-xxhdpi/ic_launcher.png",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "81bb7e2ab8a610f5bfe5a7d05a0acfaefc5ac5b7bda8e36da7335988d9995a55"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "ebc3af87d471f5cf666c1b7e7d3ff21d7b039194abe6dde7b6664ab58d8b3964"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "app/src/main/res/values/colors.xml",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "32aaddc6e8540e5a915244db719ad98cbd6693c5731b9856d1d31772f3d130d9"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/release-1.0.0/handoffs/R100-logo-a1.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "03560046461bae642a6ffb9791a2c258a1436687a38a1217fa947bf0b3589269"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/release-1.0.0/handoffs/R100-release-a1.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "c90cfcacfaf2b8005c1b156e7cddadfe0343273cbde8199ffcaacb8cc20f65eb"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/release-1.0.0/logo/aegis-f-app-logo-1024.png",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "3f360e15d7bf6226caaa35f800b6c9ee27bf65e05f19b2845af4d7b0d067eb90"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/release-1.0.0/workers/R100-logo-a1.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "2ebd7efb3cd203f8bbe01fa6b0f363fb174d58f881879d734ebb41e0b0e0db31"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/release-1.0.0/workers/R100-release-a1.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "23d1152c59d5e2c8c0232ad5524aa02f1a0aec7da7a33eb607bd08c48728e152"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/checkpoints/S11.1-checkpoint-01.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "c27e51b75d10823fc6c61107f2e95193144fb58c7e71c26fbf7831f082da00bc"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/checkpoints/S11.10-checkpoint-01.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "f3cb36cd03144317c9dc5dacd18b464c486c25d65f79386b55e9318696bdec79"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/checkpoints/S11.10-checkpoint-02.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "410bf722c16ee20ae4c7c7a60fbfb76049529d741a2834da37da7f61fa70c99e"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/checkpoints/S11.2-checkpoint-01.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "aaf88bb43846cb1f7ed50da19fb6f05530f7d299bb29c278f61d402d65c63587"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/checkpoints/S11.3-checkpoint-01.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "3fd563f47845aaf244a803d05964fdd04179f90fefcd3ea35441f9bd42da737e"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/checkpoints/S11.4-checkpoint-01.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "aefe254d68deeb36cfea79dddd7632b5a72a7b3682421cba6557099275bd419d"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/checkpoints/S11.5-checkpoint-01.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "64d66111083fa27e3e63a77646961e57aeacb6854600c8fded6511db996d2f4b"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/checkpoints/S11.6-checkpoint-01.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "1d9d996f0f54096cfe306d6dbe9b80b4ec93acb0229d91e02a33d3ae315255ff"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/checkpoints/S11.8-checkpoint-01.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "0ab59a606576655a1af5fbeaab7682a4269eae1af36c97613659d24f0351fd38"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/checkpoints/S11.9-checkpoint-01.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "2f5b83a9fc5ab19bc166b899f824feb45ea9d4490cdaec8d9c84bb39688432f8"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/checkpoints/S11.C1-checkpoint-01.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "12f6319ec219c58e82def2dd80ff85b06fb92bb697afe7719a910fdef851d15c"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/checkpoints/S11.C2-checkpoint-01.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "255629df0c0fc07e8d88acd7cf135100942b82715daf3bf80f97a45f959a3978"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/checkpoints/S11.C3-checkpoint-01.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "436838d0596916ed0f40e46a92ade71cea6976cd068da1fc7e5036a48d61898a"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/reviews/S11.10-review-01.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "794f375b7f260632721eca1aad4441786d54c9ac465b58d31972ddcbe91377e4"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/reviews/S11.10-review-02.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "7791bdd5517571b3074fa170100e2511b7fbfc600bab95e400e89be2ecd20e17"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/reviews/S11.2-review-02.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "d82ba64a4ed045e218e6c956bf662ec648877669d39892edc33c18dc49b0630c"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/reviews/S11.3-review-01.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "d3a2160b3bd550688a874bd1c56890068fb119c8b3777aa47f1500f01be1b80a"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/reviews/S11.4-review-01.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "046251d12cc87d49882a4d8fb7ab4a2058758104cc6f9369e241c2780978f17f"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/reviews/S11.9-review-01.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "3b5cc46ae7cb5b608c19e0f491ef2fd7d42ebd9085a7ff33793f06d8591d4e2a"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/reviews/S11.C1-review-01.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "da3cfec02df6829342231ede5fb39abf0301d039ca0897b7c2a17b65dcb34de6"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/reviews/S11.C2-review-01.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "1f3500a42d9a419e6df872c8e502bdebdc4eeb3f8ee25fc54c73297eb0b6b01a"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/reviews/S11.C3-review-01.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "f91a855b14554a2545cd5aebafd4509c940eb14ef08341e9eddf0f465d0bdd6a"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/reviews/final-differential-01.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "253e037a989b49f28fd47f0404fb9f2184645144caec50e9d0f9c77680ea4205"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/reviews/final-differential-02.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "72d81b9d70c56ff64e866be74e12caf3b2d8fd9c8ee70db23efdd09138bf98a4"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/workers/S11.10-a1.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "2ea2d460f4c577dccf1617498f55efbf3b4f4f13e5427e5a43e07dc4f3e2a4f7"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/workers/S11.10-a2.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "1204ad70d2ba4d07582ab5bcd7cb20b3d76d43d7f722e8f01f08779eee6e63ce"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/workers/S11.8-a1.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "5b06a345f3f1cdde5cda0b72219da23e72a386100476dc7f4784405cd7da54da"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/workers/S11.8-a2.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "cd4b2776d99ad0e53ef15c2903aacd7f2833a92bea9ff081e84914f4e304cf73"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/workers/S11.9-a1.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "3c752a545294b06b278c3a01a29e3f0a4449613509d0734f41eaeca0bfa8603c"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/workers/S11.C1-a1.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "d3683c572119f8a87cc83b1eeee3312b7f29bdda85d1a0c14bf295071cdf39d2"
+      },
+      {
+        "base_blob_oid": null,
+        "base_mode": null,
+        "path": "artifacts/sprint-11/workers/S11.C3-a1.md",
+        "status": "added",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "4770e68c324a4987cb9095085499314b3114570c3db3f3fbb3da268461ae54eb"
+      },
+      {
+        "base_blob_oid": "1db873cea22d77030978f41a3ff902a4585fed47",
+        "base_mode": "100644",
+        "path": "docs/PLAN.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "5318ec346b1a720dfc15d378b7fbf78bbc7932676212adc24e85f302e022b8e8"
+      },
+      {
+        "base_blob_oid": "e1612f6fb3eaaf61093e07c1cc5fb6fab6131674",
+        "base_mode": "100644",
+        "path": "docs/developer-setup.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "7b6e5dc2c0dd3e52142b48bb4ab06d77bd5b32a5e6ffc8222df7c561928536f4"
+      },
+      {
+        "base_blob_oid": "eb7e2b52d57c09058fb2a1ba98d78155c29da8a8",
+        "base_mode": "100644",
+        "path": "docs/sprint-plans/sprint-11.md",
+        "status": "modified",
+        "worktree_mode": "100644",
+        "worktree_raw_sha256": "7dd6ce70e15496676c989d75c7240873316088f9188e0b01ab7ae637c2660b29"
+      }
+    ],
+    "target_ref": "refs/heads/main",
+    "worktree": "F:/ai-ml/aegis-f"
+  },
+  "snapshot_sha256": "37bf05519053f449223b73859e0ad870bdd86bcdbfc4136bec232d4ce02dd636",
+  "task_id": "R100-release",
+  "worker_artifact_path": "artifacts/release-1.0.0/workers/R100-release-a1.md",
+  "worker_attempt_id": "R100-release-a1"
+}
