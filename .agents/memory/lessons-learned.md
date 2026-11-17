@@ -466,3 +466,10 @@ and allow only the exact validated external report rather than opening a blanket
 **Fix / workaround:** Use `icacls.exe /inheritance:r /grant:r` to restrict the local signing directory to the current account, and call `.NET` `System.Security.Cryptography.ProtectedData` after `Add-Type -AssemblyName System.Security` for CurrentUser DPAPI. A non-secret random-byte round trip succeeded.
 
 **Watch out for:** In this shell, avoid relying on `Microsoft.PowerShell.Security` cmdlets until the module loads cleanly; keep the credential in the protected local file and process environment without echoing it.
+
+## [2026-11-17] Patch instructions were pasted into the README as content
+
+**Symptom:** The README Status list contained a literal file anchor, `PUT >259:`, and a `+`-prefixed duplicate release-artifact section between two complete bullets. The insertion also omitted the canonical developer guide's source-mapping caveat.
+**Root cause:** A patch/edit hunk header and body were inserted into Markdown as literal document content instead of being applied as an edit.
+**Fix / workaround:** Removed only the leaked block and retained the canonical `docs/developer-setup.md` provenance section, including its Main-supplied-source-base caveat.
+**Watch out for:** After Markdown edits that use patch syntax, inspect the resulting insertion and narrowly search for literal hunk markers and leading `+` lines; confirm list continuity and keep provenance in its canonical section.
